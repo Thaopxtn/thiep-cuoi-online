@@ -43,6 +43,7 @@ interface EditorRightInspectorProps {
   onUpdateProps: (elementId: string, updatedProps: Record<string, any>) => void;
   onReplaceImage?: () => void;
   onRemoveBackground?: () => void;
+  isRemovingBackground?: boolean;
 }
 
 export default function EditorRightInspector({
@@ -50,6 +51,7 @@ export default function EditorRightInspector({
   onUpdateProps,
   onReplaceImage,
   onRemoveBackground,
+  isRemovingBackground = false,
 }: EditorRightInspectorProps) {
   const [activeTab, setActiveTab] = useState<"settings" | "effects">("settings");
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
@@ -182,7 +184,7 @@ export default function EditorRightInspector({
 
   const getFullImageUrl = (key: string) => {
     if (!key) return "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=400";
-    if (key.startsWith("http") || key.startsWith("blob:")) return key;
+    if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
     return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
   };
 
@@ -266,10 +268,15 @@ export default function EditorRightInspector({
                       <button
                         type="button"
                         onClick={onRemoveBackground}
-                        className="w-full py-1.5 px-3 border border-purple-200 bg-purple-50/60 hover:bg-purple-100/60 text-purple-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                        disabled={isRemovingBackground}
+                        className="w-full py-1.5 px-3 border border-purple-200 bg-purple-50/60 hover:bg-purple-100/60 disabled:opacity-60 text-purple-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        <Wand2 className="w-3.5 h-3.5 text-purple-600" />
-                        <span>Xóa phông AI</span>
+                        {isRemovingBackground ? (
+                          <Loader2 className="w-3.5 h-3.5 text-purple-600 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5 text-purple-600" />
+                        )}
+                        <span>{isRemovingBackground ? "Đang tách nền..." : "Xóa phông AI"}</span>
                       </button>
                     </div>
                   </div>

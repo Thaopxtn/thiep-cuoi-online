@@ -33,8 +33,11 @@ export default function CardNodeRenderer({
   const baseWidth = Number(rootProps.width) || 500;
   const baseHeight = Number(rootProps.height) || 4500;
   const backgroundColor = rootProps.backgroundColor || "#ffffff";
-  const backgroundImage = rootProps.backgroundImage
-    ? `https://cdn-resource.zenlove.me/${rootProps.backgroundImage.replace(/^\//, "")}`
+  const bgImg = rootProps.backgroundImage;
+  const backgroundImage = bgImg
+    ? (bgImg.startsWith("http") || bgImg.startsWith("blob:") || bgImg.startsWith("data:") || bgImg.startsWith("/uploads") || bgImg.startsWith("/")
+        ? bgImg
+        : `https://cdn-resource.zenlove.me/${bgImg.replace(/^\//, "")}`)
     : null;
 
   // Responsive scale factor calculation to fit any mobile viewport perfectly
@@ -64,7 +67,7 @@ export default function CardNodeRenderer({
 
   const getImageUrl = (key?: string) => {
     if (!key) return "";
-    if (key.startsWith("http") || key.startsWith("blob:")) return key;
+    if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
     return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
   };
 

@@ -15,6 +15,7 @@ import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { getStoredTemplateById, saveCustomTemplate } from "@/lib/templateStorage";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { saveCard, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
+import { smartRemoveBackground } from "@/lib/backgroundRemoval";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -46,6 +47,19 @@ export default function DesignTemplatePage() {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isLivePreviewOpen, setIsLivePreviewOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
+
+  // Persistent music and toast state
+  const [currentMusic, setCurrentMusic] = useState<{ title: string; url: string }>({
+    title: "Beautiful In White - Shane Filan",
+    url: "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isRemovingBg, setIsRemovingBg] = useState(false);
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
 
   // Push new state to history
   const pushHistory = useCallback(
@@ -85,6 +99,19 @@ export default function DesignTemplatePage() {
             setNodes(fetchedNodes);
             setHistory([fetchedNodes]);
             setHistoryIndex(0);
+
+            // Sync music from template nodes or metadata
+            if (fetchedNodes["ROOT"]?.props?.musicUrl) {
+              setCurrentMusic({
+                title: fetchedNodes["ROOT"].props.musicTitle || "Bản nhạc cưới",
+                url: fetchedNodes["ROOT"].props.musicUrl,
+              });
+            } else if (foundMeta?.musicUrl) {
+              setCurrentMusic({
+                title: foundMeta.musicName || "Thiên đường với người thương",
+                url: foundMeta.musicUrl,
+              });
+            }
 
             // Select initial photo element (prioritizes U4ZPPsHPXy matching user's screenshot!)
             const targetPhotoNode = fetchedNodes["U4ZPPsHPXy"]
@@ -257,6 +284,84 @@ export default function DesignTemplatePage() {
     });
   };
 
+  // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S, Delete, Duplicate, Nudge, Deselect)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
+
+      // Undo: Ctrl + Z
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      }
+      // Redo: Ctrl + Y or Ctrl + Shift + Z
+      else if (
+        (e.ctrlKey || e.metaKey) &&
+        (e.key.toLowerCase() === "y" || (e.shiftKey && e.key.toLowerCase() === "z"))
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+      // Save: Ctrl + S
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        const card = buildCardFromCurrentState();
+        saveCard(card);
+        setIsSaved(true);
+        showToast("💾 Đã lưu bản thiết kế thiệp cưới!");
+      }
+      // Duplicate: Ctrl + D
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d" && selectedElement) {
+        e.preventDefault();
+        handleDuplicateElement(selectedElement.id);
+        showToast("✨ Đã nhân bản phần tử!");
+      }
+      // Delete: Delete or Backspace
+      else if ((e.key === "Delete" || e.key === "Backspace") && selectedElement) {
+        e.preventDefault();
+        handleDeleteElement(selectedElement.id);
+        showToast("🗑️ Đã xóa phần tử!");
+      }
+      // Deselect or close modals: Escape
+      else if (e.key === "Escape") {
+        setSelectedElement(null);
+        setIsPublishModalOpen(false);
+        setIsLivePreviewOpen(false);
+        setIsShortcutsModalOpen(false);
+      }
+      // Nudge with Arrow Keys (1px, or 10px with Shift)
+      else if (
+        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) &&
+        selectedElement
+      ) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const currentLeft = Number(selectedElement.props?.left ?? 0);
+        const currentTop = Number(selectedElement.props?.top ?? 0);
+        let newLeft = currentLeft;
+        let newTop = currentTop;
+
+        if (e.key === "ArrowUp") newTop -= step;
+        if (e.key === "ArrowDown") newTop += step;
+        if (e.key === "ArrowLeft") newLeft -= step;
+        if (e.key === "ArrowRight") newLeft += step;
+
+        handleUpdateProps(selectedElement.id, { left: newLeft, top: newTop });
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [historyIndex, history, selectedElement, nodes]);
+
   // Add new image from left drawer
   const handleAddImage = (url: string) => {
     const newId = `photo_${Date.now()}`;
@@ -306,10 +411,72 @@ export default function DesignTemplatePage() {
     });
   };
 
-  // Change background music
+  // Change background music with full persistence
   const handleChangeMusic = (title: string, url: string) => {
-    setIsSaved(false);
-    setTimeout(() => setIsSaved(true), 800);
+    setCurrentMusic({ title, url });
+    setNodes((prev) => {
+      const root = prev["ROOT"] || { type: { resolvedName: "GeometricBox" }, props: {} };
+      const updatedProps = { ...root.props, musicTitle: title, musicUrl: url };
+      const newNodes = { ...prev, ROOT: { ...root, props: updatedProps } };
+      pushHistory(newNodes);
+      return newNodes;
+    });
+
+    const currentCard = buildCardFromCurrentState();
+    currentCard.musicTitle = title;
+    currentCard.musicUrl = url;
+    saveCard(currentCard);
+
+    // Sync to Supabase in background
+    fetch(`/api/cards/${currentCard.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(currentCard),
+    }).catch(() => {});
+
+    showToast(`🎵 Đã chọn nhạc nền: "${title}"`);
+  };
+
+  // AI Background Removal for Wedding Photo (0đ zero-cost)
+  const handleRemoveBackground = async () => {
+    let targetId = selectedElement?.id;
+    let targetUrl = selectedElement?.props?.imgKey || selectedElement?.props?.src;
+
+    if (!targetUrl) {
+      const firstPhoto = Object.entries(nodes).find(
+        ([, n]: [string, any]) =>
+          n.type?.resolvedName === "PhotoBox" && (n.props?.imgKey || n.props?.src)
+      );
+      if (firstPhoto) {
+        targetId = firstPhoto[0];
+        targetUrl = firstPhoto[1].props?.imgKey || firstPhoto[1].props?.src;
+        setSelectedElement({ id: targetId, type: "PhotoBox", props: firstPhoto[1].props });
+      }
+    }
+
+    if (!targetUrl || !targetId) {
+      showToast("Vui lòng chọn một ảnh trên thiệp để xóa phông nền");
+      return;
+    }
+
+    try {
+      setIsRemovingBg(true);
+      showToast("✨ Đang dùng AI tách phông nền ảnh cưới...");
+      const transparentPng = await smartRemoveBackground(targetUrl);
+
+      handleUpdateProps(targetId, {
+        imgKey: transparentPng,
+        src: transparentPng,
+        hasBoxShadow: true,
+        boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
+      });
+      showToast("✨ Đã tách phông nền thành công (0đ chi phí)!");
+    } catch (err) {
+      console.error("Lỗi xóa nền:", err);
+      showToast("Không thể xóa nền ảnh này, vui lòng thử lại");
+    } finally {
+      setIsRemovingBg(false);
+    }
   };
 
   // Change background styling (Color, texture, image)
@@ -556,8 +723,13 @@ export default function DesignTemplatePage() {
         },
       ],
       album: existing?.album || [],
-      musicTitle: existing?.musicTitle || currentZenloveTemplate?.musicName || "Thiên đường với người thương",
+      musicTitle:
+        currentMusic.title ||
+        existing?.musicTitle ||
+        currentZenloveTemplate?.musicName ||
+        "Thiên đường với người thương",
       musicUrl:
+        currentMusic.url ||
         existing?.musicUrl ||
         currentZenloveTemplate?.musicUrl ||
         "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
@@ -586,7 +758,7 @@ export default function DesignTemplatePage() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans">
+    <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans relative">
       {/* ================= 1. TOP HEADER (Exact match to screenshot!) ================= */}
       <EditorHeader
         templateName={templateName}
@@ -629,34 +801,9 @@ export default function DesignTemplatePage() {
           }}
           onChangeBackground={handleChangeBackground}
           onAddStock={handleAddStock}
-          onRemoveBackground={async () => {
-            if (selectedElement && selectedElement.props?.imgKey) {
-              try {
-                const res = await fetch("/api/tools/remove-bg", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ imageUrl: selectedElement.props.imgKey }),
-                });
-                const data = await res.json();
-                if (data.success && data.outputUrl) {
-                  handleUpdateProps(selectedElement.id, {
-                    imgKey: data.outputUrl,
-                    src: data.outputUrl,
-                    hasBoxShadow: true,
-                    boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
-                  });
-                }
-              } catch (e) {
-                console.error("Lỗi xóa nền AI:", e);
-              }
-            }
-          }}
-          currentMusic={{
-            title: currentZenloveTemplate?.musicName || "Beautiful In White - Shane Filan",
-            url:
-              currentZenloveTemplate?.musicUrl ||
-              "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
-          }}
+          onRemoveBackground={handleRemoveBackground}
+          isRemovingBackground={isRemovingBg}
+          currentMusic={currentMusic}
           onChangeMusic={handleChangeMusic}
           onAddWidget={handleAddWidget}
           onSelectTemplate={handleSelectTemplate}
@@ -686,29 +833,17 @@ export default function DesignTemplatePage() {
             setActiveLeftTab("image");
             setIsLeftDrawerOpen(true);
           }}
-          onRemoveBackground={async () => {
-            if (selectedElement && selectedElement.props?.imgKey) {
-              try {
-                const res = await fetch("/api/tools/remove-bg", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ imageUrl: selectedElement.props.imgKey }),
-                });
-                const data = await res.json();
-                if (data.success && data.outputUrl) {
-                  handleUpdateProps(selectedElement.id, {
-                    imgKey: data.outputUrl,
-                    hasBoxShadow: true,
-                    boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
-                  });
-                }
-              } catch (e) {
-                console.error("Lỗi xóa nền AI:", e);
-              }
-            }
-          }}
+          onRemoveBackground={handleRemoveBackground}
+          isRemovingBackground={isRemovingBg}
         />
       </div>
+
+      {/* Floating Toast Notification */}
+      {toastMessage && (
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[999999] px-4 py-2.5 bg-zinc-900/95 text-white text-xs font-semibold rounded-2xl shadow-2xl border border-zinc-700/80 backdrop-blur-md flex items-center gap-2 animate-bounce-subtle">
+          <span>{toastMessage}</span>
+        </div>
+      )}
 
       {/* ================= 3. MODALS ================= */}
       <EditorPublishModal

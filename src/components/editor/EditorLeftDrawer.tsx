@@ -62,6 +62,7 @@ interface EditorLeftDrawerProps {
   onAddStock?: (stockUrl: string, name: string) => void;
   // Tools
   onRemoveBackground?: () => void;
+  isRemovingBackground?: boolean;
   // Music
   currentMusic?: { title: string; url: string };
   onChangeMusic: (title: string, url: string) => void;
@@ -94,6 +95,7 @@ export default function EditorLeftDrawer({
   onChangeBackground,
   onAddStock,
   onRemoveBackground,
+  isRemovingBackground = false,
   currentMusic,
   onChangeMusic,
   onAddWidget,
@@ -133,6 +135,37 @@ export default function EditorLeftDrawer({
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Audio upload state
+  const audioFileInputRef = useRef<HTMLInputElement>(null);
+  const [customAudioUrl, setCustomAudioUrl] = useState("");
+  const [isUploadingAudio, setIsUploadingAudio] = useState(false);
+
+  const handleAudioUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingAudio(true);
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      let audioSrc = "";
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) audioSrc = json.url;
+      }
+      if (!audioSrc) {
+        audioSrc = URL.createObjectURL(file);
+      }
+      const title = file.name.replace(/\.[^/.]+$/, "");
+      onChangeMusic(title, audioSrc);
+    } catch (err) {
+      console.error("Lỗi upload nhạc:", err);
+    } finally {
+      setIsUploadingAudio(false);
+      if (audioFileInputRef.current) audioFileInputRef.current.value = "";
+    }
+  };
 
   // Templates Tab state
   const [searchTemplate, setSearchTemplate] = useState("");
@@ -840,9 +873,17 @@ export default function EditorLeftDrawer({
               <button
                 type="button"
                 onClick={onRemoveBackground}
-                className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95"
+                disabled={isRemovingBackground}
+                className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
               >
-                <span>Xóa phông ảnh đang chọn</span>
+                {isRemovingBackground ? (
+                  <>
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <span>Đang AI tách nền...</span>
+                  </>
+                ) : (
+                  <span>Xóa phông ảnh đang chọn</span>
+                )}
               </button>
             </div>
 
@@ -938,10 +979,85 @@ export default function EditorLeftDrawer({
 
         {/* ================= 6. TAB: NHẠC NỀN ================= */}
         {activeTab === "music" && (
-          <div className="space-y-3">
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Chọn bản nhạc du dương để phát tự động khi khách mở thiệp cưới:
-            </p>
+          <div className="space-y-3.5">
+            {/* Current Active Music Card */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200/80 shadow-2xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-rose-600 block mb-1">
+                Nhạc nền đang phát trên thiệp:
+              </span>
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-[#e54153] text-white flex items-center justify-center shrink-0">
+                  <Music className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-gray-900 truncate">
+                    {currentMusic?.title || "Chưa chọn nhạc"}
+                  </p>
+                  <p className="text-[10px] text-gray-500 font-mono truncate">
+                    {currentMusic?.url ? "Tự động phát khi mở thiệp" : "Không phát"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Custom MP3 Upload */}
+            <div>
+              <input
+                ref={audioFileInputRef}
+                type="file"
+                accept="audio/*,.mp3,.m4a,.wav"
+                onChange={handleAudioUpload}
+                className="hidden"
+              />
+              <button
+                type="button"
+                onClick={() => audioFileInputRef.current?.click()}
+                disabled={isUploadingAudio}
+                className="w-full py-2.5 px-3 rounded-xl border border-dashed border-rose-300 hover:border-[#e54153] bg-white hover:bg-rose-50/30 text-xs font-bold text-gray-800 flex items-center justify-center gap-2 transition-all shadow-2xs cursor-pointer"
+              >
+                {isUploadingAudio ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-[#e54153] animate-spin" />
+                    <span>Đang tải lên bài hát...</span>
+                  </>
+                ) : (
+                  <>
+                    <UploadCloud className="w-4 h-4 text-[#e54153]" />
+                    <span>Tải lên file MP3 của riêng bạn</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Custom URL Input */}
+            <div className="flex items-center gap-1.5">
+              <input
+                type="text"
+                value={customAudioUrl}
+                onChange={(e) => setCustomAudioUrl(e.target.value)}
+                placeholder="Dán link nhạc MP3 trực tiếp..."
+                className="flex-1 px-3 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:border-[#e54153] focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  if (customAudioUrl.trim()) {
+                    onChangeMusic("Bản nhạc tự chọn", customAudioUrl.trim());
+                    setCustomAudioUrl("");
+                  }
+                }}
+                disabled={!customAudioUrl.trim()}
+                className="px-3 py-2 bg-gray-900 hover:bg-[#e54153] disabled:opacity-40 text-white rounded-xl text-xs font-bold transition-colors shrink-0"
+              >
+                Áp dụng
+              </button>
+            </div>
+
+            <div className="border-t border-gray-100 pt-2">
+              <span className="text-xs font-bold text-gray-800 block mb-2">
+                Hoặc chọn bản tình ca gợi ý sẵn:
+              </span>
+            </div>
 
             <div className="space-y-2">
               {weddingSongs.map((song) => {

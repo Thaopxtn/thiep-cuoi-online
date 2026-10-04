@@ -44,3 +44,5 @@ scratch/
 # Temporary scratch & system
 /.agents
 /.gemini
+public/uploads/*
+!public/uploads/.gitkeep

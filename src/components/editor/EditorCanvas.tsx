@@ -52,8 +52,11 @@ export default function EditorCanvas({
   const canvasWidth = rootProps.width || 500;
   const canvasHeight = rootProps.height || 5270;
   const backgroundColor = rootProps.backgroundColor || "#ffffff";
-  const backgroundImage = rootProps.backgroundImage
-    ? `https://cdn-resource.zenlove.me/${rootProps.backgroundImage.replace(/^\//, "")}`
+  const bgImg = rootProps.backgroundImage;
+  const backgroundImage = bgImg
+    ? (bgImg.startsWith("http") || bgImg.startsWith("blob:") || bgImg.startsWith("data:") || bgImg.startsWith("/uploads") || bgImg.startsWith("/")
+        ? bgImg
+        : `https://cdn-resource.zenlove.me/${bgImg.replace(/^\//, "")}`)
     : null;
 
   // Extract all child node entries in proper z-order
@@ -116,7 +119,7 @@ export default function EditorCanvas({
 
   const getImageUrl = (key: string) => {
     if (!key) return "";
-    if (key.startsWith("http") || key.startsWith("blob:")) return key;
+    if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
     return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
   };
 
@@ -253,15 +256,6 @@ export default function EditorCanvas({
         }
       }}
     >
-      {/* Hidden file input for Thay ảnh nhanh */}
-      <input
-        ref={quickFileInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handleQuickFileChange}
-        className="hidden"
-      />
-
       {/* ================= INVITATION CANVAS CONTAINER ================= */}
       <div
         className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0"
