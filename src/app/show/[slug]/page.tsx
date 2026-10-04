@@ -33,6 +33,7 @@ import {
   incrementCardViews,
   WeddingCard,
 } from "@/lib/weddingCardService";
+import FallingPetals from "@/components/FallingPetals";
 
 export default function ShowInvitationPage() {
   const params = useParams();
@@ -41,8 +42,10 @@ export default function ShowInvitationPage() {
   // Card state
   const [card, setCard] = useState<WeddingCard | null>(null);
 
-  // Envelope state (opened or closed)
+  // Envelope state (opened or closed & 3D opening animation)
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
+  const [isEnvelopeOpening, setIsEnvelopeOpening] = useState(false);
+  const [petalsEnabled, setPetalsEnabled] = useState(true);
 
   // Audio state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -119,10 +122,15 @@ export default function ShowInvitationPage() {
   };
 
   const handleOpenEnvelope = () => {
-    setIsEnvelopeOpen(true);
+    if (isEnvelopeOpening) return;
+    setIsEnvelopeOpening(true);
     if (audioRef.current && !isPlayingAudio) {
       audioRef.current.play().then(() => setIsPlayingAudio(true)).catch(() => {});
     }
+    setTimeout(() => {
+      setIsEnvelopeOpen(true);
+      setIsEnvelopeOpening(false);
+    }, 1150);
   };
 
   // RSVP Form state
@@ -219,34 +227,81 @@ export default function ShowInvitationPage() {
         preload="auto"
       />
 
-      {/* Floating Audio Controller */}
-      <div className="fixed top-4 right-4 z-50">
+      {/* Falling Rose Petals HTML5 Canvas Engine */}
+      <FallingPetals density={26} active={petalsEnabled} />
+
+      {/* Floating Vinyl Record Audio Player + Petals Toggle */}
+      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        {/* Falling Petals Toggle Button */}
         <button
           type="button"
-          onClick={toggleAudio}
-          className={`px-3 py-2 rounded-full backdrop-blur-md border shadow-lg flex items-center gap-2 transition-all ${
-            isPlayingAudio
-              ? "bg-rose-600/90 text-white border-rose-400 animate-pulse"
-              : "bg-white/80 text-gray-700 border-gray-200 hover:bg-white"
+          onClick={() => setPetalsEnabled(!petalsEnabled)}
+          className={`p-2 rounded-full backdrop-blur-md border shadow-lg transition-all ${
+            petalsEnabled
+              ? "bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100"
+              : "bg-white/80 text-gray-400 border-gray-200 hover:bg-white"
           }`}
-          title={isPlayingAudio ? "Tắt nhạc" : "Bật nhạc"}
+          title={petalsEnabled ? "Tắt hiệu ứng hoa rơi" : "Bật hiệu ứng hoa rơi"}
         >
-          <div className={`w-5 h-5 rounded-full flex items-center justify-center ${isPlayingAudio ? "animate-spin" : ""}`}>
-            <Music className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-xs font-semibold hidden sm:inline">
-            {isPlayingAudio ? card.musicTitle || "Đang phát nhạc..." : "Nhạc nền"}
-          </span>
-          {isPlayingAudio ? (
-            <Volume2 className="w-3.5 h-3.5" />
-          ) : (
-            <VolumeX className="w-3.5 h-3.5 opacity-60" />
-          )}
+          <Sparkles className={`w-4 h-4 ${petalsEnabled ? "animate-spin" : ""}`} />
         </button>
+
+        {/* Vinyl Record Player Card */}
+        <div
+          onClick={toggleAudio}
+          className="bg-white/90 backdrop-blur-md pl-1.5 pr-3 py-1.5 rounded-full border border-amber-900/15 shadow-xl flex items-center gap-2.5 cursor-pointer hover:bg-white transition-all group select-none relative"
+        >
+          {/* Spinning Vinyl Record Disk */}
+          <div className="relative w-9 h-9 shrink-0 flex items-center justify-center">
+            <div
+              className={`w-9 h-9 rounded-full bg-[#111111] border border-amber-500/40 shadow-md flex items-center justify-center transition-all ${
+                isPlayingAudio ? "animate-vinyl-spin" : ""
+              }`}
+              style={{
+                backgroundImage:
+                  "radial-gradient(circle, #2a2a2a 1px, transparent 1px), radial-gradient(circle, #2a2a2a 1px, #141414 1px)",
+                backgroundSize: "6px 6px, 100% 100%",
+              }}
+            >
+              {/* Center Album Label */}
+              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 border border-white flex items-center justify-center">
+                <div className="w-1 h-1 rounded-full bg-black"></div>
+              </div>
+            </div>
+
+            {/* Tonearm needle indicator */}
+            <div
+              className={`absolute top-0 -right-0.5 w-1 h-4 bg-amber-400 origin-top rounded-full shadow-xs transition-transform duration-500 ${
+                isPlayingAudio ? "rotate-25" : "-rotate-45 opacity-60"
+              }`}
+            />
+          </div>
+
+          {/* Dancing Equalizer Bars + Title */}
+          <div className="flex flex-col min-w-0 pr-1">
+            <span className="text-[11px] font-bold text-gray-800 truncate max-w-[100px] leading-tight">
+              {isPlayingAudio ? (card.musicTitle || "Nhạc cưới") : "Phát nhạc"}
+            </span>
+            <div className="flex items-end gap-0.5 h-3 mt-0.5">
+              <span className={`w-0.5 rounded-full bg-rose-500 ${isPlayingAudio ? "animate-eq-1" : "h-1"}`} />
+              <span className={`w-0.5 rounded-full bg-amber-500 ${isPlayingAudio ? "animate-eq-2" : "h-2"}`} />
+              <span className={`w-0.5 rounded-full bg-rose-500 ${isPlayingAudio ? "animate-eq-3" : "h-1"}`} />
+              <span className={`w-0.5 rounded-full bg-amber-500 ${isPlayingAudio ? "animate-eq-4" : "h-2"}`} />
+            </div>
+          </div>
+
+          {/* Musical Notes Floating when playing */}
+          {isPlayingAudio && (
+            <>
+              <span className="absolute -top-3 right-1 text-rose-500 font-bold text-xs animate-bounce pointer-events-none">♪</span>
+              <span className="absolute -top-5 right-5 text-amber-500 font-bold text-sm animate-pulse pointer-events-none">♫</span>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Top Floating Logo / Home link */}
-      <div className="fixed top-4 left-4 z-50">
+      <div className="fixed top-4 left-4 z-40">
         <Link
           href="/"
           className="px-3.5 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-gray-200 shadow-sm flex items-center gap-1.5 text-xs font-bold text-gray-800 hover:text-zen-primary transition-colors"
@@ -256,49 +311,107 @@ export default function ShowInvitationPage() {
         </Link>
       </div>
 
-      {/* ================= ENVELOPE MODAL (IF CLOSED) ================= */}
+      {/* ================= 3D ENVELOPE MODAL (IF CLOSED) ================= */}
       {!isEnvelopeOpen && (
-        <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-sm bg-[#511419] rounded-2xl shadow-2xl p-6 sm:p-8 text-center text-amber-50 border border-amber-900/40 relative overflow-hidden animate-scale-in">
-            {/* Architectural Sketch Background */}
-            <div
-              className="absolute inset-0 opacity-15 pointer-events-none bg-cover bg-center"
-              style={{
-                backgroundImage:
-                  "url('https://cdn-resource.zenlove.me/resources/mldw1mdn28infjta.png')",
-              }}
-            />
+        <div className={`fixed inset-0 z-50 bg-[#25080c]/90 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-opacity duration-700 ${isEnvelopeOpening ? "pointer-events-none" : ""}`}>
+          {/* Architectural Sketch Background */}
+          <div
+            className="absolute inset-0 opacity-15 pointer-events-none bg-cover bg-center"
+            style={{
+              backgroundImage:
+                "url('https://cdn-resource.zenlove.me/resources/mldw1mdn28infjta.png')",
+            }}
+          />
 
-            {/* Floral Bouquet Graphic */}
-            <div className="w-20 h-20 mx-auto mb-4 relative">
-              <div className="w-full h-full rounded-full bg-amber-900/40 flex items-center justify-center border border-amber-400/30">
-                <Sparkles className="w-9 h-9 text-amber-300 animate-pulse" />
+          {/* The 3D Envelope Physics Wrapper */}
+          <div className="w-full max-w-[360px] perspective-envelope relative animate-scale-in">
+            <div className="relative w-full h-[250px] transform-style-3d">
+              {/* Envelope Back Paper / Lining */}
+              <div className="absolute inset-0 bg-[#3d0d12] rounded-2xl border border-amber-500/30 shadow-2xl overflow-hidden" />
+
+              {/* Sliding Invitation Letter inside the envelope */}
+              <div
+                className={`envelope-letter-slide absolute inset-x-4 top-3 bottom-3 bg-[#fffefb] rounded-xl border border-amber-900/15 shadow-xl p-5 text-center flex flex-col justify-between z-10 ${
+                  isEnvelopeOpening ? "envelope-letter-up" : ""
+                }`}
+              >
+                <div className="border border-amber-700/20 rounded-lg p-3 h-full flex flex-col justify-between">
+                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-800">
+                    Thiệp Mời Thành Hôn
+                  </span>
+                  <div className="my-auto py-2">
+                    <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
+                      {card.groom.name}
+                    </h2>
+                    <span className="text-xs text-amber-800 font-serif italic">&</span>
+                    <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
+                      {card.bride.name}
+                    </h2>
+                  </div>
+                  <div className="text-[10px] text-gray-600 font-medium border-t border-amber-700/10 pt-2">
+                    <p className="font-bold text-[#511419]">{card.weddingDate}</p>
+                    <p className="truncate text-gray-500">{card.events?.[0]?.venue || "Trung tâm tiệc cưới"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Envelope Front Pocket (Burgundy folded flaps) */}
+              <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-end">
+                <div
+                  className="w-full h-[180px] bg-gradient-to-t from-[#480f14] via-[#511419] to-[#5d161d] rounded-b-2xl border-b border-x border-amber-500/30 shadow-[0_-8px_20px_rgba(0,0,0,0.35)] relative overflow-hidden"
+                  style={{
+                    clipPath: "polygon(0 0, 50% 35%, 100% 0, 100% 100%, 0 100%)",
+                  }}
+                >
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-center">
+                    <span className="text-[10px] tracking-widest uppercase font-serif text-amber-300/80 font-semibold">
+                      ZenLove Wedding
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3D Top Flap with Wax Seal Stamp */}
+              <div
+                className={`envelope-flap-3d absolute top-0 inset-x-0 h-[150px] z-30 origin-top cursor-pointer ${
+                  isEnvelopeOpening ? "envelope-flap-open" : ""
+                }`}
+                onClick={handleOpenEnvelope}
+              >
+                {/* Flap triangle */}
+                <div
+                  className="w-full h-full bg-gradient-to-b from-[#6b1b22] via-[#561318] to-[#450e12] rounded-t-2xl shadow-lg border-t border-x border-amber-400/40 relative flex items-end justify-center pb-2"
+                  style={{
+                    clipPath: "polygon(0 0, 100% 0, 50% 100%)",
+                  }}
+                >
+                  <div className="absolute inset-0 bg-black/10" />
+                </div>
+
+                {/* 3D Wax Seal Stamp (Con dấu sáp đỏ viền vàng) */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEnvelope();
+                  }}
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 border-2 border-amber-200/80 shadow-[0_10px_25px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.4)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer group z-40"
+                  title="Chạm để mở thiệp cưới"
+                >
+                  <div className="w-10 h-10 rounded-full border border-amber-200/60 bg-gradient-to-br from-[#7a1c24] to-[#4a0d12] flex items-center justify-center shadow-inner">
+                    <Heart className="w-5 h-5 text-amber-300 fill-amber-300 group-hover:scale-110 transition-transform drop-shadow" />
+                  </div>
+                </button>
               </div>
             </div>
 
-            <p className="text-xs uppercase tracking-widest text-amber-200/80 font-medium">
-              Thiệp Mời Cưới Hoàng Gia
-            </p>
-            <h2 className="text-2xl sm:text-3xl font-serif font-bold text-amber-100 mt-2">
-              {card.groom.name} & {card.bride.name}
-            </h2>
-            <p className="text-xs text-amber-200/90 mt-2 italic">
-              "{card.story}"
-            </p>
-
-            {/* Wax Seal Button to Open */}
-            <div className="mt-8 flex flex-col items-center">
-              <button
-                type="button"
-                onClick={handleOpenEnvelope}
-                className="w-16 h-16 rounded-full bg-gradient-to-br from-amber-300 via-amber-500 to-amber-700 shadow-xl border-2 border-amber-200/60 flex items-center justify-center text-amber-950 font-serif font-bold text-lg hover:scale-110 active:scale-95 transition-all cursor-pointer group"
-                title="Nhấn để mở thiệp"
-              >
-                <Heart className="w-7 h-7 text-amber-950 fill-amber-950 group-hover:scale-110 transition-transform" />
-              </button>
-              <span className="text-xs text-amber-300 mt-3 font-semibold animate-bounce">
-                Chạm để mở thiệp cưới 💌
-              </span>
+            {/* Guide text */}
+            <div className="mt-14 text-center">
+              <p className="text-xs text-amber-200/90 font-medium animate-bounce flex items-center justify-center gap-1.5">
+                <span>💌</span>
+                <span>Chạm vào con dấu để mở thiệp cưới</span>
+                <span>💌</span>
+              </p>
             </div>
           </div>
         </div>
@@ -323,21 +436,21 @@ export default function ShowInvitationPage() {
           </p>
           <div className="w-12 h-0.5 bg-amber-700/30 mx-auto mb-4"></div>
 
-          {/* Groom & Bride Typography */}
-          <h1 className="text-3xl sm:text-4xl font-serif text-[#511419] font-bold tracking-tight">
+          {/* Groom & Bride Typography - Authentic Calligraphy */}
+          <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
             {card.groom.name}
           </h1>
-          <div className="my-1.5 flex items-center justify-center gap-3">
+          <div className="my-1 flex items-center justify-center gap-3">
             <span className="w-8 h-px bg-amber-700/40"></span>
             <Heart className="w-4 h-4 text-zen-primary fill-zen-primary" />
             <span className="w-8 h-px bg-amber-700/40"></span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-serif text-[#511419] font-bold tracking-tight">
+          <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
             {card.bride.name}
           </h1>
 
           <p className="text-xs text-gray-500 mt-3 font-medium">
-            Ngày trọng đại: <strong className="text-gray-900">{card.weddingDate}</strong>
+            Ngày trọng đại: <strong className="text-gray-900 font-semibold">{card.weddingDate}</strong>
           </p>
           {card.lunarDate && (
             <p className="text-[11px] text-gray-400 mt-0.5 italic">
@@ -363,7 +476,7 @@ export default function ShowInvitationPage() {
 
         {/* Romantic Quote */}
         <div className="px-8 py-6 text-center relative z-10">
-          <p className="text-xs sm:text-sm text-gray-600 italic font-serif leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-700 italic font-parisienne leading-relaxed">
             "{card.story}"
           </p>
         </div>
@@ -384,7 +497,7 @@ export default function ShowInvitationPage() {
                 key={idx}
                 className="bg-white rounded-xl py-2 px-1 shadow-xs border border-gray-100 flex flex-col items-center"
               >
-                <span className="text-lg sm:text-xl font-bold font-mono text-[#511419]">
+                <span className="text-xl sm:text-2xl font-bold font-cormorant text-[#511419]">
                   {String(t.val).padStart(2, "0")}
                 </span>
                 <span className="text-[10px] text-gray-500 uppercase font-semibold">
@@ -398,7 +511,7 @@ export default function ShowInvitationPage() {
         {/* ================= EVENT SCHEDULE ================= */}
         <section className="px-6 py-8 relative z-10 space-y-6">
           <div className="text-center">
-            <h2 className="text-xl font-serif font-bold text-[#511419]">
+            <h2 className="text-xl sm:text-2xl font-cinzel font-bold text-[#511419] tracking-wider">
               Chương Trình Hôn Lễ
             </h2>
             <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
@@ -443,7 +556,7 @@ export default function ShowInvitationPage() {
             <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
               Xác Nhận Tham Dự
             </span>
-            <h2 className="text-xl font-serif font-bold text-[#511419] mt-1">
+            <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
               Lời Hẹn Chung Vui
             </h2>
             <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
@@ -575,7 +688,7 @@ export default function ShowInvitationPage() {
             <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
               Hộp Mừng Cưới Online
             </span>
-            <h2 className="text-xl font-serif font-bold text-[#511419] mt-1">
+            <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
               Gửi Quà Mừng Cưới
             </h2>
             <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
@@ -668,7 +781,7 @@ export default function ShowInvitationPage() {
             <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
               Sổ Lưu Bút
             </span>
-            <h2 className="text-xl font-serif font-bold text-[#511419] mt-1">
+            <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
               Gửi Lời Chúc Mừng
             </h2>
           </div>

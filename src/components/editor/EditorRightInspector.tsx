@@ -48,6 +48,7 @@ export default function EditorRightInspector({
   const [activeTab, setActiveTab] = useState<"settings" | "effects">("settings");
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
     image: true,
+    filters: true,
     flip: false,
     clickAction: false, // Collapsed by default, outlined in red/rose in user screenshot
     padding: false,
@@ -191,6 +192,61 @@ export default function EditorRightInspector({
                 onChange={(e) => handlePropChange("opacity", parseFloat(e.target.value))}
                 className="w-full h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#e54153]"
               />
+            </div>
+
+            {/* Studio AI Color Grading Filters */}
+            <div className="border-t border-gray-100 pt-2">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("filters")}
+                className="w-full py-1.5 text-xs font-bold text-gray-800 flex items-center justify-between hover:text-gray-900"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Bộ lọc màu Studio AI</span>
+                </div>
+                {openAccordions["filters"] ? (
+                  <ChevronDown className="w-4 h-4 text-gray-400" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                )}
+              </button>
+
+              {openAccordions["filters"] && (
+                <div className="pt-2 grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: "none", name: "Ảnh gốc", filter: "none", icon: "✨" },
+                    { id: "korean", name: "Hàn Quốc", filter: "contrast(106%) brightness(108%) saturate(110%) sepia(4%)", icon: "🌸" },
+                    { id: "vintage", name: "Cổ Điển", filter: "sepia(32%) contrast(110%) brightness(96%) saturate(85%)", icon: "🎞️" },
+                    { id: "film", name: "Phim 35mm", filter: "contrast(118%) brightness(98%) saturate(92%) hue-rotate(-6deg)", icon: "🎬" },
+                    { id: "bw", name: "Đen Trắng", filter: "grayscale(100%) contrast(125%) brightness(102%)", icon: "🖤" },
+                    { id: "dreamy", name: "Mộng Mơ", filter: "brightness(112%) contrast(96%) saturate(125%) hue-rotate(8deg)", icon: "🦄" },
+                    { id: "sunset", name: "Hoàng Hôn", filter: "sepia(24%) saturate(135%) brightness(104%) contrast(106%)", icon: "🌅" },
+                  ].map((filterItem) => {
+                    const isFilterActive =
+                      (props.filterPreset === filterItem.id) ||
+                      (!props.filterPreset && filterItem.id === "none" && !props.filterStyle);
+                    return (
+                      <button
+                        key={filterItem.id}
+                        type="button"
+                        onClick={() => {
+                          handlePropChange("filterPreset", filterItem.id);
+                          handlePropChange("filterStyle", filterItem.filter);
+                        }}
+                        className={`p-1.5 rounded-lg border text-[11px] font-semibold flex items-center gap-1.5 transition-all text-left ${
+                          isFilterActive
+                            ? "border-zen-primary bg-rose-50 text-zen-primary shadow-2xs"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        <span className="text-xs">{filterItem.icon}</span>
+                        <span className="truncate">{filterItem.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Căn chỉnh (Alignment) */}
@@ -553,16 +609,34 @@ export default function EditorRightInspector({
 
             {/* Font family */}
             <div className="space-y-1">
-              <label className="text-[11px] font-semibold text-gray-700">Font chữ:</label>
+              <label className="text-[11px] font-semibold text-gray-700">Font chữ thiết kế:</label>
               <select
-                value={props.fontFamily || "font-heading"}
+                value={props.fontFamily || "font-playfair"}
                 onChange={(e) => handlePropChange("fontFamily", e.target.value)}
-                className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
+                className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white font-medium"
               >
-                <option value="font-heading">Playfair Display (Cổ điển)</option>
-                <option value="font-signature">Dancing Script (Thư pháp)</option>
-                <option value="font-sans">Inter (Hiện đại)</option>
-                <option value="BaskervilleBook">Baskerville (Trang trọng)</option>
+                <optgroup label="Thư Pháp & Chữ Viết Tay">
+                  <option value="font-great-vibes">Great Vibes (Thư pháp hoàng gia)</option>
+                  <option value="font-alex-brush">Alex Brush (Chữ ký thanh thoát)</option>
+                  <option value="font-parisienne">Parisienne (Quý phái lãng mạn)</option>
+                  <option value="font-allura">Allura (Mềm mại uyển chuyển)</option>
+                  <option value="font-ephesis">Ephesis (Bay bổng nghệ thuật)</option>
+                  <option value="font-dancing-script">Dancing Script (Thư pháp trẻ trung)</option>
+                  <option value="font-pinyon">Pinyon Script (Cổ điển quý tộc)</option>
+                  <option value="font-sacramento">Sacramento (Nét thanh tao)</option>
+                </optgroup>
+                <optgroup label="Serif Sang Trọng & Hoàng Gia">
+                  <option value="font-playfair">Playfair Display (Cổ điển sang trọng)</option>
+                  <option value="font-cormorant">Cormorant Garamond (Đẳng cấp châu Âu)</option>
+                  <option value="font-cinzel">Cinzel (Hoàng gia La Mã)</option>
+                  <option value="font-prata">Prata (Thời trang thanh lịch)</option>
+                </optgroup>
+                <optgroup label="Hiện Đại & Tinh Gọn">
+                  <option value="font-vietnam">Be Vietnam Pro (Chuẩn quốc dân)</option>
+                  <option value="font-montserrat">Montserrat (Hình khối hiện đại)</option>
+                  <option value="font-jakarta">Plus Jakarta Sans (Mượt mà thời thượng)</option>
+                  <option value="font-sans">Inter (Giao diện tiêu chuẩn)</option>
+                </optgroup>
               </select>
             </div>
 

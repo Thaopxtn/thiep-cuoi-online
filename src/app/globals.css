@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Allura&family=Cinzel:wght@400;600;700;900&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Dancing+Script:wght@400;600;700&family=Ephesis&family=Great+Vibes&family=MonteCarlo&family=Parisienne&family=Pinyon+Script&family=Playball&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400;1,600&family=Prata&family=Sacramento&family=Tangerine:wght@700&family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Montserrat:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -12,7 +14,7 @@
 
   html {
     scroll-behavior: smooth;
-    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+    font-family: 'Be Vietnam Pro', var(--font-inter), system-ui, -apple-system, sans-serif;
   }
 
   body {
@@ -20,6 +22,84 @@
     color: #1c171a;
     overflow-x: hidden;
   }
+}
+
+/* Authentic Wedding Calligraphy & Typography */
+.font-great-vibes { font-family: 'Great Vibes', cursive; }
+.font-alex-brush { font-family: 'Alex Brush', cursive; }
+.font-allura { font-family: 'Allura', cursive; }
+.font-parisienne { font-family: 'Parisienne', cursive; }
+.font-dancing-script { font-family: 'Dancing Script', cursive; }
+.font-ephesis { font-family: 'Ephesis', cursive; }
+.font-pinyon { font-family: 'Pinyon Script', cursive; }
+.font-sacramento { font-family: 'Sacramento', cursive; }
+.font-monte-carlo { font-family: 'MonteCarlo', cursive; }
+.font-tangerine { font-family: 'Tangerine', cursive; }
+.font-playball { font-family: 'Playball', cursive; }
+.font-playfair { font-family: 'Playfair Display', serif; }
+.font-cormorant { font-family: 'Cormorant Garamond', serif; }
+.font-cinzel { font-family: 'Cinzel', serif; }
+.font-prata { font-family: 'Prata', serif; }
+.font-vietnam { font-family: 'Be Vietnam Pro', sans-serif; }
+.font-montserrat { font-family: 'Montserrat', sans-serif; }
+.font-jakarta { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+/* 3D Envelope Physics */
+.perspective-envelope {
+  perspective: 1400px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.envelope-flap-3d {
+  transform-origin: top center;
+  transition: transform 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.envelope-flap-open {
+  transform: rotateX(-180deg);
+  z-index: 1;
+}
+.envelope-letter-slide {
+  transition: transform 1.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 1.4s ease;
+}
+.envelope-letter-up {
+  transform: translateY(-90px) scale(1.02);
+  box-shadow: 0 35px 70px -15px rgba(81, 20, 25, 0.35);
+}
+
+/* Vinyl Spinning Music Player */
+@keyframes vinylSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-vinyl-spin {
+  animation: vinylSpin 6s linear infinite;
+}
+
+/* Audio Equalizer dancing bars */
+@keyframes eqBar1 { 0%, 100% { height: 4px; } 50% { height: 16px; } }
+@keyframes eqBar2 { 0%, 100% { height: 16px; } 50% { height: 6px; } }
+@keyframes eqBar3 { 0%, 100% { height: 8px; } 50% { height: 18px; } }
+@keyframes eqBar4 { 0%, 100% { height: 14px; } 50% { height: 4px; } }
+
+.animate-eq-1 { animation: eqBar1 0.8s ease-in-out infinite; }
+.animate-eq-2 { animation: eqBar2 0.7s ease-in-out infinite; }
+.animate-eq-3 { animation: eqBar3 0.9s ease-in-out infinite; }
+.animate-eq-4 { animation: eqBar4 0.6s ease-in-out infinite; }
+
+/* Gold Foil Text Shimmer */
+.gold-foil-text {
+  background: linear-gradient(135deg, #bf953f 0%, #fcf6ba 25%, #b38728 50%, #fbf5b7 75%, #aa771c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Paper Texture Effects */
+.bg-wedding-texture {
+  background-color: #faf7f2;
+  background-image: radial-gradient(#d3c5b4 0.5px, transparent 0.5px), radial-gradient(#d3c5b4 0.5px, #faf7f2 0.5px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
 }
 
 .text-gradient-mm {

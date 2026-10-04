@@ -206,7 +206,10 @@ export default function EditorCanvas({
                   <img
                     src={getImageUrl(props.imgKey)}
                     alt={props.alt || ""}
-                    className="w-full h-full object-cover pointer-events-none select-none"
+                    className="w-full h-full object-cover pointer-events-none select-none transition-all duration-300"
+                    style={{
+                      filter: props.filterStyle || undefined,
+                    }}
                     draggable={false}
                   />
                 </div>
@@ -214,9 +217,16 @@ export default function EditorCanvas({
 
               {type === "TextBox" && (
                 <div
-                  className={`w-full h-full select-none ${animClass}`}
+                  className={`w-full h-full select-none ${animClass} ${
+                    props.fontFamily && props.fontFamily.startsWith("font-")
+                      ? props.fontFamily
+                      : ""
+                  }`}
                   style={{
-                    fontFamily: props.fontFamily || "inherit",
+                    fontFamily:
+                      props.fontFamily && !props.fontFamily.startsWith("font-")
+                        ? props.fontFamily
+                        : undefined,
                     fontSize: `${props.fontSize || 20}px`,
                     color: props.color || "#1c171a",
                     fontWeight: props.fontWeight || "normal",
