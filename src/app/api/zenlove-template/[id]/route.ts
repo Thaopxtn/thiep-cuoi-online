@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
 // @ts-ignore
 import lzutf8 from "lzutf8";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
@@ -10,10 +12,39 @@ export async function GET(
 ) {
   const { id } = params;
 
-  // 1. Thử gọi trực tiếp đến API ZenLove với timeout 3.5s
+  // 1. Kiểm tra trong bộ nhớ cache cục bộ (cloned-cache) đã tải sẵn từ trước (tra cứu theo cả ID và Slug)
+  try {
+    const cacheDir = path.join(process.cwd(), "src", "data", "templates", "cloned-cache");
+    const localTemplateMeta = ZENLOVE_TEMPLATES.find(
+      (t) => t.id === id || t.slug === id
+    );
+    const candidateFiles = [
+      path.join(cacheDir, `${id}.json`),
+      localTemplateMeta ? path.join(cacheDir, `${localTemplateMeta.id}.json`) : null,
+      localTemplateMeta ? path.join(cacheDir, `${localTemplateMeta.slug}.json`) : null,
+    ].filter(Boolean) as string[];
+
+    for (const f of candidateFiles) {
+      if (fs.existsSync(f)) {
+        const raw = fs.readFileSync(f, "utf8");
+        const cached = JSON.parse(raw);
+        if (cached?.parsedNodes) {
+          return NextResponse.json({
+            success: true,
+            source: "local_cloned_cache",
+            data: cached,
+          });
+        }
+      }
+    }
+  } catch (cacheErr) {
+    console.warn("Lỗi đọc cloned-cache:", cacheErr);
+  }
+
+  // 2. Thử gọi trực tiếp đến API ZenLove với timeout 6s
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     const res = await fetch(`https://api.zenlove.me/v1/templates/${id}`, {
       headers: {
@@ -44,13 +75,40 @@ export async function GET(
           }
         }
 
+        const fullTemplateData = {
+          ...tplData,
+          parsedNodes,
+          clonedAt: new Date().toISOString(),
+        };
+
+        // Tự động lưu vào cloned-cache trên đĩa để sử dụng siêu tốc các lần sau
+        try {
+          const cacheDir = path.join(process.cwd(), "src", "data", "templates", "cloned-cache");
+          if (!fs.existsSync(cacheDir)) {
+            fs.mkdirSync(cacheDir, { recursive: true });
+          }
+          if (tplData.id) {
+            fs.writeFileSync(
+              path.join(cacheDir, `${tplData.id}.json`),
+              JSON.stringify(fullTemplateData, null, 2),
+              "utf8"
+            );
+          }
+          if (tplData.slug) {
+            fs.writeFileSync(
+              path.join(cacheDir, `${tplData.slug}.json`),
+              JSON.stringify(fullTemplateData, null, 2),
+              "utf8"
+            );
+          }
+        } catch (writeErr) {
+          console.warn("Không thể lưu cache đĩa:", writeErr);
+        }
+
         return NextResponse.json({
           success: true,
           source: "zenlove_cloud",
-          data: {
-            ...tplData,
-            parsedNodes,
-          },
+          data: fullTemplateData,
         });
       }
     }

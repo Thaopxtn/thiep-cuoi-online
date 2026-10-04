@@ -46,6 +46,7 @@ import {
   saveCustomTemplate,
   StorageUsageInfo,
 } from "@/lib/templateStorage";
+import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
 
 function KhoTemplateContent() {
   const router = useRouter();
@@ -130,8 +131,13 @@ function KhoTemplateContent() {
   }, [library.allTemplates, library.customIds, filterState.filters.source]);
 
   // Actions
-  const handleUseTemplate = (templateId: string) => {
-    router.push(`/design-template/${templateId}`);
+  const handleUseTemplate = async (templateId: string) => {
+    try {
+      const card = await cloneTemplateToNewCard(templateId);
+      router.push(`/design-template/${card.id}?clonedFrom=${templateId}`);
+    } catch {
+      router.push(`/design-template/${templateId}`);
+    }
   };
 
   const handleDuplicateSingle = (template: TemplateItem, e: React.MouseEvent) => {

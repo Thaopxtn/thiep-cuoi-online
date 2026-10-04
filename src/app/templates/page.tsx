@@ -25,6 +25,7 @@ import {
   ZENLOVE_CATEGORIES,
   ZenLoveTemplate,
 } from "@/data/zenloveTemplates";
+import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
 
 const ITEMS_PER_PAGE = 24;
 
@@ -102,9 +103,15 @@ function TemplatesPageContent() {
     return filteredTemplates.slice(0, visibleCount);
   }, [filteredTemplates, visibleCount]);
 
-  const handleUseTemplate = (templateId: string) => {
-    setPreviewTemplate(null);
-    router.push(`/design-template/${templateId}`);
+  const handleUseTemplate = async (templateId: string) => {
+    try {
+      const newCard = await cloneTemplateToNewCard(templateId);
+      setPreviewTemplate(null);
+      router.push(`/design-template/${newCard.id}?clonedFrom=${templateId}`);
+    } catch (err) {
+      setPreviewTemplate(null);
+      router.push(`/design-template/${templateId}`);
+    }
   };
 
   const handleLoadMore = () => {

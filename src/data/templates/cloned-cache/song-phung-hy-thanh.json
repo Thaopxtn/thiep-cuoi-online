@@ -1,0 +1,437 @@
+{
+  "id": "a3f77c89-9ccb-416c-a84a-13ef8ddd9657",
+  "name": "Song Phụng - Hỷ Thanh",
+  "slug": "song-phung-hy-thanh",
+  "description": "<p>Thiệp cưới phong cách Á Đông sang trọng với họa tiết chim phượng và chữ Hỷ trên nền kem xanh mint, tạo cảm giác thanh lịch và trang nhã.</p>",
+  "imageUrl": "https://cdn-resource.zenlove.me/templates/a3f77c89-9ccb-416c-a84a-13ef8ddd9657/long_a3f77c89-9ccb-416c-a84a-13ef8ddd9657.webp",
+  "audioSettings": null,
+  "toolbarSettings": null,
+  "parsedNodes": {
+    "theme": {
+      "empColor": "#123621",
+      "fontSize": "basic",
+      "fontFamily": "noto-serif",
+      "bgEfShortFlag": false,
+      "backgroundColor": "bg_theme_cream",
+      "backgroundEffect": "1",
+      "backgroundPattern": "sk1",
+      "scrollRevealFlag": true,
+      "titleBandFlag": false,
+      "titleBandTextColor": "",
+      "backgroundType": "color",
+      "backgroundImage": "",
+      "backgroundImageSource": "stock",
+      "backgroundImageOpacity": 100,
+      "backgroundOverlayColor": "",
+      "backgroundOverlayOpacity": 30
+    },
+    "basicInfo": {
+      "groomLabel": "Trưởng nam",
+      "brideLabel": "Út nữ",
+      "brideOrder": false,
+      "brideFullName": "Dương Bảo Nhung",
+      "groomFullName": "Phạm Xuân Hùng",
+      "brideShortName": "Bảo Nhung",
+      "groomShortName": "Xuân Hùng",
+      "groomFatherName": "Phạm Xuân An",
+      "groomMatherName": "Hồ Mỹ Dung",
+      "groomParentTitle": "Ông Bà",
+      "groomAddress": "60 Lê Lợi, TP. Biên Hòa, Đồng Nai",
+      "brideFatherName": "Dương Văn Hải",
+      "brideMatherName": "Phan Khánh Oanh",
+      "brideParentTitle": "Ông Bà",
+      "brideAddress": "62 Điện Biên Phủ, Quận Bình Thạnh, TP. Hồ Chí Minh"
+    },
+    "introMent": {
+      "enabled": true,
+      "showGuestName": true,
+      "guestNameDefault": "Quý Khách",
+      "title": "Trân trọng kính mời",
+      "description": "<p>Chúng tôi đã gặp được người khiến mỗi ngày trở nên dịu dàng hơn.</p><p>Từ những điều bình dị, yêu thương lớn lên và trở thành lời hẹn ước.</p><p><br></p><p>Nay chúng tôi cùng nhau bước vào một hành trình mới.</p><p>Rất mong được đón quý vị đến chung vui,</p><p>chứng kiến và gửi lời chúc phúc cho ngày trọng đại của chúng tôi.</p>"
+    },
+    "infoWedding": {
+      "enabled": true,
+      "title": "Trân trọng báo tin",
+      "description": "TRÂN TRỌNG BÁO TIN\nLỄ THÀNH HÔN CỦA CON CHÚNG TÔI.",
+      "styles": {
+        "fontFamily": "Qalogre Regular",
+        "fontSize": "35px",
+        "fontColor": "#000000",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.5"
+      }
+    },
+    "weddingDate": {
+      "enabled": true,
+      "date": "2027-09-10T06:37:33.815Z",
+      "hour": 10,
+      "minute": 30,
+      "dDayText": "<p>Còn <strong>(D-Day)</strong> ngày nữa là đến lễ cưới của (chú rể), (cô dâu).</p>",
+      "isDdayOpen": true,
+      "isCalendarOpen": true,
+      "highlightDates": []
+    },
+    "weddingLocation": {
+      "enabled": true,
+      "title": "Địa điểm tổ chức",
+      "zoomLevel": 15,
+      "mapHeight": "basic",
+      "isMapLocked": true,
+      "isNavigationEnabled": true,
+      "isMapVisible": true,
+      "locations": [
+        {
+          "id": "1",
+          "title": "Nhà Trai",
+          "description": "",
+          "positionX": "",
+          "positionY": "",
+          "roadAddress": "60 Lê Lợi, TP. Biên Hòa, Đồng Nai",
+          "displayAddress": "60 Lê Lợi, TP. Biên Hòa, Đồng Nai"
+        },
+        {
+          "id": "378dbdb7-5d82-4806-a00e-0c36d7aaf73c",
+          "title": "Nhà Gái",
+          "description": "",
+          "positionX": "",
+          "positionY": "",
+          "roadAddress": "62 Điện Biên Phủ, Quận Bình Thạnh, TP. Hồ Chí Minh",
+          "displayAddress": "62 Điện Biên Phủ, Quận Bình Thạnh, TP. Hồ Chí Minh"
+        }
+      ]
+    },
+    "endingPhoto": {
+      "enabled": true,
+      "ment": "<p>Cảm ơn vì đã hiện diện trong ngày đặc biệt của chúng tôi.\nMỗi lời chúc và nụ cười của quý vị\nsẽ là kỷ niệm thật đẹp trên hành trình mới.</p>",
+      "type": "v1",
+      "fileKey": "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtNDd3YXRlcm1hcmtlZF8xNzgwNzY3MTM0ODUzXzg2Y3Ayejg0NW1q.jpg?crop=0,0,1080,1614",
+      "photoEffect": "light"
+    },
+    "ceremonies": {
+      "enabled": true,
+      "title": "Thông tin lễ cưới",
+      "lists": [
+        {
+          "id": "1",
+          "name": "Lễ Vu Quy",
+          "date": "2027-09-10",
+          "time": "09:30",
+          "location": "",
+          "lunarDate": "(Tức ngày 10 tháng 8 năm Đinh Mùi)"
+        },
+        {
+          "id": "65399a83-d88a-4476-a65f-c0bdba0ade9c",
+          "name": "Lễ Thành Hôn",
+          "date": "2027-09-10",
+          "time": "10:30",
+          "location": "",
+          "lunarDate": "(Tức ngày 10 tháng 8 năm Đinh Mùi)"
+        }
+      ]
+    },
+    "contact": {
+      "male": "",
+      "female": "",
+      "maleFather": "",
+      "maleMather": "",
+      "femaleFather": "",
+      "femaleMather": ""
+    },
+    "account": {
+      "type": "accordion",
+      "title": "Thông tin mừng cưới",
+      "enabled": true,
+      "description": "Nếu không thể tham dự,\r\nquý vị có thể gửi lời chúc qua thông tin bên dưới.\r\nGia đình xin chân thành cảm ơn.",
+      "groupList": [
+        {
+          "id": 1,
+          "title": "Nhà trai",
+          "isEdit": false,
+          "isOpen": true,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "ZenDemo",
+              "name": "Phạm Xuân Hùng",
+              "number": "0000000000",
+              "fileKey": ""
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Nhà gái",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "ZenDemo",
+              "name": "Dương Bảo Nhung",
+              "number": "0000000000",
+              "fileKey": ""
+            }
+          ]
+        }
+      ]
+    },
+    "video": {
+      "enabled": false,
+      "videoLink": "",
+      "videoRatio": "basic",
+      "videoTitle": ""
+    },
+    "weddingTimeline": {
+      "enabled": true,
+      "title": "Lịch trình ngày cưới",
+      "type": "1",
+      "items": [
+        {
+          "id": "1",
+          "time": "10:00",
+          "title": "Đón khách",
+          "icon": "41"
+        },
+        {
+          "id": "2",
+          "time": "10:30",
+          "title": "Photo Booth",
+          "icon": "28"
+        },
+        {
+          "id": "3",
+          "time": "11:00",
+          "title": "Làm lễ",
+          "icon": "16"
+        },
+        {
+          "id": "4",
+          "time": "11:30",
+          "title": "Cắt bánh",
+          "icon": "04"
+        },
+        {
+          "id": "5",
+          "time": "12:00",
+          "title": "Khai tiệc",
+          "icon": "29"
+        },
+        {
+          "id": "6",
+          "time": "13:30",
+          "title": "Tiễn khách",
+          "icon": "33"
+        }
+      ]
+    },
+    "dressCode": {
+      "enabled": false,
+      "title": "Trang phục",
+      "description": "",
+      "colors": [
+        {
+          "color": "#D7CCB8",
+          "label": "Be"
+        },
+        {
+          "color": "#FFFFFF",
+          "label": "Trắng"
+        },
+        {
+          "color": "#7BA7D9",
+          "label": "Xanh dương"
+        }
+      ],
+      "showLabelsFlag": false
+    },
+    "rsvp": {
+      "title": "Xác nhận tham dự",
+      "enabled": true,
+      "options": [
+        "people",
+        "tel"
+      ],
+      "buttonName": "Xác nhận tham dự",
+      "description": "Quý khách có thể gửi thông tin tham dự\r\nđể cô dâu chú rể chuẩn bị chu đáo hơn.",
+      "popupMessage": "Quý khách vui lòng xác nhận tham dự\r\nđể gia đình chuẩn bị đón tiếp chu đáo.",
+      "isOpeningPopup": false,
+      "quickSendFlag": true
+    },
+    "guestbook": {
+      "enabled": true,
+      "title": "Sổ lưu bút",
+      "designType": "postit",
+      "isDateHidden": false,
+      "quickSendFlag": false
+    },
+    "urlThumb": {
+      "urlTitle": "",
+      "urlDescription": "",
+      "urlThumbImagePath": ""
+    },
+    "guestInfoPage": {
+      "enabled": true,
+      "autoRedirectOnWeddingDay": false
+    },
+    "gallery": {
+      "enabled": true,
+      "type": "album",
+      "title": "Album cưới",
+      "lineCnt": 3,
+      "gridType": 3,
+      "imageList": [
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMzV3YXRlcm1hcmtlZF8xNzgwNzY3MTM0OTY2X2hrdXg2ZXd2d2Y.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMjV3YXRlcm1hcmtlZF8xNzgwNzY3MTM0OTk3X2gyMndoYXA5NGRj.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMHdhdGVybWFya2VkXzE3ODA3NjcxMzQ5ODBfYWl2Mzk3NWMzb3I.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMzN3YXRlcm1hcmtlZF8xNzgwNzY3MTM0ODYwX3JtbHluMHgwMmxq.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMXdhdGVybWFya2VkXzE3ODA3NjcxMzQ5MDVfd3ozeDBteWhmZQ.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMjZ3YXRlcm1hcmtlZF8xNzgwNzY3MTM0OTYwX2hja2o4Nnd4Yms5.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtMjF3YXRlcm1hcmtlZF8xNzgwNzY3MTM0OTExX2tiOGp6Z2dsaDk.jpg",
+        "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/ngoai-troi-76/aW1hZ2UtNjd3YXRlcm1hcmtlZF8xNzgwNzY3MTM0OTE2X2pseTB1OXBid3Ns.jpg"
+      ],
+      "lineCount": 3,
+      "imageCrops": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "photoRatio": "multiple",
+      "isEnabledZoom": false,
+      "imageDirections": [
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "isEnabledMoreBtn": true,
+      "enabledPopupViewer": true
+    },
+    "timeline": {
+      "list": [
+        {
+          "id": "1",
+          "date": "",
+          "title": "",
+          "imagePath": "",
+          "description": ""
+        }
+      ],
+      "type": "v1",
+      "title": "",
+      "enabled": false,
+      "subtitle": "",
+      "coverImage": ""
+    },
+    "interview": {
+      "enabled": false,
+      "title": "Câu chuyện của chúng mình",
+      "description": "Trước ngày cưới, chúng mình đã chuẩn bị phần phỏng vấn nhỏ để chia sẻ câu chuyện của hai người.",
+      "items": [],
+      "images": [
+        "",
+        ""
+      ]
+    },
+    "mainScreen": {
+      "type": "v59",
+      "fontType": "bonanova",
+      "imagePath": [],
+      "cropSecondInfo": "",
+      "mainStyleOption": [],
+      "mainEffectOption": "none",
+      "mainScreenParticle": "none",
+      "mainScreenSvgColor": "#19472d",
+      "mainScreenTextColor": "#FFFFFF",
+      "mainScreenTypeOption": "basic",
+      "mainLocationDisplay": "all",
+      "mainLocationContent": "both",
+      "ments": {},
+      "mainScreenNameStyles": {
+        "fontFamily": "PlayfairDisplay",
+        "fontSize": "32px",
+        "fontColor": "",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.3"
+      }
+    },
+    "backgroundMusic": {
+      "fileKey": "mp3/50-nam-ve-sau-1763990892149-45uggdr1.mp3",
+      "enabled": true,
+      "startTime": 0,
+      "endTime": 313,
+      "isAutoPlay": true
+    },
+    "middleImages": {
+      "enabled": false,
+      "items": []
+    },
+    "openingAnimation": {
+      "images": "",
+      "enabled": true,
+      "animationStatus": false,
+      "openingAnimationType": "v3",
+      "openingAnimationColor": "purple",
+      "openingAnimationCustomMent": "",
+      "openingAnimationTransparent": true,
+      "openingAnimationOverlayColor": "beige",
+      "openingCardThemeId": "songphung-green",
+      "openingCardGroomName": "",
+      "openingCardBrideName": "",
+      "openingCardEventDateText": "",
+      "openingCardInviteLabel": "",
+      "openingCardGuestName": "",
+      "openingCardInviteMessage": "",
+      "openingCardOpenButtonText": "",
+      "openingCardBackgroundColor": "",
+      "openingCardTextColor": "",
+      "openingCardButtonBackgroundColor": "",
+      "openingCardButtonTextColor": "",
+      "openingCardRootBgStart": "",
+      "openingCardRootBgMid": "",
+      "openingCardRootBgEnd": ""
+    },
+    "languages": {
+      "order": [
+        "vi"
+      ]
+    },
+    "sectionOrder": [
+      "intro",
+      "wedding-ceremony-info",
+      "wedding-invitation",
+      "interview",
+      "timeline",
+      "wedding-timeline",
+      "dress-code",
+      "video",
+      "calendar-dday",
+      "gallery",
+      "location",
+      "notice-group",
+      "notice-separated-1",
+      "notice-separated-2",
+      "notice-separated-3",
+      "notice-separated-4",
+      "notice-separated-5",
+      "middle-photo-1",
+      "guestbook",
+      "account",
+      "rsvp",
+      "snap",
+      "middle-photo-2",
+      "middle-photo-3",
+      "middle-photo-4",
+      "middle-photo-5"
+    ]
+  },
+  "clonedAt": "2026-10-04T15:58:51.925Z"
+}

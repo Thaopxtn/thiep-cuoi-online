@@ -36,12 +36,16 @@ export default function ZenlovePreviewModal({
   const [isLiked, setIsLiked] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [likes, setLikes] = useState(0);
+  const [previewMode, setPreviewMode] = useState<"image" | "interactive">("image");
+  const [isCloning, setIsCloning] = useState(false);
 
   useEffect(() => {
     if (template) {
       setLikes(template.likeCount || 0);
       setIsLiked(false);
       setIsPlayingMusic(true);
+      setPreviewMode("image");
+      setIsCloning(false);
     }
   }, [template]);
 
@@ -89,13 +93,40 @@ export default function ZenlovePreviewModal({
         </button>
 
         {/* Left Column: Realistic Phone Mockup Preview */}
-        <div className="w-full md:w-[48%] bg-gradient-to-b from-[#f8f9fa] to-[#edeef0] p-4 sm:p-6 flex items-center justify-center relative overflow-hidden">
+        <div className="w-full md:w-[48%] bg-gradient-to-b from-[#f8f9fa] to-[#edeef0] p-4 sm:p-6 flex flex-col items-center justify-center relative overflow-hidden">
           {/* Subtle background glow */}
           <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-rose-200/40 blur-3xl pointer-events-none" />
           <div className="absolute -bottom-20 -right-20 w-64 h-64 rounded-full bg-indigo-200/30 blur-3xl pointer-events-none" />
 
+          {/* Preview Mode Switcher */}
+          <div className="mb-3 z-10 flex items-center gap-1.5 p-1 bg-white/90 backdrop-blur-md rounded-2xl shadow-xs border border-gray-200/80 text-[11px] font-semibold text-gray-600">
+            <button
+              type="button"
+              onClick={() => setPreviewMode("image")}
+              className={`px-3 py-1 rounded-xl transition-all ${
+                previewMode === "image"
+                  ? "bg-stone-900 text-white font-bold shadow-2xs"
+                  : "hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              Ảnh thiết kế
+            </button>
+            <button
+              type="button"
+              onClick={() => setPreviewMode("interactive")}
+              className={`px-3 py-1 rounded-xl transition-all flex items-center gap-1 ${
+                previewMode === "interactive"
+                  ? "bg-zen-primary text-white font-bold shadow-2xs"
+                  : "hover:text-gray-900 hover:bg-gray-100"
+              }`}
+            >
+              <Sparkles className="w-3 h-3 text-amber-300" />
+              <span>Thiệp tương tác thật</span>
+            </button>
+          </div>
+
           {/* Smartphone Shell */}
-          <div className="relative w-[280px] sm:w-[310px] h-[540px] sm:h-[600px] bg-black rounded-[44px] p-3 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/20 flex flex-col">
+          <div className="relative w-[280px] sm:w-[310px] h-[520px] sm:h-[580px] bg-black rounded-[44px] p-3 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35)] ring-1 ring-white/20 flex flex-col">
             {/* Phone Screen Bezel */}
             <div className="relative w-full h-full bg-white rounded-[34px] overflow-hidden flex flex-col border border-stone-800/40">
               {/* Phone Status Bar & Dynamic Island */}
@@ -112,43 +143,53 @@ export default function ZenlovePreviewModal({
               </div>
 
               {/* Scrollable Template Content */}
-              <div className="flex-1 overflow-y-auto scroll-smooth [scrollbar-width:thin] relative">
-                <img
-                  src={template.imageUrl}
-                  alt={template.name}
-                  className="w-full h-auto object-top"
-                />
+              {previewMode === "interactive" ? (
+                <div className="flex-1 w-full h-full relative overflow-hidden bg-[#faf7f2]">
+                  <iframe
+                    src={`/show/${template.slug}`}
+                    className="w-full h-full border-0"
+                    title={template.name}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto scroll-smooth [scrollbar-width:thin] relative">
+                  <img
+                    src={template.imageUrl}
+                    alt={template.name}
+                    className="w-full h-auto object-top"
+                  />
 
-                {/* Floating Music Widget */}
-                <div className="sticky bottom-3 inset-x-3 mx-auto z-20">
-                  <div className="bg-black/80 backdrop-blur-md text-white rounded-full px-3.5 py-1.5 flex items-center justify-between shadow-lg">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className={`w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center ${
-                          isPlayingMusic ? "animate-spin" : ""
-                        }`}
-                      >
-                        <Music className="w-2.5 h-2.5 text-white" />
+                  {/* Floating Music Widget */}
+                  <div className="sticky bottom-3 inset-x-3 mx-auto z-20">
+                    <div className="bg-black/80 backdrop-blur-md text-white rounded-full px-3.5 py-1.5 flex items-center justify-between shadow-lg">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={`w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center ${
+                            isPlayingMusic ? "animate-spin" : ""
+                          }`}
+                        >
+                          <Music className="w-2.5 h-2.5 text-white" />
+                        </div>
+                        <span className="text-[11px] font-medium truncate">
+                          Beautiful In White • Nhạc nền
+                        </span>
                       </div>
-                      <span className="text-[11px] font-medium truncate">
-                        Beautiful In White • Nhạc nền
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsPlayingMusic(!isPlayingMusic)}
+                        className="p-1 hover:text-rose-400 transition-colors"
+                        title={isPlayingMusic ? "Tắt âm thanh" : "Bật âm thanh"}
+                      >
+                        {isPlayingMusic ? (
+                          <Volume2 className="w-3.5 h-3.5" />
+                        ) : (
+                          <VolumeX className="w-3.5 h-3.5 text-gray-400" />
+                        )}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsPlayingMusic(!isPlayingMusic)}
-                      className="p-1 hover:text-rose-400 transition-colors"
-                      title={isPlayingMusic ? "Tắt âm thanh" : "Bật âm thanh"}
-                    >
-                      {isPlayingMusic ? (
-                        <Volume2 className="w-3.5 h-3.5" />
-                      ) : (
-                        <VolumeX className="w-3.5 h-3.5 text-gray-400" />
-                      )}
-                    </button>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>
@@ -156,19 +197,33 @@ export default function ZenlovePreviewModal({
         {/* Right Column: Template Info & Actions */}
         <div className="w-full md:w-[52%] p-6 sm:p-8 flex flex-col justify-between overflow-y-auto bg-white">
           <div className="space-y-5">
-            {/* Header tags */}
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-zen-primary border border-rose-100">
-                {template.categoryName || "Thiệp cưới"}
-              </span>
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
-                {isForm ? "Biểu mẫu (Dễ điền)" : "Tự do (Tùy biến cao)"}
-              </span>
-              {template.templateType && (
-                <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 uppercase">
-                  {template.templateType}
+            {/* Header tags & External Link */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="px-3 py-1 rounded-full text-xs font-bold bg-rose-50 text-zen-primary border border-rose-100">
+                  {template.categoryName || "Thiệp cưới"}
                 </span>
-              )}
+                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
+                  {isForm ? "Biểu mẫu (Dễ điền)" : "Tự do (Tùy biến cao)"}
+                </span>
+                {template.templateType && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 uppercase">
+                    {template.templateType}
+                  </span>
+                )}
+              </div>
+
+              {/* Mở trực tiếp bản gốc ZenLove */}
+              <a
+                href={`https://zenlove.me/templates/${template.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-zen-primary bg-stone-100 hover:bg-rose-50 px-3 py-1 rounded-full border border-gray-200 transition-colors"
+                title="Mở trực tiếp mẫu này trên website ZenLove.me bản gốc để đối chiếu"
+              >
+                <span>Mở bản gốc ZenLove</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
             </div>
 
             {/* Template Title */}
@@ -263,11 +318,24 @@ export default function ZenlovePreviewModal({
             {/* Primary 'Dùng mẫu này' Button */}
             <button
               type="button"
-              onClick={() => onUse(template.id)}
-              className="w-full py-3.5 px-6 rounded-full bg-zen-primary hover:bg-[#d93849] text-white font-bold text-sm sm:text-base shadow-lg shadow-zen-primary/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
+              disabled={isCloning}
+              onClick={() => {
+                setIsCloning(true);
+                onUse(template.id);
+              }}
+              className="w-full py-3.5 px-6 rounded-full bg-zen-primary hover:bg-[#d93849] disabled:opacity-85 text-white font-bold text-sm sm:text-base shadow-lg shadow-zen-primary/30 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>Dùng mẫu này ngay (Miễn phí)</span>
+              {isCloning ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Đang clone mẫu về Studio của bạn...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>Dùng mẫu này ngay (Clone về Studio)</span>
+                </>
+              )}
             </button>
           </div>
         </div>

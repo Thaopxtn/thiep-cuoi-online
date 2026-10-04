@@ -80,7 +80,46 @@ export default function DesignTemplatePage() {
     let isMounted = true;
 
     async function loadTemplate() {
-      // Find template meta in ZENLOVE_TEMPLATES
+      // 1. Kiểm tra thiệp cưới đã clone / tùy biến trong weddingCardService
+      const existingCard = getCardByIdOrSlug(templateId);
+      if (existingCard) {
+        if (existingCard.templateName) setTemplateName(existingCard.templateName);
+        if (existingCard.musicUrl) {
+          setCurrentMusic({
+            title: existingCard.musicTitle || "Bản nhạc cưới",
+            url: existingCard.musicUrl,
+          });
+        }
+        if (existingCard.nodes && Object.keys(existingCard.nodes).length > 2) {
+          if (!isMounted) return;
+          const cardNodes = existingCard.nodes;
+          setNodes(cardNodes);
+          setHistory([cardNodes]);
+          setHistoryIndex(0);
+
+          // Select initial photo
+          const targetPhotoNode = cardNodes["U4ZPPsHPXy"]
+            ? ["U4ZPPsHPXy", cardNodes["U4ZPPsHPXy"]]
+            : Object.entries(cardNodes).find(
+                ([, n]: [string, any]) =>
+                  n.type?.resolvedName === "PhotoBox" &&
+                  (n.props?.isReplaceable || n.props?.previewKey)
+              );
+
+          if (targetPhotoNode) {
+            const [id, node] = targetPhotoNode as [string, any];
+            setSelectedElement({
+              id,
+              type: "PhotoBox",
+              props: node.props || {},
+            });
+          }
+          showToast(`✨ Đã mở thiệp cưới: "${existingCard.name}"`);
+          return;
+        }
+      }
+
+      // 2. Tìm template meta trong ZENLOVE_TEMPLATES
       const foundMeta = ZENLOVE_TEMPLATES.find(
         (t) => t.id === templateId || t.slug === templateId
       );
@@ -666,10 +705,10 @@ export default function DesignTemplatePage() {
     }
 
     const cardToSave: WeddingCard = {
-      id: templateId,
-      slug,
-      name: `Thiệp Cưới ${templateName} - ${groomName} & ${brideName}`,
-      templateId,
+      id: existing?.id || templateId,
+      slug: existing?.slug || slug,
+      name: existing?.name || `Thiệp Cưới ${templateName} - ${groomName} & ${brideName}`,
+      templateId: existing?.templateId || templateId,
       templateName,
       status: "published",
       updatedAt: new Date().toLocaleDateString("vi-VN"),

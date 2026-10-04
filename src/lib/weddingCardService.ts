@@ -441,3 +441,128 @@ export function addWish(cardId: string, name: string, content: string): WeddingW
   return newWish;
 }
 
+/**
+ * Clone trực tiếp bất kỳ mẫu nào từ ZenLove về thành thiệp cưới mới của người dùng
+ */
+export async function cloneTemplateToNewCard(
+  templateIdOrSlug: string,
+  customGroom?: string,
+  customBride?: string
+): Promise<WeddingCard> {
+  // 1. Thử gọi API server clone
+  try {
+    const res = await fetch("/api/cards/clone", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        templateId: templateIdOrSlug,
+        templateSlug: templateIdOrSlug,
+        customGroom,
+        customBride,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.card) {
+        saveCard(data.card);
+        return data.card;
+      }
+    }
+  } catch (err) {
+    console.warn("Lỗi gọi server clone, chuyển sang client fallback:", err);
+  }
+
+  // 2. Client-side fallback: Tải dữ liệu nodes từ API zenlove-template
+  let parsedNodes: Record<string, any> | undefined = undefined;
+  let coverImage = "";
+  let templateName = "Hồng Phong";
+
+  try {
+    const tplRes = await fetch(`/api/zenlove-template/${templateIdOrSlug}`);
+    if (tplRes.ok) {
+      const tplData = await tplRes.json();
+      if (tplData.success && tplData.data) {
+        parsedNodes = tplData.data.parsedNodes;
+        coverImage = tplData.data.imageUrl || "";
+        templateName = tplData.data.name || templateName;
+      }
+    }
+  } catch {}
+
+  const cleanSlug = templateIdOrSlug
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const newCardId = `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+  const newSlug = `${cleanSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  const newCard: WeddingCard = {
+    id: newCardId,
+    slug: newSlug,
+    name: `Thiệp Cưới ${templateName} - ${customGroom || "Đức Mạnh"} & ${customBride || "Thùy Dung"}`,
+    templateId: templateIdOrSlug,
+    templateName,
+    status: "published",
+    updatedAt: new Date().toLocaleDateString("vi-VN"),
+    views: 1,
+    coverImage: coverImage || "https://cdn-resource.zenlove.me/uploads/862861ad-96f7-4738-b17f-56ad4f5c1e28/QkFhLVRoQW4tVGlhbl8xNzg5OTE0NzgyOTM4X3hodWtzYWpiZzE.jpg",
+    story: "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
+    weddingDate: "2026-11-18",
+    weddingTime: "11:00",
+    lunarDate: "Ngày 10 tháng 10 năm Bính Ngọ",
+    groom: {
+      name: customGroom || "Đức Mạnh",
+      title: "Chú Rể",
+      phone: "0912.345.678",
+      parents: "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
+      bankName: "MB BANK",
+      accountNumber: "240220038888",
+    },
+    bride: {
+      name: customBride || "Thùy Dung",
+      title: "Cô Dâu",
+      phone: "0987.654.321",
+      parents: "Ông Lê Văn Thành & Bà Vũ Thị Mai",
+      bankName: "TECHCOMBANK",
+      accountNumber: "190365824988",
+    },
+    events: [
+      {
+        id: "evt-1",
+        title: "Lễ Vu Quy (Nhà Gái)",
+        time: "08:30 • 18/11/2026",
+        venue: "Tư gia Nhà Gái",
+        address: "Số 45 Tràng Tiền, Hoàn Kiếm, Hà Nội",
+        mapUrl: "https://maps.google.com/?q=Trang+Tien+Hanoi",
+      },
+      {
+        id: "evt-2",
+        title: "Lễ Thành Hôn (Nhà Trai)",
+        time: "10:00 • 18/11/2026",
+        venue: "Tư gia Nhà Trai",
+        address: "Số 88 Hoàng Hoa Thám, Ba Đình, Hà Nội",
+        mapUrl: "https://maps.google.com/?q=Hoang+Hoa+Tham+Hanoi",
+      },
+      {
+        id: "evt-3",
+        title: "Tiệc Cưới Chung Vui",
+        time: "11:30 • 18/11/2026",
+        venue: "Trung tâm Tiệc cưới Trống Đồng Palace",
+        address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
+        mapUrl: "https://maps.google.com/?q=Trong+Dong+Palace",
+      },
+    ],
+    album: [coverImage].filter(Boolean),
+    musicTitle: "Beautiful In White",
+    musicUrl: "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+    rsvps: [],
+    wishes: [],
+    nodes: parsedNodes,
+  };
+
+  saveCard(newCard);
+  return newCard;
+}
+
+

@@ -1,0 +1,484 @@
+{
+  "id": "cfc4c65e-7983-499f-949e-67a72f0e3cc3",
+  "name": "Sắc Yêu",
+  "slug": "sac-yeu",
+  "description": "<p>Thiệp phong cách tối giản hiện đại, nền kem sang trọng với typography lớn tạo điểm nhấn tinh tế.</p>",
+  "imageUrl": "https://cdn-resource.zenlove.me/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/long_cfc4c65e-7983-499f-949e-67a72f0e3cc3.webp",
+  "audioSettings": null,
+  "toolbarSettings": null,
+  "parsedNodes": {
+    "theme": {
+      "empColor": "theme_emp_color_brown",
+      "fontSize": "basic",
+      "fontFamily": "gowundodum",
+      "bgEfShortFlag": false,
+      "backgroundColor": "bg_theme_brown",
+      "backgroundEffect": "1",
+      "backgroundPattern": "single",
+      "scrollRevealFlag": true,
+      "titleBandFlag": false,
+      "titleBandTextColor": "",
+      "backgroundType": "color",
+      "backgroundImage": "",
+      "backgroundImageSource": "stock",
+      "backgroundImageOpacity": 100,
+      "backgroundOverlayColor": "",
+      "backgroundOverlayOpacity": 30
+    },
+    "basicInfo": {
+      "groomLabel": "Trưởng nam",
+      "brideLabel": "Út nữ",
+      "brideOrder": false,
+      "brideFullName": "Nguyễn Bảo Anh",
+      "groomFullName": "Dương Hữu Kiên",
+      "brideShortName": "Bảo Anh",
+      "groomShortName": "Hữu Kiên",
+      "groomFatherName": "Dương Công Tuấn",
+      "groomMatherName": "Bùi Phương Huyền",
+      "groomParentTitle": "Ông Bà",
+      "groomAddress": "170 Nguyễn Trãi, Quận Hải Châu, Đà Nẵng",
+      "brideFatherName": "Nguyễn Tuấn An",
+      "brideMatherName": "Lê Hồng Vy",
+      "brideParentTitle": "Ông Bà",
+      "brideAddress": "161 Lý Thường Kiệt, Quận Sơn Trà, Đà Nẵng"
+    },
+    "introMent": {
+      "enabled": true,
+      "showGuestName": true,
+      "guestNameDefault": "Quý Khách",
+      "title": "Trân trọng kính mời những người thân yêu",
+      "description": "<p>Chúng tôi đã gặp được người khiến mỗi ngày trở nên dịu dàng hơn.</p><p>Từ những điều bình dị, yêu thương lớn lên và trở thành lời hẹn ước.</p><p><br></p><p>Nay chúng tôi cùng nhau bước vào một hành trình mới.</p><p>Rất mong được đón quý vị đến chung vui,</p><p>chứng kiến và gửi lời chúc phúc cho ngày trọng đại của chúng tôi.</p>"
+    },
+    "infoWedding": {
+      "enabled": true,
+      "title": "Trân trọng báo tin",
+      "description": "TRÂN TRỌNG BÁO TIN\nLỄ THÀNH HÔN CỦA CON CHÚNG TÔI.",
+      "styles": {
+        "fontFamily": "Qalogre Regular",
+        "fontSize": "35px",
+        "fontColor": "#000000",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.5"
+      }
+    },
+    "weddingDate": {
+      "enabled": true,
+      "date": "2027-09-12T19:25:39.055Z",
+      "hour": 18,
+      "minute": 30,
+      "dDayText": "<p>Còn <strong>(D-Day)</strong> ngày nữa là đến lễ cưới của (chú rể), (cô dâu).</p>",
+      "isDdayOpen": true,
+      "isCalendarOpen": true,
+      "highlightDates": []
+    },
+    "weddingLocation": {
+      "enabled": true,
+      "title": "Địa điểm tổ chức",
+      "zoomLevel": 16,
+      "mapHeight": "basic",
+      "isMapLocked": false,
+      "isNavigationEnabled": true,
+      "isMapVisible": true,
+      "locations": [
+        {
+          "id": "1",
+          "title": "Nhà Trai",
+          "description": "",
+          "positionX": "",
+          "positionY": "",
+          "roadAddress": "170 Nguyễn Trãi, Quận Hải Châu, Đà Nẵng",
+          "displayAddress": "170 Nguyễn Trãi, Quận Hải Châu, Đà Nẵng"
+        }
+      ]
+    },
+    "endingPhoto": {
+      "enabled": true,
+      "ment": "<p>Cảm ơn vì đã hiện diện trong ngày đặc biệt của chúng tôi.\nMỗi lời chúc và nụ cười của quý vị\nsẽ là kỷ niệm thật đẹp trên hành trình mới.</p>",
+      "type": "v2",
+      "fileKey": "",
+      "photoEffect": "light"
+    },
+    "ceremonies": {
+      "enabled": true,
+      "title": "Thông tin lễ cưới",
+      "lists": [
+        {
+          "id": "1",
+          "name": "Lễ Vu Quy",
+          "date": "2027-09-12",
+          "time": "11:30",
+          "location": "",
+          "lunarDate": "(Tức ngày 12 tháng 8 năm Đinh Mùi)"
+        },
+        {
+          "id": "cc9e3ff2-2dea-4150-960a-16beeabb4d4c",
+          "name": "Lễ Thành Hôn",
+          "date": "2027-09-13",
+          "time": "18:30",
+          "location": "",
+          "lunarDate": "(Tức ngày 13 tháng 8 năm Đinh Mùi)"
+        }
+      ]
+    },
+    "contact": {
+      "male": "",
+      "female": "",
+      "maleFather": "",
+      "maleMather": "",
+      "femaleFather": "",
+      "femaleMather": ""
+    },
+    "account": {
+      "type": "swipe",
+      "title": "Thông tin mừng cưới",
+      "enabled": true,
+      "description": "Đối với những vị không thể đến tham dự,\nchúng tôi đã ghi lại số tài khoản.\nMong quý vị rộng lòng thông cảm.",
+      "groupList": [
+        {
+          "id": 1,
+          "title": "Nhà trai",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "ZenDemo",
+              "name": "Dương Hữu Kiên",
+              "number": "0000000000",
+              "fileKey": ""
+            },
+            {
+              "bank": "ZenDemo",
+              "name": "Dương Công Tuấn",
+              "number": "0000000000",
+              "fileKey": ""
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Nhà gái",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "ZenDemo",
+              "name": "Nguyễn Bảo Anh",
+              "number": "0000000000",
+              "fileKey": ""
+            },
+            {
+              "bank": "ZenDemo",
+              "name": "Nguyễn Tuấn An",
+              "number": "0000000000",
+              "fileKey": ""
+            }
+          ]
+        }
+      ]
+    },
+    "video": {
+      "enabled": false,
+      "videoLink": "",
+      "videoRatio": "basic",
+      "videoTitle": ""
+    },
+    "weddingTimeline": {
+      "enabled": true,
+      "title": "Lịch trình ngày cưới",
+      "type": "1",
+      "items": [
+        {
+          "id": "1",
+          "time": "10:00",
+          "title": "Đón khách",
+          "icon": "41"
+        },
+        {
+          "id": "2",
+          "time": "10:30",
+          "title": "Photo Booth",
+          "icon": "28"
+        },
+        {
+          "id": "3",
+          "time": "11:00",
+          "title": "Làm lễ",
+          "icon": "16"
+        },
+        {
+          "id": "4",
+          "time": "11:30",
+          "title": "Cắt bánh",
+          "icon": "04"
+        },
+        {
+          "id": "5",
+          "time": "12:00",
+          "title": "Khai tiệc",
+          "icon": "29"
+        },
+        {
+          "id": "6",
+          "time": "13:30",
+          "title": "Tiễn khách",
+          "icon": "33"
+        }
+      ]
+    },
+    "dressCode": {
+      "enabled": false,
+      "title": "Trang phục",
+      "description": "",
+      "colors": [
+        {
+          "color": "#D7CCB8",
+          "label": "Be"
+        },
+        {
+          "color": "#FFFFFF",
+          "label": "Trắng"
+        },
+        {
+          "color": "#7BA7D9",
+          "label": "Xanh dương"
+        }
+      ],
+      "showLabelsFlag": false
+    },
+    "rsvp": {
+      "title": "Xác nhận tham dự",
+      "enabled": true,
+      "options": [
+        "people",
+        "tel"
+      ],
+      "buttonName": "Xác nhận tham dự",
+      "description": "Quý khách có thể gửi thông tin tham dự\r\nđể cô dâu chú rể chuẩn bị chu đáo hơn.",
+      "popupMessage": "Quý khách vui lòng xác nhận tham dự\r\nđể gia đình chuẩn bị đón tiếp chu đáo.",
+      "isOpeningPopup": true,
+      "quickSendFlag": false
+    },
+    "guestbook": {
+      "enabled": false,
+      "title": "Sổ lưu bút",
+      "designType": "button",
+      "isDateHidden": true,
+      "quickSendFlag": false
+    },
+    "urlThumb": {
+      "urlTitle": "",
+      "urlDescription": "",
+      "urlThumbImagePath": ""
+    },
+    "guestInfoPage": {
+      "enabled": false,
+      "autoRedirectOnWeddingDay": false
+    },
+    "gallery": {
+      "enabled": false,
+      "type": "album",
+      "title": "Thư viện ảnh cưới",
+      "lineCnt": 3,
+      "gridType": 3,
+      "imageList": [],
+      "lineCount": 3,
+      "imageCrops": [],
+      "photoRatio": "1:1",
+      "isEnabledZoom": false,
+      "imageDirections": [],
+      "isEnabledMoreBtn": true,
+      "enabledPopupViewer": false
+    },
+    "timeline": {
+      "list": [
+        {
+          "id": "1",
+          "date": "2024",
+          "title": "Đã nhẹ nhàng thấm vào nhau",
+          "imagePath": "/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/images/b0dKc0RMVm1rYV8xNzg5MjQxMTMzX2phbw.png",
+          "description": "Dẫu không thật nổi bật,\nnhưng lại cứ khiến tôi nhớ mãi."
+        },
+        {
+          "id": "2",
+          "date": "2024",
+          "title": "Cùng nhau đã trở nên quen thuộc",
+          "imagePath": "/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/images/RDF1YURuRUVaU18xNzg5MjQxMTMwX2VoMg.png",
+          "description": "Hơn cả những khoảnh khắc đặc biệt,\nthời gian được ở bên nhau mới thật đẹp."
+        },
+        {
+          "id": "3",
+          "date": "2025",
+          "title": "Những ngày bình yên",
+          "imagePath": "/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/images/N3ZUc0d0RWpWQl8xNzg5MjQxMTI5X3liaQ.png",
+          "description": "Dẫu có những ngày bận rộn,\nnhưng vì có nhau nên mọi điều đều ổn."
+        },
+        {
+          "id": "4",
+          "date": "2025",
+          "title": "Chỉ cần như thế này là đủ.",
+          "imagePath": "/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/images/V0NxZXBERlgzRV8xNzg5MjQxMTIyX2p4Zg.jpg",
+          "description": "Không mong cầu gì hơn,\nchỉ đơn giản, chính là người này."
+        }
+      ],
+      "type": "v3",
+      "title": "Từ gặp gỡ đến yêu thương",
+      "enabled": false,
+      "subtitle": "Những khoảnh khắc làm nên chúng ta",
+      "coverImage": "/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/images/MGl6aHNCVjlwYl8xNzg5MjQxMTI2X3c0Zw.png"
+    },
+    "interview": {
+      "enabled": false,
+      "title": "Câu chuyện của hai chúng tôi",
+      "description": "Trước thềm hôn lễ, chúng tôi đã chuẩn bị\nbuổi phỏng vấn của hai chúng tôi.",
+      "items": [
+        {
+          "id": "1",
+          "title": "Q1. Xin giới thiệu về chú rể và cô dâu",
+          "description": "👦 Chú rể Kim Jin-ho (ISTJ)\nLà người lên kế hoạch chu toàn, vụng về trong việc bày tỏ cảm xúc nhưng có chân tình sâu đậm.\nNhững lời hứa nhỏ cũng không quên, và cả những lời cằn nhằn mà tôi tưởng chỉ là tự nói một mình, anh ấy cũng nhớ.\nÍt nói nên đôi khi bị hiểu lầm, nhưng là kiểu người lặng lẽ thể hiện bằng hành động.\nCâu nói “người đàn ông có thể tự thay cả bóng đèn hỏng” có lẽ sinh ra là dành cho Jin-ho phải không? 😎\nVới cô dâu, anh luôn là người đàn ông vững chãi, lúc nào cũng kết thúc bằng một câu “Ừ~” 💪🤍\n\n👰 Cô dâu Lee Na-eun (ENFP)\nLà một cỗ máy cảm xúc, ngày nào cũng cười, khóc và ríu rít đến mười hai lần 🚀\nNhờ sự hài hước và nguồn năng lượng, cô ấy thắp sáng bầu không khí, và dù mới gặp cũng có thể chia sẻ chuyện đời.\nĐó là lý do cô ấy rất hợp với Jin-ho, người luôn nghiêm túc đáp lại những lời tự nói một mình.\nThích những chuyến đi ngẫu hứng, nhưng điều quan trọng là luôn trở về nhà an toàn!\nLà người con gái dễ thương và mạnh mẽ, tung tăng giữa lãng mạn và thực tế, hôm nay cũng khiến Jin-ho mỉm cười 🌸😌"
+        },
+        {
+          "id": "2",
+          "title": "Q2. Hai người đã gặp nhau như thế nào?",
+          "description": "Vào một ngày khi cả hai còn chưa biết tên nhau, chúng tôi đã ngồi đối diện trong buổi gặp gỡ của những người quen.\nGiữa rất nhiều người, chỉ còn lại hai người ở đến cuối cùng.\nCuộc trò chuyện giữa Jin-ho ít nói và Na-eun nói nhiều có chút ngượng ngùng,\nnhưng khoảng thời gian ấy lại dễ chịu một cách lạ thường, và rồi chúng tôi tự nhiên giữ liên lạc.\nBan đầu, tôi chỉ nghĩ anh ấy là một người tốt, nhưng vào một khoảnh khắc,\ntôi bỗng nghĩ: “Nếu là người này thì tốt biết mấy.”\nNghĩ lại bây giờ, bầu không khí ngày hôm đó… phải chăng chính là định mệnh? 🍀🌙"
+        },
+        {
+          "id": "3",
+          "title": "Q3. Điều gì đã khiến hai người quyết định kết hôn?",
+          "description": "Khi yêu một người lâu dài, đôi khi ta trở nên chai sạn vì sự quen thuộc.\nNhưng chúng tôi thì ngược lại. Càng theo thời gian, chúng tôi càng trở thành những người tốt hơn.\nĐôi lúc cũng cãi vã, nhưng cuối cùng vẫn cùng nhau ăn cơm, cười đùa và kết thúc một ngày\nvà nhận ra rằng đối phương đã trở thành người bạn thoải mái nhất, cũng như gia đình của mình.\nRồi một ngày, không cần một sự kiện hoành tráng nào,\ngiữa cuộc sống thường ngày, chúng tôi ôm chặt lấy nhau và nói:\n“Hay là mình cứ sống cùng nhau nhé?”\nĐó chính là lời cầu hôn thật sự của chúng tôi 💍"
+        },
+        {
+          "id": "4",
+          "title": "Q4. Hai người có lời hứa gì cho cuộc sống hôn nhân sắp tới?",
+          "description": "Vì chúng ta có nhiều điểm giống nhau, cũng có nhiều điểm khác biệt,\nmỗi ngày sẽ là một quá trình học hỏi và thấu hiểu,\nnhưng khi giận nhau, chúng con sẽ không chiến tranh lạnh mà hòa giải ngay\nvà đôi khi muốn cùng nhau trải qua những ngày rung động như đang hẹn hò.\nNgày vui sẽ chia sẻ, ngày buồn sẽ cùng nhau san sẻ.\nViệc nhà sẽ được phân chia công bằng bằng ‘kéo✌️búa✊bao✋’,\nvà thay vì đắn đo ‘ai nấu cơm’, chúng con sẽ nói ‘cùng ăn nhé’ thường xuyên hơn.\nChúng con sẽ mãi là một đôi vợ chồng sống bằng hai chữ ‘chúng ta’ 💑✨"
+        }
+      ],
+      "images": [
+        "",
+        ""
+      ]
+    },
+    "mainScreen": {
+      "type": "v46",
+      "fontType": "bonanova",
+      "imagePath": [],
+      "cropSecondInfo": "",
+      "mainStyleOption": [],
+      "mainEffectOption": "none",
+      "mainScreenParticle": "snow",
+      "mainScreenSvgColor": "",
+      "mainScreenTextColor": "#1B1B1B",
+      "mainScreenTypeOption": "basic",
+      "mainLocationDisplay": "all",
+      "mainLocationContent": "address",
+      "ments": {
+        "mtxt29": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": ""
+        },
+        "mtxt30": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": ""
+        },
+        "mtxt31": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": ""
+        }
+      },
+      "mainScreenNameStyles": {
+        "fontFamily": "PlayfairDisplay",
+        "fontSize": "32px",
+        "fontColor": "",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.11"
+      }
+    },
+    "backgroundMusic": {
+      "fileKey": "mp3/ta-la-cua-nhau-1761882943872-13cq7apg.mp3",
+      "enabled": true,
+      "startTime": 0,
+      "endTime": 180,
+      "isAutoPlay": true
+    },
+    "middleImages": {
+      "enabled": true,
+      "items": [
+        {
+          "id": "15123",
+          "type": "type20",
+          "effect": "wave",
+          "subType": "",
+          "text": "",
+          "image1": "/templates/cfc4c65e-7983-499f-949e-67a72f0e3cc3/images/Nk81VmxtT29jTV8xNzg5MjQxMTIxX3gyNQ.png",
+          "image2": ""
+        }
+      ]
+    },
+    "openingAnimation": {
+      "images": "",
+      "enabled": true,
+      "animationStatus": false,
+      "openingAnimationType": "v1",
+      "openingAnimationColor": "brown",
+      "openingAnimationCustomMent": "",
+      "openingAnimationTransparent": true,
+      "openingAnimationOverlayColor": "purple",
+      "openingCardThemeId": "song-hy-red",
+      "openingCardGroomName": "",
+      "openingCardBrideName": "",
+      "openingCardEventDateText": "",
+      "openingCardInviteLabel": "",
+      "openingCardGuestName": "",
+      "openingCardInviteMessage": "",
+      "openingCardOpenButtonText": "",
+      "openingCardBackgroundColor": "",
+      "openingCardTextColor": "",
+      "openingCardButtonBackgroundColor": "",
+      "openingCardButtonTextColor": "",
+      "openingCardRootBgStart": "",
+      "openingCardRootBgMid": "",
+      "openingCardRootBgEnd": ""
+    },
+    "languages": {
+      "order": [
+        "vi"
+      ]
+    },
+    "sectionOrder": [
+      "timeline",
+      "wedding-timeline",
+      "dress-code",
+      "intro",
+      "wedding-ceremony-info",
+      "wedding-invitation",
+      "interview",
+      "video",
+      "calendar-dday",
+      "location",
+      "notice-group",
+      "gallery",
+      "guestbook",
+      "notice-separated-1",
+      "notice-separated-2",
+      "notice-separated-3",
+      "notice-separated-4",
+      "notice-separated-5",
+      "account",
+      "snap",
+      "rsvp",
+      "middle-photo-1",
+      "middle-photo-2",
+      "middle-photo-3",
+      "middle-photo-4",
+      "middle-photo-5"
+    ]
+  },
+  "clonedAt": "2026-10-04T15:58:50.715Z"
+}

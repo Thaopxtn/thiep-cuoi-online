@@ -42,6 +42,7 @@ import {
   hydrateStorage,
 } from "@/lib/templateStorage";
 import { isFavorite, toggleFavorite, FAVORITES_EVENT_CHANGE } from "@/lib/storage/favorites";
+import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
 
 interface TemplateDetailClientProps {
   initialTemplate?: TemplateItem;
@@ -109,6 +110,19 @@ export default function TemplateDetailClient({
     navigator.clipboard?.writeText(hex);
     setCopiedColor(hex);
     setTimeout(() => setCopiedColor(null), 2000);
+  };
+
+  const [isCloning, setIsCloning] = useState(false);
+
+  const handleUseAndDesign = async () => {
+    if (!template) return;
+    setIsCloning(true);
+    try {
+      const card = await cloneTemplateToNewCard(template.slug || template.id);
+      router.push(`/design-template/${card.id}?clonedFrom=${template.slug || template.id}`);
+    } catch (e) {
+      router.push(`/design-template/${template.id}`);
+    }
   };
 
   const handleDuplicateToWarehouse = () => {
@@ -419,13 +433,35 @@ export default function TemplateDetailClient({
             {/* CTAs */}
             <div className="pt-4 border-t border-gray-100 space-y-3">
               <div className="flex flex-wrap items-center gap-3">
-                <Link
-                  href={`/design-template/${template.id}`}
-                  className="flex-1 py-3 px-6 rounded-full bg-zen-primary hover:bg-red-600 text-white font-bold text-xs sm:text-sm shadow-lg shadow-zen-primary/30 transition-all hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center gap-2"
+                <button
+                  type="button"
+                  disabled={isCloning}
+                  onClick={handleUseAndDesign}
+                  className="flex-1 py-3 px-6 rounded-full bg-zen-primary hover:bg-red-600 disabled:opacity-85 text-white font-bold text-xs sm:text-sm shadow-lg shadow-zen-primary/30 transition-all hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Sử dụng & Thiết kế ngay</span>
-                </Link>
+                  {isCloning ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>Đang clone mẫu về Studio...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 text-amber-300" />
+                      <span>Sử dụng & Thiết kế ngay</span>
+                    </>
+                  )}
+                </button>
+
+                <a
+                  href={`https://zenlove.me/templates/${slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="py-3 px-4 rounded-full bg-stone-100 hover:bg-rose-50 hover:text-zen-primary text-gray-700 font-semibold text-xs sm:text-sm transition-colors flex items-center gap-1.5"
+                  title="Mở trực tiếp trang mẫu trên bản gốc ZenLove.me để đối chiếu"
+                >
+                  <span>Mở bản gốc ZenLove</span>
+                  <ExternalLink className="w-4 h-4" />
+                </a>
 
                 <Link
                   href={`/template-builder?id=${template.id}`}
