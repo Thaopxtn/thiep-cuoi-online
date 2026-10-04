@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import {
   getCardByIdOrSlug,
+  fetchCardFromServer,
   addRsvp,
   addWish,
   incrementCardViews,
@@ -55,25 +56,36 @@ export default function ShowInvitationPage() {
     seconds: 52,
   });
 
-  // Load card data
+  const setupCountdown = (found: WeddingCard) => {
+    if (found.weddingDate) {
+      const target = new Date(`${found.weddingDate}T${found.weddingTime || "11:00"}:00`).getTime();
+      const now = new Date().getTime();
+      const diff = Math.max(0, target - now);
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeLeft({ days, hours, minutes, seconds });
+    }
+  };
+
+  // Load card data (first local, then fresh from server)
   useEffect(() => {
     const found = getCardByIdOrSlug(slug);
     if (found) {
       setCard(found);
-      incrementCardViews(slug);
-
-      // Calculate countdown if valid date
-      if (found.weddingDate) {
-        const target = new Date(`${found.weddingDate}T${found.weddingTime || "11:00"}:00`).getTime();
-        const now = new Date().getTime();
-        const diff = Math.max(0, target - now);
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-        setTimeLeft({ days, hours, minutes, seconds });
-      }
+      setupCountdown(found);
     }
+
+    // Tải dữ liệu mới nhất từ Supabase Cloud
+    fetchCardFromServer(slug).then((serverCard) => {
+      if (serverCard) {
+        setCard(serverCard);
+        setupCountdown(serverCard);
+      }
+    });
+
+    incrementCardViews(slug);
   }, [slug]);
 
   useEffect(() => {

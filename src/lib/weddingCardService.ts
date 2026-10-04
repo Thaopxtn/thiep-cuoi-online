@@ -241,6 +241,37 @@ export const INITIAL_CARDS: WeddingCard[] = [
 
 const CARDS_STORAGE_KEY = "zenlove_operational_cards_v1";
 
+export async function fetchCardsFromServer(): Promise<WeddingCard[]> {
+  try {
+    const res = await fetch("/api/cards");
+    if (!res.ok) return getAllCards();
+    const data = await res.json();
+    if (data.success && Array.isArray(data.cards) && data.cards.length > 0) {
+      if (typeof window !== "undefined") {
+        localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(data.cards));
+      }
+      return data.cards;
+    }
+  } catch (err) {
+    console.warn("fetchCardsFromServer fallback to local:", err);
+  }
+  return getAllCards();
+}
+
+export async function fetchCardFromServer(slugOrId: string): Promise<WeddingCard | null> {
+  try {
+    const res = await fetch(`/api/show/${slugOrId}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.success && data.card) {
+      return data.card;
+    }
+  } catch (err) {
+    console.warn("fetchCardFromServer fallback:", err);
+  }
+  return null;
+}
+
 export function getAllCards(): WeddingCard[] {
   if (typeof window === "undefined") return INITIAL_CARDS;
   try {
@@ -270,16 +301,24 @@ export function saveCard(card: WeddingCard): void {
     const cards = getAllCards();
     const existingIndex = cards.findIndex((c) => c.id === card.id || c.slug === card.slug);
     let nextCards: WeddingCard[];
+    const updatedCard = {
+      ...card,
+      updatedAt: new Date().toLocaleDateString("vi-VN"),
+    };
     if (existingIndex >= 0) {
       nextCards = [...cards];
-      nextCards[existingIndex] = {
-        ...card,
-        updatedAt: new Date().toLocaleDateString("vi-VN"),
-      };
+      nextCards[existingIndex] = updatedCard;
     } else {
-      nextCards = [card, ...cards];
+      nextCards = [updatedCard, ...cards];
     }
     localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(nextCards));
+
+    // Đồng bộ lên Supabase Server API trong background
+    fetch(`/api/cards/${card.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedCard),
+    }).catch((err) => console.warn("Lưu lên Server API thất bại, lưu cục bộ hoàn tất:", err));
   } catch (e) {
     console.error("Failed to save card:", e);
   }
@@ -290,6 +329,11 @@ export function deleteCard(cardId: string): void {
   try {
     const cards = getAllCards().filter((c) => c.id !== cardId);
     localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
+
+    // Đồng bộ xóa lên Supabase Server API
+    fetch(`/api/cards/${cardId}`, {
+      method: "DELETE",
+    }).catch((err) => console.warn("Xóa trên Server API thất bại:", err));
   } catch (e) {
     console.error("Failed to delete card:", e);
   }
@@ -302,8 +346,15 @@ export function incrementCardViews(idOrSlug: string): void {
     const card = cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
     if (card) {
       card.views = (card.views || 0) + 1;
-      saveCard(card);
+      const existingIndex = cards.findIndex((c) => c.id === card.id);
+      cards[existingIndex] = card;
+      localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
     }
+
+    // Ghi nhận lên Server
+    fetch(`/api/show/${idOrSlug}/view`, {
+      method: "POST",
+    }).catch(() => {});
   } catch (e) {}
 }
 
@@ -321,8 +372,17 @@ export function addRsvp(cardId: string, rsvp: Omit<WeddingRsvp, "id" | "cardId" 
       const card = cards.find((c) => c.id === cardId || c.slug === cardId);
       if (card) {
         card.rsvps = [newRsvp, ...(card.rsvps || [])];
-        saveCard(card);
+        const existingIndex = cards.findIndex((c) => c.id === card.id);
+        cards[existingIndex] = card;
+        localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
       }
+
+      // Đồng bộ lên Supabase Server API
+      fetch(`/api/show/${cardId}/rsvp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(rsvp),
+      }).catch((err) => console.warn("Gửi RSVP lên server thất bại:", err));
     } catch (e) {}
   }
   return newRsvp;
@@ -343,9 +403,19 @@ export function addWish(cardId: string, name: string, content: string): WeddingW
       const card = cards.find((c) => c.id === cardId || c.slug === cardId);
       if (card) {
         card.wishes = [newWish, ...(card.wishes || [])];
-        saveCard(card);
+        const existingIndex = cards.findIndex((c) => c.id === card.id);
+        cards[existingIndex] = card;
+        localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
       }
+
+      // Đồng bộ lên Supabase Server API
+      fetch(`/api/show/${cardId}/wishes`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, content }),
+      }).catch((err) => console.warn("Gửi lời chúc lên server thất bại:", err));
     } catch (e) {}
   }
   return newWish;
 }
+

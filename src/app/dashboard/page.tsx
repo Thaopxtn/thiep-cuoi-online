@@ -28,7 +28,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/context/AuthContext";
-import { getAllCards, deleteCard, WeddingCard } from "@/lib/weddingCardService";
+import { getAllCards, deleteCard, fetchCardsFromServer, WeddingCard } from "@/lib/weddingCardService";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -39,7 +39,15 @@ export default function DashboardPage() {
   const [myCards, setMyCards] = useState<WeddingCard[]>([]);
 
   useEffect(() => {
+    // Tải trước từ cache cục bộ (ngay lập tức)
     setMyCards(getAllCards());
+
+    // Tải đồng bộ mới nhất từ Supabase Cloud
+    fetchCardsFromServer().then((remoteCards) => {
+      if (remoteCards && remoteCards.length > 0) {
+        setMyCards(remoteCards);
+      }
+    });
   }, []);
 
   // Aggregated RSVPs from all user cards

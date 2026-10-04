@@ -71,6 +71,9 @@ CREATE POLICY "Public Insert Cards" ON public.cards FOR INSERT WITH CHECK (true)
 DROP POLICY IF EXISTS "Public Update Cards" ON public.cards;
 CREATE POLICY "Public Update Cards" ON public.cards FOR UPDATE USING (true);
 
+DROP POLICY IF EXISTS "Public Delete Cards" ON public.cards;
+CREATE POLICY "Public Delete Cards" ON public.cards FOR DELETE USING (true);
+
 DROP POLICY IF EXISTS "Public Read RSVPs" ON public.rsvps;
 CREATE POLICY "Public Read RSVPs" ON public.rsvps FOR SELECT USING (true);
 
