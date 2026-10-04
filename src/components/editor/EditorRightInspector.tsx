@@ -79,6 +79,20 @@ export default function EditorRightInspector({
   const { id, type, props } = selectedElement;
   const isImage = type === "PhotoBox" || props.imgKey;
   const isText = type === "TextBox" || typeof props.text === "string";
+  const isShape = type === "GeometricBox" || type === "LineBox";
+
+  const toHexColor = (colorStr?: string): string => {
+    if (!colorStr) return "#1c171a";
+    if (colorStr.startsWith("#")) return colorStr.substring(0, 7);
+    const rgbaMatch = colorStr.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+    if (rgbaMatch) {
+      const r = parseInt(rgbaMatch[1]).toString(16).padStart(2, "0");
+      const g = parseInt(rgbaMatch[2]).toString(16).padStart(2, "0");
+      const b = parseInt(rgbaMatch[3]).toString(16).padStart(2, "0");
+      return `#${r}${g}${b}`;
+    }
+    return "#1c171a";
+  };
 
   const handlePropChange = (key: string, value: any) => {
     onUpdateProps(id, { [key]: value });
@@ -657,16 +671,72 @@ export default function EditorRightInspector({
             </div>
 
             {/* Color picker */}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-xs font-semibold text-gray-700">Màu chữ:</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={props.color || "#1c171a"}
-                  onChange={(e) => handlePropChange("color", e.target.value)}
-                  className="w-8 h-8 rounded-lg cursor-pointer border-0"
-                />
-                <span className="text-xs font-mono text-gray-500 uppercase">{props.color || "#1c171a"}</span>
+            <div className="space-y-2 pt-1 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-gray-700">Màu chữ:</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={toHexColor(props.color)}
+                    onChange={(e) => handlePropChange("color", e.target.value)}
+                    className="w-8 h-8 rounded-lg cursor-pointer border-0"
+                  />
+                  <span className="text-xs font-mono text-gray-500 uppercase">
+                    {props.color || "#1c171a"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Wedding Color Swatches */}
+              <div className="space-y-1">
+                <span className="text-[10px] text-gray-400 font-semibold uppercase">Màu đề xuất:</span>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {[
+                    { label: "Đỏ đô hoàng gia", color: "#511419" },
+                    { label: "Đen than trang trọng", color: "#1c171a" },
+                    { label: "Nâu đất đậm", color: "#451a03" },
+                    { label: "Vàng đồng ánh kim", color: "#b45309" },
+                    { label: "Trắng nổi bật", color: "#ffffff" },
+                    { label: "Kem vàng sang", color: "#ece4d8" },
+                    { label: "Hồng đất lãng mạn", color: "#9f1239" },
+                    { label: "Xám chì đậm", color: "#374151" },
+                  ].map((swatch) => (
+                    <button
+                      key={swatch.color}
+                      type="button"
+                      onClick={() => handlePropChange("color", swatch.color)}
+                      className="w-6 h-6 rounded-full border border-gray-300 shadow-2xs hover:scale-110 active:scale-95 transition-transform"
+                      style={{ backgroundColor: swatch.color }}
+                      title={swatch.label}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Text Shadow for High Contrast */}
+              <div className="pt-2 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-700">Đổ bóng chữ (Chống chìm):</span>
+                  <label className="flex items-center gap-1.5 cursor-pointer text-xs">
+                    <input
+                      type="checkbox"
+                      checked={!!props.hasTextShadow}
+                      onChange={(e) => {
+                        handlePropChange("hasTextShadow", e.target.checked);
+                        if (e.target.checked && !props.textShadow) {
+                          handlePropChange("textShadow", {
+                            offsetX: 0,
+                            offsetY: 1,
+                            blur: 4,
+                            color: "rgba(0,0,0,0.6)",
+                          });
+                        }
+                      }}
+                      className="accent-zen-primary"
+                    />
+                    <span className="text-[11px] text-gray-600 font-medium">Bật</span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -707,6 +777,108 @@ export default function EditorRightInspector({
               >
                 <AlignRight className="w-4 h-4" />
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* ================= IF GEOMETRIC / SHAPE BOX SELECTED ================= */}
+        {isShape && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-1 text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
+              <ChevronDown className="w-4 h-4 text-gray-500" />
+              <span>Khối hình học / Hộp nền</span>
+            </div>
+
+            {/* Fill Color */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-700">Màu nền khối:</span>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={toHexColor(props.fill || props.backgroundColor)}
+                    onChange={(e) => handlePropChange("fill", e.target.value)}
+                    className="w-8 h-8 rounded-lg cursor-pointer border-0"
+                  />
+                  <span className="text-xs font-mono text-gray-500 uppercase">
+                    {props.fill || props.backgroundColor || "Trong suốt"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Shape Color Swatches */}
+              <div className="flex items-center gap-1.5 flex-wrap pt-1">
+                {[
+                  { label: "Đỏ đô hoàng gia", color: "rgba(81, 20, 25, 1.00)" },
+                  { label: "Trắng tinh", color: "#ffffff" },
+                  { label: "Kem vintage", color: "#faf7f2" },
+                  { label: "Đen than", color: "#1c171a" },
+                  { label: "Vàng đồng", color: "#b45309" },
+                  { label: "Hồng pastel", color: "#ffe4e6" },
+                ].map((swatch) => (
+                  <button
+                    key={swatch.color}
+                    type="button"
+                    onClick={() => handlePropChange("fill", swatch.color)}
+                    className="w-6 h-6 rounded-full border border-gray-300 shadow-2xs hover:scale-110 active:scale-95 transition-transform"
+                    style={{ backgroundColor: swatch.color }}
+                    title={swatch.label}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Opacity slider */}
+            <div className="space-y-1.5 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-700">Độ mờ (Opacity):</span>
+                <span className="font-mono text-gray-600">
+                  {typeof props.opacity === "number" ? props.opacity.toFixed(2) : "1.00"}
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={props.opacity ?? 1}
+                onChange={(e) => handlePropChange("opacity", parseFloat(e.target.value))}
+                className="w-full accent-zen-primary"
+              />
+            </div>
+
+            {/* Border Radius */}
+            <div className="space-y-1.5 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-700">Bo góc (px):</span>
+                <span className="font-mono text-gray-600">
+                  {Array.isArray(props.borderRadius) ? props.borderRadius[0] : (props.borderRadius || 0)}px
+                </span>
+              </div>
+              <input
+                type="range"
+                min="0"
+                max="60"
+                value={Array.isArray(props.borderRadius) ? props.borderRadius[0] : (props.borderRadius || 0)}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value);
+                  handlePropChange("borderRadius", [val, val, val, val]);
+                }}
+                className="w-full accent-zen-primary"
+              />
+            </div>
+
+            {/* Box Shadow */}
+            <div className="pt-2 border-t border-gray-100">
+              <label className="flex items-center gap-2 cursor-pointer text-xs">
+                <input
+                  type="checkbox"
+                  checked={!!props.hasBoxShadow}
+                  onChange={(e) => handlePropChange("hasBoxShadow", e.target.checked)}
+                  className="accent-zen-primary"
+                />
+                <span className="font-semibold text-gray-700">Bật bóng đổ cho khối</span>
+              </label>
             </div>
           </div>
         )}

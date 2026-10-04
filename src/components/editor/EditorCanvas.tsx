@@ -236,9 +236,71 @@ export default function EditorCanvas({
                     letterSpacing: props.letterSpacing
                       ? `${props.letterSpacing}px`
                       : "normal",
+                    textShadow: props.hasTextShadow && props.textShadow
+                      ? `${props.textShadow.offsetX || 0}px ${props.textShadow.offsetY || 1}px ${props.textShadow.blur || 4}px ${props.textShadow.color || "rgba(0,0,0,0.5)"}`
+                      : undefined,
                   }}
                   dangerouslySetInnerHTML={{ __html: props.text || "" }}
                 />
+              )}
+
+              {type === "GeometricBox" && (
+                <div
+                  className={`w-full h-full ${animClass}`}
+                  style={{
+                    backgroundColor: props.fill || props.backgroundColor || "transparent",
+                    borderRadius: props.borderRadius
+                      ? Array.isArray(props.borderRadius)
+                        ? `${props.borderRadius[0]}px`
+                        : `${props.borderRadius}px`
+                      : props.shapeType === "circle"
+                      ? "50%"
+                      : "0px",
+                    border: props.borderSize
+                      ? `${props.borderSize}px ${props.borderStyle || "solid"} ${props.borderColor || "transparent"}`
+                      : undefined,
+                    boxShadow: props.hasBoxShadow
+                      ? `${props.boxShadow?.offsetX || 0}px ${props.boxShadow?.offsetY || 4}px ${props.boxShadow?.blur || 10}px ${props.boxShadow?.color || "rgba(0,0,0,0.15)"}`
+                      : undefined,
+                    opacity: props.opacity ?? 1,
+                  }}
+                />
+              )}
+
+              {type === "CarouselBox" && (
+                <div
+                  className={`w-full h-full overflow-hidden relative shadow-lg ${animClass}`}
+                  style={{
+                    borderRadius: props.borderRadius
+                      ? Array.isArray(props.borderRadius)
+                        ? `${props.borderRadius[0]}px`
+                        : `${props.borderRadius}px`
+                      : "24px",
+                  }}
+                >
+                  {props.imgList && props.imgList.length > 0 ? (
+                    <img
+                      src={getImageUrl(props.imgList[0]?.imageKey || props.imgList[0]?.src)}
+                      alt="Wedding Album Carousel"
+                      className="w-full h-full object-cover select-none pointer-events-none"
+                      draggable={false}
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-rose-50 flex items-center justify-center text-xs font-semibold text-gray-500">
+                      Album ảnh cưới (Carousel)
+                    </div>
+                  )}
+                  {props.imgList && props.imgList.length > 1 && (
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1 rounded-full bg-black/40 backdrop-blur-xs">
+                      {props.imgList.slice(0, 5).map((_: any, idx: number) => (
+                        <span
+                          key={idx}
+                          className={`w-1.5 h-1.5 rounded-full ${idx === 0 ? "bg-white" : "bg-white/50"}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {type === "LineBox" && (
