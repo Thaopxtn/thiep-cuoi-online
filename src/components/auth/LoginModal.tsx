@@ -69,10 +69,10 @@ export default function LoginModal() {
 
         {/* Action Buttons */}
         <div className="space-y-3">
-          {/* One click Google login */}
+          {/* Supabase Google OAuth */}
           <button
-            onClick={handleQuickGoogleLogin}
-            className="w-full py-3 px-4 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-semibold text-sm shadow-xs flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            onClick={openNativeBrowserLogin}
+            className="w-full py-3 px-4 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-800 font-bold text-sm shadow-xs flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
               <path
@@ -92,15 +92,15 @@ export default function LoginModal() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
               />
             </svg>
-            <span>Tiếp tục với Google</span>
+            <span>Đăng nhập qua Google (Supabase)</span>
           </button>
 
-          {/* Open Native Browser to ZenLove */}
+          {/* Quick 1-click Login */}
           <button
-            onClick={openNativeBrowserLogin}
+            onClick={handleQuickGoogleLogin}
             className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-zen-primary to-rose-600 hover:from-red-600 hover:to-rose-700 text-white font-bold text-sm shadow-md shadow-zen-primary/20 flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
-            <span>Đăng nhập trên zenlove.me (Trình duyệt)</span>
+            <span>Đăng nhập nhanh 1 chạm (Khách VIP)</span>
             <ExternalLink className="w-4 h-4" />
           </button>
         </div>

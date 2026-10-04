@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const openNativeBrowserLogin = () => {
     if (typeof window !== "undefined") {
-      window.open("https://zenlove.me/login", "_blank");
+      window.location.href = "/api/auth/google";
     }
   };
 

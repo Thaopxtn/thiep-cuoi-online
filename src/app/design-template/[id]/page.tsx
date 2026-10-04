@@ -484,13 +484,25 @@ export default function DesignTemplatePage() {
             setActiveLeftTab("image");
             setIsLeftDrawerOpen(true);
           }}
-          onRemoveBackground={() => {
-            // Simulated AI remove background
-            if (selectedElement) {
-              handleUpdateProps(selectedElement.id, {
-                hasBoxShadow: true,
-                boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
-              });
+          onRemoveBackground={async () => {
+            if (selectedElement && selectedElement.props?.imgKey) {
+              try {
+                const res = await fetch("/api/tools/remove-bg", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ imageUrl: selectedElement.props.imgKey }),
+                });
+                const data = await res.json();
+                if (data.success && data.outputUrl) {
+                  handleUpdateProps(selectedElement.id, {
+                    imgKey: data.outputUrl,
+                    hasBoxShadow: true,
+                    boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
+                  });
+                }
+              } catch (e) {
+                console.error("Lỗi xóa nền AI:", e);
+              }
             }
           }}
         />
