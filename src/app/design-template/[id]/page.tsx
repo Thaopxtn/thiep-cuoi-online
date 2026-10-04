@@ -9,6 +9,7 @@ import EditorCanvas from "@/components/editor/EditorCanvas";
 import EditorRightInspector, { SelectedElementData } from "@/components/editor/EditorRightInspector";
 import EditorPublishModal from "@/components/editor/EditorPublishModal";
 import EditorShortcutsModal from "@/components/editor/EditorShortcutsModal";
+import EditorLivePreviewModal from "@/components/editor/EditorLivePreviewModal";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { getStoredTemplateById, saveCustomTemplate } from "@/lib/templateStorage";
@@ -43,7 +44,7 @@ export default function DesignTemplatePage() {
   // Modals state
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isLivePreviewOpen, setIsLivePreviewOpen] = useState(false);
   const [isSaved, setIsSaved] = useState(true);
 
   // Push new state to history
@@ -330,8 +331,8 @@ export default function DesignTemplatePage() {
     }
   };
 
-  // Operational Publish Handler - Saves card into persistent storage and opens publish modal
-  const handlePublish = () => {
+  // Operational Card Builder - Extract couple info, photos, and current customized canvas nodes
+  const buildCardFromCurrentState = () => {
     const slug = templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId;
     const existing = getCardByIdOrSlug(templateId) || getCardByIdOrSlug(slug);
 
@@ -340,13 +341,28 @@ export default function DesignTemplatePage() {
     let brideName = existing?.bride?.name || "Thùy Dung";
     Object.values(nodes).forEach((n: any) => {
       if (n.type?.resolvedName === "TextBox" && typeof n.props?.text === "string") {
-        if (n.props.text.includes("&") || n.props.text.includes("và")) {
-          const parts = n.props.text.split(/&|và/);
+        const text = n.props.text.replace(/<[^>]*>/g, "").trim();
+        if ((text.includes("&") || text.includes("và")) && text.length < 50) {
+          const parts = text.split(/&|và/);
           if (parts[0]?.trim()) groomName = parts[0].trim();
           if (parts[1]?.trim()) brideName = parts[1].trim();
         }
       }
     });
+
+    // Extract hero cover photo from nodes
+    let coverImage = existing?.coverImage || "";
+    const photoNodes = Object.values(nodes).filter(
+      (n: any) => n.type?.resolvedName === "PhotoBox" && n.props?.imgKey
+    );
+    if (photoNodes.length > 0) {
+      const hero = photoNodes.find((n: any) => (n.props.width || 0) > 200) || photoNodes[0];
+      if (hero && hero.props?.imgKey) {
+        coverImage = hero.props.imgKey.startsWith("http")
+          ? hero.props.imgKey
+          : `https://cdn-resource.zenlove.me/${hero.props.imgKey.replace(/^\//, "")}`;
+      }
+    }
 
     const cardToSave: WeddingCard = {
       id: templateId,
@@ -356,10 +372,8 @@ export default function DesignTemplatePage() {
       templateName,
       status: "published",
       updatedAt: new Date().toLocaleDateString("vi-VN"),
-      views: existing?.views || 1420,
-      coverImage:
-        existing?.coverImage ||
-        "https://cdn-resource.zenlove.me/uploads/862861ad-96f7-4738-b17f-56ad4f5c1e28/QkFhLVRoQW4tVGlhbl8xNzg5OTE0NzgyOTM4X3hodWtzYWpiZzE.jpg?crop=0,0,1920,1080&format=webp&quality=80",
+      views: existing?.views || 100,
+      coverImage: coverImage || existing?.coverImage || currentZenloveTemplate?.imageUrl || "",
       story:
         existing?.story ||
         "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
@@ -408,16 +422,31 @@ export default function DesignTemplatePage() {
         },
       ],
       album: existing?.album || [],
-      musicTitle: existing?.musicTitle || "Thiên đường với người thương",
+      musicTitle: existing?.musicTitle || currentZenloveTemplate?.musicName || "Thiên đường với người thương",
       musicUrl:
         existing?.musicUrl ||
+        currentZenloveTemplate?.musicUrl ||
         "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
       rsvps: existing?.rsvps || [],
       wishes: existing?.wishes || [],
       nodes,
     };
 
-    saveCard(cardToSave);
+    return cardToSave;
+  };
+
+  // Preview Handler - Saves current nodes and opens live smartphone preview modal
+  const handlePreview = () => {
+    const card = buildCardFromCurrentState();
+    saveCard(card);
+    setIsSaved(true);
+    setIsLivePreviewOpen(true);
+  };
+
+  // Publish Handler - Saves card and opens shareable QR code publish modal
+  const handlePublish = () => {
+    const card = buildCardFromCurrentState();
+    saveCard(card);
     setIsSaved(true);
     setIsPublishModalOpen(true);
   };
@@ -431,7 +460,7 @@ export default function DesignTemplatePage() {
         canRedo={historyIndex < history.length - 1}
         onUndo={handleUndo}
         onRedo={handleRedo}
-        onPreview={() => setIsPreviewModalOpen(true)}
+        onPreview={handlePreview}
         onPublish={handlePublish}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
         isSaved={isSaved}
@@ -514,6 +543,7 @@ export default function DesignTemplatePage() {
         onClose={() => setIsPublishModalOpen(false)}
         templateName={templateName}
         templateId={templateId}
+        cardSlug={templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId}
       />
 
       <EditorShortcutsModal
@@ -521,13 +551,13 @@ export default function DesignTemplatePage() {
         onClose={() => setIsShortcutsModalOpen(false)}
       />
 
-      {isPreviewModalOpen && currentZenloveTemplate && (
-        <ZenlovePreviewModal
-          template={currentZenloveTemplate}
-          onClose={() => setIsPreviewModalOpen(false)}
-          onUse={() => setIsPreviewModalOpen(false)}
-        />
-      )}
+      <EditorLivePreviewModal
+        isOpen={isLivePreviewOpen}
+        onClose={() => setIsLivePreviewOpen(false)}
+        nodes={nodes}
+        templateName={templateName}
+        slugOrId={templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId}
+      />
     </div>
   );
 }

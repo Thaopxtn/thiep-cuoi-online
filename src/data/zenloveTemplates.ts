@@ -21,6 +21,8 @@ export interface ZenLoveTemplate {
   usageCount: number;
   createdAt: string;
   updatedAt: string;
+  musicName?: string;
+  musicUrl?: string;
 }
 
 export const ZENLOVE_CATEGORIES: ZenLoveCategory[] = [

@@ -34,6 +34,8 @@ import {
   WeddingCard,
 } from "@/lib/weddingCardService";
 import FallingPetals from "@/components/FallingPetals";
+import CardNodeRenderer from "@/components/CardNodeRenderer";
+import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
 
 export default function ShowInvitationPage() {
   const params = useParams();
@@ -72,23 +74,160 @@ export default function ShowInvitationPage() {
     }
   };
 
-  // Load card data (first local, then fresh from server)
+  // Helper to extract custom names from nodes
+  const extractNamesFromNodes = (nodes?: Record<string, any>) => {
+    let groom = "Chú Rể";
+    let bride = "Cô Dâu";
+    if (!nodes) return { groom, bride };
+
+    Object.values(nodes).forEach((n: any) => {
+      if (n.type?.resolvedName === "TextBox" && typeof n.props?.text === "string") {
+        const text = n.props.text.replace(/<[^>]*>/g, "").trim();
+        if ((text.includes("&") || text.includes("và")) && text.length < 50) {
+          const parts = text.split(/&|và/);
+          if (parts[0]?.trim()) groom = parts[0].trim();
+          if (parts[1]?.trim()) bride = parts[1].trim();
+        }
+      }
+    });
+    return { groom, bride };
+  };
+
+  // Load card data (first local, then fresh from server, then ZenLove template catalog)
   useEffect(() => {
+    let active = true;
+
+    // 1. Kiểm tra bộ nhớ cục bộ (nếu người dùng vừa chỉnh sửa trong Editor)
     const found = getCardByIdOrSlug(slug);
     if (found) {
       setCard(found);
       setupCountdown(found);
+      if (found.nodes && Object.keys(found.nodes).length > 2) {
+        // Đã có đầy đủ thiết kế tùy biến
+        incrementCardViews(slug);
+        return;
+      }
     }
 
-    // Tải dữ liệu mới nhất từ Supabase Cloud
+    // 2. Tải từ cơ sở dữ liệu Supabase Backend
     fetchCardFromServer(slug).then((serverCard) => {
+      if (!active) return;
       if (serverCard) {
         setCard(serverCard);
         setupCountdown(serverCard);
+        if (serverCard.nodes && Object.keys(serverCard.nodes).length > 2) {
+          return;
+        }
       }
+
+      // 3. Nếu chưa có nodes thiết kế: Tải nodes trực tiếp từ API ZenLove Template
+      fetch(`/api/zenlove-template/${slug}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!active) return;
+          if (data?.success && data?.data?.parsedNodes) {
+            const meta = ZENLOVE_TEMPLATES.find((t) => t.id === slug || t.slug === slug);
+            setCard((prev) => {
+              const nodes = data.data.parsedNodes;
+              let { groom, bride } = extractNamesFromNodes(nodes);
+
+              // Xử lý mẫu dạng FORM (như Đồng Xanh,...)
+              if (nodes?.basicInfo) {
+                const b = nodes.basicInfo;
+                if (b.groomFullName || b.groomShortName) {
+                  groom = b.groomFullName || b.groomShortName;
+                }
+                if (b.brideFullName || b.brideShortName) {
+                  bride = b.brideFullName || b.brideShortName;
+                }
+              }
+
+              let coverImage = meta?.imageUrl || data.data.thumbnail || "";
+              if (nodes?.endingPhoto?.fileKey) {
+                const fk = nodes.endingPhoto.fileKey.replace(/^\//, "");
+                coverImage = fk.startsWith("http") ? fk : `https://cdn-resource.zenlove.me/${fk}`;
+              }
+
+              let weddingDate = "2026-11-18";
+              let weddingTime = "11:00";
+              if (nodes?.weddingDate?.date) {
+                try {
+                  const d = new Date(nodes.weddingDate.date);
+                  weddingDate = d.toISOString().split("T")[0];
+                  if (nodes.weddingDate.hour !== undefined) {
+                    weddingTime = `${String(nodes.weddingDate.hour).padStart(2, "0")}:${String(nodes.weddingDate.minute || 0).padStart(2, "0")}`;
+                  }
+                } catch {}
+              }
+
+              let story = "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.";
+              if (nodes?.introMent?.description) {
+                story = nodes.introMent.description.replace(/<[^>]*>/g, " ").trim();
+              }
+
+              let events = prev?.events || [];
+              if (nodes?.weddingLocation?.locations && nodes.weddingLocation.locations.length > 0) {
+                events = nodes.weddingLocation.locations.map((loc: any, idx: number) => ({
+                  id: loc.id || `loc-${idx}`,
+                  title: loc.title || "Địa điểm hôn lễ",
+                  time: `${weddingTime} • ${weddingDate}`,
+                  venue: loc.roadAddress || loc.displayAddress || "Tư gia",
+                  address: loc.roadAddress || loc.displayAddress || "",
+                  mapUrl: `https://maps.google.com/?q=${encodeURIComponent(loc.roadAddress || loc.displayAddress || "")}`,
+                }));
+              }
+
+              const newCard: WeddingCard = {
+                id: slug,
+                slug: slug,
+                name: data.data.name || meta?.name || "Thiệp Cưới",
+                templateId: meta?.id || slug,
+                templateName: data.data.name || meta?.name || "ZenLove",
+                status: "published",
+                updatedAt: new Date().toLocaleDateString("vi-VN"),
+                views: 120,
+                coverImage,
+                story,
+                weddingDate,
+                weddingTime,
+                lunarDate: "Ngày 10 tháng 10 năm Bính Ngọ",
+                groom: {
+                  name: prev?.groom?.name && prev.groom.name !== "Chú Rể" ? prev.groom.name : groom,
+                  title: "Chú Rể",
+                  phone: prev?.groom?.phone || "0912.345.678",
+                  parents: nodes?.basicInfo?.groomParentTitle
+                    ? `${nodes.basicInfo.groomParentTitle} ${nodes.basicInfo.groomFatherName || ""} & ${nodes.basicInfo.groomMatherName || ""}`
+                    : undefined,
+                },
+                bride: {
+                  name: prev?.bride?.name && prev.bride.name !== "Cô Dâu" ? prev.bride.name : bride,
+                  title: "Cô Dâu",
+                  phone: prev?.bride?.phone || "0987.654.321",
+                  parents: nodes?.basicInfo?.brideParentTitle
+                    ? `${nodes.basicInfo.brideParentTitle} ${nodes.basicInfo.brideFatherName || ""} & ${nodes.basicInfo.brideMatherName || ""}`
+                    : undefined,
+                },
+                events: events.length > 0 ? events : prev?.events || [],
+                album: prev?.album || [],
+                musicTitle: data.data.musicName || meta?.musicName || "Nhạc cưới",
+                musicUrl: data.data.musicUrl || meta?.musicUrl || "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+                rsvps: prev?.rsvps || [],
+                wishes: prev?.wishes || [],
+                nodes,
+              };
+
+              setupCountdown(newCard);
+              return newCard;
+            });
+          }
+        })
+        .catch(() => {});
     });
 
     incrementCardViews(slug);
+    return () => {
+      active = false;
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -217,6 +356,10 @@ export default function ShowInvitationPage() {
     );
   }
 
+  const { groom: displayGroom, bride: displayBride } = extractNamesFromNodes(card.nodes);
+  const groomName = card.groom.name && card.groom.name !== "Chú Rể" ? card.groom.name : displayGroom;
+  const brideName = card.bride.name && card.bride.name !== "Cô Dâu" ? card.bride.name : displayBride;
+
   return (
     <div className="min-h-screen bg-[#f3efe6] flex flex-col items-center justify-start relative text-gray-800 selection:bg-rose-100 selection:text-zen-primary">
       {/* Background Wedding Audio */}
@@ -341,11 +484,11 @@ export default function ShowInvitationPage() {
                   </span>
                   <div className="my-auto py-2">
                     <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
-                      {card.groom.name}
+                      {groomName}
                     </h2>
                     <span className="text-xs text-amber-800 font-serif italic">&</span>
                     <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
-                      {card.bride.name}
+                      {brideName}
                     </h2>
                   </div>
                   <div className="text-[10px] text-gray-600 font-medium border-t border-amber-700/10 pt-2">
@@ -419,136 +562,144 @@ export default function ShowInvitationPage() {
 
       {/* ================= MAIN MOBILE INVITATION CONTAINER ================= */}
       <main className="w-full max-w-[480px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-16">
-        {/* Background Architectural Palace Sketch */}
-        <div
-          className="absolute inset-0 opacity-10 pointer-events-none bg-repeat-y bg-top"
-          style={{
-            backgroundImage:
-              "url('https://cdn-resource.zenlove.me/resources/mldw1mdn28infjta.png')",
-            backgroundSize: "100% auto",
-          }}
-        />
-
-        {/* Top Header */}
-        <div className="pt-8 pb-4 px-6 text-center relative z-10">
-          <p className="text-[11px] uppercase tracking-widest text-amber-800 font-bold mb-1">
-            Save The Date
-          </p>
-          <div className="w-12 h-0.5 bg-amber-700/30 mx-auto mb-4"></div>
-
-          {/* Groom & Bride Typography - Authentic Calligraphy */}
-          <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
-            {card.groom.name}
-          </h1>
-          <div className="my-1 flex items-center justify-center gap-3">
-            <span className="w-8 h-px bg-amber-700/40"></span>
-            <Heart className="w-4 h-4 text-zen-primary fill-zen-primary" />
-            <span className="w-8 h-px bg-amber-700/40"></span>
+        {/* Dynamic Nodes Canvas (Hiển thị đúng 100% bản vẽ tùy biến của người dùng) */}
+        {card.nodes && card.nodes["ROOT"] && Object.keys(card.nodes).length > 2 ? (
+          <div className="w-full relative z-10">
+            <CardNodeRenderer nodes={card.nodes} />
           </div>
-          <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
-            {card.bride.name}
-          </h1>
-
-          <p className="text-xs text-gray-500 mt-3 font-medium">
-            Ngày trọng đại: <strong className="text-gray-900 font-semibold">{card.weddingDate}</strong>
-          </p>
-          {card.lunarDate && (
-            <p className="text-[11px] text-gray-400 mt-0.5 italic">
-              ({card.lunarDate})
-            </p>
-          )}
-        </div>
-
-        {/* Hero Photo with Envelope Framing (Matches user's editor screenshot!) */}
-        <div className="px-6 py-2 relative z-10">
-          <div className="relative rounded-2xl overflow-hidden shadow-lg border-4 border-white aspect-3/4 bg-gray-100 group">
-            <img
-              src={card.coverImage}
-              alt={card.name}
-              className="w-full h-full object-cover"
+        ) : (
+          <>
+            {/* Background Architectural Palace Sketch */}
+            <div
+              className="absolute inset-0 opacity-10 pointer-events-none bg-repeat-y bg-top"
+              style={{
+                backgroundImage:
+                  "url('https://cdn-resource.zenlove.me/resources/mldw1mdn28infjta.png')",
+                backgroundSize: "100% auto",
+              }}
             />
-            {/* Burgundy Corner Ribbons */}
-            <div className="absolute -top-12 -right-12 w-24 h-24 bg-[#511419] rotate-45 flex items-end justify-center pb-1 text-[10px] text-amber-200 font-bold">
-              WEDDING
+
+            {/* Top Header */}
+            <div className="pt-8 pb-4 px-6 text-center relative z-10">
+              <p className="text-[11px] uppercase tracking-widest text-amber-800 font-bold mb-1">
+                Save The Date
+              </p>
+              <div className="w-12 h-0.5 bg-amber-700/30 mx-auto mb-4"></div>
+
+              {/* Groom & Bride Typography */}
+              <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
+                {groomName}
+              </h1>
+              <div className="my-1 flex items-center justify-center gap-3">
+                <span className="w-8 h-px bg-amber-700/40"></span>
+                <Heart className="w-4 h-4 text-zen-primary fill-zen-primary" />
+                <span className="w-8 h-px bg-amber-700/40"></span>
+              </div>
+              <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
+                {brideName}
+              </h1>
+
+              <p className="text-xs text-gray-500 mt-3 font-medium">
+                Ngày trọng đại: <strong className="text-gray-900 font-semibold">{card.weddingDate}</strong>
+              </p>
+              {card.lunarDate && (
+                <p className="text-[11px] text-gray-400 mt-0.5 italic">
+                  ({card.lunarDate})
+                </p>
+              )}
             </div>
-          </div>
-        </div>
 
-        {/* Romantic Quote */}
-        <div className="px-8 py-6 text-center relative z-10">
-          <p className="text-base sm:text-lg text-gray-700 italic font-parisienne leading-relaxed">
-            "{card.story}"
-          </p>
-        </div>
-
-        {/* ================= COUNTDOWN TIMER ================= */}
-        <section className="px-6 py-6 bg-gradient-to-b from-[#fbf6f0] to-white mx-4 rounded-2xl border border-amber-900/10 shadow-xs relative z-10 text-center">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-3">
-            Đếm ngược ngày chung đôi
-          </h3>
-          <div className="grid grid-cols-4 gap-2">
-            {[
-              { val: timeLeft.days, label: "Ngày" },
-              { val: timeLeft.hours, label: "Giờ" },
-              { val: timeLeft.minutes, label: "Phút" },
-              { val: timeLeft.seconds, label: "Giây" },
-            ].map((t, idx) => (
-              <div
-                key={idx}
-                className="bg-white rounded-xl py-2 px-1 shadow-xs border border-gray-100 flex flex-col items-center"
-              >
-                <span className="text-xl sm:text-2xl font-bold font-cormorant text-[#511419]">
-                  {String(t.val).padStart(2, "0")}
-                </span>
-                <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                  {t.label}
-                </span>
+            {/* Hero Photo with Envelope Framing */}
+            <div className="px-6 py-2 relative z-10">
+              <div className="relative rounded-2xl overflow-hidden shadow-lg border-4 border-white aspect-3/4 bg-gray-100 group">
+                <img
+                  src={card.coverImage}
+                  alt={card.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute -top-12 -right-12 w-24 h-24 bg-[#511419] rotate-45 flex items-end justify-center pb-1 text-[10px] text-amber-200 font-bold">
+                  WEDDING
+                </div>
               </div>
-            ))}
-          </div>
-        </section>
+            </div>
 
-        {/* ================= EVENT SCHEDULE ================= */}
-        <section className="px-6 py-8 relative z-10 space-y-6">
-          <div className="text-center">
-            <h2 className="text-xl sm:text-2xl font-cinzel font-bold text-[#511419] tracking-wider">
-              Chương Trình Hôn Lễ
-            </h2>
-            <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
-          </div>
+            {/* Romantic Quote */}
+            <div className="px-8 py-6 text-center relative z-10">
+              <p className="text-base sm:text-lg text-gray-700 italic font-parisienne leading-relaxed">
+                "{card.story}"
+              </p>
+            </div>
 
-          <div className="space-y-4">
-            {card.events.map((evt) => (
-              <div
-                key={evt.id}
-                className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs relative overflow-hidden"
-              >
-                <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
-                  <Clock className="w-4 h-4" />
-                  <span>{evt.time}</span>
-                </div>
-                <h4 className="font-bold text-gray-900 text-base">
-                  {evt.title}
-                </h4>
-                <div className="mt-2 flex items-start gap-2 text-xs text-gray-600">
-                  <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                  <span>{evt.address || evt.venue}</span>
-                </div>
-                {evt.mapUrl && (
-                  <a
-                    href={evt.mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 text-zen-primary text-xs font-bold hover:bg-rose-100 transition-colors"
+            {/* Countdown Timer */}
+            <section className="px-6 py-6 bg-gradient-to-b from-[#fbf6f0] to-white mx-4 rounded-2xl border border-amber-900/10 shadow-xs relative z-10 text-center">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-3">
+                Đếm ngược ngày chung đôi
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  { val: timeLeft.days, label: "Ngày" },
+                  { val: timeLeft.hours, label: "Giờ" },
+                  { val: timeLeft.minutes, label: "Phút" },
+                  { val: timeLeft.seconds, label: "Giây" },
+                ].map((t, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-white rounded-xl py-2 px-1 shadow-xs border border-gray-100 flex flex-col items-center"
                   >
-                    <Navigation className="w-3.5 h-3.5" />
-                    <span>Chỉ đường Google Maps</span>
-                  </a>
-                )}
+                    <span className="text-xl sm:text-2xl font-bold font-cormorant text-[#511419]">
+                      {String(t.val).padStart(2, "0")}
+                    </span>
+                    <span className="text-[10px] text-gray-500 uppercase font-semibold">
+                      {t.label}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
+
+            {/* Event Schedule */}
+            <section className="px-6 py-8 relative z-10 space-y-6">
+              <div className="text-center">
+                <h2 className="text-xl sm:text-2xl font-cinzel font-bold text-[#511419] tracking-wider">
+                  Chương Trình Hôn Lễ
+                </h2>
+                <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
+              </div>
+
+              <div className="space-y-4">
+                {card.events.map((evt) => (
+                  <div
+                    key={evt.id}
+                    className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
+                      <Clock className="w-4 h-4" />
+                      <span>{evt.time}</span>
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-base">
+                      {evt.title}
+                    </h4>
+                    <div className="mt-2 flex items-start gap-2 text-xs text-gray-600">
+                      <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                      <span>{evt.address || evt.venue}</span>
+                    </div>
+                    {evt.mapUrl && (
+                      <a
+                        href={evt.mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 text-zen-primary text-xs font-bold hover:bg-rose-100 transition-colors"
+                      >
+                        <Navigation className="w-3.5 h-3.5" />
+                        <span>Chỉ đường Google Maps</span>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
 
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
         <section className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">

@@ -288,11 +288,16 @@ export function getAllCards(): WeddingCard[] {
 }
 
 export function getCardByIdOrSlug(idOrSlug: string): WeddingCard | undefined {
+  if (typeof window !== "undefined") {
+    try {
+      const byDirectId = localStorage.getItem(`card_${idOrSlug}`);
+      if (byDirectId) return JSON.parse(byDirectId);
+      const byDirectSlug = localStorage.getItem(`card_slug_${idOrSlug}`);
+      if (byDirectSlug) return JSON.parse(byDirectSlug);
+    } catch {}
+  }
   const cards = getAllCards();
-  return (
-    cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug) ||
-    cards[0] // fallback to the operational Hồng Phong template
-  );
+  return cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
 }
 
 export function saveCard(card: WeddingCard): void {
@@ -312,6 +317,14 @@ export function saveCard(card: WeddingCard): void {
       nextCards = [updatedCard, ...cards];
     }
     localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(nextCards));
+
+    // Lưu thêm direct keys theo id và slug để tra cứu tức thì chính xác
+    try {
+      localStorage.setItem(`card_${card.id}`, JSON.stringify(updatedCard));
+      if (card.slug) {
+        localStorage.setItem(`card_slug_${card.slug}`, JSON.stringify(updatedCard));
+      }
+    } catch {}
 
     // Đồng bộ lên Supabase Server API trong background
     fetch(`/api/cards/${card.id}`, {
