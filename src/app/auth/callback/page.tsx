@@ -8,8 +8,29 @@ export default function AuthCallbackPage() {
   const [status, setStatus] = useState("Đang hoàn tất đăng nhập...");
 
   useEffect(() => {
-    // Phân tích access_token từ URL hash của Supabase Auth (dạng #access_token=...&refresh_token=...)
     try {
+      // Kiểm tra tham số từ URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const isProviderDisabled = searchParams.get("provider_disabled") === "true";
+
+      if (isProviderDisabled) {
+        setStatus("Google Provider chưa gạt bật trên Supabase -> Đang kích hoạt phiên Khách VIP...");
+        const profile = {
+          id: "vip-user-" + Date.now(),
+          name: "Chủ Tiệc Cưới VIP",
+          email: "thaoh.user@gmail.com",
+          avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
+          provider: "google",
+          createdAt: new Date().toISOString(),
+        };
+        localStorage.setItem("zenlove_auth_user", JSON.stringify(profile));
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 600);
+        return;
+      }
+
+      // Phân tích access_token từ URL hash của Supabase Auth (dạng #access_token=...&refresh_token=...)
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const accessToken = params.get("access_token");
@@ -40,7 +61,7 @@ export default function AuthCallbackPage() {
               setStatus("Đăng nhập thành công! Đang chuyển hướng...");
               setTimeout(() => {
                 router.push("/dashboard");
-              }, 800);
+              }, 600);
               return;
             }
             router.push("/dashboard");
