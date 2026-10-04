@@ -1,0 +1,23 @@
+{
+  "shake": "{0%{-webkit-transform:scale(1)}30%{-webkit-transform:scale(1.3)}to{-webkit-transform:scale(1)}}",
+  "giftJump": "{0%,24%,48%,to{transform:translateZ(0)}12%{transform:translate3d(0,-.26667rem,0)}36%{transform:translate3d(0,-.26667rem,0)}}",
+  "mc-main-move-forever": "{0%{transform:translate3d(-90px,0,0)}to{transform:translate3d(85px,0,0)}}",
+  "mc-mid-move-forever": "{0%{transform:translate3d(-90px,0,0)}to{transform:translate3d(85px,0,0)}}",
+  "mc-ending-move-forever": "{0%{transform:translate3d(calc(var(--mcard-unit) * -9),0,0)}to{transform:translate3d(calc(var(--mcard-unit) * 8.5),0,0)}}",
+  "mc-sound-bar": "{0%{height:2px}20%{height:5px}40%{height:8px}60%{height:3px}80%{height:7px}to{height:2px}}",
+  "mc-bg-effect-snow": "{0%{background-position:0 0,0 0}50%{background-position:calc(var(--mcard-unit) * 50) calc(var(--mcard-unit) * 50),calc(var(--mcard-unit) * 10) calc(var(--mcard-unit) * 20)}to{background-position:calc(var(--mcard-unit) * 100) calc(var(--mcard-unit) * 100),calc(var(--mcard-unit) * 20) calc(var(--mcard-unit) * 40)}}",
+  "mc-opening-heart": "{0%{transform:scale(.95)}5%{transform:scale(1.1)}39%{transform:scale(.85)}45%{transform:scale(1)}60%{transform:scale(.95)}to{transform:scale(.9)}}",
+  "mc-opening-cursor": "{0%{border-right:1px solid #fff}50%{border-right:1px solid #000}to{border-right:1px solid #fff}}",
+  "mc-op2-move-x": "{0%{transform:translateX(0)}to{transform:translateX(-10%)}}",
+  "mc-op2-move-x-img": "{0%,40.3%{opacity:1}40.4%,to{opacity:0}}",
+  "mc-op2-scale-up": "{0%,40%{transform:scale(1)}to{transform:scale(1.15)}}",
+  "mc-op2-scale-up-img": "{0%,74%{opacity:1}80%,to{opacity:0}}",
+  "mc-op2-overlay": "{0%,25.3%{opacity:.4}40.3%{opacity:1}44%,80%{opacity:.4}84.7%{opacity:1}to{opacity:0}}",
+  "mc-op2-whole-wrap": "{0%,84.7%{opacity:1}94.7%{opacity:.3}to{opacity:0}}",
+  "mc-popup-fade-up": "{0%{opacity:0;transform:translateY(50vh)}to{opacity:1;transform:translateY(0)}}",
+  "mc-popup-fade-down": "{0%{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(50vh)}}",
+  "mc-popup-sheet-up": "{0%{transform:translateY(100%)}to{transform:translateY(0)}}",
+  "mc-popup-sheet-down": "{0%{transform:translateY(0)}to{transform:translateY(100%)}}",
+  "mc-qr-fade-in": "{0%{opacity:0}to{opacity:1}}",
+  "rsvp-confirm-fade-in": "{0%{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}"
+}

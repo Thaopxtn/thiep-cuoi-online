@@ -1,0 +1,750 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 11%;
+    --primary: 353 77% 58%;
+    --primary-foreground: 0 0% 100%;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  }
+
+  body {
+    background-color: #ffffff;
+    color: #1c171a;
+    overflow-x: hidden;
+  }
+}
+
+.text-gradient-mm {
+  background: linear-gradient(135deg, #e54153 0%, #ff4d6d 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.font-heading {
+  font-family: var(--font-heading), Georgia, serif;
+}
+
+.font-signature {
+  font-family: var(--font-signature), cursive;
+}
+
+/* Animations */
+@keyframes heroImgScroll {
+  0% {
+    transform: translateY(0%);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.animate-hero-img-scroll {
+  animation: heroImgScroll 30s linear infinite;
+}
+
+.animation-float-in {
+  animation: floatIn 3s ease-in-out infinite alternate;
+}
+
+@keyframes floatIn {
+  0% {
+    transform: translateY(0px) scale(1);
+  }
+  100% {
+    transform: translateY(-8px) scale(1.15);
+  }
+}
+
+@keyframes phoneRing {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  10%, 30%, 50% {
+    transform: rotate(-15deg);
+  }
+  20%, 40% {
+    transform: rotate(15deg);
+  }
+}
+
+.animate-phone-ring {
+  animation: phoneRing 1.5s ease-in-out infinite;
+}
+
+/* Custom scrollbar hiding */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@keyframes flyingHeart {
+  0% {
+    transform: translateY(0) scale(0.6) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: translateY(-160px) scale(1.1) rotate(15deg);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-340px) scale(1.4) rotate(-15deg);
+    opacity: 0;
+  }
+}
+
+.animate-flying-heart {
+  animation: flyingHeart 1.8s ease-out forwards;
+}
+
+@keyframes spinSlow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-slow {
+  animation: spinSlow 8s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleUp {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ==========================================================================
+   ZENLOVE EXTRACTED ANIMATIONS & TRANSITIONS (100% CODE-BASED REPLICATION)
+   ========================================================================== */
+
+/* 1. Animate.css Keyframes mapped by Zenlove transition system */
+@keyframes zoomIn {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+@keyframes slideInUp {
+  0% {
+    transform: translate3d(0, 100%, 0);
+    visibility: visible;
+  }
+  100% {
+    transform: translateZ(0);
+  }
+}
+
+@keyframes slideInDown {
+  0% {
+    transform: translate3d(0, -100%, 0);
+    visibility: visible;
+  }
+  100% {
+    transform: translateZ(0);
+  }
+}
+
+@keyframes slideInLeft {
+  0% {
+    transform: translate3d(-100%, 0, 0);
+    visibility: visible;
+  }
+  100% {
+    transform: translateZ(0);
+  }
+}
+
+@keyframes slideInRight {
+  0% {
+    transform: translate3d(100%, 0, 0);
+    visibility: visible;
+  }
+  100% {
+    transform: translateZ(0);
+  }
+}
+
+@keyframes bounceIn {
+  0%, 20%, 40%, 60%, 80%, 100% {
+    animation-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
+  }
+  0% {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  20% {
+    transform: scale3d(1.1, 1.1, 1.1);
+  }
+  40% {
+    transform: scale3d(0.9, 0.9, 0.9);
+  }
+  60% {
+    opacity: 1;
+    transform: scale3d(1.03, 1.03, 1.03);
+  }
+  80% {
+    transform: scale3d(0.97, 0.97, 0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes flipInY {
+  0% {
+    transform: perspective(400px) rotateY(90deg);
+    animation-timing-function: ease-in;
+    opacity: 0;
+  }
+  40% {
+    transform: perspective(400px) rotateY(-20deg);
+    animation-timing-function: ease-in;
+  }
+  60% {
+    transform: perspective(400px) rotateY(10deg);
+    opacity: 1;
+  }
+  80% {
+    transform: perspective(400px) rotateY(-5deg);
+  }
+  100% {
+    transform: perspective(400px);
+  }
+}
+
+@keyframes rotateIn {
+  0% {
+    transform: rotate(-200deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateZ(0);
+    opacity: 1;
+  }
+}
+
+/* 2. ZenLove Custom Animation Keyframes */
+@keyframes shake {
+  0% {
+    transform: scale(1);
+  }
+  30% {
+    transform: scale(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes giftJump {
+  0%, 24%, 48%, 100% {
+    transform: translateZ(0);
+  }
+  12% {
+    transform: translate3d(0, -0.26667rem, 0);
+  }
+  36% {
+    transform: translate3d(0, -0.26667rem, 0);
+  }
+}
+
+.animate-gift-jump {
+  animation: giftJump 2s ease-in-out infinite;
+}
+
+@keyframes mc-sound-bar {
+  0% {
+    height: 2px;
+  }
+  20% {
+    height: 6px;
+  }
+  40% {
+    height: 12px;
+  }
+  60% {
+    height: 4px;
+  }
+  80% {
+    height: 10px;
+  }
+  100% {
+    height: 2px;
+  }
+}
+
+@keyframes mc-opening-heart {
+  0% {
+    transform: scale(0.95);
+  }
+  5% {
+    transform: scale(1.1);
+  }
+  39% {
+    transform: scale(0.85);
+  }
+  45% {
+    transform: scale(1);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(0.9);
+  }
+}
+
+.animate-opening-heart {
+  animation: mc-opening-heart 1.8s ease-in-out infinite;
+}
+
+@keyframes mc-opening-cursor {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+/* 3. Envelope Away & Particle Burst Transitions */
+@keyframes envelope-away {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  15% {
+    transform: translateY(10px) rotate(0.5deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-120vh) rotate(-2deg);
+    opacity: 0;
+  }
+}
+
+@keyframes particle-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0) rotate(0deg);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.3) rotate(var(--rot-start, 15deg));
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--dx, 60px)), calc(-50% + var(--dy, -60px))) scale(0.6) rotate(var(--rot-end, 180deg));
+  }
+}
+
+@keyframes ambient-rise {
+  0% {
+    transform: translateX(0) translateY(0);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.6;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateX(var(--sway, 20px)) translateY(-100vh);
+    opacity: 0;
+  }
+}
+
+/* 4. Popups, Modals & Sheets */
+@keyframes mc-popup-fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(50vh);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes mc-popup-fade-down {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(50vh);
+  }
+}
+
+@keyframes mc-popup-sheet-up {
+  0% {
+    transform: translateY(100%);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes mc-popup-sheet-down {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+@keyframes mc-qr-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes rsvp-confirm-fade-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* ==========================================================================
+   ZENLOVE LANDING PAGE STYLES
+   ========================================================================== */
+.backgroundWrp {
+  min-height: 100%;
+  max-height: 320px;
+  inset: 0;
+  overflow: hidden;
+  max-width: 100vw;
+  position: absolute;
+  border-radius: 10px;
+}
+
+.gradientWrp {
+  position: absolute;
+  border-radius: 10px;
+  z-index: 41;
+  display: block;
+  inset: -1px 0;
+  background: linear-gradient(180deg, rgba(243,246,246,.75), rgba(247,249,249,.8) 33.33%, rgba(251,253,253,.9) 66.66%, #fff) !important;
+}
+
+.contentWrp {
+  z-index: 42;
+  width: 100%;
+  max-width: 580px;
+  position: relative;
+}
+
+@media screen and (min-width: 776px) {
+  .gradientWrp {
+    background: linear-gradient(103.27deg, #fff 42.51%, hsla(180,9%,98%,0) 100.83%) !important;
+  }
+  .backgroundWrp {
+    display: block;
+    z-index: 40;
+    left: 45%;
+    right: 0;
+    max-height: none;
+  }
+  .backgroundWrp .imgWrp:first-child {
+    display: block;
+  }
+  .contentWrp {
+    margin: 50px 0;
+  }
+}
+
+.problems-icon {
+  position: absolute;
+  width: 8rem;
+  height: 11rem;
+  top: -1.5rem;
+  left: 22.5rem;
+  transform: rotate(358deg);
+}
+
+.problems-icon-mobile {
+  width: 12rem;
+  height: 6rem;
+  transform: rotate(2deg);
+}
+
+.features-section-list .feature-item {
+  background-color: #fff;
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 0 10px 0 rgba(0, 0, 0, 0.1);
+  min-height: 250px;
+  max-height: 250px;
+}
+
+.features-section-list .feature-item:hover {
+  transform: scale(1.05);
+}
+
+@media screen and (min-width: 776px) {
+  .features-section-list .feature-item {
+    min-height: 300px;
+    max-height: 300px;
+  }
+}
+
+.problem-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.problem-card:hover {
+  transform: scale(1.05);
+}
+
+/* ==========================================================================
+   ZENLOVE BLUEPRINT GRID & CORE ELEMENT ANIMATIONS
+   ========================================================================== */
+.canvas-blueprint-grid {
+  background-image: 
+    linear-gradient(rgba(140, 185, 225, 0.45) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(140, 185, 225, 0.45) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+@keyframes animation-float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes animation-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-15px);
+  }
+}
+
+@keyframes animation-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes animation-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes animation-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  75% {
+    transform: translateX(5px);
+  }
+}
+
+@keyframes animation-wiggle {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(3deg);
+  }
+  75% {
+    transform: rotate(-3deg);
+  }
+}
+
+@keyframes animation-wobble {
+  0% {
+    transform: scale(1);
+  }
+  10%, 20% {
+    transform: scale(0.9) rotate(-3deg);
+  }
+  30%, 50%, 70%, 90% {
+    transform: scale(1.1) rotate(3deg);
+  }
+  40%, 60%, 80% {
+    transform: scale(1.1) rotate(-3deg);
+  }
+  100% {
+    transform: scale(1) rotate(0);
+  }
+}
+
+@keyframes music-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
+@keyframes equalizer {
+  0%, 100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  14% {
+    transform: scale(1.18);
+  }
+  28% {
+    transform: scale(1);
+  }
+  42% {
+    transform: scale(1.18);
+  }
+  70% {
+    transform: scale(1);
+  }
+}
+
+@keyframes waxSealPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 4px 15px rgba(180, 83, 9, 0.4);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 6px 24px rgba(217, 119, 6, 0.6);
+  }
+}
+
+.animate-zen-float {
+  animation: animation-float 3.1s ease-in-out infinite;
+}
+
+.animate-zen-bounce {
+  animation: animation-bounce 4.7s ease-in-out infinite;
+}
+
+.animate-zen-pulse {
+  animation: animation-pulse 2s ease-in-out infinite;
+}
+
+.animate-zen-wobble {
+  animation: animation-wobble 4s ease-in-out infinite;
+}
+
+.animate-zen-wiggle {
+  animation: animation-wiggle 1.5s ease-in-out infinite;
+}
+
+.animate-zen-shake {
+  animation: animation-shake 1.5s ease-in-out infinite;
+}
+
+.animate-heartbeat {
+  animation: heartBeat 1.8s ease-in-out infinite;
+}
+
+.animate-wax-seal {
+  animation: waxSealPulse 2s ease-in-out infinite;
+}
+
+.animate-music-spin {
+  animation: music-spin 5s linear infinite;
+}
+
+.animate-equalizer {
+  animation: equalizer 0.5s ease-in-out infinite;
+}
+
+
+
