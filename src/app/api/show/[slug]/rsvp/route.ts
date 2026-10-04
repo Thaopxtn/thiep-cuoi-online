@@ -45,7 +45,15 @@ export async function POST(request: NextRequest, { params }: Params) {
   const { slug } = params;
   try {
     const body = await request.json();
-    const { name, phone, attending, guests, note } = body;
+    const { name, phone, attending, guests, note, b_field_trap } = body;
+
+    // Honeypot chống bot tự động spam
+    if (b_field_trap) {
+      return NextResponse.json({
+        success: true,
+        message: "Cảm ơn bạn đã phản hồi xác nhận tham dự!",
+      });
+    }
 
     if (!name || !phone) {
       return NextResponse.json(

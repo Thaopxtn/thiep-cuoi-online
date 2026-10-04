@@ -10,6 +10,8 @@ import {
   CheckCircle,
 } from "lucide-react";
 
+import { handleImageFallback } from "@/lib/imageUtils";
+
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
   onRsvpSuccess?: (rsvpData: any) => void;
@@ -150,6 +152,7 @@ export default function CardNodeRenderer({
                   <img
                     src={getImageUrl(props.imgKey)}
                     alt={props.alt || ""}
+                    onError={(e) => handleImageFallback(e)}
                     className="w-full h-full object-cover select-none pointer-events-none"
                     style={{
                       filter: props.filterStyle || undefined,
@@ -229,6 +232,7 @@ export default function CardNodeRenderer({
                     <img
                       src={getImageUrl(props.imgList[0]?.imageKey || props.imgList[0]?.src)}
                       alt="Wedding Gallery"
+                      onError={(e) => handleImageFallback(e)}
                       className="w-full h-full object-cover select-none pointer-events-none"
                       draggable={false}
                     />
@@ -319,6 +323,7 @@ export default function CardNodeRenderer({
                     <img
                       src={getImageUrl(props.imgKey)}
                       alt="Gift"
+                      onError={(e) => handleImageFallback(e)}
                       className="w-20 h-20 object-contain group-hover:scale-105 transition-transform"
                     />
                   )}

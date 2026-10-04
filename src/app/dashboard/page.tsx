@@ -40,6 +40,12 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"cards" | "rsvp" | "wishes" | "settings">("cards");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
+  // Personalized Guest Link Modal state
+  const [isGuestModalOpen, setIsGuestModalOpen] = useState(false);
+  const [selectedCardForGuest, setSelectedCardForGuest] = useState<WeddingCard | null>(null);
+  const [guestLinkInput, setGuestLinkInput] = useState("");
+  const [copiedGuestLink, setCopiedGuestLink] = useState(false);
+
   // Live operational cards state
   const [myCards, setMyCards] = useState<WeddingCard[]>([]);
 
@@ -262,6 +268,20 @@ export default function DashboardPage() {
                           <Eye className="w-3.5 h-3.5" />
                           <span>Xem thiệp</span>
                         </Link>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCardForGuest(card);
+                            setGuestLinkInput("");
+                            setIsGuestModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-zen-primary text-xs font-bold transition-colors flex items-center gap-1.5 border border-rose-200 cursor-pointer"
+                          title="Tạo đường dẫn thiệp mời riêng có tên từng khách"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Mời khách</span>
+                        </button>
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -617,6 +637,101 @@ export default function DashboardPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* ================= MODAL TẠO LINK MỜI RIÊNG CHO KHÁCH TỪ DASHBOARD ================= */}
+        {isGuestModalOpen && selectedCardForGuest && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-gray-100 flex flex-col gap-4 animate-scale-in">
+              <div className="flex items-center justify-between border-b pb-3 border-gray-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">💌</span>
+                  <h3 className="text-base font-bold text-gray-900">
+                    Tạo Link Thiệp Mời Riêng
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsGuestModalOpen(false)}
+                  className="text-gray-400 hover:text-gray-600 text-lg leading-none p-1 cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="text-xs text-gray-600 leading-relaxed">
+                Thiệp: <strong className="text-gray-900">{selectedCardForGuest.name}</strong>
+                <p className="mt-1 text-gray-500">
+                  Nhập tên khách mời để thiệp tự động in tên khách lên phong bì sáp hoàng gia và điền sẵn vào mục xác nhận tham dự (RSVP).
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-gray-700">Tên khách mời:</label>
+                <input
+                  type="text"
+                  placeholder="VD: Anh Tuấn & Bạn gái, Gia đình Bác Hùng..."
+                  value={guestLinkInput}
+                  onChange={(e) => setGuestLinkInput(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:border-zen-primary focus:ring-1 focus:ring-zen-primary"
+                />
+              </div>
+
+              {/* Generated link preview */}
+              <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-1">
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  Đường dẫn gửi khách:
+                </span>
+                <p className="text-xs font-mono text-gray-800 break-all select-all">
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/show/${selectedCardForGuest.slug}${
+                        guestLinkInput.trim()
+                          ? `?to=${encodeURIComponent(guestLinkInput.trim())}`
+                          : ""
+                      }`
+                    : ""}
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window === "undefined") return;
+                    const link = `${window.location.origin}/show/${selectedCardForGuest.slug}${
+                      guestLinkInput.trim()
+                        ? `?to=${encodeURIComponent(guestLinkInput.trim())}`
+                        : ""
+                    }`;
+                    navigator.clipboard.writeText(link);
+                    setCopiedGuestLink(true);
+                    setTimeout(() => setCopiedGuestLink(false), 2500);
+                  }}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  {copiedGuestLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedGuestLink ? "Đã sao chép link!" : "Sao chép link mời"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window === "undefined") return;
+                    const link = `${window.location.origin}/show/${selectedCardForGuest.slug}${
+                      guestLinkInput.trim()
+                        ? `?to=${encodeURIComponent(guestLinkInput.trim())}`
+                        : ""
+                    }`;
+                    window.open(`https://zalo.me/share?url=${encodeURIComponent(link)}`, "_blank");
+                  }}
+                  className="py-2.5 px-4 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-xs border border-blue-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Share2 className="w-3.5 h-3.5" />
+                  <span>Gửi Zalo</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

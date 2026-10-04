@@ -19,6 +19,8 @@ export default function EditorPublishModal({
   cardSlug,
 }: EditorPublishModalProps) {
   const [copied, setCopied] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [copiedGuest, setCopiedGuest] = useState(false);
   const currentOrigin =
     typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
   const defaultSlug = cardSlug || (templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId);
@@ -98,6 +100,42 @@ export default function EditorPublishModal({
               Quét mã QR bằng camera điện thoại để xem ngay trên smartphone.
             </p>
           </div>
+        </div>
+
+        {/* Personalized Guest Link Section */}
+        <div className="p-3.5 bg-rose-50/70 rounded-2xl border border-rose-100 mb-5 text-left">
+          <label className="text-[11px] font-bold text-rose-900 block mb-1.5">
+            💌 Gửi riêng cho từng khách (Tự in tên lên bìa thư sáp):
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Nhập tên khách: VD Anh Tuấn, Cô Lan..."
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              className="flex-1 px-3 py-1.5 text-xs bg-white border border-rose-200 rounded-xl focus:outline-none focus:border-zen-primary shadow-2xs"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const link = guestName.trim()
+                  ? `${publicUrl}?to=${encodeURIComponent(guestName.trim())}`
+                  : publicUrl;
+                navigator.clipboard?.writeText(link);
+                setCopiedGuest(true);
+                setTimeout(() => setCopiedGuest(false), 2000);
+              }}
+              className="px-3.5 py-1.5 bg-zen-primary hover:bg-[#d93849] text-white rounded-xl text-xs font-bold shrink-0 flex items-center gap-1.5 cursor-pointer shadow-xs transition-all"
+            >
+              {copiedGuest ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedGuest ? "Đã sao chép!" : "Chép link riêng"}</span>
+            </button>
+          </div>
+          {guestName.trim() && (
+            <p className="text-[10px] text-rose-700 font-mono truncate mt-1.5">
+              Link: {`${publicUrl}?to=${encodeURIComponent(guestName.trim())}`}
+            </p>
+          )}
         </div>
 
         {/* Action Buttons */}

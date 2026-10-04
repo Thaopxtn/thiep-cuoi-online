@@ -305,14 +305,16 @@ export function getCardByIdOrSlug(idOrSlug: string): WeddingCard | undefined {
 
 export function saveCard(card: WeddingCard): void {
   if (typeof window === "undefined") return;
+  const updatedCard = {
+    ...card,
+    updatedAt: new Date().toLocaleDateString("vi-VN"),
+  };
+
+  // 1. Thử lưu vào localStorage (bọc cẩn thận phòng QuotaExceededError khi nodes canvas lớn)
   try {
     const cards = getAllCards();
     const existingIndex = cards.findIndex((c) => c.id === card.id || c.slug === card.slug);
     let nextCards: WeddingCard[];
-    const updatedCard = {
-      ...card,
-      updatedAt: new Date().toLocaleDateString("vi-VN"),
-    };
     if (existingIndex >= 0) {
       nextCards = [...cards];
       nextCards[existingIndex] = updatedCard;
@@ -328,15 +330,19 @@ export function saveCard(card: WeddingCard): void {
         localStorage.setItem(`card_slug_${card.slug}`, JSON.stringify(updatedCard));
       }
     } catch {}
+  } catch (e) {
+    console.warn("LocalStorage quota exceeded or write failed, continuing with remote sync:", e);
+  }
 
-    // Đồng bộ lên Supabase Server API trong background
+  // 2. Luôn luôn đồng bộ lên Supabase Server API độc lập, không bị chặn bởi lỗi LocalStorage
+  try {
     fetch(`/api/cards/${card.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(updatedCard),
-    }).catch((err) => console.warn("Lưu lên Server API thất bại, lưu cục bộ hoàn tất:", err));
-  } catch (e) {
-    console.error("Failed to save card:", e);
+    }).catch((err) => console.warn("Lưu lên Server API thất bại:", err));
+  } catch (err) {
+    console.warn("fetch saveCard error:", err);
   }
 }
 

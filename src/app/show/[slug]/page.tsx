@@ -34,6 +34,7 @@ import {
   incrementCardViews,
   WeddingCard,
 } from "@/lib/weddingCardService";
+import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import FallingPetals from "@/components/FallingPetals";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
@@ -285,15 +286,46 @@ export default function ShowInvitationPage() {
   const [rsvpGuestsCount, setRsvpGuestsCount] = useState(1);
   const [rsvpNote, setRsvpNote] = useState("");
   const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
+  const [rsvpBotTrap, setRsvpBotTrap] = useState(""); // Honeypot chống bot tự động
 
-  // Guestbook state
+  // Guestbook & Personalization state (?to=... or ?guest=...)
+  const [guestNameParam, setGuestNameParam] = useState<string>("");
+  const [isShareGuestModalOpen, setIsShareGuestModalOpen] = useState(false);
+  const [customGuestInput, setCustomGuestInput] = useState("");
+  const [copiedGuestLink, setCopiedGuestLink] = useState(false);
+
   const [guestName, setGuestName] = useState("");
   const [guestWish, setGuestWish] = useState("");
+  const [wishBotTrap, setWishBotTrap] = useState(""); // Honeypot chống bot tự động
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Read guest name from query parameters
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const sp = new URLSearchParams(window.location.search);
+      const guest =
+        sp.get("to") ||
+        sp.get("guest") ||
+        sp.get("khach") ||
+        sp.get("k") ||
+        "";
+      if (guest) {
+        setGuestNameParam(guest);
+        setRsvpName(guest);
+        setGuestName(guest);
+        setCustomGuestInput(guest);
+      }
+    }
+  }, []);
+
   const handleSendRsvp = (e: React.FormEvent) => {
     e.preventDefault();
+    // Chống bot spam nếu honeypot bị điền
+    if (rsvpBotTrap) {
+      setRsvpSubmitted(true);
+      return;
+    }
     if (!card || !rsvpName.trim() || !rsvpPhone.trim()) return;
     addRsvp(card.id, {
       name: rsvpName.trim(),
@@ -309,6 +341,12 @@ export default function ShowInvitationPage() {
 
   const handleSendWish = (e: React.FormEvent) => {
     e.preventDefault();
+    // Chống bot spam nếu honeypot bị điền
+    if (wishBotTrap) {
+      setGuestName("");
+      setGuestWish("");
+      return;
+    }
     if (!card || !guestName.trim() || !guestWish.trim()) return;
     addWish(card.id, guestName.trim(), guestWish.trim());
     setGuestName("");
@@ -333,22 +371,7 @@ export default function ShowInvitationPage() {
       return customQr;
     }
     if (!accountNumber) return "";
-    const bankClean = (bankName || "MB").toLowerCase().replace(/[^a-z0-9]/g, "");
-    let bankCode = "MB";
-    if (bankClean.includes("vietcom") || bankClean === "vcb") bankCode = "VCB";
-    else if (bankClean.includes("techcom") || bankClean === "tcb") bankCode = "TCB";
-    else if (bankClean.includes("vietin") || bankClean === "ctg") bankCode = "CTG";
-    else if (bankClean.includes("bidv")) bankCode = "BIDV";
-    else if (bankClean.includes("vp")) bankCode = "VPB";
-    else if (bankClean.includes("tp")) bankCode = "TPB";
-    else if (bankClean.includes("acb")) bankCode = "ACB";
-    else if (bankClean.includes("mb")) bankCode = "MB";
-    else if (bankClean.includes("sacom")) bankCode = "STB";
-    else if (bankClean.includes("vib")) bankCode = "VIB";
-
-    const msg = encodeURIComponent(`Mung cuoi ${name || ""}`);
-    const holder = encodeURIComponent(name || "");
-    return `https://img.vietqr.io/image/${bankCode}-${accountNumber}-compact2.png?addInfo=${msg}&accountName=${holder}`;
+    return generateVietQrUrl(bankName, accountNumber, name, undefined, `Mung cuoi ${name || ""}`);
   };
 
   if (!card) {
@@ -368,12 +391,18 @@ export default function ShowInvitationPage() {
 
   return (
     <div className="min-h-screen bg-[#f3efe6] flex flex-col items-center justify-start relative text-gray-800 selection:bg-rose-100 selection:text-zen-primary">
-      {/* Background Wedding Audio */}
+      {/* Background Wedding Audio with automatic failover */}
       <audio
         ref={audioRef}
         src={card.musicUrl || "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3"}
         loop
         preload="auto"
+        onError={() => {
+          if (audioRef.current && !audioRef.current.src.includes("mixkit.co")) {
+            audioRef.current.src = "https://assets.mixkit.co/music/preview/mixkit-wedding-waltz-237.mp3";
+            if (isPlayingAudio) audioRef.current.play().catch(() => {});
+          }
+        }}
       />
 
       {/* Falling Rose Petals HTML5 Canvas Engine */}
@@ -449,8 +478,8 @@ export default function ShowInvitationPage() {
         </div>
       </div>
 
-      {/* Top Floating Logo / Home link */}
-      <div className="fixed top-4 left-4 z-40">
+      {/* Top Floating Buttons (Home + Personalized Guest Link Generator) */}
+      <div className="fixed top-4 left-4 z-40 flex items-center gap-2">
         <Link
           href="/"
           className="px-3.5 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-gray-200 shadow-sm flex items-center gap-1.5 text-xs font-bold text-gray-800 hover:text-zen-primary transition-colors"
@@ -458,6 +487,18 @@ export default function ShowInvitationPage() {
           <span className="w-2 h-2 rounded-full bg-zen-primary"></span>
           <span>ZenLove</span>
         </Link>
+        <button
+          type="button"
+          onClick={() => {
+            setCustomGuestInput(guestNameParam || "");
+            setIsShareGuestModalOpen(true);
+          }}
+          className="px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-md flex items-center gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          title="Tạo link thiệp mời riêng cho từng khách mời"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">Mời khách riêng</span>
+        </button>
       </div>
 
       {/* ================= 3D ENVELOPE MODAL (IF CLOSED) ================= */}
@@ -489,6 +530,11 @@ export default function ShowInvitationPage() {
                     Thiệp Mời Thành Hôn
                   </span>
                   <div className="my-auto py-2">
+                    {guestNameParam && (
+                      <div className="inline-block bg-amber-100/80 border border-amber-300 rounded-full px-2.5 py-0.5 mb-1.5 text-[11px] font-semibold text-[#511419] shadow-2xs">
+                        Kính mời: <strong className="font-serif text-xs">{guestNameParam}</strong>
+                      </div>
+                    )}
                     <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
                       {groomName}
                     </h2>
@@ -512,10 +558,19 @@ export default function ShowInvitationPage() {
                     clipPath: "polygon(0 0, 50% 35%, 100% 0, 100% 100%, 0 100%)",
                   }}
                 >
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-center">
-                    <span className="text-[10px] tracking-widest uppercase font-serif text-amber-300/80 font-semibold">
-                      ZenLove Wedding
-                    </span>
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-center w-full px-4">
+                    {guestNameParam ? (
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400/30 via-amber-300/40 to-amber-400/30 border border-amber-300/60 shadow-md backdrop-blur-xs">
+                        <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
+                        <span className="text-[11px] font-bold tracking-wide font-serif text-amber-200">
+                          Kính mời: {guestNameParam}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] tracking-widest uppercase font-serif text-amber-300/80 font-semibold">
+                        ZenLove Wedding
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -568,6 +623,20 @@ export default function ShowInvitationPage() {
 
       {/* ================= MAIN MOBILE INVITATION CONTAINER ================= */}
       <main className="w-full max-w-[480px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-16">
+        {/* Personalized Welcome Banner if guest param exists */}
+        {guestNameParam && (
+          <div className="w-full bg-gradient-to-r from-[#511419] via-[#6d1a21] to-[#511419] text-white py-2.5 px-4 shadow-md flex items-center justify-between text-xs z-30 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-amber-300 text-sm shrink-0">💌</span>
+              <span className="truncate">
+                Trân trọng kính mời: <strong className="text-amber-300 font-serif text-sm">{guestNameParam}</strong>
+              </span>
+            </div>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-amber-200/90 bg-black/30 px-2 py-0.5 rounded-full shrink-0">
+              Khách Quý
+            </span>
+          </div>
+        )}
         {/* Dynamic Nodes Canvas (Hiển thị đúng 100% bản vẽ tùy biến của người dùng) */}
         {card.nodes && card.nodes["ROOT"] && Object.keys(card.nodes).length > 2 ? (
           <div className="w-full relative z-10">
@@ -756,6 +825,18 @@ export default function ShowInvitationPage() {
             </div>
           ) : (
             <form onSubmit={handleSendRsvp} className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 space-y-3.5">
+              {/* Anti-bot Honeypot field (hidden from genuine users) */}
+              <input
+                type="text"
+                name="b_field_trap"
+                value={rsvpBotTrap}
+                onChange={(e) => setRsvpBotTrap(e.target.value)}
+                tabIndex={-1}
+                autoComplete="off"
+                aria-hidden="true"
+                className="hidden opacity-0 absolute -z-10 pointer-events-none"
+                style={{ position: "absolute", left: "-9999px" }}
+              />
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Họ và tên của bạn:
@@ -960,6 +1041,18 @@ export default function ShowInvitationPage() {
           </div>
 
           <form onSubmit={handleSendWish} className="space-y-3 mb-6">
+            {/* Anti-bot Honeypot field (hidden from genuine users) */}
+            <input
+              type="text"
+              name="w_field_trap"
+              value={wishBotTrap}
+              onChange={(e) => setWishBotTrap(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+              aria-hidden="true"
+              className="hidden opacity-0 absolute -z-10 pointer-events-none"
+              style={{ position: "absolute", left: "-9999px" }}
+            />
             <input
               type="text"
               required
@@ -1206,6 +1299,99 @@ export default function ShowInvitationPage() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL TẠO LINK MỜI RIÊNG CHO KHÁCH ================= */}
+      {isShareGuestModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl border border-gray-100 flex flex-col gap-4 animate-scale-in">
+            <div className="flex items-center justify-between border-b pb-3 border-gray-100">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">💌</span>
+                <h3 className="text-base font-bold text-gray-900">Tạo Link Thiệp Mời Riêng</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsShareGuestModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none p-1 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600 leading-relaxed">
+              Nhập tên khách mời để thiệp tự động in tên khách lên phong bì sáp hoàng gia và điền sẵn vào mục xác nhận tham dự (RSVP).
+            </p>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-gray-700">Tên khách mời:</label>
+              <input
+                type="text"
+                placeholder="VD: Anh Tuấn & Bạn gái, Gia đình Bác Hùng..."
+                value={customGuestInput}
+                onChange={(e) => setCustomGuestInput(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-xl focus:outline-none focus:border-zen-primary focus:ring-1 focus:ring-zen-primary"
+              />
+            </div>
+
+            {/* Generated link preview */}
+            <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-1">
+              <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                Đường dẫn cá nhân hóa:
+              </span>
+              <p className="text-xs font-mono text-gray-800 break-all select-all">
+                {typeof window !== "undefined"
+                  ? `${window.location.origin}/show/${slug}${
+                      customGuestInput.trim() ? `?to=${encodeURIComponent(customGuestInput.trim())}` : ""
+                    }`
+                  : ""}
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window === "undefined") return;
+                  const link = `${window.location.origin}/show/${slug}${
+                    customGuestInput.trim() ? `?to=${encodeURIComponent(customGuestInput.trim())}` : ""
+                  }`;
+                  navigator.clipboard?.writeText(link);
+                  setCopiedGuestLink(true);
+                  setToastMessage("Đã sao chép link mời cá nhân hóa!");
+                  setTimeout(() => {
+                    setCopiedGuestLink(false);
+                    setToastMessage(null);
+                  }, 2500);
+                }}
+                className="flex-1 py-2.5 px-4 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                {copiedGuestLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedGuestLink ? "Đã sao chép link!" : "Sao chép link mời"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window === "undefined") return;
+                  const link = `${window.location.origin}/show/${slug}${
+                    customGuestInput.trim() ? `?to=${encodeURIComponent(customGuestInput.trim())}` : ""
+                  }`;
+                  const text = `Trân trọng kính mời ${customGuestInput.trim() || "quý khách"} tới tham dự lễ thành hôn của chúng tôi: ${link}`;
+                  if (navigator.share) {
+                    navigator.share({ title: card.name, text, url: link }).catch(() => {});
+                  } else {
+                    window.open(`https://zalo.me/share?url=${encodeURIComponent(link)}`, "_blank");
+                  }
+                }}
+                className="py-2.5 px-4 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-xs border border-blue-200 flex items-center gap-1.5 transition-all cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Chia sẻ</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

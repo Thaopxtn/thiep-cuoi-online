@@ -74,6 +74,10 @@ export default function ZenloveCard({
               title={`Xem và tùy chỉnh ${template.name} miễn phí`}
               loading="lazy"
               decoding="async"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src =
+                  "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600";
+              }}
               className="w-full h-auto align-top transition-transform duration-200 ease-out group-hover/template-item-v3:duration-[2800ms] group-hover/template-item-v3:ease-linear group-hover/template-item-v3:-translate-y-[45%]"
             />
           </div>

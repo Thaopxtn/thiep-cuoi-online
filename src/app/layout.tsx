@@ -20,11 +20,13 @@ const dancingScript = Dancing_Script({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thiep-cuoi-online.vercel.app";
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://zenlove.me"),
-  title: "Tạo thiệp cưới online miễn phí, đẹp tinh tế | ZenLove",
+  metadataBase: new URL(siteUrl),
+  title: "Nền Tảng Tạo Thiệp Cưới Online Miễn Phí & Tinh Tế",
   description:
-    "ZenLove là nền tảng tạo thiệp cưới online miễn phí chỉ với 5 phút, thay vì gửi thiệp giấy truyền thống qua tay, giờ đây bạn có thể gửi thiệp mời chỉ qua một đường link. Bắt đầu ngay!",
+    "Tạo thiệp cưới online cao cấp chỉ với 5 phút, mở phong bì sáp niêm phong hoàng gia, nhạc nền lãng mạn, quản lý khách mời RSVP thời gian thực và hộp mừng cưới VietQR chuẩn Napas 24/7.",
   icons: {
     icon: "/favicon.ico",
   },

@@ -205,6 +205,263 @@ export default function EditorCanvas({
     window.addEventListener("mouseup", handleMouseUp);
   };
 
+  // 8-Point Canvas Resize Logic
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef<{
+    startX: number;
+    startY: number;
+    initialLeft: number;
+    initialTop: number;
+    initialWidth: number;
+    initialHeight: number;
+    elementId: string;
+    direction: string;
+    rotation: number;
+  } | null>(null);
+
+  const handleMouseDownResize = (
+    e: React.MouseEvent,
+    id: string,
+    direction: "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w",
+    currentProps: any
+  ) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const initialLeft = Number(currentProps.left ?? 0);
+    const initialTop = Number(currentProps.top ?? 0);
+    const initialWidth = Number(currentProps.width ?? 100);
+    const initialHeight = Number(currentProps.height ?? 100);
+    const rotation = Number(currentProps.rotation ?? 0);
+
+    resizeStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft,
+      initialTop,
+      initialWidth,
+      initialHeight,
+      elementId: id,
+      direction,
+      rotation,
+    };
+    setIsResizing(true);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!resizeStartRef.current) return;
+      const ref = resizeStartRef.current;
+
+      let dx = (moveEvent.clientX - ref.startX) / zoomLevel;
+      let dy = (moveEvent.clientY - ref.startY) / zoomLevel;
+
+      if (ref.rotation !== 0) {
+        const rad = (-ref.rotation * Math.PI) / 180;
+        const rotatedDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        const rotatedDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+        dx = rotatedDx;
+        dy = rotatedDy;
+      }
+
+      let newWidth = ref.initialWidth;
+      let newHeight = ref.initialHeight;
+      let newLeft = ref.initialLeft;
+      let newTop = ref.initialTop;
+
+      const minSize = 20;
+
+      if (direction.includes("e")) {
+        newWidth = Math.max(minSize, Math.round(ref.initialWidth + dx));
+      }
+      if (direction.includes("s")) {
+        newHeight = Math.max(minSize, Math.round(ref.initialHeight + dy));
+      }
+      if (direction.includes("w")) {
+        const potentialWidth = Math.max(minSize, Math.round(ref.initialWidth - dx));
+        newLeft = Math.round(ref.initialLeft + (ref.initialWidth - potentialWidth));
+        newWidth = potentialWidth;
+      }
+      if (direction.includes("n")) {
+        const potentialHeight = Math.max(minSize, Math.round(ref.initialHeight - dy));
+        newTop = Math.round(ref.initialTop + (ref.initialHeight - potentialHeight));
+        newHeight = potentialHeight;
+      }
+
+      onUpdateElementProps(ref.elementId, {
+        width: newWidth,
+        height: newHeight,
+        left: newLeft,
+        top: newTop,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Touch Event Handlers for iPad & Mobile Touchscreens
+  const handleTouchStartElement = (e: React.TouchEvent, id: string, props: any, type: string) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    onSelectElement({ id, type, props });
+
+    dragStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initialLeft: Number(props.left ?? 0),
+      initialTop: Number(props.top ?? 0),
+      elementId: id,
+    };
+    setIsDragging(true);
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (!dragStartRef.current || moveEvent.touches.length !== 1) return;
+      const t = moveEvent.touches[0];
+      const dx = (t.clientX - dragStartRef.current.startX) / zoomLevel;
+      const dy = (t.clientY - dragStartRef.current.startY) / zoomLevel;
+      const newLeft = Math.round(dragStartRef.current.initialLeft + dx);
+      const newTop = Math.round(dragStartRef.current.initialTop + dy);
+      onUpdateElementProps(dragStartRef.current.elementId, {
+        left: newLeft,
+        top: newTop,
+      });
+    };
+
+    const handleTouchEnd = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+  };
+
+  const handleTouchStartRotate = (e: React.TouchEvent, id: string) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const element = document.getElementById(`canvas-node-${id}`);
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    setIsRotating(true);
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (moveEvent.touches.length !== 1) return;
+      const t = moveEvent.touches[0];
+      const rad = Math.atan2(t.clientY - centerY, t.clientX - centerX);
+      let deg = Math.round((rad * 180) / Math.PI) - 90;
+      if (deg < 0) deg += 360;
+      onUpdateElementProps(id, { rotation: deg });
+    };
+
+    const handleTouchEnd = () => {
+      setIsRotating(false);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+  };
+
+  const handleTouchStartResize = (
+    e: React.TouchEvent,
+    id: string,
+    direction: "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w",
+    currentProps: any
+  ) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+
+    const initialLeft = Number(currentProps.left ?? 0);
+    const initialTop = Number(currentProps.top ?? 0);
+    const initialWidth = Number(currentProps.width ?? 100);
+    const initialHeight = Number(currentProps.height ?? 100);
+    const rotation = Number(currentProps.rotation ?? 0);
+
+    resizeStartRef.current = {
+      startX: touch.clientX,
+      startY: touch.clientY,
+      initialLeft,
+      initialTop,
+      initialWidth,
+      initialHeight,
+      elementId: id,
+      direction,
+      rotation,
+    };
+    setIsResizing(true);
+
+    const handleTouchMove = (moveEvent: TouchEvent) => {
+      if (!resizeStartRef.current || moveEvent.touches.length !== 1) return;
+      const t = moveEvent.touches[0];
+      const ref = resizeStartRef.current;
+
+      let dx = (t.clientX - ref.startX) / zoomLevel;
+      let dy = (t.clientY - ref.startY) / zoomLevel;
+
+      if (ref.rotation !== 0) {
+        const rad = (-ref.rotation * Math.PI) / 180;
+        const rotatedDx = dx * Math.cos(rad) - dy * Math.sin(rad);
+        const rotatedDy = dx * Math.sin(rad) + dy * Math.cos(rad);
+        dx = rotatedDx;
+        dy = rotatedDy;
+      }
+
+      let newWidth = ref.initialWidth;
+      let newHeight = ref.initialHeight;
+      let newLeft = ref.initialLeft;
+      let newTop = ref.initialTop;
+
+      const minSize = 20;
+
+      if (direction.includes("e")) {
+        newWidth = Math.max(minSize, Math.round(ref.initialWidth + dx));
+      }
+      if (direction.includes("s")) {
+        newHeight = Math.max(minSize, Math.round(ref.initialHeight + dy));
+      }
+      if (direction.includes("w")) {
+        const potentialWidth = Math.max(minSize, Math.round(ref.initialWidth - dx));
+        newLeft = Math.round(ref.initialLeft + (ref.initialWidth - potentialWidth));
+        newWidth = potentialWidth;
+      }
+      if (direction.includes("n")) {
+        const potentialHeight = Math.max(minSize, Math.round(ref.initialHeight - dy));
+        newTop = Math.round(ref.initialTop + (ref.initialHeight - potentialHeight));
+        newHeight = potentialHeight;
+      }
+
+      onUpdateElementProps(ref.elementId, {
+        width: newWidth,
+        height: newHeight,
+        left: newLeft,
+        top: newTop,
+      });
+    };
+
+    const handleTouchEnd = () => {
+      setIsResizing(false);
+      resizeStartRef.current = null;
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
+
+    window.addEventListener("touchmove", handleTouchMove, { passive: true });
+    window.addEventListener("touchend", handleTouchEnd);
+  };
+
   const handleSlotClick = (slot: any) => {
     setActiveSlotId(slot.id);
     onSelectElement({ id: slot.id, type: "PhotoBox", props: slot.props || {} });
@@ -431,6 +688,10 @@ export default function EditorCanvas({
                     <img
                       src={getImageUrl(props.imgList[0]?.imageKey || props.imgList[0]?.src)}
                       alt="Wedding Album Carousel"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600";
+                      }}
                       className="w-full h-full object-cover select-none pointer-events-none"
                       draggable={false}
                     />
@@ -584,18 +845,71 @@ export default function EditorCanvas({
               {/* Drag Move Hit Area (Border edges allow direct dragging) */}
               <div
                 onMouseDown={(e) => handleMouseDownElement(e, selectedElement.id, p, selectedElement.type)}
+                onTouchStart={(e) => handleTouchStartElement(e, selectedElement.id, p, selectedElement.type)}
                 className="absolute inset-0 pointer-events-auto cursor-move"
-                title="Giữ chuột và kéo để di chuyển vị trí"
+                title="Giữ chuột hoặc chạm để di chuyển vị trí"
               />
 
-              {/* 4 Corner handles (Red L-brackets) */}
-              <div className="absolute -top-1 -left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-[#e54153] pointer-events-none" />
-              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 border-t-2 border-r-2 border-[#e54153] pointer-events-none" />
-              <div className="absolute -bottom-1 -left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-[#e54153] pointer-events-none" />
-              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-[#e54153] pointer-events-none" />
+              {/* 8-Point Interactive Resize Handles (Mouse & Touch Enabled) */}
+              {/* Top-Left (nw) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "nw", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "nw", p)}
+                className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để co giãn kích thước"
+              />
+              {/* Top-Center (n) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "n", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "n", p)}
+                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để thay đổi chiều cao"
+              />
+              {/* Top-Right (ne) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "ne", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "ne", p)}
+                className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để co giãn kích thước"
+              />
+              {/* Center-Right (e) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "e", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "e", p)}
+                className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để thay đổi chiều rộng"
+              />
+              {/* Bottom-Right (se) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "se", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "se", p)}
+                className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để co giãn kích thước"
+              />
+              {/* Bottom-Center (s) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "s", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "s", p)}
+                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để thay đổi chiều cao"
+              />
+              {/* Bottom-Left (sw) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "sw", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "sw", p)}
+                className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để co giãn kích thước"
+              />
+              {/* Center-Left (w) */}
+              <div
+                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "w", p)}
+                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "w", p)}
+                className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
+                title="Kéo để thay đổi chiều rộng"
+              />
 
-              {/* Real-time coordinates tooltip when moving/rotating */}
-              {(isDragging || isRotating) && (
+              {/* Real-time coordinates tooltip when moving/rotating/resizing */}
+              {(isDragging || isRotating || isResizing) && (
                 <div
                   className="absolute -bottom-14 left-1/2 pointer-events-none bg-gray-900/90 text-white text-[10px] font-mono px-2 py-0.5 rounded-md shadow-md whitespace-nowrap z-50"
                   style={{
@@ -603,7 +917,11 @@ export default function EditorCanvas({
                     transformOrigin: "center center",
                   }}
                 >
-                  {isRotating ? `Góc xoay: ${rotation}°` : `X: ${left}px • Y: ${top}px`}
+                  {isRotating
+                    ? `Góc xoay: ${rotation}°`
+                    : isResizing
+                    ? `Rộng: ${width}px • Cao: ${height}px`
+                    : `X: ${left}px • Y: ${top}px`}
                 </div>
               )}
 
@@ -669,8 +987,9 @@ export default function EditorCanvas({
                 <div className="w-px h-3.5 bg-[#e54153]" />
                 <div
                   onMouseDown={(e) => handleMouseDownRotate(e, selectedElement.id)}
-                  className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform"
-                  title="Kéo chuột để xoay phần tử"
+                  onTouchStart={(e) => handleTouchStartRotate(e, selectedElement.id)}
+                  className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform touch-none"
+                  title="Kéo chuột hoặc chạm xoay phần tử"
                 >
                   <RotateCw className="w-3 h-3" />
                 </div>
