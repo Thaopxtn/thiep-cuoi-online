@@ -175,6 +175,29 @@ export default function ShowInvitationPage() {
     }
   };
 
+  const getVietQrUrl = (bankName?: string, accountNumber?: string, name?: string, customQr?: string): string => {
+    if (customQr && customQr.startsWith("http") && !customQr.includes("api.qrserver.com")) {
+      return customQr;
+    }
+    if (!accountNumber) return "";
+    const bankClean = (bankName || "MB").toLowerCase().replace(/[^a-z0-9]/g, "");
+    let bankCode = "MB";
+    if (bankClean.includes("vietcom") || bankClean === "vcb") bankCode = "VCB";
+    else if (bankClean.includes("techcom") || bankClean === "tcb") bankCode = "TCB";
+    else if (bankClean.includes("vietin") || bankClean === "ctg") bankCode = "CTG";
+    else if (bankClean.includes("bidv")) bankCode = "BIDV";
+    else if (bankClean.includes("vp")) bankCode = "VPB";
+    else if (bankClean.includes("tp")) bankCode = "TPB";
+    else if (bankClean.includes("acb")) bankCode = "ACB";
+    else if (bankClean.includes("mb")) bankCode = "MB";
+    else if (bankClean.includes("sacom")) bankCode = "STB";
+    else if (bankClean.includes("vib")) bankCode = "VIB";
+
+    const msg = encodeURIComponent(`Mung cuoi ${name || ""}`);
+    const holder = encodeURIComponent(name || "");
+    return `https://img.vietqr.io/image/${bankCode}-${accountNumber}-compact2.png?addInfo=${msg}&accountName=${holder}`;
+  };
+
   if (!card) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#511419] text-amber-100">
@@ -566,7 +589,7 @@ export default function ShowInvitationPage() {
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
                 <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
                   <img
-                    src={card.groom.qrCode || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${card.groom.accountNumber}`}
+                    src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, card.groom.name, card.groom.qrCode)}
                     alt={`QR ${card.groom.name}`}
                     className="w-full h-full object-contain"
                   />
@@ -604,7 +627,7 @@ export default function ShowInvitationPage() {
               <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
                 <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
                   <img
-                    src={card.bride.qrCode || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${card.bride.accountNumber}`}
+                    src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, card.bride.name, card.bride.qrCode)}
                     alt={`QR ${card.bride.name}`}
                     className="w-full h-full object-contain"
                   />

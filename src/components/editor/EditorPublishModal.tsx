@@ -17,16 +17,33 @@ export default function EditorPublishModal({
   templateId,
 }: EditorPublishModalProps) {
   const [copied, setCopied] = useState(false);
+  const currentOrigin =
+    typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
+  const defaultSlug = templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId;
+  const [liveUrl, setLiveUrl] = useState(`${currentOrigin}/show/${defaultSlug}`);
+  const [liveQr, setLiveQr] = useState(`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${currentOrigin}/show/${defaultSlug}`)}`);
+
+  React.useEffect(() => {
+    if (isOpen && templateId) {
+      // Gọi API xuất bản lên Supabase Backend
+      fetch(`/api/cards/${templateId}/publish`, { method: "POST" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.publicUrl) {
+            setLiveUrl(data.publicUrl);
+            if (data.qrCodeUrl) {
+              setLiveQr(data.qrCodeUrl);
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen, templateId]);
 
   if (!isOpen) return null;
 
-  const currentOrigin =
-    typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
-  const slug = templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId;
-  const publicUrl = `${currentOrigin}/show/${slug}`;
-  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(
-    publicUrl
-  )}`;
+  const publicUrl = liveUrl;
+  const qrUrl = liveQr;
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(publicUrl);
