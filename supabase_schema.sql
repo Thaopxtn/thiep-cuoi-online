@@ -62,12 +62,24 @@ ALTER TABLE public.rsvps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wishes ENABLE ROW LEVEL SECURITY;
 
 -- Cho phép khách công khai xem và lưu thiệp / gửi RSVP / gửi lời chúc
+DROP POLICY IF EXISTS "Public Read Cards" ON public.cards;
 CREATE POLICY "Public Read Cards" ON public.cards FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Insert Cards" ON public.cards;
 CREATE POLICY "Public Insert Cards" ON public.cards FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public Update Cards" ON public.cards;
 CREATE POLICY "Public Update Cards" ON public.cards FOR UPDATE USING (true);
 
+DROP POLICY IF EXISTS "Public Read RSVPs" ON public.rsvps;
 CREATE POLICY "Public Read RSVPs" ON public.rsvps FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Insert RSVPs" ON public.rsvps;
 CREATE POLICY "Public Insert RSVPs" ON public.rsvps FOR INSERT WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Public Read Wishes" ON public.wishes;
 CREATE POLICY "Public Read Wishes" ON public.wishes FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Public Insert Wishes" ON public.wishes;
 CREATE POLICY "Public Insert Wishes" ON public.wishes FOR INSERT WITH CHECK (true);
+
