@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 // @ts-ignore
 import lzutf8 from "lzutf8";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import hongPhongNodes from "@/data/templates/hong-phong-nodes.json";
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +10,7 @@ export async function GET(
 ) {
   const { id } = params;
 
-  // 1. Thử gọi trực tiếp đến API ZenLove với timeout 3s
+  // 1. Thử gọi trực tiếp đến API ZenLove với timeout 3.5s
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 3500);
@@ -61,6 +62,22 @@ export async function GET(
   const localTemplate = ZENLOVE_TEMPLATES.find(
     (t) => t.id === id || t.slug === id
   );
+
+  // Nếu là mẫu Hồng Phong (flagship của ZenLove): sử dụng ngay blueprint gốc 65 nodes
+  if (id === "8c5055d8-30db-4b38-8831-e11063e3d352" || id === "hong-phong" || localTemplate?.slug === "hong-phong") {
+    return NextResponse.json({
+      success: true,
+      source: "self_hosted_blueprint",
+      data: {
+        id: "8c5055d8-30db-4b38-8831-e11063e3d352",
+        name: localTemplate?.name || "Hồng Phong",
+        slug: "hong-phong",
+        imageUrl: localTemplate?.imageUrl || "https://cdn-resource.zenlove.me/uploads/862861ad-96f7-4738-b17f-56ad4f5c1e28/QkFhLVRoQW4tVGlhbl8xNzg5OTE0NzgyOTM4X3hodWtzYWpiZzE.jpg",
+        pageData: "",
+        parsedNodes: hongPhongNodes,
+      },
+    });
+  }
 
   if (localTemplate) {
     const fallbackNodes: Record<string, any> = {

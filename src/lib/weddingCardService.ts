@@ -1,5 +1,7 @@
 "use client";
 
+import hongPhongNodes from "@/data/templates/hong-phong-nodes.json";
+
 export interface WeddingEvent {
   id: string;
   title: string;
@@ -189,6 +191,7 @@ export const INITIAL_CARDS: WeddingCard[] = [
         createdAt: "Hôm qua 21:00",
       },
     ],
+    nodes: hongPhongNodes,
   },
   {
     id: "4e91a4ea-9e62-43d8-bf37-34e2eef30e2e",

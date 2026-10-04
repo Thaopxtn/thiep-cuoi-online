@@ -24,6 +24,7 @@ import {
   Phone,
   MessageCircle,
   ExternalLink,
+  Gift,
 } from "lucide-react";
 import {
   getCardByIdOrSlug,
@@ -48,6 +49,11 @@ export default function ShowInvitationPage() {
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
   const [isEnvelopeOpening, setIsEnvelopeOpening] = useState(false);
   const [petalsEnabled, setPetalsEnabled] = useState(true);
+
+  // Gift QR Modal & Toast state
+  const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
+  const [activeGiftTab, setActiveGiftTab] = useState<"groom" | "bride">("groom");
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Audio state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -565,7 +571,23 @@ export default function ShowInvitationPage() {
         {/* Dynamic Nodes Canvas (Hiển thị đúng 100% bản vẽ tùy biến của người dùng) */}
         {card.nodes && card.nodes["ROOT"] && Object.keys(card.nodes).length > 2 ? (
           <div className="w-full relative z-10">
-            <CardNodeRenderer nodes={card.nodes} />
+            <CardNodeRenderer
+              nodes={card.nodes}
+              onOpenGiftQr={() => setIsGiftModalOpen(true)}
+              onRsvpSuccess={(data) => {
+                if (!card) return;
+                addRsvp(card.id, {
+                  name: data.name,
+                  phone: data.phone || "---",
+                  attending: data.attending ?? true,
+                  guests: 1,
+                  note: data.note || "",
+                });
+                setToastMessage("🎉 Đã gửi xác nhận tham dự thành công!");
+                setTimeout(() => setToastMessage(null), 3500);
+                setCard(getCardByIdOrSlug(card.id) || card);
+              }}
+            />
           </div>
         ) : (
           <>
@@ -702,7 +724,7 @@ export default function ShowInvitationPage() {
         )}
 
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
-        <section className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
+        <section id="rsvp-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
           <div className="text-center mb-6">
             <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
               Xác Nhận Tham Dự
@@ -834,7 +856,7 @@ export default function ShowInvitationPage() {
         </section>
 
         {/* ================= BANKING GIFT QR BOX (Hộp mừng cưới online) ================= */}
-        <section className="px-6 py-8 relative z-10">
+        <section id="gift-section" className="px-6 py-8 relative z-10">
           <div className="text-center mb-6">
             <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
               Hộp Mừng Cưới Online
@@ -927,7 +949,7 @@ export default function ShowInvitationPage() {
         </section>
 
         {/* ================= GUESTBOOK WISHES (Sổ lưu bút) ================= */}
-        <section className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
+        <section id="wishes-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
           <div className="text-center mb-6">
             <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
               Sổ Lưu Bút
@@ -1004,25 +1026,197 @@ export default function ShowInvitationPage() {
         </div>
 
         {/* Bottom Floating Share / Action Bar */}
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white/95 backdrop-blur-md border-t border-gray-200 p-2.5 px-4 flex items-center justify-between z-40 shadow-lg">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white/95 backdrop-blur-md border-t border-gray-200 py-1.5 px-3 z-40 shadow-xl flex items-center justify-around gap-1">
           <button
             type="button"
-            onClick={() => copyToClipboard(window.location.href, "link")}
-            className="flex-1 py-2 px-3 rounded-xl bg-rose-50 text-zen-primary text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-rose-100 transition-colors mr-2"
+            onClick={() => {
+              const el = document.getElementById("rsvp-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
           >
-            {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Share2 className="w-3.5 h-3.5" />}
-            <span>{copiedLink ? "Đã sao chép link!" : "Chia sẻ thiệp"}</span>
+            <CheckCircle className="w-4 h-4 text-zen-primary" />
+            <span className="text-[10px] font-bold mt-0.5">RSVP</span>
           </button>
 
-          <Link
-            href={`/design-template/${card.templateId}`}
-            className="py-2 px-4 rounded-xl bg-zen-primary text-white text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-[#d93849] transition-colors shadow-xs"
+          <button
+            type="button"
+            onClick={() => setIsGiftModalOpen(true)}
+            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Chỉnh sửa mẫu này</span>
-          </Link>
+            <Gift className="w-4 h-4 text-amber-600" />
+            <span className="text-[10px] font-bold mt-0.5">Mừng cưới</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const el = document.getElementById("wishes-section");
+              if (el) el.scrollIntoView({ behavior: "smooth" });
+            }}
+            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+          >
+            <MessageCircle className="w-4 h-4 text-rose-500" />
+            <span className="text-[10px] font-bold mt-0.5">Lời chúc</span>
+          </button>
+
+          <a
+            href={card.events?.[0]?.mapUrl || `https://maps.google.com/?q=${encodeURIComponent(card.events?.[0]?.venue || "Hà Nội")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+          >
+            <Navigation className="w-4 h-4 text-blue-600" />
+            <span className="text-[10px] font-bold mt-0.5">Chỉ đường</span>
+          </a>
+
+          <button
+            type="button"
+            onClick={() => {
+              copyToClipboard(window.location.href, "link");
+              setToastMessage("Đã sao chép link thiệp cưới!");
+              setTimeout(() => setToastMessage(null), 2500);
+            }}
+            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+          >
+            {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4 text-purple-600" />}
+            <span className="text-[10px] font-bold mt-0.5">{copiedLink ? "Đã chép" : "Chia sẻ"}</span>
+          </button>
         </div>
       </main>
+
+      {/* ================= GIFT QR POPUP MODAL ================= */}
+      {isGiftModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4 border border-rose-100 relative animate-scale-in">
+            <button
+              type="button"
+              onClick={() => setIsGiftModalOpen(false)}
+              className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+            >
+              ✕
+            </button>
+
+            <div className="text-center pt-1">
+              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                Mừng Cưới Online
+              </span>
+              <h3 className="text-xl font-cormorant font-bold text-[#511419] mt-0.5">
+                Hộp Quà Chúc Phúc
+              </h3>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Quét mã VietQR hoặc sao chép STK để gửi quà mừng tới cặp đôi
+              </p>
+            </div>
+
+            {/* Groom / Bride Tabs */}
+            <div className="flex bg-gray-100 rounded-xl p-1 text-xs font-semibold">
+              <button
+                type="button"
+                onClick={() => setActiveGiftTab("groom")}
+                className={`flex-1 py-1.5 rounded-lg transition-all ${
+                  activeGiftTab === "groom"
+                    ? "bg-white text-[#511419] font-bold shadow-2xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                Mừng Chú Rể
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveGiftTab("bride")}
+                className={`flex-1 py-1.5 rounded-lg transition-all ${
+                  activeGiftTab === "bride"
+                    ? "bg-white text-[#511419] font-bold shadow-2xs"
+                    : "text-gray-500 hover:text-gray-800"
+                }`}
+              >
+                Mừng Cô Dâu
+              </button>
+            </div>
+
+            {/* Groom Bank & QR */}
+            {activeGiftTab === "groom" && (
+              <div className="space-y-3 text-center">
+                <div className="w-44 h-44 mx-auto bg-white rounded-2xl p-2 border-2 border-dashed border-amber-300 shadow-inner flex items-center justify-center">
+                  <img
+                    src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, card.groom.name, card.groom.qrCode)}
+                    alt={`VietQR ${card.groom.name}`}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-gray-800">
+                    {card.groom.bankName || "MB BANK"}
+                  </p>
+                  <p className="text-sm font-mono font-bold text-[#511419]">
+                    {card.groom.accountNumber || "240220038888"}
+                  </p>
+                  <p className="text-[11px] text-gray-500 uppercase font-semibold">
+                    Chủ TK: {card.groom.name || "CHÚ RỂ"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    copyToClipboard(card.groom.accountNumber || "240220038888", "groom");
+                    setToastMessage("Đã sao chép STK Chú Rể!");
+                    setTimeout(() => setToastMessage(null), 2500);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-[#511419] hover:bg-[#3d0f13] text-white text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  {copiedBank === "groom" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBank === "groom" ? "Đã sao chép số tài khoản!" : "Sao chép số tài khoản"}</span>
+                </button>
+              </div>
+            )}
+
+            {/* Bride Bank & QR */}
+            {activeGiftTab === "bride" && (
+              <div className="space-y-3 text-center">
+                <div className="w-44 h-44 mx-auto bg-white rounded-2xl p-2 border-2 border-dashed border-rose-300 shadow-inner flex items-center justify-center">
+                  <img
+                    src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, card.bride.name, card.bride.qrCode)}
+                    alt={`VietQR ${card.bride.name}`}
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-xs font-bold text-gray-800">
+                    {card.bride.bankName || "TECHCOMBANK"}
+                  </p>
+                  <p className="text-sm font-mono font-bold text-[#511419]">
+                    {card.bride.accountNumber || "190365824988"}
+                  </p>
+                  <p className="text-[11px] text-gray-500 uppercase font-semibold">
+                    Chủ TK: {card.bride.name || "CÔ DÂU"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    copyToClipboard(card.bride.accountNumber || "190365824988", "bride");
+                    setToastMessage("Đã sao chép STK Cô Dâu!");
+                    setTimeout(() => setToastMessage(null), 2500);
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white text-xs font-bold shadow-md flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  {copiedBank === "bride" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBank === "bride" ? "Đã sao chép số tài khoản!" : "Sao chép số tài khoản"}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ================= TOAST NOTIFICATION ================= */}
+      {toastMessage && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-gray-900/95 text-white px-4 py-2 rounded-full text-xs font-semibold shadow-xl border border-white/20 flex items-center gap-2 animate-bounce">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 }

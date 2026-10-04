@@ -124,6 +124,84 @@ export default function EditorCanvas({
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
   const [isUploadingSlot, setIsUploadingSlot] = useState(false);
 
+  // Drag-to-move and drag-to-rotate states
+  const [isDragging, setIsDragging] = useState(false);
+  const [isRotating, setIsRotating] = useState(false);
+  const dragStartRef = useRef<{
+    startX: number;
+    startY: number;
+    initialLeft: number;
+    initialTop: number;
+    elementId: string;
+  } | null>(null);
+
+  const handleMouseDownElement = (e: React.MouseEvent, id: string, props: any, type: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    onSelectElement({ id, type, props });
+
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialLeft: Number(props.left ?? 0),
+      initialTop: Number(props.top ?? 0),
+      elementId: id,
+    };
+    setIsDragging(true);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      if (!dragStartRef.current) return;
+      const dx = (moveEvent.clientX - dragStartRef.current.startX) / zoomLevel;
+      const dy = (moveEvent.clientY - dragStartRef.current.startY) / zoomLevel;
+      const newLeft = Math.round(dragStartRef.current.initialLeft + dx);
+      const newTop = Math.round(dragStartRef.current.initialTop + dy);
+      onUpdateElementProps(dragStartRef.current.elementId, {
+        left: newLeft,
+        top: newTop,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      dragStartRef.current = null;
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  const handleMouseDownRotate = (e: React.MouseEvent, id: string) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const element = document.getElementById(`canvas-node-${id}`);
+    if (!element) return;
+    const rect = element.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+
+    setIsRotating(true);
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      const rad = Math.atan2(moveEvent.clientY - centerY, moveEvent.clientX - centerX);
+      let deg = Math.round((rad * 180) / Math.PI) - 90;
+      if (deg < 0) deg += 360;
+      onUpdateElementProps(id, { rotation: deg });
+    };
+
+    const handleMouseUp = () => {
+      setIsRotating(false);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
   const handleSlotClick = (slot: any) => {
     setActiveSlotId(slot.id);
     onSelectElement({ id: slot.id, type: "PhotoBox", props: slot.props || {} });
@@ -236,11 +314,17 @@ export default function EditorCanvas({
           return (
             <div
               key={id}
+              id={`canvas-node-${id}`}
+              onMouseDown={(e) => handleMouseDownElement(e, id, props, type)}
               onClick={(e) => {
                 e.stopPropagation();
                 onSelectElement({ id, type, props });
               }}
-              className="absolute cursor-pointer group"
+              className={`absolute group select-none ${
+                selectedElement?.id === id
+                  ? "cursor-grab active:cursor-grabbing ring-1 ring-[#e54153]/40"
+                  : "cursor-pointer hover:ring-1 hover:ring-gray-300/60"
+              }`}
               style={{
                 top: `${top}px`,
                 left: `${left}px`,
@@ -494,7 +578,7 @@ export default function EditorCanvas({
 
           return (
             <div
-              className="absolute pointer-events-none border border-[#e54153] z-50"
+              className="absolute pointer-events-none border border-[#e54153] z-50 select-none"
               style={{
                 top: `${top}px`,
                 left: `${left}px`,
@@ -503,11 +587,31 @@ export default function EditorCanvas({
                 transform: `rotate(${rotation}deg)`,
               }}
             >
+              {/* Drag Move Hit Area (Border edges allow direct dragging) */}
+              <div
+                onMouseDown={(e) => handleMouseDownElement(e, selectedElement.id, p, selectedElement.type)}
+                className="absolute inset-0 pointer-events-auto cursor-move"
+                title="Giữ chuột và kéo để di chuyển vị trí"
+              />
+
               {/* 4 Corner handles (Red L-brackets) */}
-              <div className="absolute -top-1 -left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-[#e54153]" />
-              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 border-t-2 border-r-2 border-[#e54153]" />
-              <div className="absolute -bottom-1 -left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-[#e54153]" />
-              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-[#e54153]" />
+              <div className="absolute -top-1 -left-1 w-3.5 h-3.5 border-t-2 border-l-2 border-[#e54153] pointer-events-none" />
+              <div className="absolute -top-1 -right-1 w-3.5 h-3.5 border-t-2 border-r-2 border-[#e54153] pointer-events-none" />
+              <div className="absolute -bottom-1 -left-1 w-3.5 h-3.5 border-b-2 border-l-2 border-[#e54153] pointer-events-none" />
+              <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 border-b-2 border-r-2 border-[#e54153] pointer-events-none" />
+
+              {/* Real-time coordinates tooltip when moving/rotating */}
+              {(isDragging || isRotating) && (
+                <div
+                  className="absolute -bottom-14 left-1/2 pointer-events-none bg-gray-900/90 text-white text-[10px] font-mono px-2 py-0.5 rounded-md shadow-md whitespace-nowrap z-50"
+                  style={{
+                    transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
+                    transformOrigin: "center center",
+                  }}
+                >
+                  {isRotating ? `Góc xoay: ${rotation}°` : `X: ${left}px • Y: ${top}px`}
+                </div>
+              )}
 
               {/* Top Floating Mini-Toolbar (Counter-rotated to remain horizontal) */}
               <div
@@ -523,7 +627,7 @@ export default function EditorCanvas({
                     e.stopPropagation();
                     onDuplicateElement(selectedElement.id);
                   }}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
+                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
                   title="Nhân bản"
                 >
                   <Copy className="w-3.5 h-3.5" />
@@ -534,24 +638,35 @@ export default function EditorCanvas({
                     e.stopPropagation();
                     onDeleteElement(selectedElement.id);
                   }}
-                  className="p-1 hover:bg-red-50 rounded text-gray-600 hover:text-[#e54153] transition-colors"
+                  className="p-1 hover:bg-red-50 rounded text-gray-600 hover:text-[#e54153] transition-colors cursor-pointer"
                   title="Xóa phần tử"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
-                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
-                  title="Thứ tự lớp"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const currentZ = Number(p.zIndex) || 1;
+                    onUpdateElementProps(selectedElement.id, { zIndex: currentZ + 1 });
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+                  title="Đưa lên lớp trên (+1)"
                 >
                   <Layers className="w-3.5 h-3.5" />
                 </button>
                 <button
                   type="button"
-                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors"
-                  title="Tùy chọn khác"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateElementProps(selectedElement.id, {
+                      left: Math.round((canvasWidth - (p.width || 100)) / 2),
+                    });
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer text-[10px] font-bold px-1"
+                  title="Căn giữa thiệp"
                 >
-                  <MoreHorizontal className="w-3.5 h-3.5" />
+                  Căn giữa
                 </button>
               </div>
 
@@ -559,8 +674,9 @@ export default function EditorCanvas({
               <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center z-50">
                 <div className="w-px h-3.5 bg-[#e54153]" />
                 <div
-                  className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform"
-                  title="Xoay phần tử"
+                  onMouseDown={(e) => handleMouseDownRotate(e, selectedElement.id)}
+                  className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform"
+                  title="Kéo chuột để xoay phần tử"
                 >
                   <RotateCw className="w-3 h-3" />
                 </div>
