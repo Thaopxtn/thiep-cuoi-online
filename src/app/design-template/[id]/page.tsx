@@ -308,9 +308,143 @@ export default function DesignTemplatePage() {
 
   // Change background music
   const handleChangeMusic = (title: string, url: string) => {
-    // Show toast or save music in toolbarSettings
     setIsSaved(false);
     setTimeout(() => setIsSaved(true), 800);
+  };
+
+  // Change background styling (Color, texture, image)
+  const handleChangeBackground = ({
+    color,
+    image,
+    opacity,
+  }: {
+    color?: string;
+    image?: string;
+    opacity?: number;
+  }) => {
+    setNodes((prev) => {
+      const root = prev["ROOT"] || { type: { resolvedName: "GeometricBox" }, props: {} };
+      const updatedProps = { ...root.props };
+      if (color !== undefined) updatedProps.backgroundColor = color;
+      if (image !== undefined) updatedProps.backgroundImage = image;
+      if (opacity !== undefined) updatedProps.backgroundOpacity = opacity;
+      const newNodes = {
+        ...prev,
+        ROOT: {
+          ...root,
+          props: updatedProps,
+        },
+      };
+      pushHistory(newNodes);
+      return newNodes;
+    });
+  };
+
+  // Add stock decoration / sticker
+  const handleAddStock = (stockUrl: string, name: string) => {
+    const newId = `stock_${Date.now()}`;
+    const newNode = {
+      type: { resolvedName: "PhotoBox" },
+      props: {
+        top: 400,
+        left: 175,
+        width: 150,
+        height: 150,
+        imgKey: stockUrl,
+        src: stockUrl,
+        zIndex: 40,
+        alt: name,
+      },
+    };
+    setNodes((prev) => {
+      const newNodes = { ...prev, [newId]: newNode };
+      pushHistory(newNodes);
+      setSelectedElement({ id: newId, type: "PhotoBox", props: newNode.props });
+      return newNodes;
+    });
+  };
+
+  // Add interactive wedding widget (Countdown, Map, QR, RSVP, Calendar)
+  const handleAddWidget = (widgetType: string, customProps?: Record<string, any>) => {
+    const newId = `widget_${Date.now()}`;
+    let defaultProps: Record<string, any> = {
+      top: 500,
+      left: 40,
+      width: 420,
+      height: 180,
+      zIndex: 50,
+    };
+    if (widgetType === "CountdownBoxV2") {
+      defaultProps = { ...defaultProps, height: 120, targetDate: "2026-11-18T11:00:00" };
+    } else if (widgetType === "CalendarBoxV2") {
+      defaultProps = { ...defaultProps, width: 320, left: 90, height: 220, day: 29, month: 12, year: 2026 };
+    } else if (widgetType === "GiftQrBox") {
+      defaultProps = {
+        ...defaultProps,
+        height: 260,
+        modalTitle: "Hộp Quà Mừng Cưới",
+        imgKey:
+          customProps?.imgKey ||
+          "https://img.vietqr.io/image/MB-240220038888-compact2.jpg?amount=0&addInfo=Mung%20cuoi%20hai%20ban&accountName=NGUYEN%20VAN%20HUNG",
+      };
+    } else if (widgetType === "RsvpBoxV2") {
+      defaultProps = { ...defaultProps, height: 220, titleText: "Xác nhận tham dự" };
+    } else if (widgetType === "MapBox") {
+      defaultProps = {
+        ...defaultProps,
+        height: 200,
+        venueName: "Trung tâm Tiệc cưới Trống Đồng Palace",
+        address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
+        mapUrl: "https://maps.google.com/?q=21.0254,105.8458",
+      };
+    }
+    const newNode = {
+      type: { resolvedName: widgetType },
+      props: { ...defaultProps, ...(customProps || {}) },
+    };
+    setNodes((prev) => {
+      const newNodes = { ...prev, [newId]: newNode };
+      pushHistory(newNodes);
+      setSelectedElement({ id: newId, type: widgetType, props: newNode.props });
+      return newNodes;
+    });
+  };
+
+  // 1-Click theme preset applicator
+  const handleApplyThemePreset = (preset: {
+    name: string;
+    backgroundColor: string;
+    primaryColor: string;
+    textColor: string;
+    fontFamily?: string;
+  }) => {
+    setNodes((prev) => {
+      const updated = { ...prev };
+      if (updated["ROOT"]) {
+        updated["ROOT"] = {
+          ...updated["ROOT"],
+          props: {
+            ...updated["ROOT"].props,
+            backgroundColor: preset.backgroundColor,
+          },
+        };
+      }
+      Object.entries(updated).forEach(([id, node]: [string, any]) => {
+        if (node.type?.resolvedName === "TextBox") {
+          const p = node.props || {};
+          const isHeading = (p.fontSize || 0) >= 22;
+          updated[id] = {
+            ...node,
+            props: {
+              ...p,
+              color: isHeading ? preset.primaryColor : preset.textColor,
+            },
+          };
+        }
+      });
+      pushHistory(updated);
+      return updated;
+    });
   };
 
   // Switch template
@@ -485,9 +619,48 @@ export default function DesignTemplatePage() {
           isOpen={isLeftDrawerOpen}
           onClose={() => setIsLeftDrawerOpen(false)}
           onAddImage={handleAddImage}
+          selectedElement={selectedElement}
+          onUpdateElementProps={handleUpdateProps}
           onAddText={handleAddText}
+          currentBackground={{
+            backgroundColor: nodes["ROOT"]?.props?.backgroundColor,
+            backgroundImage: nodes["ROOT"]?.props?.backgroundImage,
+            backgroundOpacity: nodes["ROOT"]?.props?.backgroundOpacity,
+          }}
+          onChangeBackground={handleChangeBackground}
+          onAddStock={handleAddStock}
+          onRemoveBackground={async () => {
+            if (selectedElement && selectedElement.props?.imgKey) {
+              try {
+                const res = await fetch("/api/tools/remove-bg", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ imageUrl: selectedElement.props.imgKey }),
+                });
+                const data = await res.json();
+                if (data.success && data.outputUrl) {
+                  handleUpdateProps(selectedElement.id, {
+                    imgKey: data.outputUrl,
+                    src: data.outputUrl,
+                    hasBoxShadow: true,
+                    boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
+                  });
+                }
+              } catch (e) {
+                console.error("Lỗi xóa nền AI:", e);
+              }
+            }
+          }}
+          currentMusic={{
+            title: currentZenloveTemplate?.musicName || "Beautiful In White - Shane Filan",
+            url:
+              currentZenloveTemplate?.musicUrl ||
+              "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+          }}
           onChangeMusic={handleChangeMusic}
+          onAddWidget={handleAddWidget}
           onSelectTemplate={handleSelectTemplate}
+          onApplyThemePreset={handleApplyThemePreset}
         />
 
         {/* Center Canvas (Blueprint Grid + Mobile Viewport + Bounding Box) */}

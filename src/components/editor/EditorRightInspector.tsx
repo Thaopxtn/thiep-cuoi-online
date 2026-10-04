@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Settings,
   Sparkles,
@@ -24,7 +24,9 @@ import {
   Bold,
   Italic,
   Underline,
+  Loader2,
 } from "lucide-react";
+import { compressImageToWebP } from "@/lib/imageCompression";
 
 export interface SelectedElementData {
   id: string;
@@ -60,6 +62,44 @@ export default function EditorRightInspector({
 
   const toggleAccordion = (key: string) => {
     setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const replaceFileInputRef = useRef<HTMLInputElement>(null);
+  const [isReplacingImage, setIsReplacingImage] = useState(false);
+
+  const handleTriggerFilePicker = () => {
+    if (replaceFileInputRef.current) {
+      replaceFileInputRef.current.value = "";
+      replaceFileInputRef.current.click();
+    }
+  };
+
+  const handleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedElement) return;
+
+    try {
+      setIsReplacingImage(true);
+      const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
+      const formData = new FormData();
+      formData.append("file", compressed.file);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      let uploadedUrl = compressed.dataUrl;
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) uploadedUrl = json.url;
+      }
+
+      onUpdateProps(selectedElement.id, { imgKey: uploadedUrl, src: uploadedUrl });
+    } catch (err) {
+      console.error("Lỗi thay ảnh:", err);
+      const localUrl = URL.createObjectURL(file);
+      onUpdateProps(selectedElement.id, { imgKey: localUrl, src: localUrl });
+    } finally {
+      setIsReplacingImage(false);
+      if (replaceFileInputRef.current) replaceFileInputRef.current.value = "";
+    }
   };
 
   if (!selectedElement) {
@@ -149,33 +189,65 @@ export default function EditorRightInspector({
             </div>
 
             {/* Thumbnail Preview */}
-            <div className="flex items-center justify-center py-1">
-              <div className="w-24 h-28 rounded-lg overflow-hidden border border-gray-200 shadow-xs bg-gray-50 relative group">
+            <div className="flex flex-col items-center justify-center py-1">
+              <div
+                onClick={handleTriggerFilePicker}
+                className="w-24 h-28 rounded-lg overflow-hidden border border-gray-200 shadow-xs bg-gray-50 relative group cursor-pointer hover:border-[#e54153] transition-all"
+                title="Nhấn để đổi ảnh mới từ thiết bị"
+              >
                 <img
                   src={getFullImageUrl(props.imgKey || props.src)}
                   alt="Selected"
-                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400";
+                  }}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                 />
+                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white">
+                  <RotateCw className="w-5 h-5 mb-1" />
+                  <span className="text-[10px] font-bold">Đổi ảnh</span>
+                </div>
+                {isReplacingImage && (
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-white">
+                    <Loader2 className="w-6 h-6 animate-spin text-[#e54153]" />
+                  </div>
+                )}
               </div>
+              <input
+                ref={replaceFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFilePicked}
+                className="hidden"
+              />
             </div>
 
-            {/* Actions: Đổi ảnh | Cắt ảnh */}
+            {/* Actions: Đổi ảnh | Thư viện */}
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={onReplaceImage}
-                className="py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 bg-white text-xs font-semibold text-gray-700 flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95"
+                onClick={handleTriggerFilePicker}
+                disabled={isReplacingImage}
+                className="py-2 px-3 rounded-lg border border-gray-200 hover:border-[#e54153] hover:text-[#e54153] bg-white text-xs font-semibold text-gray-700 flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 cursor-pointer"
+                title="Chọn ảnh mới từ thiết bị của bạn"
               >
-                <RotateCw className="w-3.5 h-3.5 text-gray-500" />
-                <span>Đổi ảnh</span>
+                {isReplacingImage ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#e54153]" />
+                ) : (
+                  <RotateCw className="w-3.5 h-3.5 text-gray-500" />
+                )}
+                <span>{isReplacingImage ? "Đang tải..." : "Đổi ảnh"}</span>
               </button>
 
               <button
                 type="button"
-                className="py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 bg-white text-xs font-semibold text-gray-700 flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95"
+                onClick={onReplaceImage}
+                className="py-2 px-3 rounded-lg border border-gray-200 hover:border-gray-300 bg-white text-xs font-semibold text-gray-700 flex items-center justify-center gap-1.5 shadow-2xs transition-transform active:scale-95 cursor-pointer"
+                title="Mở thư viện ảnh mẫu & ảnh đã tải"
               >
-                <Crop className="w-3.5 h-3.5 text-gray-500" />
-                <span>Cắt ảnh</span>
+                <Layers className="w-3.5 h-3.5 text-gray-500" />
+                <span>Thư viện</span>
               </button>
             </div>
 

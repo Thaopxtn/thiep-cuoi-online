@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import {
   Plus,
   Trash2,
@@ -14,8 +14,10 @@ import {
   Gift,
   Heart,
   ChevronDown,
+  Loader2,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
+import { compressImageToWebP } from "@/lib/imageCompression";
 
 interface EditorCanvasProps {
   nodes: Record<string, any>;
@@ -65,18 +67,28 @@ export default function EditorCanvas({
     }))
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
-  // Find replaceable wedding photo boxes for "Thay ảnh nhanh" (Matches screenshot: exactly 2 thumbnails)
-  let photoSlots = childNodes.filter(
-    (n) =>
-      n.type === "PhotoBox" &&
-      (n.props.isReplaceable ||
-        n.props.previewKey ||
-        n.id === "U4ZPPsHPXy" ||
-        n.id === "nc326y93D4" ||
-        (n.props.imgKey && n.props.imgKey.includes("uploads/")))
+  // Find all PhotoBox nodes that represent real wedding photos
+  const photoCandidates = childNodes.filter(
+    (n) => n.type === "PhotoBox" && (n.props.imgKey || n.props.src)
   );
+  let photoSlots = [...photoCandidates].sort((a, b) => {
+    // Prioritize explicitly replaceable, or hero photos with large width or top position
+    const aScore = (a.props.isReplaceable ? 1000 : 0) + ((a.props.width || 0) > 150 ? 500 : 0) - (a.props.top || 0) * 0.05;
+    const bScore = (b.props.isReplaceable ? 1000 : 0) + ((b.props.width || 0) > 150 ? 500 : 0) - (b.props.top || 0) * 0.05;
+    return bScore - aScore;
+  });
 
-  // If fewer than 2 found in nodes, provide couple thumbnails as default
+  // If none matched, check any node with imgKey
+  if (photoSlots.length === 0) {
+    const anyImageNodes = Object.entries(nodes)
+      .filter(([id, n]) => id !== "ROOT" && (n.props?.imgKey || n.type?.resolvedName === "PhotoBox"))
+      .map(([id, n]) => ({ id, type: "PhotoBox", props: n.props || {}, zIndex: n.props?.zIndex || 1 }));
+    if (anyImageNodes.length > 0) {
+      photoSlots = anyImageNodes;
+    }
+  }
+
+  // If still none found, provide couple default thumbnails
   if (photoSlots.length === 0) {
     photoSlots = [
       {
@@ -108,6 +120,52 @@ export default function EditorCanvas({
     return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
   };
 
+  const quickFileInputRef = useRef<HTMLInputElement>(null);
+  const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+  const [isUploadingSlot, setIsUploadingSlot] = useState(false);
+
+  const handleSlotClick = (slot: any) => {
+    setActiveSlotId(slot.id);
+    onSelectElement({ id: slot.id, type: "PhotoBox", props: slot.props || {} });
+    if (quickFileInputRef.current) {
+      quickFileInputRef.current.value = "";
+      quickFileInputRef.current.click();
+    }
+  };
+
+  const handleQuickFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeSlotId) return;
+
+    try {
+      setIsUploadingSlot(true);
+      const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
+      const formData = new FormData();
+      formData.append("file", compressed.file);
+
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      let uploadedUrl = compressed.dataUrl;
+      if (res.ok) {
+        const json = await res.json();
+        if (json.url) uploadedUrl = json.url;
+      }
+
+      onUpdateElementProps(activeSlotId, { imgKey: uploadedUrl, src: uploadedUrl });
+      onSelectElement({
+        id: activeSlotId,
+        type: "PhotoBox",
+        props: { ...(nodes[activeSlotId]?.props || {}), imgKey: uploadedUrl, src: uploadedUrl },
+      });
+    } catch (err) {
+      console.error("Lỗi thay ảnh nhanh:", err);
+      const localUrl = URL.createObjectURL(file);
+      onUpdateElementProps(activeSlotId, { imgKey: localUrl, src: localUrl });
+    } finally {
+      setIsUploadingSlot(false);
+      if (quickFileInputRef.current) quickFileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div
       className="flex-1 h-full overflow-auto relative flex items-start justify-center p-4 sm:p-8 select-none bg-[#dedfe2]"
@@ -117,6 +175,15 @@ export default function EditorCanvas({
         }
       }}
     >
+      {/* Hidden file input for Thay ảnh nhanh */}
+      <input
+        ref={quickFileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleQuickFileChange}
+        className="hidden"
+      />
+
       {/* ================= INVITATION CANVAS CONTAINER ================= */}
       <div
         className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0"
@@ -206,6 +273,10 @@ export default function EditorCanvas({
                   <img
                     src={getImageUrl(props.imgKey)}
                     alt={props.alt || ""}
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src =
+                        "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600";
+                    }}
                     className="w-full h-full object-cover pointer-events-none select-none transition-all duration-300"
                     style={{
                       filter: props.filterStyle || undefined,
@@ -529,30 +600,50 @@ export default function EditorCanvas({
 
       {/* ================= FLOATING BOTTOM-LEFT: THAY ẢNH NHANH (2) ⤹ (Matches screenshot!) ================= */}
       <div className="absolute bottom-4 left-6 z-40 bg-white rounded-xl shadow-lg border border-gray-200 p-2.5 flex flex-col gap-1.5 pointer-events-auto">
-        <span className="text-[12px] font-semibold text-gray-700">
-          Thay ảnh nhanh ({photoSlots.length}) ⤹
+        <span className="text-[12px] font-semibold text-gray-700 flex items-center justify-between">
+          <span>Thay ảnh nhanh ({photoSlots.length}) ⤹</span>
+          {isUploadingSlot && <Loader2 className="w-3 h-3 text-[#e54153] animate-spin" />}
         </span>
         <div className="flex items-center gap-2">
-          {photoSlots.map((slot, i) => (
-            <button
-              key={slot.id || i}
-              type="button"
-              onClick={() => onQuickReplacePhoto(i)}
-              className="w-12 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-[#e54153] shadow-xs relative group transition-transform hover:scale-105 active:scale-95"
-              title={`Thay thế ảnh cưới slot #${i + 1}`}
-            >
-              <img
-                src={getImageUrl(slot.props?.imgKey)}
-                alt="Couple Slot"
-                className="w-full h-full object-cover"
-              />
-              {/* Small swap icon badge in bottom-right corner */}
-              <div className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-white/90 border border-gray-300 shadow-2xs flex items-center justify-center text-gray-700">
-                <RotateCw className="w-2.5 h-2.5" />
-              </div>
-            </button>
-          ))}
+          {photoSlots.map((slot, i) => {
+            const isThisLoading = isUploadingSlot && activeSlotId === slot.id;
+            return (
+              <button
+                key={slot.id || i}
+                type="button"
+                onClick={() => handleSlotClick(slot)}
+                disabled={isUploadingSlot}
+                className="w-12 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-[#e54153] shadow-xs relative group transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+                title={`Nhấn để chọn và thay thế ảnh cưới #${i + 1} từ máy tính`}
+              >
+                <img
+                  src={getImageUrl(slot.props?.imgKey)}
+                  alt="Couple Slot"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src =
+                      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=200";
+                  }}
+                  className="w-full h-full object-cover"
+                />
+                {/* Small swap icon badge in bottom-right corner */}
+                <div className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-white/90 border border-gray-300 shadow-2xs flex items-center justify-center text-gray-700 group-hover:bg-[#e54153] group-hover:text-white transition-colors">
+                  {isThisLoading ? (
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                  ) : (
+                    <RotateCw className="w-2.5 h-2.5" />
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
+        <input
+          ref={quickFileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleQuickFileChange}
+        />
       </div>
 
       {/* ================= FLOATING BOTTOM-RIGHT: AI COLOR (Matches screenshot!) ================= */}
