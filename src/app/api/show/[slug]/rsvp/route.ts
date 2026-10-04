@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb, createRsvpInDb, getRsvpsFromDb } from "@/lib/serverDb";
 
+export const dynamic = "force-dynamic";
+
 interface Params {
   params: { slug: string };
 }

@@ -305,14 +305,14 @@ export default function DashboardPage() {
                   Tổng cộng {rsvpsList.length} phản hồi từ khách mời
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => alert("Đang xuất file Excel danh sách khách mời...")}
-                className="px-4 py-2 rounded-xl border border-gray-200 text-gray-700 text-xs font-bold hover:bg-gray-50 transition-colors flex items-center gap-1.5"
+              <a
+                href="/api/cards/export-all"
+                download
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Xuất file Excel</span>
-              </button>
+                <span>Xuất file Excel (CSV)</span>
+              </a>
             </div>
 
             <div className="overflow-x-auto">

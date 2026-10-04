@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/lib/weddingCardService";
 
+export const dynamic = "force-dynamic";
+
 interface Params {
   params: { slug: string };
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, upsertCardToDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/lib/weddingCardService";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/cards
  * Lấy danh sách toàn bộ thiệp cưới của người dùng từ Supabase Database

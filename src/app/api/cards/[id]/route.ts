@@ -5,6 +5,8 @@ import {
   deleteCardFromDb,
 } from "@/lib/serverDb";
 
+export const dynamic = "force-dynamic";
+
 interface Params {
   params: { id: string };
 }
