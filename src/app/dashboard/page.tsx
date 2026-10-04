@@ -24,6 +24,11 @@ import {
   CheckCircle2,
   XCircle,
   HelpCircle,
+  Lock,
+  Shield,
+  LogOut,
+  KeyRound,
+  AlertCircle,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -31,12 +36,28 @@ import { useAuth } from "@/context/AuthContext";
 import { getAllCards, deleteCard, fetchCardsFromServer, WeddingCard } from "@/lib/weddingCardService";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, updatePassword, updateProfile, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<"cards" | "rsvp" | "wishes" | "settings">("cards");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Live operational cards state
   const [myCards, setMyCards] = useState<WeddingCard[]>([]);
+
+  // Account Settings state
+  const [profileName, setProfileName] = useState(user?.name || "");
+  const [savingName, setSavingName] = useState(false);
+  const [nameMessage, setNameMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    if (user?.name) {
+      setProfileName(user.name);
+    }
+  }, [user]);
 
   useEffect(() => {
     // Tải trước từ cache cục bộ (ngay lập tức)
@@ -387,49 +408,215 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* TAB 4: CÀI ĐẶT TÀI KHOẢN */}
+        {/* TAB 4: CÀI ĐẶT VÀ BẢO MẬT TÀI KHOẢN */}
         {activeTab === "settings" && (
-          <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 sm:p-8 max-w-2xl">
-            <h3 className="text-base font-bold text-gray-900 mb-1">
-              Thông tin tài khoản Google
-            </h3>
-            <p className="text-xs text-gray-500 mb-6">
-              Quản lý hồ sơ và các tùy chọn bảo mật tài khoản
-            </p>
-
-            <div className="space-y-4 text-xs">
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Họ và tên</label>
-                <input
-                  type="text"
-                  disabled
-                  value={user ? user.name : "Người dùng ZenLove"}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-700 font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Địa chỉ Email</label>
-                <input
-                  type="email"
-                  disabled
-                  value={user ? user.email : "zenlove.user@gmail.com"}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-700 font-medium"
-                />
-              </div>
-
-              <div>
-                <label className="block text-gray-500 font-semibold mb-1">Gói dịch vụ đang sử dụng</label>
-                <div className="p-4 rounded-xl bg-gradient-to-r from-rose-50 to-pink-50 border border-rose-200 flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-zen-primary">Gói Trọn Đời (VIP Unlimited)</span>
-                    <p className="text-[11px] text-gray-500 mt-0.5">Không giới hạn tạo thiệp, hiệu ứng cao cấp và xóa logo</p>
-                  </div>
-                  <span className="text-xs font-bold text-emerald-600 bg-white px-3 py-1 rounded-full shadow-2xs border border-emerald-100">
-                    Đang hoạt động
-                  </span>
+          <div className="space-y-6 max-w-2xl">
+            {/* Mục 1: Thông tin hồ sơ cá nhân */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-zen-primary flex items-center justify-center font-bold">
+                  👤
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    Thông tin tài khoản
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Quản lý thông tin định danh và phương thức liên kết
+                  </p>
                 </div>
               </div>
+
+              {nameMessage && (
+                <div
+                  className={`p-3 mb-4 rounded-xl text-xs flex items-center gap-2 ${
+                    nameMessage.type === "success"
+                      ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                      : "bg-rose-50 border border-rose-200 text-rose-700"
+                  }`}
+                >
+                  {nameMessage.type === "success" ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  )}
+                  <span>{nameMessage.text}</span>
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!profileName.trim()) return;
+                  setSavingName(true);
+                  setNameMessage(null);
+                  const res = await updateProfile(profileName.trim());
+                  setSavingName(false);
+                  setNameMessage({
+                    type: res.success ? "success" : "error",
+                    text: res.message || "Cập nhật thành công!",
+                  });
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="block text-gray-700 font-bold mb-1">Họ và tên hiển thị</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      required
+                      value={profileName}
+                      onChange={(e) => setProfileName(e.target.value)}
+                      className="flex-1 px-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-medium focus:outline-none focus:border-zen-primary transition-colors"
+                      placeholder="Nhập họ và tên của bạn"
+                    />
+                    <button
+                      type="submit"
+                      disabled={savingName}
+                      className="px-4 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white font-bold text-xs transition-colors shrink-0 disabled:opacity-50"
+                    >
+                      {savingName ? "Đang lưu..." : "Lưu họ tên"}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-bold mb-1">Địa chỉ Email</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={user?.email || "thaoh.user@gmail.com"}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 font-medium cursor-not-allowed"
+                  />
+                  <p className="text-[11px] text-gray-400 mt-1">
+                    Email dùng để đăng nhập và nhận thông báo khách mời mừng cưới.
+                  </p>
+                </div>
+
+                <div className="pt-2">
+                  <label className="block text-gray-700 font-bold mb-1">Phương thức xác thực</label>
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-50 text-blue-700 font-semibold text-[11px] border border-blue-200">
+                      <Shield className="w-3.5 h-3.5 text-blue-600" />
+                      <span>{user?.provider === "email" ? "Tài khoản Email & Mật khẩu" : "Tài khoản Google OAuth (Đã liên kết)"}</span>
+                    </span>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Mục 2: Quản lý Mật khẩu & Bảo mật */}
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-xs p-6 sm:p-8">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">
+                    Bảo mật & Quản lý mật khẩu
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Đặt mật khẩu mới để có thể đăng nhập bằng cả Email và Mật khẩu
+                  </p>
+                </div>
+              </div>
+
+              {passwordMessage && (
+                <div
+                  className={`p-3 mb-4 rounded-xl text-xs flex items-center gap-2 ${
+                    passwordMessage.type === "success"
+                      ? "bg-emerald-50 border border-emerald-200 text-emerald-700"
+                      : "bg-rose-50 border border-rose-200 text-rose-700"
+                  }`}
+                >
+                  {passwordMessage.type === "success" ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+                  )}
+                  <span>{passwordMessage.text}</span>
+                </div>
+              )}
+
+              <form
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (!newPassword || newPassword.length < 6) {
+                    setPasswordMessage({ type: "error", text: "Mật khẩu phải có tối thiểu 6 ký tự" });
+                    return;
+                  }
+                  if (newPassword !== confirmPassword) {
+                    setPasswordMessage({ type: "error", text: "Mật khẩu xác nhận không khớp" });
+                    return;
+                  }
+                  setSavingPassword(true);
+                  setPasswordMessage(null);
+                  const res = await updatePassword(newPassword);
+                  setSavingPassword(false);
+                  if (res.success) {
+                    setPasswordMessage({ type: "success", text: "Đã cập nhật mật khẩu mới thành công!" });
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  } else {
+                    setPasswordMessage({ type: "error", text: res.message || "Không thể cập nhật mật khẩu" });
+                  }
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="block text-gray-700 font-bold mb-1">Mật khẩu mới</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="Nhập ít nhất 6 ký tự"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-medium focus:outline-none focus:border-zen-primary transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-gray-700 font-bold mb-1">Xác nhận mật khẩu mới</label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="Nhập lại mật khẩu mới"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white text-gray-800 font-medium focus:outline-none focus:border-zen-primary transition-colors"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between">
+                  <button
+                    type="submit"
+                    disabled={savingPassword}
+                    className="px-5 py-2.5 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-md transition-all disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {savingPassword ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    <span>Lưu mật khẩu</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="px-4 py-2.5 rounded-xl border border-gray-200 hover:bg-gray-50 text-gray-600 hover:text-rose-600 font-bold text-xs transition-colors flex items-center gap-1.5"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>Đăng xuất</span>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
