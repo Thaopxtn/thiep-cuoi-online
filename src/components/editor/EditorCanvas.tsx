@@ -51,14 +51,6 @@ export default function EditorCanvas({
   const rootProps = rootNode.props || {};
 
   const canvasWidth = rootProps.width || 500;
-  const canvasHeight = rootProps.height || 5270;
-  const backgroundColor = rootProps.backgroundColor || "#ffffff";
-  const bgImg = rootProps.backgroundImage;
-  const backgroundImage = bgImg
-    ? (bgImg.startsWith("http") || bgImg.startsWith("blob:") || bgImg.startsWith("data:") || bgImg.startsWith("/uploads") || bgImg.startsWith("/")
-        ? bgImg
-        : `https://cdn-resource.zenlove.me/${bgImg.replace(/^\//, "")}`)
-    : null;
 
   // Extract all child node entries in proper z-order
   const childNodes = Object.entries(nodes)
@@ -70,6 +62,29 @@ export default function EditorCanvas({
       zIndex: node.props?.zIndex || 1,
     }))
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+  // Tự động tính toán chiều cao canvas an toàn dựa trên phần tử ở đáy thấp nhất
+  const maxChildBottom = childNodes.reduce((max, child) => {
+    const top = Number(child.props?.top ?? 0);
+    const rawH = child.props?.height;
+    const height = typeof rawH === "number" ? rawH : parseFloat(rawH) || 120;
+    return Math.max(max, top + height);
+  }, 0);
+
+  const canvasHeight = Math.max(
+    Number(rootProps.height || 0),
+    maxChildBottom + 160,
+    1400
+  );
+
+  const backgroundColor = rootProps.backgroundColor || "#ffffff";
+  const bgImg = rootProps.backgroundImage;
+  const backgroundImage = bgImg
+    ? (bgImg.startsWith("http") || bgImg.startsWith("blob:") || bgImg.startsWith("data:") || bgImg.startsWith("/uploads") || bgImg.startsWith("/")
+        ? bgImg
+        : `https://cdn-resource.zenlove.me/${bgImg.replace(/^\//, "")}`)
+    : null;
+
 
   // Find all PhotoBox nodes that represent real wedding photos
   const photoCandidates = childNodes.filter(
@@ -511,7 +526,7 @@ export default function EditorCanvas({
 
   return (
     <div
-      className="flex-1 h-full overflow-auto relative flex items-start justify-center p-4 sm:p-8 select-none bg-[#dedfe2]"
+      className="flex-1 h-full overflow-auto relative flex items-start justify-center p-4 sm:p-8 pb-36 sm:pb-48 select-none bg-[#dedfe2]"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onSelectElement(null);
@@ -520,10 +535,11 @@ export default function EditorCanvas({
     >
       {/* ================= INVITATION CANVAS CONTAINER ================= */}
       <div
-        className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0"
+        className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0 mb-20"
         style={{
           width: `${canvasWidth}px`,
           minHeight: `${canvasHeight}px`,
+          height: `${canvasHeight}px`,
           backgroundColor: backgroundColor || "#fbf8f2",
           backgroundImage: backgroundImage
             ? `url("${backgroundImage}")`

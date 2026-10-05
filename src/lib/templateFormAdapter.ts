@@ -1,6 +1,38 @@
 /**
  * Chuyển đổi dữ liệu template dạng FORM (26 keys của ZenLove) sang cây Canvas Craft.js Nodes
+ * Đảm bảo ĐẦY ĐỦ 100% tất cả các section từ trên xuống dưới:
+ * - Màn hình chính & Ảnh bìa Hero
+ * - Thông tin hai họ & Lời ngỏ
+ * - Chương trình hôn lễ (Lễ Vu Quy & Lễ Thành Hôn)
+ * - Đồng hồ đếm ngược & Lịch ngày cưới
+ * - Lịch trình ngày cưới (Timeline chi tiết các mốc giờ)
+ * - Quy định trang phục (Dress Code swatches)
+ * - Toàn bộ Album ảnh cưới (Gallery grid đa ảnh)
+ * - Bản đồ chỉ đường Google Maps
+ * - Xác nhận tham dự (RSVP)
+ * - Hộp mừng cưới & Tài khoản ngân hàng hai họ (VietQR)
+ * - Ảnh kỷ niệm kết thúc thiệp to đẹp (Ending Photo) & Lời cảm ơn sâu sắc
  */
+
+function resolveUrl(url?: string): string {
+  if (!url || typeof url !== "string") return "";
+  const clean = url.trim();
+  if (
+    clean.startsWith("http://") ||
+    clean.startsWith("https://") ||
+    clean.startsWith("blob:") ||
+    clean.startsWith("data:") ||
+    clean.startsWith("/uploads") ||
+    clean.startsWith("/assets")
+  ) {
+    return clean;
+  }
+  if (clean.startsWith("/")) {
+    return `https://cdn-resource.zenlove.me${clean}`;
+  }
+  return `https://cdn-resource.zenlove.me/${clean}`;
+}
+
 export function convertFormTemplateToCanvasNodes(
   formData: Record<string, any>,
   meta?: { id?: string; name?: string; imageUrl?: string; slug?: string }
@@ -22,24 +54,16 @@ export function convertFormTemplateToCanvasNodes(
   const minute = weddingDateData.minute || 30;
   const formattedTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 
-  // Ảnh bìa chính
-  let heroImage = meta?.imageUrl || "";
+  // Ảnh bìa chính (Hero Photo)
+  let heroImage = "";
   if (formData.mainScreen?.imagePath && Array.isArray(formData.mainScreen.imagePath) && formData.mainScreen.imagePath[0]) {
-    const rawPath = formData.mainScreen.imagePath[0].replace(/^\//, "");
-    heroImage = rawPath.startsWith("http") ? rawPath : `https://cdn-resource.zenlove.me/${rawPath}`;
+    heroImage = resolveUrl(formData.mainScreen.imagePath[0]);
+  } else if (meta?.imageUrl) {
+    heroImage = resolveUrl(meta.imageUrl);
   } else if (formData.endingPhoto?.fileKey) {
-    const rawPath = formData.endingPhoto.fileKey.replace(/^\//, "");
-    heroImage = rawPath.startsWith("http") ? rawPath : `https://cdn-resource.zenlove.me/${rawPath}`;
-  }
-
-  // Ảnh phụ / Gallery
-  let secondaryImage = "";
-  if (formData.middleImages?.items && Array.isArray(formData.middleImages.items) && formData.middleImages.items[0]?.image1) {
-    const rawPath = formData.middleImages.items[0].image1.replace(/^\//, "");
-    secondaryImage = rawPath.startsWith("http") ? rawPath : `https://cdn-resource.zenlove.me/${rawPath}`;
-  } else if (formData.endingPhoto?.fileKey) {
-    const rawPath = formData.endingPhoto.fileKey.replace(/^\//, "");
-    secondaryImage = rawPath.startsWith("http") ? rawPath : `https://cdn-resource.zenlove.me/${rawPath}`;
+    heroImage = resolveUrl(formData.endingPhoto.fileKey);
+  } else {
+    heroImage = "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800";
   }
 
   // Lời ngỏ
@@ -49,8 +73,8 @@ export function convertFormTemplateToCanvasNodes(
 
   // Địa điểm
   const loc = formData.weddingLocation?.locations?.[0] || {};
-  const venueTitle = loc.title || "Tư gia Nhà Gái";
-  const venueAddress = loc.address || "123 Đường Hạnh Phúc, TP. Hồ Chí Minh";
+  const venueTitle = loc.title || "Trung tâm Tiệc cưới Trống Đồng Palace";
+  const venueAddress = loc.address || "Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội";
   const mapUrl = loc.mapUrl || "https://maps.google.com/?q=Ho+Chi+Minh";
 
   // Màu sắc chủ đạo từ theme
@@ -68,6 +92,12 @@ export function convertFormTemplateToCanvasNodes(
   } else if (theme.backgroundColor?.includes("red")) {
     bgColor = "#fdf7f7";
     primaryColor = "#781b24";
+  } else if (theme.backgroundColor?.includes("blue")) {
+    bgColor = "#f6f8fb";
+    primaryColor = "#1f3a5f";
+  } else if (theme.backgroundColor?.includes("gold") || theme.backgroundColor?.includes("yellow")) {
+    bgColor = "#fdfbf5";
+    primaryColor = "#8a651a";
   }
 
   // Danh sách các node Craft.js
@@ -211,7 +241,63 @@ export function convertFormTemplateToCanvasNodes(
   childNodeIds.push(idFamily);
   currentTop += 140;
 
-  // 7. Đồng hồ đếm ngược Countdown
+  // 7. Thông tin chi tiết các buổi hôn lễ (Ceremonies: Lễ Vu Quy & Lễ Thành Hôn)
+  const ceremoniesList = Array.isArray(formData.ceremonies?.lists) ? formData.ceremonies.lists : [];
+  if (ceremoniesList.length > 0) {
+    const idCeremonyTitle = "node_ceremonies_title";
+    nodes[idCeremonyTitle] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: 35,
+        text: formData.ceremonies?.title || "CHƯƠNG TRÌNH HÔN LỄ",
+        fontFamily: "font-cinzel",
+        fontSize: 16,
+        color: primaryColor,
+        textAlign: "center",
+        letterSpacing: 3,
+        zIndex: 16,
+      },
+    };
+    childNodeIds.push(idCeremonyTitle);
+    currentTop += 45;
+
+    ceremoniesList.forEach((c: any, cIdx: number) => {
+      const idCeremonyCard = `node_ceremony_${cIdx}`;
+      const cName = c.name || (cIdx === 0 ? "Lễ Vu Quy" : "Lễ Thành Hôn");
+      const cDate = c.date || `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+      const cTime = c.time || formattedTime;
+      const cLunar = c.lunarDate ? `<div style="font-size:11px; color:#888; margin-top:2px; font-style:italic;">${c.lunarDate}</div>` : "";
+      const cLoc = c.location ? `<div style="font-size:12px; color:#555; margin-top:4px;">📍 ${c.location}</div>` : "";
+
+      nodes[idCeremonyCard] = {
+        type: { resolvedName: "TextBox" },
+        props: {
+          top: currentTop,
+          left: 40,
+          width: 420,
+          height: 105,
+          text: `<div style="padding:14px 18px; background:rgba(255,255,255,0.75); border:1px solid rgba(212,175,55,0.3); border-radius:18px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
+            <div style="font-size:14px; font-weight:bold; color:${primaryColor}; letter-spacing:1px; text-transform:uppercase;">${cName}</div>
+            <div style="font-size:15px; font-weight:bold; color:${textColor}; margin-top:4px;">⏰ ${cTime} • ${cDate}</div>
+            ${cLunar}
+            ${cLoc}
+          </div>`,
+          fontSize: 13,
+          color: textColor,
+          textAlign: "center",
+          zIndex: 17,
+        },
+      };
+      childNodeIds.push(idCeremonyCard);
+      currentTop += 120;
+    });
+    currentTop += 15;
+  }
+
+  // 8. Đồng hồ đếm ngược Countdown
   const idCountdown = "node_countdown";
   nodes[idCountdown] = {
     type: { resolvedName: "CountdownBoxV2" },
@@ -227,7 +313,7 @@ export function convertFormTemplateToCanvasNodes(
   childNodeIds.push(idCountdown);
   currentTop += 130;
 
-  // 8. Lịch cưới Calendar
+  // 9. Lịch cưới Calendar
   const idCalendar = "node_calendar";
   nodes[idCalendar] = {
     type: { resolvedName: "CalendarBoxV2" },
@@ -245,31 +331,187 @@ export function convertFormTemplateToCanvasNodes(
   childNodeIds.push(idCalendar);
   currentTop += 205;
 
-  // 9. Ảnh kỷ niệm thứ hai (nếu có)
-  if (secondaryImage) {
-    const idPhoto2 = "node_secondary_photo";
-    nodes[idPhoto2] = {
-      type: { resolvedName: "PhotoBox" },
+  // 10. Lịch trình ngày cưới (Wedding Timeline)
+  const timelineItems = formData.weddingTimeline?.items || formData.timeline?.items || [];
+  if (Array.isArray(timelineItems) && timelineItems.length > 0) {
+    const idTimelineTitle = "node_timeline_title";
+    nodes[idTimelineTitle] = {
+      type: { resolvedName: "TextBox" },
       props: {
         top: currentTop,
-        left: 45,
-        width: 410,
-        height: 480,
-        imgKey: secondaryImage,
-        src: secondaryImage,
-        isReplaceable: true,
-        zIndex: 22,
-        borderRadius: [20, 20, 20, 20],
-        borderSize: 2,
-        borderColor: "#ffffff",
-        hasBoxShadow: true,
+        left: 40,
+        width: 420,
+        height: 35,
+        text: formData.weddingTimeline?.title || formData.timeline?.title || "LỊCH TRÌNH NGÀY CƯỚI",
+        fontFamily: "font-cinzel",
+        fontSize: 16,
+        color: primaryColor,
+        textAlign: "center",
+        letterSpacing: 3,
+        zIndex: 20,
       },
     };
-    childNodeIds.push(idPhoto2);
-    currentTop += 505;
+    childNodeIds.push(idTimelineTitle);
+    currentTop += 45;
+
+    const timelineHtml = timelineItems.map((item: any) => `
+      <div style="display:flex; align-items:center; gap:16px; padding:10px 0; border-bottom:1px dashed rgba(0,0,0,0.08);">
+        <div style="min-width:65px; font-weight:bold; font-size:13px; color:${primaryColor}; text-align:right;">${item.time || "10:00"}</div>
+        <div style="width:10px; height:10px; border-radius:50%; background:${primaryColor}; flex-shrink:0;"></div>
+        <div style="font-weight:600; font-size:14px; color:${textColor};">${item.title || "Sự kiện cưới"}</div>
+      </div>
+    `).join("");
+
+    const idTimelineCard = "node_timeline_card";
+    const timelineHeight = Math.max(160, timelineItems.length * 52 + 35);
+    nodes[idTimelineCard] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: timelineHeight,
+        text: `<div style="padding:16px 20px; background:rgba(255,255,255,0.8); border:1px solid rgba(0,0,0,0.06); border-radius:20px; box-shadow:0 6px 20px rgba(0,0,0,0.03);">
+          ${timelineHtml}
+        </div>`,
+        fontSize: 13,
+        color: textColor,
+        zIndex: 21,
+      },
+    };
+    childNodeIds.push(idTimelineCard);
+    currentTop += timelineHeight + 35;
   }
 
-  // 10. Bản đồ & Địa điểm tổ chức
+  // 11. Quy định trang phục (Dress Code)
+  const dressCode = formData.dressCode;
+  if (dressCode && (Array.isArray(dressCode.colors) && dressCode.colors.length > 0)) {
+    const idDressTitle = "node_dress_title";
+    nodes[idDressTitle] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: 35,
+        text: dressCode.title || "DRESS CODE TRANG PHỤC",
+        fontFamily: "font-cinzel",
+        fontSize: 15,
+        color: primaryColor,
+        textAlign: "center",
+        letterSpacing: 3,
+        zIndex: 21,
+      },
+    };
+    childNodeIds.push(idDressTitle);
+    currentTop += 40;
+
+    const colorsHtml = (dressCode.colors || []).map((c: any) => `
+      <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
+        <div style="width:36px; height:36px; border-radius:50%; background:${c.color || '#fff'}; border:2px solid rgba(0,0,0,0.12); box-shadow:0 3px 8px rgba(0,0,0,0.1);"></div>
+        <span style="font-size:11px; font-weight:600; color:#555;">${c.label || ""}</span>
+      </div>
+    `).join("");
+
+    const idDressCard = "node_dress_card";
+    nodes[idDressCard] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: 125,
+        text: `<div style="padding:16px; background:rgba(255,255,255,0.75); border:1px solid rgba(0,0,0,0.06); border-radius:20px; text-align:center;">
+          <p style="font-size:12px; color:#666; margin-bottom:12px; line-height:1.4;">${dressCode.description || "Để bức hình kỷ niệm thêm trọn vẹn, quý khách vui lòng lựa chọn trang phục theo tông màu:"}</p>
+          <div style="display:flex; justify-content:center; gap:22px;">
+            ${colorsHtml}
+          </div>
+        </div>`,
+        fontSize: 12,
+        color: textColor,
+        textAlign: "center",
+        zIndex: 22,
+      },
+    };
+    childNodeIds.push(idDressCard);
+    currentTop += 150;
+  }
+
+  // 12. Album ảnh cưới (Wedding Photo Gallery)
+  const rawGalleryList: string[] = [];
+  if (Array.isArray(formData.gallery?.imageList)) {
+    formData.gallery.imageList.forEach((img: string) => {
+      if (img && typeof img === "string") rawGalleryList.push(img);
+    });
+  }
+  if (Array.isArray(formData.middleImages?.items)) {
+    formData.middleImages.items.forEach((item: any) => {
+      if (item?.image1) rawGalleryList.push(item.image1);
+      if (item?.image2) rawGalleryList.push(item.image2);
+    });
+  }
+
+  const uniqueGallery = Array.from(new Set(rawGalleryList.filter(Boolean))).map(resolveUrl);
+
+  if (uniqueGallery.length > 0) {
+    const idGalleryTitle = "node_gallery_title";
+    nodes[idGalleryTitle] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: 35,
+        text: formData.gallery?.title || "KHOẢNH KHẮC HẠNH PHÚC",
+        fontFamily: "font-cinzel",
+        fontSize: 16,
+        color: primaryColor,
+        textAlign: "center",
+        letterSpacing: 3,
+        zIndex: 22,
+      },
+    };
+    childNodeIds.push(idGalleryTitle);
+    currentTop += 45;
+
+    // Hiển thị lưới ảnh cưới 2 cột (PhotoBox) để người dùng có thể nhấp vào thay thế bất kỳ ảnh nào trong Studio
+    const displayGallery = uniqueGallery.slice(0, 12);
+    const colWidth = 202;
+    const colHeight = 270;
+    const gap = 16;
+    const startLeft = 40;
+
+    displayGallery.forEach((photoUrl, pIdx) => {
+      const isCol0 = pIdx % 2 === 0;
+      const colX = isCol0 ? startLeft : startLeft + colWidth + gap;
+      const rowY = currentTop + Math.floor(pIdx / 2) * (colHeight + gap);
+
+      const idGalleryPhoto = `node_gallery_photo_${pIdx}`;
+      nodes[idGalleryPhoto] = {
+        type: { resolvedName: "PhotoBox" },
+        props: {
+          top: rowY,
+          left: colX,
+          width: colWidth,
+          height: colHeight,
+          imgKey: photoUrl,
+          src: photoUrl,
+          isReplaceable: true,
+          zIndex: 23,
+          borderRadius: [16, 16, 16, 16],
+          borderSize: 2,
+          borderColor: "#ffffff",
+          hasBoxShadow: true,
+        },
+      };
+      childNodeIds.push(idGalleryPhoto);
+    });
+
+    const totalRows = Math.ceil(displayGallery.length / 2);
+    currentTop += totalRows * (colHeight + gap) + 35;
+  }
+
+  // 13. Bản đồ & Địa điểm tổ chức
   const idMap = "node_map";
   nodes[idMap] = {
     type: { resolvedName: "MapBox" },
@@ -287,7 +529,7 @@ export function convertFormTemplateToCanvasNodes(
   childNodeIds.push(idMap);
   currentTop += 235;
 
-  // 11. Xác nhận tham dự (RSVP)
+  // 14. Xác nhận tham dự (RSVP)
   const idRsvp = "node_rsvp";
   nodes[idRsvp] = {
     type: { resolvedName: "RsvpBoxV2" },
@@ -302,23 +544,125 @@ export function convertFormTemplateToCanvasNodes(
   childNodeIds.push(idRsvp);
   currentTop += 405;
 
-  // 12. Hộp mừng cưới online (VietQR)
-  const idGift = "node_gift_qr";
-  nodes[idGift] = {
-    type: { resolvedName: "GiftQrBox" },
-    props: {
-      top: currentTop,
-      left: 40,
-      width: 420,
-      height: 260,
-      modalTitle: "Hộp Quà Mừng Cưới Yêu Thương",
-      zIndex: 28,
-    },
-  };
-  childNodeIds.push(idGift);
-  currentTop += 285;
+  // 15. Hộp mừng cưới & Tài khoản hai họ (VietQR)
+  const accountGroups = Array.isArray(formData.account?.groupList) ? formData.account.groupList : [];
+  if (accountGroups.length > 0) {
+    const idBankTitle = "node_bank_title";
+    nodes[idBankTitle] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: 35,
+        text: formData.account?.title || "HỘP MỪNG CƯỚI",
+        fontFamily: "font-cinzel",
+        fontSize: 16,
+        color: primaryColor,
+        textAlign: "center",
+        letterSpacing: 3,
+        zIndex: 27,
+      },
+    };
+    childNodeIds.push(idBankTitle);
+    currentTop += 45;
 
-  // 13. Lời cảm ơn kết thúc
+    const accountsHtml = accountGroups.map((group: any) => {
+      const gTitle = group.title || "Mừng cưới";
+      const accList = (group.accountList || []).map((acc: any) => {
+        const bank = acc.bank || "MB";
+        const num = acc.number || "0000000000";
+        const name = acc.name || "";
+        const qrUrl = `https://img.vietqr.io/image/${bank}-${num}-compact2.jpg?accountName=${encodeURIComponent(name)}`;
+        return `
+          <div style="background:#fff; border-radius:14px; padding:12px; border:1px solid rgba(0,0,0,0.06); text-align:center; box-shadow:0 3px 10px rgba(0,0,0,0.03);">
+            ${num && num !== "0000000000" ? `<img src="${qrUrl}" alt="QR" style="width:115px; height:115px; object-fit:contain; margin:0 auto 8px; border-radius:8px;" />` : ""}
+            <div style="font-weight:bold; font-size:13px; color:#111;">${bank}</div>
+            <div style="font-size:12px; color:#555; margin-top:2px;">STK: <b style="color:#d93849;">${num}</b></div>
+            <div style="font-size:11px; color:#777; margin-top:2px; text-transform:uppercase;">${name}</div>
+          </div>
+        `;
+      }).join("");
+
+      return `
+        <div style="margin-bottom:14px;">
+          <div style="font-weight:bold; font-size:13px; color:${primaryColor}; margin-bottom:8px; text-transform:uppercase; letter-spacing:1px; text-align:center;">${gTitle}</div>
+          <div style="display:grid; grid-template-columns:${(group.accountList || []).length > 1 ? '1fr 1fr' : '1fr'}; gap:10px;">
+            ${accList}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    const idBankCard = "node_bank_card";
+    const bankCardHeight = Math.max(260, accountGroups.length * 215);
+    nodes[idBankCard] = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: bankCardHeight,
+        text: `<div style="padding:18px; background:rgba(255,255,255,0.85); border:1px solid rgba(212,175,55,0.3); border-radius:24px; box-shadow:0 8px 25px rgba(0,0,0,0.04);">
+          <p style="font-size:12px; color:#666; text-align:center; margin-bottom:14px; line-height:1.5;">${formData.account?.description?.replace(/\r?\n/g, '<br/>') || "Sự hiện diện của quý vị là món quà quý giá nhất. Quý vị cũng có thể gửi lời chúc và quà mừng qua số tài khoản:"}</p>
+          ${accountsHtml}
+        </div>`,
+        fontSize: 12,
+        color: textColor,
+        zIndex: 28,
+      },
+    };
+    childNodeIds.push(idBankCard);
+    currentTop += bankCardHeight + 35;
+  } else {
+    // Fallback QR nếu không có groupList
+    const idGift = "node_gift_qr";
+    nodes[idGift] = {
+      type: { resolvedName: "GiftQrBox" },
+      props: {
+        top: currentTop,
+        left: 40,
+        width: 420,
+        height: 260,
+        modalTitle: "Hộp Quà Mừng Cưới Yêu Thương",
+        zIndex: 28,
+      },
+    };
+    childNodeIds.push(idGift);
+    currentTop += 285;
+  }
+
+  // 16. Ảnh kỷ niệm kết thúc thiệp lớn (Ending Photo)
+  const endingPhoto = formData.endingPhoto;
+  const endingImgUrl = endingPhoto?.fileKey ? resolveUrl(endingPhoto.fileKey) : null;
+  if (endingImgUrl) {
+    const idEndingPhoto = "node_ending_photo";
+    nodes[idEndingPhoto] = {
+      type: { resolvedName: "PhotoBox" },
+      props: {
+        top: currentTop,
+        left: 45,
+        width: 410,
+        height: 520,
+        imgKey: endingImgUrl,
+        src: endingImgUrl,
+        isReplaceable: true,
+        zIndex: 29,
+        borderRadius: [24, 24, 24, 24],
+        borderSize: 3,
+        borderColor: "#ffffff",
+        hasBoxShadow: true,
+      },
+    };
+    childNodeIds.push(idEndingPhoto);
+    currentTop += 545;
+  }
+
+  // 17. Lời cảm ơn kết thúc
+  const endingMent = endingPhoto?.ment
+    ? endingPhoto.ment.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim()
+    : "Cảm ơn vì đã luôn yêu thương và là một phần trong ngày hạnh phúc nhất của chúng tôi!";
+
   const idThankYou = "node_thank_you";
   nodes[idThankYou] = {
     type: { resolvedName: "TextBox" },
@@ -326,17 +670,20 @@ export function convertFormTemplateToCanvasNodes(
       top: currentTop,
       left: 40,
       width: 420,
-      height: 80,
-      text: "Cảm ơn vì đã luôn yêu thương và là một phần trong ngày hạnh phúc nhất của chúng tôi!",
+      height: 110,
+      text: `<div style="text-align:center; padding:16px;">
+        <p style="font-family:'Parisienne', cursive; font-size:26px; color:${primaryColor}; margin-bottom:8px;">Thank You!</p>
+        <p style="font-size:14px; color:${textColor}; line-height:1.6; font-style:italic;">"${endingMent}"</p>
+      </div>`,
       fontFamily: "font-parisienne",
-      fontSize: 22,
+      fontSize: 20,
       color: primaryColor,
       textAlign: "center",
       zIndex: 30,
     },
   };
   childNodeIds.push(idThankYou);
-  currentTop += 120;
+  currentTop += 135;
 
   // Tạo Node ROOT hoàn chỉnh
   nodes["ROOT"] = {
@@ -348,12 +695,10 @@ export function convertFormTemplateToCanvasNodes(
       isWebview: false,
       editorViewportWidth: 500,
       width: 500,
-      height: Math.max(3800, currentTop + 80),
-      musicTitle: formData.backgroundMusic?.name || "Marry You - Bruno Mars",
+      height: Math.max(5400, currentTop + 160),
+      musicTitle: formData.backgroundMusic?.name || "Bản nhạc cưới",
       musicUrl: formData.backgroundMusic?.fileKey
-        ? (formData.backgroundMusic.fileKey.startsWith("http")
-            ? formData.backgroundMusic.fileKey
-            : `https://cdn-resource.zenlove.me/${formData.backgroundMusic.fileKey.replace(/^\//, "")}`)
+        ? resolveUrl(formData.backgroundMusic.fileKey)
         : "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
     },
     displayName: "Container",

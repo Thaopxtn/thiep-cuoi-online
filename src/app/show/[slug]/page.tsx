@@ -622,7 +622,7 @@ export default function ShowInvitationPage() {
       )}
 
       {/* ================= MAIN MOBILE INVITATION CONTAINER ================= */}
-      <main className="w-full max-w-[480px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-16">
+      <main className="w-full max-w-[480px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-32">
         {/* Personalized Welcome Banner if guest param exists */}
         {guestNameParam && (
           <div className="w-full bg-gradient-to-r from-[#511419] via-[#6d1a21] to-[#511419] text-white py-2.5 px-4 shadow-md flex items-center justify-between text-xs z-30 shrink-0">

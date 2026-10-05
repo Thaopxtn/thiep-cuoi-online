@@ -67,6 +67,20 @@ export default function CardNodeRenderer({
     }))
     .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
+  // Tự động tính toán chiều cao an toàn dựa trên phần tử ở đáy thấp nhất
+  const maxChildBottom = childNodes.reduce((max, child) => {
+    const top = Number(child.props?.top ?? 0);
+    const rawH = child.props?.height;
+    const height = typeof rawH === "number" ? rawH : parseFloat(rawH) || 120;
+    return Math.max(max, top + height);
+  }, 0);
+
+  const effectiveBaseHeight = Math.max(
+    Number(rootProps.height || 0),
+    maxChildBottom + 160,
+    1400
+  );
+
   const getImageUrl = (key?: string) => {
     if (!key) return "";
     if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
@@ -76,16 +90,16 @@ export default function CardNodeRenderer({
   return (
     <div
       ref={containerRef}
-      className="w-full flex justify-center overflow-hidden"
+      className="w-full flex justify-center overflow-hidden pb-12"
       style={{
-        height: `${baseHeight * scale}px`,
+        height: `${effectiveBaseHeight * scale}px`,
       }}
     >
       <div
         className="relative origin-top transition-transform duration-150"
         style={{
           width: `${baseWidth}px`,
-          height: `${baseHeight}px`,
+          height: `${effectiveBaseHeight}px`,
           backgroundColor: backgroundColor,
           backgroundImage: backgroundImage ? `url("${backgroundImage}")` : undefined,
           backgroundSize: "100% auto",
