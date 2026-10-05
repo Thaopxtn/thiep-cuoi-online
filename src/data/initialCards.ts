@@ -67,6 +67,7 @@ export interface WeddingCard {
   rsvps: WeddingRsvp[];
   wishes: WeddingWish[];
   nodes?: Record<string, any>;
+  userId?: string;
 }
 
 // Key operational templates

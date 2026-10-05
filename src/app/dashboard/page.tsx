@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WeddingPerksWidget from "@/components/dashboard/WeddingPerksWidget";
 import { useAuth } from "@/context/AuthContext";
 import { getAllCards, deleteCard, fetchCardsFromServer, WeddingCard } from "@/lib/weddingCardService";
 
@@ -69,13 +70,13 @@ export default function DashboardPage() {
     // Tải trước từ cache cục bộ (ngay lập tức)
     setMyCards(getAllCards());
 
-    // Tải đồng bộ mới nhất từ Supabase Cloud
-    fetchCardsFromServer().then((remoteCards) => {
+    // Tải đồng bộ mới nhất từ Supabase Cloud theo tài khoản đăng nhập
+    fetchCardsFromServer(user?.id).then((remoteCards) => {
       if (remoteCards && remoteCards.length > 0) {
         setMyCards(remoteCards);
       }
     });
-  }, []);
+  }, [user?.id]);
 
   // Aggregated RSVPs from all user cards
   const rsvpsList = myCards.flatMap((card) =>
@@ -188,6 +189,9 @@ export default function DashboardPage() {
         {/* TAB 1: THIỆP CƯỚI CỦA TÔI */}
         {activeTab === "cards" && (
           <div className="space-y-6">
+            {/* Widget Đối Tác & Ưu Đãi Cưới Độc Quyền */}
+            <WeddingPerksWidget />
+
             {myCards.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {myCards.map((card) => (

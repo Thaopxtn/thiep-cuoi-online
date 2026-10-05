@@ -3,10 +3,11 @@ import { Heart } from "lucide-react";
 
 export default function Footer() {
   const productLinks = [
-    { title: "Mẫu thiệp online", href: "#templates" },
-    { title: "Mẫu thiệp cưới online", href: "#templates" },
+    { title: "Mẫu thiệp online", href: "/templates" },
+    { title: "Mẫu thiệp cưới online", href: "/templates" },
+    { title: "Ưu đãi & Đối tác cưới", href: "/doi-tac-cuoi" },
     { title: "Blog cưới hỏi", href: "#blog" },
-    { title: "Tiếp thị liên kết", href: "#affiliate" },
+    { title: "Tiếp thị liên kết", href: "/doi-tac-cuoi" },
     { title: "Tạo thiệp trọn gói", href: "#packages" },
     { title: "Công cụ đám cưới", href: "#tools" },
   ];

@@ -90,13 +90,14 @@ function mapDbToCard(row: any): WeddingCard {
     rsvps: Array.isArray(row.rsvps) ? row.rsvps : [],
     wishes: Array.isArray(row.wishes) ? row.wishes : [],
     nodes,
+    userId: row.groom?.userId || row.userId || undefined,
   };
 }
 
 /**
- * Lấy tất cả thiệp từ Supabase
+ * Lấy tất cả thiệp từ Supabase (hỗ trợ lọc theo userId)
  */
-export async function getCardsFromDb(): Promise<WeddingCard[]> {
+export async function getCardsFromDb(userId?: string): Promise<WeddingCard[]> {
   if (!isDbConfigured) return [];
   try {
     const res = await fetch(
@@ -111,7 +112,11 @@ export async function getCardsFromDb(): Promise<WeddingCard[]> {
       return [];
     }
     const data = await res.json();
-    return data.map(mapDbToCard);
+    const mapped = data.map(mapDbToCard);
+    if (userId) {
+      return mapped.filter((c: WeddingCard) => c.userId === userId || !c.userId);
+    }
+    return mapped;
   } catch (err) {
     console.error("Lỗi getCardsFromDb:", err);
     return [];
@@ -177,7 +182,10 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       weddingDate: card.weddingDate || "2026-11-18",
       weddingTime: card.weddingTime || "11:00",
       lunarDate: card.lunarDate || "",
-      groom: card.groom || {},
+      groom: {
+        ...(card.groom || {}),
+        userId: card.userId || (card.groom as any)?.userId,
+      },
       bride: card.bride || {},
       events: card.events || [],
       albumImages: card.album || [],

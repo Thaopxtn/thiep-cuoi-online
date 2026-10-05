@@ -138,6 +138,40 @@ export default function EditorPublishModal({
           )}
         </div>
 
+        {/* Extra Action Buttons */}
+        <div className="grid grid-cols-2 gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => {
+              const link = guestName.trim()
+                ? `${publicUrl}?to=${encodeURIComponent(guestName.trim())}`
+                : publicUrl;
+              const msg = `🌸 THIỆP MỜI THÀNH HÔN 🌸\nTrân trọng kính mời: ${guestName.trim() || "Quý khách"}\nTới dự ngày vui cùng chúng mình tại:\n👉 ${link}\nSự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!`;
+              navigator.clipboard?.writeText(msg);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="py-2.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs border border-emerald-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            <span>💬 Chép tin nhắn Zalo</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const link = guestName.trim()
+                ? `${publicUrl}?to=${encodeURIComponent(guestName.trim())}`
+                : publicUrl;
+              const qrDownloadUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(link)}`;
+              window.open(qrDownloadUrl, "_blank");
+            }}
+            className="py-2.5 px-3 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs border border-purple-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Tải QR in thiệp (HD)</span>
+          </button>
+        </div>
+
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-3">
           <a
@@ -159,6 +193,12 @@ export default function EditorPublishModal({
             <span>Chia sẻ đường dẫn</span>
           </button>
         </div>
+
+        <p className="text-[11px] text-center text-gray-400 mt-4 flex items-center justify-center gap-1">
+          <span>✨</span>
+          <span>Miễn phí 100% trọn đời • Không giới hạn số lượng khách mời</span>
+          <span>✨</span>
+        </p>
       </div>
     </div>
   );

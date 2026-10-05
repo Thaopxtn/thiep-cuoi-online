@@ -8,9 +8,11 @@ export const dynamic = "force-dynamic";
  * GET /api/cards
  * Lấy danh sách toàn bộ thiệp cưới của người dùng từ Supabase Database
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cards = await getCardsFromDb();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId");
+    const cards = await getCardsFromDb(userId || undefined);
     if (cards && cards.length > 0) {
       return NextResponse.json({
         success: true,

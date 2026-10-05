@@ -25,6 +25,7 @@ import {
   MessageCircle,
   ExternalLink,
   Gift,
+  Download,
 } from "lucide-react";
 import {
   getCardByIdOrSlug,
@@ -1117,21 +1118,29 @@ export default function ShowInvitationPage() {
           </div>
         </section>
 
-        {/* Bottom ZenLove Watermark */}
-        <div className="pt-8 pb-12 px-6 text-center text-xs text-gray-400 border-t border-gray-100 relative z-10 bg-white space-y-2">
-          <p className="text-[11px]">
-            Thiệp cưới online được tạo bởi{" "}
+        {/* Bottom ZenLove Watermark & Commercial Ecosystem */}
+        <div className="pt-8 pb-14 px-6 text-center text-xs text-gray-400 border-t border-gray-100 relative z-10 bg-white space-y-2.5">
+          <p className="text-[11px] text-gray-500">
+            Thiệp cưới online được tạo miễn phí bởi{" "}
             <Link href="/" className="font-bold text-zen-primary hover:underline">
               ZenLove.me
             </Link>
           </p>
-          <Link
-            href="/templates"
-            className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-zen-primary px-4 py-1.5 rounded-full bg-gray-50 border border-gray-200"
-          >
-            <span>Tạo thiệp cưới miễn phí như mẫu này</span>
-            <ExternalLink className="w-3 h-3" />
-          </Link>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <Link
+              href="/templates"
+              className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-gray-50 border border-gray-200 shadow-2xs"
+            >
+              <span>Tạo thiệp như mẫu này</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+            <Link
+              href="/doi-tac-cuoi"
+              className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 shadow-2xs"
+            >
+              <span>🎁 Ưu đãi đối tác cưới</span>
+            </Link>
+          </div>
         </div>
 
         {/* Bottom Floating Share / Action Bar */}
@@ -1366,7 +1375,7 @@ export default function ShowInvitationPage() {
               </p>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
               <button
                 type="button"
                 onClick={() => {
@@ -1382,7 +1391,7 @@ export default function ShowInvitationPage() {
                     setToastMessage(null);
                   }, 2500);
                 }}
-                className="flex-1 py-2.5 px-4 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="flex-1 py-2.5 px-3 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-md flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 {copiedGuestLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                 <span>{copiedGuestLink ? "Đã sao chép link!" : "Sao chép link mời"}</span>
@@ -1395,17 +1404,32 @@ export default function ShowInvitationPage() {
                   const link = `${window.location.origin}/show/${slug}${
                     customGuestInput.trim() ? `?to=${encodeURIComponent(customGuestInput.trim())}` : ""
                   }`;
-                  const text = `Trân trọng kính mời ${customGuestInput.trim() || "quý khách"} tới tham dự lễ thành hôn của chúng tôi: ${link}`;
-                  if (navigator.share) {
-                    navigator.share({ title: card.name, text, url: link }).catch(() => {});
-                  } else {
-                    window.open(`https://zalo.me/share?url=${encodeURIComponent(link)}`, "_blank");
-                  }
+                  const msg = `🌸 THIỆP MỜI THÀNH HÔN 🌸\nTrân trọng kính mời: ${customGuestInput.trim() || "Quý khách"}\nTới dự ngày vui cùng chúng mình tại:\n👉 ${link}\nSự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!`;
+                  navigator.clipboard?.writeText(msg);
+                  setToastMessage("Đã sao chép mẫu tin nhắn Zalo kèm thiệp!");
+                  setTimeout(() => setToastMessage(null), 3000);
                 }}
-                className="py-2.5 px-4 rounded-xl bg-blue-50 text-blue-600 hover:bg-blue-100 font-bold text-xs border border-blue-200 flex items-center gap-1.5 transition-all cursor-pointer"
+                className="py-2.5 px-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs border border-emerald-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                title="Sao chép lời mời Zalo soạn sẵn"
               >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>Chia sẻ</span>
+                <span>💬 Chép mẫu Zalo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window === "undefined") return;
+                  const link = `${window.location.origin}/show/${slug}${
+                    customGuestInput.trim() ? `?to=${encodeURIComponent(customGuestInput.trim())}` : ""
+                  }`;
+                  const qrDownloadUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(link)}`;
+                  window.open(qrDownloadUrl, "_blank");
+                }}
+                className="py-2.5 px-3 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold text-xs border border-purple-200 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                title="Tải mã QR độ nét cao 1000x1000 để in lên thiệp giấy"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Tải QR in thiệp (HD)</span>
               </button>
             </div>
           </div>

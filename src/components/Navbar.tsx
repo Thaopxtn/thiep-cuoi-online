@@ -24,6 +24,7 @@ export default function Navbar() {
     { name: "Trang chủ", href: "/", active: true },
     { name: "Mẫu thiệp", href: "/templates" },
     { name: "Thiệp đã tạo", href: "/thiep-online/khach-hang" },
+    { name: "Đối tác & Ưu đãi", href: "/doi-tac-cuoi" },
     { name: "Gói dịch vụ", href: "#solution" },
     { name: "Cẩm nang", href: "#faq" },
     { name: "Liên hệ", href: "#footer" },

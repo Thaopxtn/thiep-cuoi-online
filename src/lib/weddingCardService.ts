@@ -15,9 +15,10 @@ export { INITIAL_CARDS };
 
 const CARDS_STORAGE_KEY = "zenlove_operational_cards_v1";
 
-export async function fetchCardsFromServer(): Promise<WeddingCard[]> {
+export async function fetchCardsFromServer(userId?: string): Promise<WeddingCard[]> {
   try {
-    const res = await fetch("/api/cards");
+    const url = userId ? `/api/cards?userId=${encodeURIComponent(userId)}` : "/api/cards";
+    const res = await fetch(url);
     if (!res.ok) return getAllCards();
     const data = await res.json();
     if (data.success && Array.isArray(data.cards) && data.cards.length > 0) {
