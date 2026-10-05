@@ -4,7 +4,7 @@
  * Tự động chuyển đổi giữa Supabase Cloud (0đ) và Bộ nhớ cục bộ nếu chưa cấu hình
  */
 
-import { WeddingCard, WeddingRsvp, WeddingWish } from "./weddingCardService";
+import { WeddingCard, WeddingRsvp, WeddingWish } from "@/data/initialCards";
 // @ts-ignore
 import lzutf8 from "lzutf8";
 

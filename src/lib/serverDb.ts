@@ -6,7 +6,7 @@
 
 // @ts-ignore
 import lzutf8 from "lzutf8";
-import { WeddingCard, WeddingRsvp, WeddingWish } from "./weddingCardService";
+import { WeddingCard, WeddingRsvp, WeddingWish } from "@/data/initialCards";
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_KEY =

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, upsertCardToDb } from "@/lib/serverDb";
-import { INITIAL_CARDS } from "@/lib/weddingCardService";
+import { INITIAL_CARDS } from "@/data/initialCards";
 
 export const dynamic = "force-dynamic";
 

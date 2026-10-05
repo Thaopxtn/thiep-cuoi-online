@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getCardByIdOrSlugFromDb } from "@/lib/serverDb";
-import { INITIAL_CARDS } from "@/lib/weddingCardService";
+import { INITIAL_CARDS } from "@/data/initialCards";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
 
 export async function generateMetadata({

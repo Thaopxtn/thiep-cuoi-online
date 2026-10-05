@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb } from "@/lib/serverDb";
-import { INITIAL_CARDS, WeddingCard } from "@/lib/weddingCardService";
+import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
 // @ts-ignore
 import lzutf8 from "lzutf8";

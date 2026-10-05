@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertCardToDb } from "@/lib/serverDb";
-import { WeddingCard } from "@/lib/weddingCardService";
+import { WeddingCard } from "@/data/initialCards";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import fs from "fs";
