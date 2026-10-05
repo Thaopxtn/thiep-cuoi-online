@@ -26,264 +26,510 @@
     "name": "Thiệp cưới"
   },
   "parsedNodes": {
-    "node_top_tag": {
-      "type": {
-        "resolvedName": "TextBox"
-      },
-      "props": {
-        "top": 60,
-        "left": 40,
-        "width": 420,
-        "height": 30,
-        "text": "SAVE THE DATE",
-        "fontFamily": "font-cinzel",
-        "fontSize": 13,
-        "color": "#5a2d52",
-        "textAlign": "center",
-        "letterSpacing": 4,
-        "zIndex": 10
+    "theme": {
+      "empColor": "theme_emp_color_purple",
+      "fontSize": "basic",
+      "fontFamily": "noto-serif",
+      "bgEfShortFlag": false,
+      "backgroundColor": "bg_theme_purple",
+      "backgroundEffect": "1",
+      "backgroundPattern": "single",
+      "scrollRevealFlag": true,
+      "titleBandFlag": false,
+      "titleBandTextColor": "",
+      "backgroundType": "color",
+      "backgroundImage": "",
+      "backgroundImageSource": "stock",
+      "backgroundImageOpacity": 100,
+      "backgroundOverlayColor": "",
+      "backgroundOverlayOpacity": 30
+    },
+    "basicInfo": {
+      "groomLabel": "Trưởng nam",
+      "brideLabel": "Út nữ",
+      "brideOrder": false,
+      "brideFullName": "Mai Kim Hạnh",
+      "groomFullName": "Huỳnh Minh Vinh",
+      "brideShortName": "Kim Hạnh",
+      "groomShortName": "Minh Vinh",
+      "groomFatherName": "Huỳnh Minh Quân",
+      "groomMatherName": "Trịnh Bảo Nhung",
+      "groomParentTitle": "Ông Bà",
+      "groomAddress": "106 Hai Bà Trưng, Quận Hoàn Kiếm, Hà Nội",
+      "brideFatherName": "Mai Trọng Thành",
+      "brideMatherName": "Nguyễn Diệu Oanh",
+      "brideParentTitle": "Ông Bà",
+      "brideAddress": "136 Điện Biên Phủ, TP. Thủ Đức, TP. Hồ Chí Minh"
+    },
+    "introMent": {
+      "enabled": true,
+      "showGuestName": true,
+      "guestNameDefault": "Quý Khách",
+      "title": "Trân trọng kính mời những người thân yêu",
+      "description": "<p>Chúng tôi đã gặp được người khiến mỗi ngày trở nên dịu dàng hơn.</p><p>Từ những điều bình dị, yêu thương lớn lên và trở thành lời hẹn ước.</p><p><br></p><p>Nay chúng tôi cùng nhau bước vào một hành trình mới.</p><p>Rất mong được đón quý vị đến chung vui,</p><p>chứng kiến và gửi lời chúc phúc cho ngày trọng đại của chúng tôi.</p>"
+    },
+    "infoWedding": {
+      "enabled": true,
+      "title": "Trân trọng báo tin",
+      "description": "TRÂN TRỌNG BÁO TIN\nLỄ THÀNH HÔN CỦA CON CHÚNG TÔI.",
+      "styles": {
+        "fontFamily": "Qalogre Regular",
+        "fontSize": "35px",
+        "fontColor": "#000000",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.5"
       }
     },
-    "node_couple_title": {
-      "type": {
-        "resolvedName": "TextBox"
-      },
-      "props": {
-        "top": 105,
-        "left": 20,
-        "width": 460,
-        "height": 70,
-        "text": "Minh Vinh & Kim Hạnh",
-        "fontFamily": "font-great-vibes",
-        "fontSize": 42,
-        "color": "#5a2d52",
-        "textAlign": "center",
-        "zIndex": 12
-      }
+    "weddingDate": {
+      "enabled": true,
+      "date": "2027-09-12T20:00:31.631Z",
+      "hour": 11,
+      "minute": 30,
+      "dDayText": "<p>Còn <strong>(D-Day)</strong> ngày nữa là đến lễ cưới của (chú rể), (cô dâu).</p>",
+      "isDdayOpen": true,
+      "isCalendarOpen": true,
+      "highlightDates": []
     },
-    "node_date_sub": {
-      "type": {
-        "resolvedName": "TextBox"
-      },
-      "props": {
-        "top": 185,
-        "left": 50,
-        "width": 400,
-        "height": 25,
-        "text": "13 • THÁNG 9 • 2027",
-        "fontFamily": "font-cinzel",
-        "fontSize": 14,
-        "color": "#2c2420",
-        "textAlign": "center",
-        "letterSpacing": 3,
-        "zIndex": 12
-      }
+    "weddingLocation": {
+      "enabled": true,
+      "title": "Địa điểm tổ chức",
+      "zoomLevel": 16,
+      "mapHeight": "basic",
+      "isMapLocked": true,
+      "isNavigationEnabled": true,
+      "isMapVisible": true,
+      "locations": [
+        {
+          "id": "1",
+          "title": "Nhà Gái",
+          "description": "",
+          "positionX": "106.7197276",
+          "positionY": "10.7987833",
+          "roadAddress": "136 Điện Biên Phủ, Khu phố 2, Thạnh Mỹ Tây, Hồ Chí Minh, Việt Nam",
+          "displayAddress": "136 Đường Điện Biên Phủ, Khu phố 2, Thạnh Mỹ Tây, Hồ Chí Minh"
+        }
+      ]
     },
-    "node_hero_photo": {
-      "type": {
-        "resolvedName": "PhotoBox"
-      },
-      "props": {
-        "top": 230,
-        "left": 45,
-        "width": 410,
-        "height": 520,
-        "imgKey": "https://cdn-resource.zenlove.me/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/cFQ5bk1NWjAzd18xNzg5MjQzMjAxX203aQ.png",
-        "src": "https://cdn-resource.zenlove.me/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/cFQ5bk1NWjAzd18xNzg5MjQzMjAxX203aQ.png",
-        "isReplaceable": true,
-        "previewKey": true,
-        "zIndex": 14,
-        "borderRadius": [
-          24,
-          24,
-          24,
-          24
-        ],
-        "borderSize": 3,
-        "borderColor": "#ffffff",
-        "hasBoxShadow": true
-      }
+    "endingPhoto": {
+      "enabled": true,
+      "ment": "<p>Cảm ơn vì đã hiện diện trong ngày đặc biệt của chúng tôi.\nMỗi lời chúc và nụ cười của quý vị\nsẽ là kỷ niệm thật đẹp trên hành trình mới.</p>",
+      "type": "v1",
+      "fileKey": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/MU5xaXczcloxUV8xNzg5MjQzMTk3Xzh4dw.png",
+      "photoEffect": "light"
     },
-    "node_intro_quote": {
-      "type": {
-        "resolvedName": "TextBox"
-      },
-      "props": {
-        "top": 775,
-        "left": 40,
-        "width": 420,
-        "height": 100,
-        "text": "Chúng tôi đã gặp được người khiến mỗi ngày trở nên dịu dàng hơn. Từ những điều bình dị, yêu thương lớn lên và trở thành lời hẹn ước. Nay chúng tôi cùng nhau bước vào một hành trình mới. Rất mong được đón quý vị đến chung vui, chứng kiến và gửi lời chúc phúc cho ngày trọng đại của chúng tôi.",
-        "fontFamily": "font-cormorant",
-        "fontSize": 18,
-        "color": "#2c2420",
-        "textAlign": "center",
-        "lineHeight": 1.6,
-        "zIndex": 15
-      }
+    "ceremonies": {
+      "enabled": true,
+      "title": "Thông tin lễ cưới",
+      "lists": [
+        {
+          "id": "1",
+          "name": "Lễ Vu Quy",
+          "date": "2027-09-12",
+          "time": "09:30",
+          "location": "",
+          "lunarDate": "(Tức ngày 12 tháng 8 năm Đinh Mùi)"
+        },
+        {
+          "id": "7f1f4c9c-6bf1-43c9-b51f-d204d068cac8",
+          "name": "Lễ Thành Hôn",
+          "date": "2027-09-13",
+          "time": "11:30",
+          "location": "",
+          "lunarDate": "(Tức ngày 13 tháng 8 năm Đinh Mùi)"
+        }
+      ]
     },
-    "node_family_info": {
-      "type": {
-        "resolvedName": "TextBox"
-      },
-      "props": {
-        "top": 895,
-        "left": 30,
-        "width": 440,
-        "height": 120,
-        "text": "<div style=\"display:flex; justify-content:space-around; font-size:13px; line-height:1.7;\">\n        <div><b>NHÀ TRAI</b><br/>Ông Huỳnh Minh Quân<br/>Bà Trịnh Bảo Nhung<br/><span style=\"color:#5a2d52; font-weight:bold;\">Huỳnh Minh Vinh</span></div>\n        <div><b>NHÀ GÁI</b><br/>Ông Mai Trọng Thành<br/>Bà Nguyễn Diệu Oanh<br/><span style=\"color:#5a2d52; font-weight:bold;\">Mai Kim Hạnh</span></div>\n      </div>",
-        "fontSize": 14,
-        "color": "#2c2420",
-        "textAlign": "center",
-        "zIndex": 16
-      }
+    "contact": {
+      "male": "",
+      "female": "",
+      "maleFather": "",
+      "maleMather": "",
+      "femaleFather": "",
+      "femaleMather": ""
     },
-    "node_countdown": {
-      "type": {
-        "resolvedName": "CountdownBoxV2"
-      },
-      "props": {
-        "top": 1035,
-        "left": 40,
-        "width": 420,
-        "height": 110,
-        "targetDate": "2027-09-13T11:30:00",
-        "zIndex": 18
-      }
+    "account": {
+      "type": "accordion",
+      "title": "Thông tin mừng cưới",
+      "enabled": true,
+      "description": "Đối với những vị không thể đến tham dự\nchúng tôi đã ghi lại số tài khoản.\nKính mong quý vị rộng lòng thông cảm.",
+      "groupList": [
+        {
+          "id": 1,
+          "title": "Nhà trai",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "ZenDemo",
+              "name": "Huỳnh Minh Vinh",
+              "number": "0000000000",
+              "fileKey": ""
+            },
+            {
+              "bank": "ZenDemo",
+              "name": "Huỳnh Minh Quân",
+              "number": "0000000000",
+              "fileKey": ""
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "title": "Nhà gái",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "ZenDemo",
+              "name": "Mai Kim Hạnh",
+              "number": "0000000000",
+              "fileKey": ""
+            },
+            {
+              "bank": "ZenDemo",
+              "name": "Mai Trọng Thành",
+              "number": "0000000000",
+              "fileKey": ""
+            }
+          ]
+        }
+      ]
     },
-    "node_calendar": {
-      "type": {
-        "resolvedName": "CalendarBoxV2"
-      },
-      "props": {
-        "top": 1165,
-        "left": 50,
-        "width": 400,
-        "height": 180,
-        "day": 13,
-        "month": 9,
-        "year": 2027,
-        "zIndex": 20
-      }
+    "video": {
+      "enabled": false,
+      "videoLink": "",
+      "videoRatio": "basic",
+      "videoTitle": ""
     },
-    "node_secondary_photo": {
-      "type": {
-        "resolvedName": "PhotoBox"
-      },
-      "props": {
-        "top": 1370,
-        "left": 45,
-        "width": 410,
-        "height": 480,
-        "imgKey": "https://cdn-resource.zenlove.me/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/V1NCYkhOQXdMWl8xNzg5MjQzMjAxX2o0aw.png",
-        "src": "https://cdn-resource.zenlove.me/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/V1NCYkhOQXdMWl8xNzg5MjQzMjAxX2o0aw.png",
-        "isReplaceable": true,
-        "zIndex": 22,
-        "borderRadius": [
-          20,
-          20,
-          20,
-          20
-        ],
-        "borderSize": 2,
-        "borderColor": "#ffffff",
-        "hasBoxShadow": true
-      }
+    "weddingTimeline": {
+      "enabled": true,
+      "title": "Lịch trình ngày cưới",
+      "type": "1",
+      "items": [
+        {
+          "id": "1",
+          "time": "10:00",
+          "title": "Đón khách",
+          "icon": "41"
+        },
+        {
+          "id": "2",
+          "time": "10:30",
+          "title": "Photo Booth",
+          "icon": "28"
+        },
+        {
+          "id": "3",
+          "time": "11:00",
+          "title": "Làm lễ",
+          "icon": "16"
+        },
+        {
+          "id": "4",
+          "time": "11:30",
+          "title": "Cắt bánh",
+          "icon": "04"
+        },
+        {
+          "id": "5",
+          "time": "12:00",
+          "title": "Khai tiệc",
+          "icon": "29"
+        },
+        {
+          "id": "6",
+          "time": "13:30",
+          "title": "Tiễn khách",
+          "icon": "33"
+        }
+      ]
     },
-    "node_map": {
-      "type": {
-        "resolvedName": "MapBox"
-      },
-      "props": {
-        "top": 1875,
-        "left": 40,
-        "width": 420,
-        "height": 210,
-        "venueName": "Nhà Gái",
-        "address": "123 Đường Hạnh Phúc, TP. Hồ Chí Minh",
-        "mapUrl": "https://maps.google.com/?q=Ho+Chi+Minh",
-        "zIndex": 24
-      }
-    },
-    "node_rsvp": {
-      "type": {
-        "resolvedName": "RsvpBoxV2"
-      },
-      "props": {
-        "top": 2110,
-        "left": 40,
-        "width": 420,
-        "height": 380,
-        "zIndex": 26
-      }
-    },
-    "node_gift_qr": {
-      "type": {
-        "resolvedName": "GiftQrBox"
-      },
-      "props": {
-        "top": 2515,
-        "left": 40,
-        "width": 420,
-        "height": 260,
-        "modalTitle": "Hộp Quà Mừng Cưới Yêu Thương",
-        "zIndex": 28
-      }
-    },
-    "node_thank_you": {
-      "type": {
-        "resolvedName": "TextBox"
-      },
-      "props": {
-        "top": 2800,
-        "left": 40,
-        "width": 420,
-        "height": 80,
-        "text": "Cảm ơn vì đã luôn yêu thương và là một phần trong ngày hạnh phúc nhất của chúng tôi!",
-        "fontFamily": "font-parisienne",
-        "fontSize": 22,
-        "color": "#5a2d52",
-        "textAlign": "center",
-        "zIndex": 30
-      }
-    },
-    "ROOT": {
-      "type": {
-        "resolvedName": "Container"
-      },
-      "isCanvas": true,
-      "props": {
-        "backgroundColor": "#fbf8fb",
-        "opacity": 1,
-        "isWebview": false,
-        "editorViewportWidth": 500,
-        "width": 500,
-        "height": 3800,
-        "musicTitle": "Marry You - Bruno Mars",
-        "musicUrl": "https://cdn-resource.zenlove.me/mp3/marry-you-1761882803183-pxhcnzas.mp3"
-      },
-      "displayName": "Container",
-      "custom": {
-        "displayName": "App"
-      },
-      "hidden": false,
-      "nodes": [
-        "node_top_tag",
-        "node_couple_title",
-        "node_date_sub",
-        "node_hero_photo",
-        "node_intro_quote",
-        "node_family_info",
-        "node_countdown",
-        "node_calendar",
-        "node_secondary_photo",
-        "node_map",
-        "node_rsvp",
-        "node_gift_qr",
-        "node_thank_you"
+    "dressCode": {
+      "enabled": false,
+      "title": "Trang phục",
+      "description": "",
+      "colors": [
+        {
+          "color": "#D7CCB8",
+          "label": "Be"
+        },
+        {
+          "color": "#FFFFFF",
+          "label": "Trắng"
+        },
+        {
+          "color": "#7BA7D9",
+          "label": "Xanh dương"
+        }
       ],
-      "linkedNodes": {}
-    }
+      "showLabelsFlag": false
+    },
+    "rsvp": {
+      "title": "Xác nhận tham dự",
+      "enabled": true,
+      "options": [
+        "people",
+        "tel"
+      ],
+      "buttonName": "Xác nhận tham dự",
+      "description": "Quý khách có thể gửi thông tin tham dự\r\nđể cô dâu chú rể chuẩn bị chu đáo hơn.",
+      "popupMessage": "Quý khách vui lòng xác nhận tham dự\r\nđể gia đình chuẩn bị đón tiếp chu đáo.",
+      "isOpeningPopup": false,
+      "quickSendFlag": false
+    },
+    "guestbook": {
+      "enabled": true,
+      "title": "Sổ lưu bút",
+      "designType": "postit",
+      "isDateHidden": true,
+      "quickSendFlag": false
+    },
+    "urlThumb": {
+      "urlTitle": "",
+      "urlDescription": "",
+      "urlThumbImagePath": ""
+    },
+    "guestInfoPage": {
+      "enabled": false,
+      "autoRedirectOnWeddingDay": false
+    },
+    "gallery": {
+      "enabled": false,
+      "type": "grid",
+      "title": "Thư viện ảnh cưới",
+      "lineCnt": 3,
+      "gridType": 3,
+      "imageList": [],
+      "lineCount": 3,
+      "imageCrops": [],
+      "photoRatio": "10:13",
+      "isEnabledZoom": false,
+      "imageDirections": [],
+      "isEnabledMoreBtn": true,
+      "enabledPopupViewer": false
+    },
+    "timeline": {
+      "list": [
+        {
+          "id": "1",
+          "date": "2024",
+          "title": "Chẳng vì lý do gì, cứ khiến nhau cười mãi",
+          "imagePath": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/SXVucjJjM3pHcF8xNzg5MjQzMTkyX3Jvcg.jpg",
+          "description": "Chỉ là câu chuyện chẳng có gì đặc biệt, vậy mà lại khiến tôi bật cười\nvà rồi vu vơ, tôi lại muốn gặp người ấy"
+        },
+        {
+          "id": "2",
+          "date": "2024",
+          "title": "Thế là chúng ta bắt đầu hẹn hò",
+          "imagePath": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/cXdsMEhWRkU5YV8xNzg5MjQzMjA2X2hkdg.png",
+          "description": "Chẳng ai phải nói trước điều gì\nChỉ là, mọi chuyện bắt đầu một cách tự nhiên"
+        },
+        {
+          "id": "3",
+          "date": "2025",
+          "title": "Chúng ta vẫn luôn ở bên nhau",
+          "imagePath": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/VlBibDZiZzJWel8xNzg5MjQzMTk1X3NubA.jpg",
+          "description": "Không có điều gì đặc biệt\nNhưng điều đó lại là điều tôi thích nhất"
+        },
+        {
+          "id": "4",
+          "date": "2025",
+          "title": "Không cần phải tìm hiểu thêm ai nữa",
+          "imagePath": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/UHB4NDVHdWxpNl8xNzg5MjQzMTk1X3M4Nw.jpg",
+          "description": "Không cần so sánh với ai khác\nChỉ là, chính là người này"
+        }
+      ],
+      "type": "v1",
+      "title": "Từ gặp gỡ đến yêu thương",
+      "enabled": false,
+      "subtitle": "Những khoảnh khắc tạo nên chúng ta",
+      "coverImage": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/UDNyQk5SM29XOF8xNzg5MjQzMTk1X3lyMw.png"
+    },
+    "interview": {
+      "enabled": false,
+      "title": "Câu chuyện của hai chúng tôi",
+      "description": "Trước thềm hôn lễ, chúng tôi đã chuẩn bị\nbuổi phỏng vấn của hai chúng tôi.",
+      "items": [
+        {
+          "id": "1",
+          "title": "Q1. Hãy giới thiệu về chú rể và cô dâu",
+          "description": "👦 Chú rể Kim Jinho (ISTJ)\nLà người lên kế hoạch kỹ lưỡng, vụng về trong việc bộc lộ cảm xúc nhưng có tình cảm sâu đậm.\nAnh chẳng quên những lời hứa nhỏ, luôn để tâm chăm chút, đến cả những lời cằn nhằn mà tôi tưởng mình nói một mình, anh cũng nhớ.\nVì ít nói nên đôi khi bị hiểu lầm, nhưng anh là kiểu người lặng lẽ thể hiện bằng hành động.\nCâu nói ‘người đàn ông có thể tự thay bóng đèn hỏng’, có lẽ là dành cho Jinho phải không? 😎\nVới cô dâu, anh luôn là người đàn ông vững chãi, kết thúc mọi câu bằng \"Ừ~\" 💪🤍\n\n👰 Cô dâu Lee Naeun (ENFP)\nLà một cỗ máy cảm xúc, ngày cười ngày khóc, ríu rít không ngừng 🚀\nEm thắp sáng bầu không khí bằng sự hài hước và năng lượng, dù mới gặp lần đầu cũng có thể trò chuyện chuyện đời.\nĐó cũng là lý do em hợp với Jinho, người luôn nghiêm túc đáp lại những lời tự nói một mình.\nEm thích những chuyến đi ngẫu hứng, nhưng điều quan trọng là luôn trở về nhà an toàn!\nMột người vừa lãng mạn vừa thực tế, hôm nay cũng khiến Jinho cười, đáng yêu và kiên cường 🌸😌"
+        },
+        {
+          "id": "2",
+          "title": "Q2. Hai người đã gặp nhau như thế nào?",
+          "description": "Vào một ngày mà cả hai còn chưa biết tên nhau, chúng tôi đã ngồi đối diện trong buổi gặp gỡ của người quen.\nHai người là những người ở lại đến cuối cùng trong số rất nhiều người.\nCuộc trò chuyện giữa Jinho ít nói và Naeun nói nhiều có chút gượng gạo,\nnhưng khoảng thời gian đó lại dễ chịu một cách lạ thường, và chúng tôi cứ thế liên lạc với nhau một cách tự nhiên.\nBan đầu, tôi chỉ nghĩ đơn giản đó là một người tốt, nhưng vào một khoảnh khắc nào đó,\ntôi chợt nghĩ \"giá mà là người này\".\nNghĩ lại bây giờ, bầu không khí ngày hôm đó… có phải là định mệnh không? 🍀🌙"
+        },
+        {
+          "id": "3",
+          "title": "Q3. Điều gì đã khiến hai người quyết định kết hôn?",
+          "description": "Khi yêu một người lâu, người ta cũng có thể trở nên chai sạn vì sự quen thuộc.\nNhưng chúng tôi thì ngược lại. Thời gian càng trôi qua, chúng tôi càng trở thành những người tốt hơn.\nĐôi khi cũng có cãi vã, nhưng cuối cùng vẫn cùng nhau ăn cơm, cười đùa và kết thúc một ngày\nvà tôi cảm nhận được rằng chúng tôi đã trở thành người bạn và gia đình thoải mái nhất của nhau.\nRồi một ngày, không có một sự kiện hoành tráng nào,\ntrong cuộc sống thường nhật, chúng tôi ôm chặt lấy nhau và nói:\n\"Hay là chúng mình cứ sống cùng nhau nhỉ?\"\nĐó chính là lời cầu hôn thật sự của chúng tôi 💍"
+        },
+        {
+          "id": "4",
+          "title": "Q4. Hai người có lời hứa gì cho cuộc sống hôn nhân sắp tới?",
+          "description": "Vì chúng con có nhiều điểm giống nhau, cũng có nhiều điểm khác biệt,\nnên mỗi ngày sẽ là một quá trình học hỏi và thấu hiểu lẫn nhau,\nkhi cãi nhau, chúng con sẽ không chiến tranh lạnh mà làm hòa ngay,\nvà đôi khi mong được sống những ngày rung động như đang hẹn hò.\nNgày vui chúng con sẽ sẻ chia, ngày buồn chúng con sẽ cùng nhau gánh vác.\nViệc nhà sẽ được quyết định công bằng bằng ‘kéo✌️búa✊bao✋’,\nthay vì băn khoăn ‘ai sẽ nấu cơm’, chúng con sẽ nói ‘cùng ăn nhé’ thường xuyên hơn.\nChúng con sẽ luôn là một cặp vợ chồng sống bằng hai chữ ‘chúng ta’ 💑✨"
+        }
+      ],
+      "images": [
+        "",
+        ""
+      ]
+    },
+    "mainScreen": {
+      "type": "v44",
+      "fontType": "bonanova",
+      "imagePath": [
+        "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/cFQ5bk1NWjAzd18xNzg5MjQzMjAxX203aQ.png"
+      ],
+      "cropSecondInfo": "",
+      "mainStyleOption": [],
+      "mainEffectOption": "none",
+      "mainScreenParticle": "snow",
+      "mainScreenSvgColor": "#EFEFEF",
+      "mainScreenTextColor": "#1B1B1B",
+      "mainScreenTypeOption": "basic",
+      "mainLocationDisplay": "all",
+      "mainLocationContent": "both",
+      "ments": {
+        "mtxt29": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": "Tên bên trái"
+        },
+        "mtxt30": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": "Tên bên phải"
+        }
+      },
+      "mainScreenNameStyles": {
+        "fontFamily": "PlayfairDisplay",
+        "fontSize": "32px",
+        "fontColor": "",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.11"
+      }
+    },
+    "backgroundMusic": {
+      "fileKey": "mp3/marry-you-1761882803183-pxhcnzas.mp3",
+      "enabled": true,
+      "startTime": 0,
+      "endTime": 230,
+      "isAutoPlay": true
+    },
+    "middleImages": {
+      "enabled": true,
+      "items": [
+        {
+          "id": "16281",
+          "type": "type4",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/V1NCYkhOQXdMWl8xNzg5MjQzMjAxX2o0aw.png",
+          "image2": ""
+        },
+        {
+          "id": "16282",
+          "type": "type6",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/enNMQ3BCMW13NF8xNzg5MjQzMjA0XzFwbQ.png",
+          "image2": ""
+        },
+        {
+          "id": "16283",
+          "type": "type8",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/WU9vRVdZSmx2eF8xNzg5MjQzMTk5X2hiaw.png",
+          "image2": ""
+        },
+        {
+          "id": "16284",
+          "type": "type20",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "",
+          "image2": ""
+        },
+        {
+          "id": "16285",
+          "type": "type21",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "",
+          "image2": ""
+        }
+      ]
+    },
+    "openingAnimation": {
+      "images": "/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/ODcwdnRlMWpvQ18xNzg5MjQzMTk0X2Zpcg.png;/templates/6df56fe1-85c0-4b6e-9559-bdb416304d00/images/QnlDSkRpTjZVRV8xNzg5MjQzMTk0XzNqbQ.png",
+      "enabled": true,
+      "animationStatus": false,
+      "openingAnimationType": "v2",
+      "openingAnimationColor": "purple",
+      "openingAnimationCustomMent": "",
+      "openingAnimationTransparent": true,
+      "openingAnimationOverlayColor": "purple",
+      "openingCardThemeId": "song-hy-red",
+      "openingCardGroomName": "",
+      "openingCardBrideName": "",
+      "openingCardEventDateText": "",
+      "openingCardInviteLabel": "",
+      "openingCardGuestName": "",
+      "openingCardInviteMessage": "",
+      "openingCardOpenButtonText": "",
+      "openingCardBackgroundColor": "",
+      "openingCardTextColor": "",
+      "openingCardButtonBackgroundColor": "",
+      "openingCardButtonTextColor": "",
+      "openingCardRootBgStart": "",
+      "openingCardRootBgMid": "",
+      "openingCardRootBgEnd": ""
+    },
+    "languages": {
+      "order": [
+        "vi"
+      ]
+    },
+    "sectionOrder": [
+      "interview",
+      "intro",
+      "wedding-ceremony-info",
+      "wedding-invitation",
+      "middle-photo-5",
+      "video",
+      "calendar-dday",
+      "timeline",
+      "wedding-timeline",
+      "dress-code",
+      "middle-photo-2",
+      "location",
+      "gallery",
+      "guestbook",
+      "notice-separated-1",
+      "notice-separated-2",
+      "notice-separated-3",
+      "notice-separated-4",
+      "notice-separated-5",
+      "middle-photo-3",
+      "rsvp",
+      "middle-photo-1",
+      "notice-group",
+      "account",
+      "snap",
+      "middle-photo-4"
+    ]
   },
   "clonedAt": "2026-10-05T01:04:08.818Z"
 }

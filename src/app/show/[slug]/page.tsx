@@ -38,6 +38,7 @@ import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import FallingPetals from "@/components/FallingPetals";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 
 export default function ShowInvitationPage() {
   const params = useParams();
@@ -45,6 +46,21 @@ export default function ShowInvitationPage() {
 
   // Card state
   const [card, setCard] = useState<WeddingCard | null>(null);
+
+  // Đảm bảo card.nodes luôn là Canvas Nodes đầy đủ 100% (tự động convert nếu là form 26 keys)
+  const activeNodes = React.useMemo(() => {
+    if (!card?.nodes) return undefined;
+    if (card.nodes.ROOT) return card.nodes;
+    if (card.nodes.basicInfo || card.nodes.theme) {
+      return convertFormTemplateToCanvasNodes(card.nodes, {
+        id: card.id,
+        name: card.name,
+        imageUrl: card.coverImage,
+        slug: card.slug,
+      });
+    }
+    return card.nodes;
+  }, [card?.nodes, card?.id, card?.name, card?.coverImage, card?.slug]);
 
   // Envelope state (opened or closed & 3D opening animation)
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
@@ -385,7 +401,7 @@ export default function ShowInvitationPage() {
     );
   }
 
-  const { groom: displayGroom, bride: displayBride } = extractNamesFromNodes(card.nodes);
+  const { groom: displayGroom, bride: displayBride } = extractNamesFromNodes(activeNodes || card.nodes);
   const groomName = card.groom.name && card.groom.name !== "Chú Rể" ? card.groom.name : displayGroom;
   const brideName = card.bride.name && card.bride.name !== "Cô Dâu" ? card.bride.name : displayBride;
 
@@ -638,10 +654,10 @@ export default function ShowInvitationPage() {
           </div>
         )}
         {/* Dynamic Nodes Canvas (Hiển thị đúng 100% bản vẽ tùy biến của người dùng) */}
-        {card.nodes && card.nodes["ROOT"] && Object.keys(card.nodes).length > 2 ? (
+        {activeNodes && activeNodes["ROOT"] && Object.keys(activeNodes).length > 2 ? (
           <div className="w-full relative z-10">
             <CardNodeRenderer
-              nodes={card.nodes}
+              nodes={activeNodes}
               onOpenGiftQr={() => setIsGiftModalOpen(true)}
               onRsvpSuccess={(data) => {
                 if (!card) return;
