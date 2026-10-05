@@ -17,6 +17,12 @@ import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { saveCard, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
+import {
+  addUploadedImagesToLibrary,
+  addUploadedImageToLibrary,
+  getSavedUploadedImages,
+  extractImagesFromNodes,
+} from "@/lib/mediaLibraryService";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -85,6 +91,19 @@ export default function DesignTemplatePage() {
       const existingCard = getCardByIdOrSlug(templateId);
       if (existingCard) {
         if (existingCard.templateName) setTemplateName(existingCard.templateName);
+        // Tự động khôi phục ảnh của thiệp cưới vào Thư viện ảnh đã tải lên
+        if (Array.isArray(existingCard.album) && existingCard.album.length > 0) {
+          addUploadedImagesToLibrary(existingCard.album);
+        }
+        if (existingCard.coverImage) {
+          addUploadedImageToLibrary(existingCard.coverImage);
+        }
+        if (existingCard.nodes) {
+          const nodePhotos = extractImagesFromNodes(existingCard.nodes);
+          if (nodePhotos.length > 0) {
+            addUploadedImagesToLibrary(nodePhotos);
+          }
+        }
         if (existingCard.musicUrl) {
           setCurrentMusic({
             title: existingCard.musicTitle || "Bản nhạc cưới",
@@ -711,6 +730,22 @@ export default function DesignTemplatePage() {
       }
     }
 
+    // Tự động gom toàn bộ ảnh từ canvas và thư viện ảnh tải lên vào Album thiệp
+    const nodePhotos = extractImagesFromNodes(nodes);
+    const libraryPhotos = getSavedUploadedImages().filter(
+      (url) => !url.includes("images.unsplash.com")
+    );
+    const mergedAlbum = Array.from(
+      new Set(
+        [
+          coverImage,
+          ...(existing?.album || []),
+          ...nodePhotos,
+          ...libraryPhotos,
+        ].filter((u) => Boolean(u) && typeof u === "string" && u.trim().length > 0)
+      )
+    );
+
     const cardToSave: WeddingCard = {
       id: existing?.id || templateId,
       slug: existing?.slug || slug,
@@ -768,7 +803,7 @@ export default function DesignTemplatePage() {
           address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
         },
       ],
-      album: existing?.album || [],
+      album: mergedAlbum.length > 0 ? mergedAlbum : (existing?.album || []),
       musicTitle:
         currentMusic.title ||
         existing?.musicTitle ||

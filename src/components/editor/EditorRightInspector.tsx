@@ -31,6 +31,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { compressImageToWebP } from "@/lib/imageCompression";
+import { addUploadedImageToLibrary } from "@/lib/mediaLibraryService";
 
 export interface SelectedElementData {
   id: string;
@@ -100,10 +101,14 @@ export default function EditorRightInspector({
         if (json.url) uploadedUrl = json.url;
       }
 
+      // Tự động lưu ảnh thay thế vào Thư viện ảnh đã tải lên
+      addUploadedImageToLibrary(uploadedUrl);
+
       onUpdateProps(selectedElement.id, { imgKey: uploadedUrl, src: uploadedUrl });
     } catch (err) {
       console.error("Lỗi thay ảnh:", err);
       const localUrl = URL.createObjectURL(file);
+      addUploadedImageToLibrary(localUrl);
       onUpdateProps(selectedElement.id, { imgKey: localUrl, src: localUrl });
     } finally {
       setIsReplacingImage(false);
@@ -118,10 +123,28 @@ export default function EditorRightInspector({
     try {
       setIsUploadingCarousel(true);
       const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
+      let uploadedUrl = compressed.dataUrl;
+
+      // Đẩy file lên Server API
+      try {
+        const formData = new FormData();
+        formData.append("file", compressed.file);
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.url) uploadedUrl = json.url;
+        }
+      } catch (uploadErr) {
+        console.warn("Upload carousel image API warning:", uploadErr);
+      }
+
+      // Tự động lưu ảnh album vào Thư viện ảnh đã tải lên
+      addUploadedImageToLibrary(uploadedUrl);
+
       const currentList = Array.isArray(selectedElement.props.imgList) ? [...selectedElement.props.imgList] : [];
       currentList.push({
-        imageKey: compressed.dataUrl,
-        src: compressed.dataUrl,
+        imageKey: uploadedUrl,
+        src: uploadedUrl,
         caption: "Khoảnh khắc cưới",
       });
       onUpdateProps(selectedElement.id, { imgList: currentList });

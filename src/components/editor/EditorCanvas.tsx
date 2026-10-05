@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
 import { compressImageToWebP } from "@/lib/imageCompression";
+import { addUploadedImageToLibrary } from "@/lib/mediaLibraryService";
 
 interface EditorCanvasProps {
   nodes: Record<string, any>;
@@ -488,6 +489,9 @@ export default function EditorCanvas({
         if (json.url) uploadedUrl = json.url;
       }
 
+      // Tự động lưu ảnh thay thế vào Thư viện ảnh đã tải lên
+      addUploadedImageToLibrary(uploadedUrl);
+
       onUpdateElementProps(activeSlotId, { imgKey: uploadedUrl, src: uploadedUrl });
       onSelectElement({
         id: activeSlotId,
@@ -497,6 +501,7 @@ export default function EditorCanvas({
     } catch (err) {
       console.error("Lỗi thay ảnh nhanh:", err);
       const localUrl = URL.createObjectURL(file);
+      addUploadedImageToLibrary(localUrl);
       onUpdateElementProps(activeSlotId, { imgKey: localUrl, src: localUrl });
     } finally {
       setIsUploadingSlot(false);

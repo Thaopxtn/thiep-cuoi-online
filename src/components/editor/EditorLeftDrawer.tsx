@@ -35,10 +35,13 @@ import {
   Wrench,
   Loader2,
   Copy,
+  Trash2,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { compressImageToWebP, formatBytes } from "@/lib/imageCompression";
+import { useUploadedMediaLibrary } from "@/lib/mediaLibraryService";
+import { getSafeImageUrl, handleImageFallback } from "@/lib/imageUtils";
 import { SelectedElementData } from "./EditorRightInspector";
 
 interface EditorLeftDrawerProps {
@@ -104,12 +107,16 @@ export default function EditorLeftDrawer({
   activeEffects = [],
   onApplyThemePreset,
 }: EditorLeftDrawerProps) {
-  // Image Tab state
+  // Image Tab state with persistent Media Library (tự động lưu bền vững vào localStorage)
   const [imageSubTab, setImageSubTab] = useState<"all" | "folders">("all");
-  const [uploadedImages, setUploadedImages] = useState<string[]>([
-    "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=500",
-    "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=500",
-  ]);
+  const {
+    images: uploadedImages,
+    addImages: addUploadedImages,
+    addImage: addUploadedImage,
+    removeImage: removeUploadedImage,
+    clearLibrary: clearUploadedLibrary,
+  } = useUploadedMediaLibrary();
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [isCompressing, setIsCompressing] = useState(false);
   const [lastCompressionInfo, setLastCompressionInfo] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -223,8 +230,12 @@ export default function EditorLeftDrawer({
       );
       setTimeout(() => setLastCompressionInfo(null), 6000);
 
-      setUploadedImages((prev) => [...newUrls, ...prev]);
+      // Lưu bền vững vào Media Library (localStorage + broadcast event)
+      if (newUrls.length > 0) {
+        addUploadedImages(newUrls);
+      }
       setIsCompressing(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -243,11 +254,14 @@ export default function EditorLeftDrawer({
         const json = await res.json();
         if (json.url) uploadedUrl = json.url;
       }
+      // Lưu ảnh nền đã tải lên vào Thư viện ảnh để tái sử dụng
+      addUploadedImage(uploadedUrl);
       onChangeBackground?.({ image: uploadedUrl });
     } catch (err) {
       console.error(err);
     } finally {
       setIsCompressing(false);
+      if (bgFileInputRef.current) bgFileInputRef.current.value = "";
     }
   };
 
@@ -571,43 +585,140 @@ export default function EditorLeftDrawer({
               )}
             </div>
 
-            {/* Sub-tabs: Tất cả ảnh */}
+            {/* Sub-tabs: Thư viện ảnh đã tải lên & tự động lưu */}
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <span className="text-xs font-bold text-gray-800">
-                Thư viện đã tải lên ({uploadedImages.length})
-              </span>
-              {selectedElement && selectedElement.type === "PhotoBox" && (
-                <span className="text-[11px] text-rose-600 font-bold bg-rose-50 px-2 py-0.5 rounded-md">
-                  Đang chọn khung ảnh
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-gray-800">
+                  Thư viện đã tải lên ({uploadedImages.length})
                 </span>
+                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                  <Check className="w-2.5 h-2.5" /> Tự động lưu
+                </span>
+              </div>
+              {uploadedImages.length > 2 && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (window.confirm("Khôi phục danh sách ảnh mẫu mặc định? Các ảnh tải lên trước đó sẽ được dọn khỏi bộ nhớ tạm.")) {
+                      clearUploadedLibrary();
+                    }
+                  }}
+                  className="text-[10px] text-gray-400 hover:text-rose-600 transition-colors"
+                  title="Đặt lại thư viện ảnh"
+                >
+                  Đặt lại
+                </button>
               )}
             </div>
 
-            {/* Images Grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {uploadedImages.map((src, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => {
-                    if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
-                      onUpdateElementProps(selectedElement.id, { imgKey: src, src });
-                    } else {
-                      onAddImage(src);
-                    }
-                  }}
-                  className="group relative aspect-square rounded-xl overflow-hidden border border-gray-200 cursor-pointer hover:shadow-md hover:border-[#e54153] transition-all"
-                >
-                  <img
-                    src={src}
-                    alt="Uploaded"
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                  />
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white text-[11px] font-bold p-1 text-center">
-                    {selectedElement && selectedElement.type === "PhotoBox" ? "Thay thế ảnh đang chọn" : "Chèn vào thiệp"}
-                  </div>
+            {selectedElement && selectedElement.type === "PhotoBox" && (
+              <div className="px-2.5 py-2 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-between text-[11px] text-[#e54153]">
+                <div className="flex items-center gap-1.5 font-semibold">
+                  <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                  <span>Đang chọn khung ảnh trên thiệp</span>
                 </div>
-              ))}
-            </div>
+                <span className="text-[10px] text-gray-500 font-medium">Bấm ảnh để thay thế</span>
+              </div>
+            )}
+
+            {/* Images Grid */}
+            {uploadedImages.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 text-xs">
+                <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p>Chưa có ảnh nào trong thư viện.</p>
+                <p className="text-[11px] text-gray-400 mt-1">Bấm khung bên trên để tải ảnh lên.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                {uploadedImages.map((src, idx) => {
+                  const safeSrc = getSafeImageUrl(src);
+                  const isCurrentlyUsing =
+                    selectedElement?.type === "PhotoBox" &&
+                    (selectedElement.props?.imgKey === src ||
+                      selectedElement.props?.imgKey === safeSrc ||
+                      selectedElement.props?.src === src ||
+                      selectedElement.props?.src === safeSrc);
+
+                  return (
+                    <div
+                      key={`${src}-${idx}`}
+                      onClick={() => {
+                        if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
+                          onUpdateElementProps(selectedElement.id, { imgKey: safeSrc, src: safeSrc });
+                        } else {
+                          onAddImage(safeSrc);
+                        }
+                      }}
+                      className={`group relative aspect-square rounded-xl overflow-hidden border cursor-pointer hover:shadow-md transition-all ${
+                        isCurrentlyUsing
+                          ? "border-[#e54153] ring-2 ring-rose-300"
+                          : "border-gray-200 hover:border-[#e54153]"
+                      }`}
+                    >
+                      <img
+                        src={safeSrc}
+                        alt={`Uploaded ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                        onError={(e) => handleImageFallback(e)}
+                        loading="lazy"
+                      />
+
+                      {/* Top floating quick action buttons */}
+                      <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                        {/* Copy URL button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard.writeText(src);
+                            setCopiedUrl(src);
+                            setTimeout(() => setCopiedUrl(null), 2000);
+                          }}
+                          className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm"
+                          title="Sao chép đường dẫn ảnh"
+                        >
+                          {copiedUrl === src ? (
+                            <Check className="w-3 h-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </button>
+
+                        {/* Delete photo button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeUploadedImage(src);
+                          }}
+                          className="w-6 h-6 rounded-md bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-sm"
+                          title="Xóa ảnh khỏi thư viện"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </button>
+                      </div>
+
+                      {/* Hover action overlay */}
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white text-[11px] font-bold p-1 text-center pointer-events-none">
+                        <span>
+                          {selectedElement && selectedElement.type === "PhotoBox"
+                            ? "Thay thế ảnh đang chọn"
+                            : "Chèn vào thiệp (+)"}
+                        </span>
+                      </div>
+
+                      {/* Active badge */}
+                      {isCurrentlyUsing && (
+                        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 bg-[#e54153] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm flex items-center gap-0.5 pointer-events-none">
+                          <Check className="w-2.5 h-2.5" /> Đang dùng
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
