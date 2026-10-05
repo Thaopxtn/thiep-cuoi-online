@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { upsertCardToDb } from "@/lib/serverDb";
 import { WeddingCard } from "@/lib/weddingCardService";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import fs from "fs";
 import path from "path";
 // @ts-ignore
@@ -147,6 +148,16 @@ export async function POST(request: NextRequest) {
     let { groom, bride } = extractNamesFromNodes(parsedNodes || undefined);
     if (customGroom) groom = customGroom;
     if (customBride) bride = customBride;
+
+    // 3.1. Tự động chuyển đổi nếu là mẫu dạng FORM sang cây Craft.js Canvas
+    if (parsedNodes && !parsedNodes.ROOT) {
+      parsedNodes = convertFormTemplateToCanvasNodes(parsedNodes, {
+        id: meta?.id || templateId,
+        name: meta?.name,
+        imageUrl: coverImage,
+        slug: meta?.slug || templateSlug,
+      });
+    }
 
     const templateName = meta?.name || "Mẫu cưới ZenLove";
     const baseSlug = (meta?.slug || "thiep-cuoi")

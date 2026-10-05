@@ -16,6 +16,7 @@ import { getStoredTemplateById, saveCustomTemplate } from "@/lib/templateStorage
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { saveCard, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
+import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -92,7 +93,10 @@ export default function DesignTemplatePage() {
         }
         if (existingCard.nodes && Object.keys(existingCard.nodes).length > 2) {
           if (!isMounted) return;
-          const cardNodes = existingCard.nodes;
+          let cardNodes = existingCard.nodes;
+          if (!cardNodes.ROOT) {
+            cardNodes = convertFormTemplateToCanvasNodes(cardNodes, existingCard);
+          }
           setNodes(cardNodes);
           setHistory([cardNodes]);
           setHistoryIndex(0);
@@ -134,7 +138,10 @@ export default function DesignTemplatePage() {
           const json = await res.json();
           if (json.success && json.data?.parsedNodes) {
             if (!isMounted) return;
-            const fetchedNodes = json.data.parsedNodes;
+            let fetchedNodes = json.data.parsedNodes;
+            if (!fetchedNodes.ROOT) {
+              fetchedNodes = convertFormTemplateToCanvasNodes(fetchedNodes, foundMeta || json.data);
+            }
             setNodes(fetchedNodes);
             setHistory([fetchedNodes]);
             setHistoryIndex(0);

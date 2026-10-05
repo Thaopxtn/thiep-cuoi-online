@@ -1,6 +1,7 @@
 "use client";
 
 import hongPhongNodes from "@/data/templates/hong-phong-nodes.json";
+import { convertFormTemplateToCanvasNodes } from "./templateFormAdapter";
 
 export interface WeddingEvent {
   id: string;
@@ -484,6 +485,9 @@ export async function cloneTemplateToNewCard(
       const tplData = await tplRes.json();
       if (tplData.success && tplData.data) {
         parsedNodes = tplData.data.parsedNodes;
+        if (parsedNodes && !parsedNodes.ROOT) {
+          parsedNodes = convertFormTemplateToCanvasNodes(parsedNodes, tplData.data);
+        }
         coverImage = tplData.data.imageUrl || "";
         templateName = tplData.data.name || templateName;
       }

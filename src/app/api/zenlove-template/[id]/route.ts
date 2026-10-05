@@ -6,6 +6,8 @@ import lzutf8 from "lzutf8";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
 import hongPhongNodes from "@/data/templates/hong-phong-nodes.json";
 
+import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
+
 export async function GET(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -29,10 +31,24 @@ export async function GET(
         const raw = fs.readFileSync(f, "utf8");
         const cached = JSON.parse(raw);
         if (cached?.parsedNodes) {
+          let nodesToReturn = cached.parsedNodes;
+          // Nếu là mẫu dạng FORM (không có node ROOT) -> tự động chuyển đổi sang Canvas Nodes
+          if (!nodesToReturn.ROOT) {
+            nodesToReturn = convertFormTemplateToCanvasNodes(nodesToReturn, {
+              id: cached.id || id,
+              name: cached.name || localTemplateMeta?.name,
+              imageUrl: cached.imageUrl || localTemplateMeta?.imageUrl,
+              slug: cached.slug || localTemplateMeta?.slug,
+            });
+          }
+
           return NextResponse.json({
             success: true,
             source: "local_cloned_cache",
-            data: cached,
+            data: {
+              ...cached,
+              parsedNodes: nodesToReturn,
+            },
           });
         }
       }
@@ -70,6 +86,11 @@ export async function GET(
               inputEncoding: "Base64",
             });
             parsedNodes = JSON.parse(decompressed);
+
+            // Tự động chuyển đổi nếu là mẫu dạng FORM sang Canvas Nodes
+            if (parsedNodes && !parsedNodes.ROOT) {
+              parsedNodes = convertFormTemplateToCanvasNodes(parsedNodes, tplData);
+            }
           } catch (err) {
             console.error("Failed to decompress pageData:", err);
           }
