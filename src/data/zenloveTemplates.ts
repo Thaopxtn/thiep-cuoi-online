@@ -68,7 +68,7 @@ export const ZENLOVE_CATEGORIES: ZenLoveCategory[] = [
   }
 ];
 
-export const ZENLOVE_TEMPLATES: ZenLoveTemplate[] = [
+export const ALL_ZENLOVE_TEMPLATES: ZenLoveTemplate[] = [
   {
     "id": "4e91a4ea-9e62-43d8-bf37-34e2eef30e2e",
     "name": "Son Duyên",
@@ -3589,3 +3589,35 @@ export const ZENLOVE_TEMPLATES: ZenLoveTemplate[] = [
     "updatedAt": "2026-09-15T08:23:06.990Z"
   }
 ];
+ 
+export const HOMEPAGE_CLONED_SLUGS: string[] = [
+  "son-duyen",
+  "green-love",
+  "sen-ngay-hy",
+  "hen-uoc",
+  "hong-phong",
+  "moc-am",
+  "dong-xanh",
+  "net-thuong",
+  "loi-hen-kem",
+  "sac-cuoi-be",
+  "loi-hen-co-dien",
+  "nang-trang-ngoi",
+  "trang-tinh-khoi",
+  "hong-yeu-thuong",
+  "sac-dem-hen",
+  "la-mong-o-liu",
+  "khung-may-trang",
+  "nang-luu-yeu",
+  "xanh-nhu-loi-hen",
+  "net-chu-tinh-nhan",
+];
+
+// Chỉ giữ lại đúng các mẫu thiệp cưới clone từ trang chủ ZenLove (20 mẫu trang chủ)
+export const ZENLOVE_TEMPLATES: ZenLoveTemplate[] = ALL_ZENLOVE_TEMPLATES.filter(
+  (t) => HOMEPAGE_CLONED_SLUGS.includes(t.slug) || HOMEPAGE_CLONED_SLUGS.includes(t.id)
+).sort((a, b) => {
+  const indexA = HOMEPAGE_CLONED_SLUGS.indexOf(a.slug);
+  const indexB = HOMEPAGE_CLONED_SLUGS.indexOf(b.slug);
+  return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
+});

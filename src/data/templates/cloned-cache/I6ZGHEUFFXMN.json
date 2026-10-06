@@ -1,0 +1,470 @@
+{
+  "id": "65a08a29-2040-4d40-ba59-ba6595407af8",
+  "name": "Thiệp cưới Phạm Giang & Danh Trung",
+  "slug": "I6ZGHEUFFXMN",
+  "slugShow": "I6ZGHEUFFXMN",
+  "source": "zenlove_customer_product",
+  "clonedAt": "2026-10-05T15:34:27.004Z",
+  "thumbnail": "https://cdn-resource.zenlove.me/uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NjMyMzkzODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNzE1YzQzNWI3ZDg3MzI5MzU2NmQyYTAzYzA5NGE2YzVfMTc5MDgxNTc3Nzk1N181OHl4ZXg4NGkwOA.jpg?crop=0,70,1253,705",
+  "viewCount": 18,
+  "likeCount": 0,
+  "audioSettings": null,
+  "toolbarSettings": null,
+  "parsedNodes": {
+    "theme": {
+      "empColor": "theme_emp_color_rose",
+      "fontSize": "basic",
+      "fontFamily": "gowundodum",
+      "bgEfShortFlag": false,
+      "backgroundColor": "bg_theme_cream",
+      "backgroundEffect": "6",
+      "backgroundPattern": "sk1",
+      "scrollRevealFlag": true,
+      "titleBandFlag": false,
+      "titleBandTextColor": "",
+      "backgroundType": "color",
+      "backgroundImage": "",
+      "backgroundImageSource": "stock",
+      "backgroundImageOpacity": 100,
+      "backgroundOverlayColor": "",
+      "backgroundOverlayOpacity": 30,
+      "removeWatermarkFlag": true
+    },
+    "basicInfo": {
+      "groomLabel": "Trưởng nam",
+      "brideLabel": "Trưởng nữ",
+      "brideOrder": true,
+      "brideFullName": "Phạm Thị Giang",
+      "groomFullName": "Nguyễn Danh Trung",
+      "brideShortName": "Phạm Giang",
+      "groomShortName": "Danh Trung",
+      "groomFatherName": "Nguyễn Danh Hợp",
+      "groomMatherName": "Mai Thị Giang",
+      "groomParentTitle": "Ông Bà",
+      "groomAddress": "Quang Trung, p. Bắc Giang, TPBN",
+      "brideFatherName": "Phạm Văn Tú",
+      "brideMatherName": "Lục Thị Man",
+      "brideParentTitle": "Ông Bà",
+      "brideAddress": "Đông Phú, Bắc Ninh"
+    },
+    "introMent": {
+      "enabled": true,
+      "showGuestName": true,
+      "guestNameDefault": "Quý Khách",
+      "title": "Trân trọng kính mời những người thân yêu",
+      "description": "<p>Chúng tôi đã gặp được người khiến mỗi ngày trở nên dịu dàng hơn.</p><p>Từ những điều bình dị, yêu thương lớn lên và trở thành lời hẹn ước.</p><p><br></p><p>Nay chúng tôi cùng nhau bước vào một hành trình mới.</p><p>Rất mong được đón quý vị đến chung vui,</p><p>chứng kiến và gửi lời chúc phúc cho ngày trọng đại của chúng tôi.</p>"
+    },
+    "infoWedding": {
+      "enabled": true,
+      "title": "Trân trọng báo tin",
+      "description": "TRÂN TRỌNG BÁO TIN\nLỄ THÀNH HÔN CỦA CON CHÚNG TÔI.",
+      "styles": {
+        "fontFamily": "Qalogre Regular",
+        "fontSize": "35px",
+        "fontColor": "#000000",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.5"
+      }
+    },
+    "weddingDate": {
+      "enabled": true,
+      "date": "2026-10-16T17:00:00.000Z",
+      "hour": 14,
+      "minute": 0,
+      "dDayText": "<p>Còn <strong>(D-Day)</strong> ngày nữa là đến lễ cưới của (chú rể), (cô dâu).</p>",
+      "isDdayOpen": true,
+      "isCalendarOpen": true,
+      "highlightDates": [
+        {
+          "id": "bc100e1f-a615-49f2-8f9d-b9e38ead6b13",
+          "date": "2026-10-18",
+          "title": "Lễ Vu Quy"
+        }
+      ]
+    },
+    "weddingLocation": {
+      "enabled": true,
+      "title": "Địa điểm tổ chức",
+      "zoomLevel": 15,
+      "mapHeight": "basic",
+      "isMapLocked": true,
+      "isNavigationEnabled": true,
+      "isMapVisible": true,
+      "locations": [
+        {
+          "id": "1",
+          "title": "Nhà Gái",
+          "description": "",
+          "positionX": "106.4705781",
+          "positionY": "21.3540125",
+          "roadAddress": "9F3C+J64 Đông Phú, Bắc Giang",
+          "displayAddress": "9F3C+J64, Đông Phú, Bắc Ninh, Việt Nam"
+        },
+        {
+          "id": "1b8b2304-d7c5-48e5-9be9-8607d5b17119",
+          "title": "Lễ Cưới - 10h00 Ngày 18/10/2026",
+          "description": "",
+          "positionX": "106.2008904",
+          "positionY": "21.2788348",
+          "roadAddress": "48 Đ.Ngô Văn Cảnh, Bắc Giang, Bắc Ninh, Việt Nam",
+          "displayAddress": "Nhà Khách thành phố Bắc Ninh, Đường Ngô Văn Cảnh, Bắc Giang, Bắc Ninh"
+        }
+      ]
+    },
+    "endingPhoto": {
+      "enabled": true,
+      "ment": "<p>Cảm ơn vì đã hiện diện trong ngày đặc biệt của chúng tôi.\nMỗi lời chúc và nụ cười của quý vị\nsẽ là kỷ niệm thật đẹp trên hành trình mới.</p>",
+      "type": "v1",
+      "fileKey": "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NjMyMzkzODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNzE1YzQzNWI3ZDg3MzI5MzU2NmQyYTAzYzA5NGE2YzVfMTc5MDgxNTc3Nzk1N181OHl4ZXg4NGkwOA.jpg?crop=0,0,1253,1920",
+      "photoEffect": "wave"
+    },
+    "ceremonies": {
+      "enabled": true,
+      "title": "Thông tin lễ cưới",
+      "lists": [
+        {
+          "id": "1",
+          "name": "Lễ Vu Quy",
+          "date": "2026-10-17",
+          "time": "14:00",
+          "location": "xã Đông Phú, tỉnh Bắc Ninh",
+          "lunarDate": "(Tức ngày 8 tháng 9 năm Bính Ngọ)"
+        }
+      ]
+    },
+    "contact": {
+      "male": "0979855886",
+      "female": "0368185008",
+      "maleFather": "",
+      "maleMather": "",
+      "femaleFather": "",
+      "femaleMather": ""
+    },
+    "account": {
+      "type": "swipe",
+      "title": "Thông tin mừng cưới",
+      "enabled": true,
+      "description": "Dành cho những vị không thể tham dự.",
+      "groupList": [
+        {
+          "id": 2,
+          "title": "Nhà gái",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "HD Bank",
+              "name": "Phạm Thị Giang",
+              "number": "0368185008",
+              "fileKey": "uploads/dde74414-7b06-483f-b43b-291c02d2e392/cXItY29kZV8xNzkwODQ3NTIxMTAwXzBtenc5ejZrOGxjbA.png?crop=0,0,800,800"
+            }
+          ]
+        },
+        {
+          "id": 1791164070291,
+          "title": "",
+          "isEdit": false,
+          "isOpen": false,
+          "viewOpen": false,
+          "accountList": [
+            {
+              "bank": "",
+              "name": "",
+              "number": "",
+              "fileKey": ""
+            }
+          ]
+        }
+      ]
+    },
+    "video": {
+      "enabled": false,
+      "videoLink": "",
+      "videoRatio": "basic",
+      "videoTitle": ""
+    },
+    "weddingTimeline": {
+      "enabled": true,
+      "title": "Lịch trình ngày cưới",
+      "type": "1",
+      "items": [
+        {
+          "id": "1",
+          "time": "14:00",
+          "title": "Đón khách",
+          "icon": "41"
+        },
+        {
+          "id": "94fa0858-c23a-41f3-8f86-fb7a737e4bb0",
+          "time": "14h30",
+          "title": "Khai tiệc",
+          "icon": "29"
+        }
+      ]
+    },
+    "dressCode": {
+      "enabled": false,
+      "title": "Trang phục",
+      "description": "",
+      "colors": [
+        {
+          "color": "#D7CCB8",
+          "label": "Be"
+        },
+        {
+          "color": "#FFFFFF",
+          "label": "Trắng"
+        },
+        {
+          "color": "#7BA7D9",
+          "label": "Xanh dương"
+        }
+      ],
+      "showLabelsFlag": false
+    },
+    "rsvp": {
+      "title": "Xác nhận tham dự",
+      "enabled": true,
+      "options": [
+        "people",
+        "tel"
+      ],
+      "buttonName": "Xác nhận tham dự",
+      "description": "Quý khách có thể gửi thông tin tham dự\r\nđể cô dâu chú rể chuẩn bị chu đáo hơn.",
+      "popupMessage": "Quý khách vui lòng xác nhận tham dự\r\nđể gia đình chuẩn bị đón tiếp chu đáo.",
+      "isOpeningPopup": true,
+      "quickSendFlag": false
+    },
+    "guestbook": {
+      "enabled": true,
+      "title": "Sổ lưu bút",
+      "designType": "button",
+      "isDateHidden": true,
+      "quickSendFlag": true
+    },
+    "urlThumb": {
+      "urlTitle": "Thiệp cưới Phạm Giang & Danh Trung",
+      "urlDescription": "Trân trọng kính mời bạn và người thương...",
+      "urlThumbImagePath": "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NjMyMzkzODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNzE1YzQzNWI3ZDg3MzI5MzU2NmQyYTAzYzA5NGE2YzVfMTc5MDgxNTc3Nzk1N181OHl4ZXg4NGkwOA.jpg?crop=0,70,1253,705"
+    },
+    "guestInfoPage": {
+      "enabled": true,
+      "autoRedirectOnWeddingDay": true
+    },
+    "gallery": {
+      "enabled": true,
+      "type": "swipe",
+      "title": "Thư viện ảnh cưới",
+      "lineCnt": 2,
+      "gridType": 2,
+      "imageList": [
+        "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NzIwMzYyNjcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwYjQ2YTNjOWExNTgyN2FhMTNiNGQzMTZkOGQwZWI1MWZfMTc5MDgxNTc3OTE0OF9sZ2IycXhobTd3bA.jpg",
+        "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1Nzc0NzgyNDcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwYjA4YzQwODAwM2VlMzQ5NzZiMjYxZGE1ZDEwZjU5NjVfMTc5MDgxNTc3ODU5M182cHRlOW9lbXd4.jpg",
+        "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NzIwMzY3NjcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNGVjODljODYyNGU2M2FlMTFiNzcxODM4NDJmYWE0MjRfMTc5MDgxNTc3ODA1MF83Zzcxcmd0M2Z1eQ.jpg",
+        "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc2MDExNzI5ODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwMzAzZjA3NzQ0ZDZiYWZlOGU1Y2Y3ZWQ3NzllOTRlZDFfMTc5MDgxNTc3NzkwN19xY2dweXB2c3p6bg.jpg",
+        "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NjMyMzkzODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNzE1YzQzNWI3ZDg3MzI5MzU2NmQyYTAzYzA5NGE2YzVfMTc5MDgxNTc3Nzk1N181OHl4ZXg4NGkwOA.jpg"
+      ],
+      "lineCount": 2,
+      "imageCrops": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "photoRatio": "1:1",
+      "isEnabledZoom": true,
+      "imageDirections": [
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "isEnabledMoreBtn": true,
+      "enabledPopupViewer": true
+    },
+    "timeline": {
+      "list": [
+        {
+          "id": "5",
+          "date": "2026-03-28",
+          "title": "Giờ đây, cùng nhau bước tiếp.",
+          "imagePath": "/templates/9ba03f1b-5918-4164-b9e6-85a9db05224b/images/T2x3UmdKTWQ1bF8xNzg5MjQxMjQ1X3Ftbw.png",
+          "description": "Chúng con bắt đầu như mùa xuân,\ngiờ đây đã trở thành một mùa."
+        }
+      ],
+      "type": "v2",
+      "title": "Từ gặp gỡ đến yêu thương",
+      "enabled": false,
+      "subtitle": "Những khoảnh khắc làm nên chúng ta",
+      "coverImage": "/templates/9ba03f1b-5918-4164-b9e6-85a9db05224b/images/WnkzUmlyQklxQl8xNzg5MjQxMjQ1X3kxZQ.png"
+    },
+    "interview": {
+      "enabled": false,
+      "title": "Câu chuyện của hai chúng ta",
+      "description": "Trước thềm hôn lễ, chúng tôi đã chuẩn bị\nbuổi phỏng vấn của hai người.",
+      "items": [
+        {
+          "id": "1",
+          "title": "Q1. Hãy giới thiệu về chú rể và cô dâu",
+          "description": "👦 Chú rể Kim Jin-ho (ISTJ)\nLà người lên kế hoạch kỹ càng, không giỏi thể hiện cảm xúc nhưng chân thành sâu sắc.\nAnh không quên những lời hứa nhỏ, luôn để tâm thực hiện, và cả những lời tôi cằn nhằn tưởng như chỉ tự nói một mình anh cũng nhớ.\nÍt nói nên đôi khi bị hiểu lầm, nhưng là kiểu người lặng lẽ thể hiện bằng hành động.\nCâu ‘người đàn ông có thể tự thay bóng đèn hỏng’ chẳng phải là câu dành cho Jin-ho sao? 😎\nVới cô dâu, anh luôn là người đàn ông vững chãi, câu nào cũng kết thúc bằng “Ừ~” 💪🤍\n\n👰 Cô dâu Lee Na-eun (ENFP)\nLà cỗ máy cảm xúc, một ngày có thể cười, khóc và ríu rít đến mười hai lần 🚀\nDùng sự hài hước và năng lượng để làm bừng sáng không khí, và dù mới gặp lần đầu cũng có thể chia sẻ chuyện cuộc đời.\nĐó là lý do cô ấy hợp với Jin-ho, người luôn nghiêm túc trả lời những lời tự nói một mình.\nThích những chuyến đi ngẫu hứng, nhưng điều quan trọng là luôn trở về nhà an toàn!\nLà người vừa lãng mạn vừa thực tế, hôm nay cũng khiến Jin-ho bật cười, một người dễ thương và mạnh mẽ 🌸😌"
+        },
+        {
+          "id": "2",
+          "title": "Q2. Hai người đã gặp nhau như thế nào?",
+          "description": "Vào một ngày khi cả hai còn chưa biết tên nhau, chúng tôi đã ngồi đối diện nhau trong buổi gặp mặt của người quen.\nGiữa rất nhiều người, chúng tôi là hai người ở lại đến cuối cùng.\nCuộc trò chuyện giữa Jin-ho ít nói và Na-eun nhiều chuyện có chút ngượng ngùng,\nnhưng khoảng thời gian ấy lại lạ kỳ dễ chịu, và chúng tôi cứ thế liên lạc với nhau một cách tự nhiên.\nBan đầu, tôi chỉ nghĩ anh ấy là một người tốt, nhưng đến một khoảnh khắc,\ntôi chợt nghĩ: “Giá mà là người này thì tốt biết mấy”.\nNghĩ lại bây giờ, không khí ngày hôm ấy… có phải là định mệnh không? 🍀🌙"
+        },
+        {
+          "id": "3",
+          "title": "Q3. Điều gì khiến hai bạn quyết định kết hôn?",
+          "description": "Khi yêu một người lâu dài, người ta cũng dễ trở nên chai sạn vì sự quen thuộc, phải không?\nNhưng chúng tôi thì ngược lại. Càng nhiều thời gian trôi qua, chúng tôi càng trở thành những người tốt hơn.\nChúng tôi cũng từng cãi vã, nhưng cuối cùng vẫn cùng nhau ăn cơm, cười đùa và kết thúc một ngày\nvà nhận ra rằng đối phương đã trở thành người bạn mang lại cảm giác thoải mái nhất, cũng là gia đình của mình.\nRồi một ngày, không có sự kiện hoành tráng nào,\ntrong cuộc sống thường ngày, chúng tôi ôm chặt lấy nhau và nói:\n“Hay là mình cứ sống cùng nhau nhé?”\nĐó chính là lời cầu hôn thật sự của chúng tôi 💍"
+        },
+        {
+          "id": "4",
+          "title": "Q4. Lời hứa cho cuộc sống hôn nhân sắp tới của hai bạn là gì?",
+          "description": "Vì chúng tôi có nhiều điểm giống nhau, cũng có nhiều điểm khác nhau,\nnên mỗi ngày sẽ là một quá trình học hỏi và thấu hiểu lẫn nhau,\nnhưng khi cãi nhau, chúng tôi sẽ không chiến tranh lạnh mà hòa giải ngay,\nvà đôi khi muốn cùng nhau trải qua những ngày rộn ràng như đang hẹn hò.\nNgày vui xin chia sẻ, ngày buồn xin cùng nhau san sẻ.\nViệc nhà sẽ được quyết định công bằng bằng ‘kéo✌️búa✊bao✋’,\nvà thay vì băn khoăn ‘hôm nay ai nấu cơm’, chúng tôi sẽ nói ‘cùng ăn nhé’ nhiều hơn.\nChúng tôi sẽ mãi là một cặp vợ chồng sống với nhau bằng hai chữ ‘chúng ta’ 💑✨"
+        }
+      ],
+      "images": [
+        "",
+        ""
+      ]
+    },
+    "mainScreen": {
+      "type": "v45",
+      "fontType": "bonanova",
+      "imagePath": [
+        "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NjMyMzkzODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNzE1YzQzNWI3ZDg3MzI5MzU2NmQyYTAzYzA5NGE2YzVfMTc5MDgxNTc3Nzk1N181OHl4ZXg4NGkwOA.jpg?crop=0,0,1253,1917"
+      ],
+      "cropSecondInfo": "",
+      "mainStyleOption": [],
+      "mainEffectOption": "none",
+      "mainScreenParticle": "snow",
+      "mainScreenSvgColor": "",
+      "mainScreenTextColor": "#1B1B1B",
+      "mainScreenTypeOption": "basic",
+      "mainLocationDisplay": "all",
+      "mainLocationContent": "address",
+      "ments": {
+        "mtxt29": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": ""
+        },
+        "mtxt30": {
+          "enabled": true,
+          "color": "",
+          "ment": "",
+          "label": ""
+        }
+      },
+      "mainScreenNameStyles": {
+        "fontFamily": "PlayfairDisplay",
+        "fontSize": "32px",
+        "fontColor": "",
+        "fontLetterSpacing": "0px",
+        "fontLineHeight": "1.11"
+      }
+    },
+    "backgroundMusic": {
+      "fileKey": "mp3/phao-kaiz-2-phut-hon-tik-tok-remix-hbz-remix-central-bass-boost-1791079116341-ypuzyku7.mp3",
+      "enabled": true,
+      "startTime": 0,
+      "endTime": 212,
+      "isAutoPlay": true
+    },
+    "middleImages": {
+      "enabled": true,
+      "items": [
+        {
+          "id": "16646",
+          "type": "type20",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "",
+          "image2": ""
+        },
+        {
+          "id": "16647",
+          "type": "type21",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "",
+          "image2": ""
+        },
+        {
+          "id": "16648",
+          "type": "type19",
+          "effect": "none",
+          "subType": "",
+          "text": "",
+          "image1": "",
+          "image2": ""
+        }
+      ]
+    },
+    "openingAnimation": {
+      "images": "uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc1NjMyMzkzODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwNzE1YzQzNWI3ZDg3MzI5MzU2NmQyYTAzYzA5NGE2YzVfMTc5MDgxNTc3Nzk1N181OHl4ZXg4NGkwOA.jpg?crop=0,0,1250,1920;uploads/dde74414-7b06-483f-b43b-291c02d2e392/MTc5MDc2MDExNzQwODcxOTc1OTg5NDE0NTE3ODkzODA3MTk3NTk4OTQxNDUxNzg5MzgwZjFmNjBjY2RlM2U0NGU4ZGFkMzliYTJiN2FlNWM4MjNfMTc5MDgxNTc3ODE2MF8wcGZwcmpjbGgwbm4.jpg?crop=0,0,1231,1920",
+      "enabled": true,
+      "animationStatus": false,
+      "openingAnimationType": "v2",
+      "openingAnimationColor": "purple",
+      "openingAnimationCustomMent": "",
+      "openingAnimationTransparent": true,
+      "openingAnimationOverlayColor": "purple",
+      "openingCardThemeId": "song-hy-red",
+      "openingCardGroomName": "",
+      "openingCardBrideName": "",
+      "openingCardEventDateText": "",
+      "openingCardInviteLabel": "",
+      "openingCardGuestName": "",
+      "openingCardInviteMessage": "",
+      "openingCardOpenButtonText": "",
+      "openingCardBackgroundColor": "",
+      "openingCardTextColor": "",
+      "openingCardButtonBackgroundColor": "",
+      "openingCardButtonTextColor": "",
+      "openingCardRootBgStart": "",
+      "openingCardRootBgMid": "",
+      "openingCardRootBgEnd": ""
+    },
+    "languages": {
+      "order": [
+        "vi"
+      ]
+    },
+    "sectionOrder": [
+      "intro",
+      "wedding-ceremony-info",
+      "wedding-invitation",
+      "interview",
+      "video",
+      "calendar-dday",
+      "timeline",
+      "wedding-timeline",
+      "dress-code",
+      "location",
+      "gallery",
+      "rsvp",
+      "middle-photo-2",
+      "guestbook",
+      "notice-separated-1",
+      "notice-separated-2",
+      "notice-separated-3",
+      "notice-separated-4",
+      "notice-separated-5",
+      "notice-group",
+      "account",
+      "snap",
+      "middle-photo-1",
+      "middle-photo-3",
+      "middle-photo-4",
+      "middle-photo-5"
+    ]
+  }
+}

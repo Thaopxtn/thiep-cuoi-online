@@ -36,18 +36,32 @@ import {
   Loader2,
   Copy,
   Trash2,
+  Settings,
+  Lock,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { compressImageToWebP, formatBytes } from "@/lib/imageCompression";
-import { useUploadedMediaLibrary } from "@/lib/mediaLibraryService";
-import { getSafeImageUrl, handleImageFallback } from "@/lib/imageUtils";
+import { useUploadedMediaLibrary, countImageUsageInNodes } from "@/lib/mediaLibraryService";
+import { getSafeImageUrl, handleImageFallback, DEFAULT_WEDDING_BACKGROUND, DEFAULT_WEDDING_BACKGROUND_RED, DEFAULT_WEDDING_BACKGROUND_SILK } from "@/lib/imageUtils";
+import { isDecorativeNode } from "@/lib/decorativeLockService";
+import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { SelectedElementData } from "./EditorRightInspector";
+import { WeddingCard } from "@/data/initialCards";
+import { AutoFillFormData, applyAutoFillToNodes } from "@/lib/templateValidation";
 
 interface EditorLeftDrawerProps {
   activeTab: EditorToolTab;
   isOpen: boolean;
   onClose: () => void;
+  nodes?: Record<string, any>;
+  card?: WeddingCard | null;
+  onOpenAutoFillModal?: () => void;
+  onApplyAutoFill?: (
+    updatedNodes: Record<string, any>,
+    updatedCard: Partial<WeddingCard>,
+    stats: { textCount: number; photoCount: number; widgetCount: number }
+  ) => void;
   // Image
   onAddImage: (url: string) => void;
   selectedElement?: SelectedElementData | null;
@@ -84,12 +98,18 @@ interface EditorLeftDrawerProps {
     textColor: string;
     fontFamily?: string;
   }) => void;
+  // Settings
+  onOpenSettings?: () => void;
 }
 
 export default function EditorLeftDrawer({
   activeTab,
   isOpen,
   onClose,
+  nodes = {},
+  card,
+  onOpenAutoFillModal,
+  onApplyAutoFill,
   onAddImage,
   selectedElement,
   onUpdateElementProps,
@@ -106,7 +126,58 @@ export default function EditorLeftDrawer({
   onToggleEffect,
   activeEffects = [],
   onApplyThemePreset,
+  onOpenSettings,
 }: EditorLeftDrawerProps) {
+  // AutoFill state inside Drawer
+  const [quickGroom, setQuickGroom] = useState(card?.groom?.name || "");
+  const [quickBride, setQuickBride] = useState(card?.bride?.name || "");
+  const [quickDate, setQuickDate] = useState(card?.weddingDate || "2026-11-20");
+  const [quickTime, setQuickTime] = useState(card?.weddingTime || "11:00");
+  const [quickVenue, setQuickVenue] = useState(card?.events?.[0]?.venue || "");
+  const [quickAddress, setQuickAddress] = useState(card?.events?.[0]?.address || "");
+  const [autoFillSuccessMessage, setAutoFillSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (card?.groom?.name) setQuickGroom(card.groom.name);
+    if (card?.bride?.name) setQuickBride(card.bride.name);
+    if (card?.weddingDate) setQuickDate(card.weddingDate);
+    if (card?.weddingTime) setQuickTime(card.weddingTime);
+    if (card?.events?.[0]?.venue) setQuickVenue(card.events[0].venue);
+    if (card?.events?.[0]?.address) setQuickAddress(card.events[0].address);
+  }, [card]);
+
+  const handleDrawerAutoFillApply = () => {
+    if (!quickGroom.trim() || !quickBride.trim()) {
+      alert("Vui lòng nhập tên Chú Rể và Cô Dâu!");
+      return;
+    }
+    const formData: AutoFillFormData = {
+      groomName: quickGroom,
+      brideName: quickBride,
+      weddingDate: quickDate,
+      weddingTime: quickTime,
+      lunarDate: card?.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ",
+      venueName: quickVenue || "Trung tâm Hội nghị & Tiệc cưới Trống Đồng Palace",
+      address: quickAddress || "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
+      coverPhoto: card?.coverImage || "",
+      albumPhotos: card?.album || [],
+    };
+
+    const { updatedNodes, updatedCard, stats } = applyAutoFillToNodes(nodes, card || null, formData);
+    onApplyAutoFill?.(updatedNodes, updatedCard, stats);
+    setAutoFillSuccessMessage(`Đã tự động cập nhật ${stats.textCount} văn bản & ${stats.widgetCount} tiện ích vào thiệp!`);
+    setTimeout(() => setAutoFillSuccessMessage(null), 5000);
+  };
+
+  const handleDrawerFillSample = () => {
+    setQuickGroom("Trần Minh Quân");
+    setQuickBride("Phạm Mai Linh");
+    setQuickDate("2026-12-25");
+    setQuickTime("11:30");
+    setQuickVenue("Trung tâm Tiệc cưới Trống Đồng Palace");
+    setQuickAddress("Số 65 Quán Sứ, Hoàn Kiếm, TP. Hà Nội");
+  };
+
   // Image Tab state with persistent Media Library (tự động lưu bền vững vào localStorage)
   const [imageSubTab, setImageSubTab] = useState<"all" | "folders">("all");
   const {
@@ -268,17 +339,21 @@ export default function EditorLeftDrawer({
   // VietQR generation
   const handleInsertVietQr = () => {
     setIsGeneratingQr(true);
-    const amountParam = qrAmount ? `&amount=${encodeURIComponent(qrAmount)}` : "";
-    const memoParam = qrMemo ? `&addInfo=${encodeURIComponent(qrMemo)}` : "";
-    const nameParam = qrName ? `&accountName=${encodeURIComponent(qrName.toUpperCase())}` : "";
-    const qrUrl = `https://img.vietqr.io/image/${qrBank}-${qrAccount}-compact2.jpg?${amountParam}${memoParam}${nameParam}`;
+    const cleanAccount = (qrAccount || "").replace(/[^a-zA-Z0-9]/g, "");
+    const qrUrl = generateVietQrUrl(
+      qrBank,
+      cleanAccount,
+      qrName ? qrName.toUpperCase() : undefined,
+      qrAmount ? Number(qrAmount) || undefined : undefined,
+      qrMemo || undefined
+    );
 
     if (onAddWidget) {
       onAddWidget("GiftQrBox", {
         imgKey: qrUrl,
         bankName: qrBank,
-        accountNumber: qrAccount,
-        accountName: qrName,
+        accountNumber: cleanAccount,
+        accountName: qrName ? qrName.toUpperCase() : "",
         modalTitle: "Mừng Cưới Cô Dâu & Chú Rể",
       });
     } else {
@@ -424,6 +499,26 @@ export default function EditorLeftDrawer({
   // Paper Textures
   const paperTextures = [
     {
+      id: "tex-zenlove-1",
+      name: "Cung điện Hoàng gia ZenLove",
+      url: DEFAULT_WEDDING_BACKGROUND,
+    },
+    {
+      id: "tex-zenlove-2",
+      name: "Gấm hoa Song Hỷ Hoàng gia",
+      url: DEFAULT_WEDDING_BACKGROUND_RED,
+    },
+    {
+      id: "tex-zenlove-3",
+      name: "Lụa tơ tằm cổ điển ZenLove",
+      url: DEFAULT_WEDDING_BACKGROUND_SILK,
+    },
+    {
+      id: "tex-zenlove-4",
+      name: "Mây trời Hồng hạc lãng mạn",
+      url: "https://cdn-resource.zenlove.me/resources/background/mj63u9y75kzfbxeg.webp",
+    },
+    {
       id: "tex-1",
       name: "Giấy gân mỹ thuật",
       url: "https://images.unsplash.com/photo-1586075010923-2dd4570fb338?q=80&w=600",
@@ -531,6 +626,7 @@ export default function EditorLeftDrawer({
       {/* Drawer Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
+          {activeTab === "autofill" && "⚡ Tự động điền"}
           {activeTab === "image" && "Hình ảnh"}
           {activeTab === "text" && "Văn bản"}
           {activeTab === "background" && "Nền thiệp"}
@@ -550,6 +646,139 @@ export default function EditorLeftDrawer({
 
       {/* Drawer Body corresponding to activeTab */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* ================= 0. TAB: TỰ ĐỘNG ĐIỀN (AUTO-FILL) ================= */}
+        {activeTab === "autofill" && (
+          <div className="space-y-4">
+            {/* Banner mở Modal đầy đủ */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-50 to-amber-50/50 border border-rose-200/80 shadow-xs space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#e54153] to-[#ff5b70] text-white flex items-center justify-center shrink-0">
+                  <Wand2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900">
+                    Biểu mẫu Tự Động Điền
+                  </h4>
+                  <p className="text-[10px] text-gray-500">
+                    Tự động gán thông tin & ảnh vào toàn bộ thiệp
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={onOpenAutoFillModal}
+                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5268] hover:from-[#d93849] hover:to-[#e54153] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Mở biểu mẫu đầy đủ (Rộng rãi)</span>
+              </button>
+            </div>
+
+            {/* Thông báo thành công */}
+            {autoFillSuccessMessage && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 animate-fadeIn">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                <span>{autoFillSuccessMessage}</span>
+              </div>
+            )}
+
+            {/* Biểu mẫu điền nhanh ngay trong Drawer */}
+            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-200/80 pb-2">
+                <span className="text-xs font-bold text-gray-800">
+                  Điền nhanh vào thiệp:
+                </span>
+                <button
+                  type="button"
+                  onClick={handleDrawerFillSample}
+                  className="text-[10px] text-[#e54153] font-bold hover:underline cursor-pointer"
+                >
+                  ⚡ Điền mẫu thử
+                </button>
+              </div>
+
+              {/* Chú rể & Cô dâu */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-gray-700">Tên Chú Rể:</label>
+                <input
+                  type="text"
+                  value={quickGroom}
+                  onChange={(e) => setQuickGroom(e.target.value)}
+                  placeholder="VD: Trần Minh Quân"
+                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-gray-700">Tên Cô Dâu:</label>
+                <input
+                  type="text"
+                  value={quickBride}
+                  onChange={(e) => setQuickBride(e.target.value)}
+                  placeholder="VD: Phạm Mai Linh"
+                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                />
+              </div>
+
+              {/* Ngày cưới & Giờ cưới */}
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-gray-700">Ngày cưới:</label>
+                  <input
+                    type="date"
+                    value={quickDate}
+                    onChange={(e) => setQuickDate(e.target.value)}
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[11px] font-semibold text-gray-700">Giờ cưới:</label>
+                  <input
+                    type="time"
+                    value={quickTime}
+                    onChange={(e) => setQuickTime(e.target.value)}
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Trung tâm tiệc cưới */}
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-gray-700">Trung tâm tiệc cưới / Nhà rạp:</label>
+                <input
+                  type="text"
+                  value={quickVenue}
+                  onChange={(e) => setQuickVenue(e.target.value)}
+                  placeholder="Trống Đồng Palace"
+                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[11px] font-semibold text-gray-700">Địa chỉ cụ thể:</label>
+                <input
+                  type="text"
+                  value={quickAddress}
+                  onChange={(e) => setQuickAddress(e.target.value)}
+                  placeholder="Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội"
+                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                />
+              </div>
+
+              {/* Nút Áp dụng ngay */}
+              <button
+                type="button"
+                onClick={handleDrawerAutoFillApply}
+                className="w-full py-2.5 px-3 rounded-xl bg-[#e54153] hover:bg-[#d93849] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer mt-2"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Áp dụng vào thiệp cưới</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ================= 1. TAB: HÌNH ẢNH ================= */}
         {activeTab === "image" && (
           <div className="space-y-4">
@@ -587,13 +816,19 @@ export default function EditorLeftDrawer({
 
             {/* Sub-tabs: Thư viện ảnh đã tải lên & tự động lưu */}
             <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-gray-800">
-                  Thư viện đã tải lên ({uploadedImages.length})
-                </span>
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
-                  <Check className="w-2.5 h-2.5" /> Tự động lưu
-                </span>
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-gray-800">
+                    Thư viện đã tải lên ({uploadedImages.length})
+                  </span>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                    <Check className="w-2.5 h-2.5" /> Tự động lưu
+                  </span>
+                </div>
+                <div className="text-[10px] text-gray-500 font-medium">
+                  {uploadedImages.filter((s) => countImageUsageInNodes(s, nodes)).length} đang dùng trên thiệp •{" "}
+                  {uploadedImages.filter((s) => countImageUsageInNodes(s, nodes) === 0).length} chưa dùng (ảnh thừa)
+                </div>
               </div>
               {uploadedImages.length > 2 && (
                 <button
@@ -612,13 +847,37 @@ export default function EditorLeftDrawer({
               )}
             </div>
 
-            {selectedElement && selectedElement.type === "PhotoBox" && (
+            {selectedElement && selectedElement.type === "PhotoBox" && (() => {
+              const isLockedPhoto = isDecorativeNode(selectedElement.id, nodes[selectedElement.id]) || selectedElement.props?.locked;
+              if (isLockedPhoto) {
+                return (
+                  <div className="px-2.5 py-2 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-[11px] text-amber-800 shadow-2xs">
+                    <div className="flex items-center gap-1.5 font-semibold">
+                      <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Họa tiết trang trí của mẫu</span>
+                    </div>
+                    <span className="text-[10px] text-amber-700 font-medium">Đã khóa cố định</span>
+                  </div>
+                );
+              }
+              return (
+                <div className="px-2.5 py-2 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-between text-[11px] text-[#e54153]">
+                  <div className="flex items-center gap-1.5 font-semibold">
+                    <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                    <span>Đang chọn khung ảnh trên thiệp</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 font-medium">Bấm ảnh để thay thế</span>
+                </div>
+              );
+            })()}
+
+            {selectedElement && selectedElement.type === "CarouselBox" && (
               <div className="px-2.5 py-2 rounded-xl bg-rose-50 border border-rose-100 flex items-center justify-between text-[11px] text-[#e54153]">
                 <div className="flex items-center gap-1.5 font-semibold">
                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
-                  <span>Đang chọn khung ảnh trên thiệp</span>
+                  <span>Đang chọn Album cưới ({Array.isArray(selectedElement.props?.imgList) ? selectedElement.props.imgList.length : 0} ảnh)</span>
                 </div>
-                <span className="text-[10px] text-gray-500 font-medium">Bấm ảnh để thay thế</span>
+                <span className="text-[10px] text-gray-500 font-medium">Bấm ảnh để thêm vào album</span>
               </div>
             )}
 
@@ -633,25 +892,49 @@ export default function EditorLeftDrawer({
               <div className="grid grid-cols-2 gap-2">
                 {uploadedImages.map((src, idx) => {
                   const safeSrc = getSafeImageUrl(src);
+                  const usageCount = countImageUsageInNodes(src, nodes);
                   const isCurrentlyUsing =
                     selectedElement?.type === "PhotoBox" &&
                     (selectedElement.props?.imgKey === src ||
                       selectedElement.props?.imgKey === safeSrc ||
                       selectedElement.props?.src === src ||
                       selectedElement.props?.src === safeSrc);
+                  const isInCarousel =
+                    selectedElement?.type === "CarouselBox" &&
+                    Array.isArray(selectedElement.props?.imgList) &&
+                    selectedElement.props.imgList.some(
+                      (item: any) =>
+                        item?.imageKey === src ||
+                        item?.imageKey === safeSrc ||
+                        item?.src === src ||
+                        item?.src === safeSrc
+                    );
 
                   return (
                     <div
                       key={`${src}-${idx}`}
                       onClick={() => {
                         if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
+                          const isLockedPhoto = isDecorativeNode(selectedElement.id, nodes[selectedElement.id]) || selectedElement.props?.locked;
+                          if (isLockedPhoto) {
+                            alert("Họa tiết trang trí này đã được khóa cố định để đảm bảo thiết kế gốc của thiệp!");
+                            return;
+                          }
                           onUpdateElementProps(selectedElement.id, { imgKey: safeSrc, src: safeSrc });
+                        } else if (selectedElement && selectedElement.type === "CarouselBox" && onUpdateElementProps) {
+                          const currentList = Array.isArray(selectedElement.props?.imgList) ? [...selectedElement.props.imgList] : [];
+                          currentList.push({
+                            imageKey: safeSrc,
+                            src: safeSrc,
+                            caption: `Khoảnh khắc cưới ${currentList.length + 1}`,
+                          });
+                          onUpdateElementProps(selectedElement.id, { imgList: currentList });
                         } else {
                           onAddImage(safeSrc);
                         }
                       }}
                       className={`group relative aspect-square rounded-xl overflow-hidden border cursor-pointer hover:shadow-md transition-all ${
-                        isCurrentlyUsing
+                        isCurrentlyUsing || isInCarousel
                           ? "border-[#e54153] ring-2 ring-rose-300"
                           : "border-gray-200 hover:border-[#e54153]"
                       }`}
@@ -704,14 +987,41 @@ export default function EditorLeftDrawer({
                         <span>
                           {selectedElement && selectedElement.type === "PhotoBox"
                             ? "Thay thế ảnh đang chọn"
+                            : selectedElement && selectedElement.type === "CarouselBox"
+                            ? "Thêm vào album cưới (+)"
                             : "Chèn vào thiệp (+)"}
                         </span>
                       </div>
 
+                      {/* Badge số lần sử dụng trên thiệp */}
+                      <div className="absolute bottom-1.5 left-1.5 z-10 pointer-events-none">
+                        {usageCount > 0 ? (
+                          <span
+                            className="px-1.5 py-0.5 rounded-md bg-emerald-600/90 text-white text-[9px] font-bold shadow-xs flex items-center gap-1 backdrop-blur-xs"
+                            title={`Ảnh này đang được dùng ${usageCount} lần trên thiệp`}
+                          >
+                            <Check className="w-2.5 h-2.5 stroke-[3]" />
+                            <span>Dùng {usageCount} lần</span>
+                          </span>
+                        ) : (
+                          <span
+                            className="px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-medium shadow-xs flex items-center gap-0.5 backdrop-blur-xs"
+                            title="Ảnh này chưa được gán vào khung nào trên thiệp (Ảnh thừa / dự phòng)"
+                          >
+                            <span>Chưa dùng</span>
+                          </span>
+                        )}
+                      </div>
+
                       {/* Active badge */}
                       {isCurrentlyUsing && (
-                        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 bg-[#e54153] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm flex items-center gap-0.5 pointer-events-none">
-                          <Check className="w-2.5 h-2.5" /> Đang dùng
+                        <div className="absolute top-1.5 left-1.5 bg-[#e54153] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm flex items-center gap-0.5 pointer-events-none z-10 animate-pulse">
+                          <span>Đang chọn</span>
+                        </div>
+                      )}
+                      {isInCarousel && (
+                        <div className="absolute top-1.5 left-1.5 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm flex items-center gap-0.5 pointer-events-none z-10">
+                          <span>Trong album</span>
                         </div>
                       )}
                     </div>
@@ -1238,6 +1548,36 @@ export default function EditorLeftDrawer({
         {/* ================= 7. TAB: TIỆN ÍCH ================= */}
         {activeTab === "widgets" && (
           <div className="space-y-2.5">
+            {/* Quick settings banner for fixed footer items */}
+            {onOpenSettings && (
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 border border-rose-200/90 shadow-2xs space-y-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">⚙️</span>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900">Mục cố định chân trang</h4>
+                    <p className="text-[10px] text-gray-600">Hộp mừng cưới VietQR, Sổ lưu bút, RSVP</p>
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-600 leading-snug">
+                  Đổi số tài khoản ngân hàng, tên cô dâu chú rể hoặc bật/tắt hiển thị các mục này ở cuối thiệp:
+                </p>
+                <button
+                  type="button"
+                  onClick={onOpenSettings}
+                  className="w-full py-2 px-3 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  <span>Cài đặt Hộp mừng & RSVP</span>
+                </button>
+              </div>
+            )}
+
+            <div className="pt-1">
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
+                Chèn Widget vào trang:
+              </span>
+            </div>
+
             {[
               {
                 id: "CountdownBoxV2",

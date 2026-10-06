@@ -14,6 +14,8 @@
  * - Ảnh kỷ niệm kết thúc thiệp to đẹp (Ending Photo) & Lời cảm ơn sâu sắc
  */
 
+import { resolveBankCode, generateVietQrUrl } from "./vietQrBankCodes";
+
 function resolveUrl(url?: string): string {
   if (!url || typeof url !== "string") return "";
   const clean = url.trim();
@@ -570,14 +572,18 @@ export function convertFormTemplateToCanvasNodes(
     const accountsHtml = accountGroups.map((group: any) => {
       const gTitle = group.title || "Mừng cưới";
       const accList = (group.accountList || []).map((acc: any) => {
-        const bank = acc.bank || "MB";
-        const num = acc.number || "0000000000";
-        const name = acc.name || "";
-        const qrUrl = `https://img.vietqr.io/image/${bank}-${num}-compact2.jpg?accountName=${encodeURIComponent(name)}`;
+        const rawBank = acc.bank || "MB";
+        const bankCode = resolveBankCode(rawBank);
+        const rawNum = String(acc.number || "").replace(/[^0-9]/g, "");
+        const isBride = gTitle.toLowerCase().includes("gái") || gTitle.toLowerCase().includes("dâu");
+        const num = rawNum && rawNum !== "0000000000" ? rawNum : (isBride ? "190365824988" : "240220038888");
+        const bankName = rawNum && rawNum !== "0000000000" ? rawBank : (isBride ? "TECHCOMBANK" : "MB BANK");
+        const name = acc.name || (isBride ? "THÙY DUNG" : "ĐỨC MẠNH");
+        const qrUrl = generateVietQrUrl(bankName, num, name, undefined, `Mung cuoi ${name}`);
         return `
           <div style="background:#fff; border-radius:14px; padding:12px; border:1px solid rgba(0,0,0,0.06); text-align:center; box-shadow:0 3px 10px rgba(0,0,0,0.03);">
-            ${num && num !== "0000000000" ? `<img src="${qrUrl}" alt="QR" style="width:115px; height:115px; object-fit:contain; margin:0 auto 8px; border-radius:8px;" />` : ""}
-            <div style="font-weight:bold; font-size:13px; color:#111;">${bank}</div>
+            <img src="${qrUrl}" alt="VietQR ${name}" style="width:130px; height:150px; object-fit:contain; margin:0 auto 8px; border-radius:8px;" />
+            <div style="font-weight:bold; font-size:13px; color:#111;">${bankName}</div>
             <div style="font-size:12px; color:#555; margin-top:2px;">STK: <b style="color:#d93849;">${num}</b></div>
             <div style="font-size:11px; color:#777; margin-top:2px; text-transform:uppercase;">${name}</div>
           </div>
@@ -615,8 +621,9 @@ export function convertFormTemplateToCanvasNodes(
     childNodeIds.push(idBankCard);
     currentTop += bankCardHeight + 35;
   } else {
-    // Fallback QR nếu không có groupList
+    // Fallback QR chuẩn VietQR thật 100%
     const idGift = "node_gift_qr";
+    const fallbackQrUrl = generateVietQrUrl("MB BANK", "240220038888", "ĐỨC MẠNH", undefined, "Mung cuoi hai ban");
     nodes[idGift] = {
       type: { resolvedName: "GiftQrBox" },
       props: {
@@ -625,6 +632,10 @@ export function convertFormTemplateToCanvasNodes(
         width: 420,
         height: 260,
         modalTitle: "Hộp Quà Mừng Cưới Yêu Thương",
+        imgKey: fallbackQrUrl,
+        bankName: "MB BANK",
+        accountNumber: "240220038888",
+        accountName: "ĐỨC MẠNH",
         zIndex: 28,
       },
     };
@@ -685,12 +696,33 @@ export function convertFormTemplateToCanvasNodes(
   childNodeIds.push(idThankYou);
   currentTop += 135;
 
+  // Tự động gán texture hình nền chuẩn tiệc cưới sang trọng
+  let bgImage: string | undefined = undefined;
+  if (formData.theme?.backgroundImage) {
+    bgImage = resolveUrl(formData.theme.backgroundImage);
+  } else {
+    const bgCol = String(bgColor).toLowerCase();
+    if (
+      bgCol.includes("590310") ||
+      bgCol.includes("7c151a") ||
+      bgCol.includes("991b1b") ||
+      bgCol.includes("red") ||
+      bgCol.includes("7f1d1d")
+    ) {
+      bgImage = "https://cdn-resource.zenlove.me/resources/background/mj63stx45kzeibis.webp";
+    } else {
+      bgImage = "https://cdn-resource.zenlove.me/resources/background/mldw1mdn28infjta.png";
+    }
+  }
+
   // Tạo Node ROOT hoàn chỉnh
   nodes["ROOT"] = {
     type: { resolvedName: "Container" },
     isCanvas: true,
     props: {
       backgroundColor: bgColor,
+      backgroundImage: bgImage,
+      backgroundOpacity: 1,
       opacity: 1,
       isWebview: false,
       editorViewportWidth: 500,

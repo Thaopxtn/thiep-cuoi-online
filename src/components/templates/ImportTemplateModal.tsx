@@ -129,7 +129,10 @@ export default function ImportTemplateModal({
       setJsonText(text);
       processJsonData(text, "Dán từ clipboard");
     } catch {
-      alert("Không thể đọc bộ nhớ tạm. Hãy dán trực tiếp bằng phím Ctrl+V vào ô bên dưới.");
+      setValidationResult({
+        valid: false,
+        error: "Không thể tự động đọc bộ nhớ tạm. Hãy dán trực tiếp bằng phím Ctrl+V vào ô văn bản bên dưới.",
+      });
     }
   };
 
@@ -143,7 +146,10 @@ export default function ImportTemplateModal({
       });
 
       if (res.error) {
-        alert(`Không thể nhập: ${res.error}`);
+        setValidationResult({
+          valid: false,
+          error: `Không thể nhập: ${res.error}`,
+        });
         setIsProcessing(false);
         return;
       }
@@ -152,7 +158,10 @@ export default function ImportTemplateModal({
       handleReset();
       onClose();
     } catch (err: any) {
-      alert(`Đã xảy ra lỗi: ${err?.message}`);
+      setValidationResult({
+        valid: false,
+        error: `Đã xảy ra lỗi: ${err?.message}`,
+      });
     } finally {
       setIsProcessing(false);
     }

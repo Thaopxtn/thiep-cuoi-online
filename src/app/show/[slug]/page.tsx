@@ -100,21 +100,91 @@ export default function ShowInvitationPage() {
 
   // Helper to extract custom names from nodes
   const extractNamesFromNodes = (nodes?: Record<string, any>) => {
-    let groom = "Chú Rể";
-    let bride = "Cô Dâu";
-    if (!nodes) return { groom, bride };
+    let groom = card?.groom?.name && card.groom.name !== "Chú Rể" ? card.groom.name : "";
+    let bride = card?.bride?.name && card.bride.name !== "Cô Dâu" ? card.bride.name : "";
+    if (!nodes) return { groom: groom || "Chú Rể", bride: bride || "Cô Dâu" };
 
-    Object.values(nodes).forEach((n: any) => {
-      if (n.type?.resolvedName === "TextBox" && typeof n.props?.text === "string") {
-        const text = n.props.text.replace(/<[^>]*>/g, "").trim();
-        if ((text.includes("&") || text.includes("và")) && text.length < 50) {
-          const parts = text.split(/&|và/);
-          if (parts[0]?.trim()) groom = parts[0].trim();
-          if (parts[1]?.trim()) bride = parts[1].trim();
+    // 1. Xử lý mẫu FORM (như Đồng Xanh)
+    if (nodes.basicInfo) {
+      const b = nodes.basicInfo;
+      if (b.groomFullName || b.groomShortName) groom = b.groomFullName || b.groomShortName;
+      if (b.brideFullName || b.brideShortName) bride = b.brideFullName || b.brideShortName;
+      if (groom && bride) return { groom, bride };
+    }
+
+    const textBoxes = Object.values(nodes)
+      .filter((n: any) => n?.type?.resolvedName === "TextBox")
+      .map((n: any) => {
+        const raw = n.props?.text?.rawText || n.props?.text || "";
+        const text =
+          typeof raw === "string"
+            ? raw
+                .replace(/<[^>]*>/g, "")
+                .replace(/&amp;/g, "&")
+                .replace(/&nbsp;/g, " ")
+                .trim()
+            : "";
+        return { text, top: Number(n.props?.top) || 0 };
+      })
+      .filter((t) => t.text.length > 0)
+      .sort((a, b) => a.top - b.top);
+
+    // 2. Quét TextBox chứa cả 2 tên dạng "Chú rể & Cô dâu"
+    for (const tb of textBoxes) {
+      const clean = tb.text;
+      if ((clean.includes("&") || clean.includes(" và ")) && clean.length > 4 && clean.length < 50) {
+        const parts = clean.split(/&|\bvà\b/);
+        const p0 = parts[0]?.trim();
+        const p1 = parts[1]?.trim();
+        if (
+          p0 &&
+          p1 &&
+          p0.length >= 2 &&
+          p1.length >= 2 &&
+          !p0.includes("Save") &&
+          !p1.includes("Save") &&
+          p1 !== "amp;" &&
+          !p1.startsWith("amp;")
+        ) {
+          return { groom: p0, bride: p1 };
         }
       }
-    });
-    return { groom, bride };
+    }
+
+    // 3. Quét ký tự '&' cô lập với 2 TextBox tên liền kề trên và dưới
+    const ampersandIdx = textBoxes.findIndex(
+      (tb) => tb.text === "&" || tb.text === "♥" || tb.text === "+"
+    );
+    if (ampersandIdx > 0 && ampersandIdx < textBoxes.length - 1) {
+      const prev = textBoxes[ampersandIdx - 1].text;
+      const next = textBoxes[ampersandIdx + 1].text;
+      if (
+        prev.length >= 2 &&
+        prev.length < 30 &&
+        next.length >= 2 &&
+        next.length < 30 &&
+        !prev.includes("Save") &&
+        !next.includes("Save")
+      ) {
+        return { groom: prev, bride: next };
+      }
+    }
+
+    if (!groom && card?.name) {
+      const clean = card.name
+        .replace(
+          /^(thiệp cưới của|thiệp cưới|đám cưới của|đám cưới|lễ thành hôn của|lễ vu quy của|wedding-invitation-|wedding invitation -|wedding invitation|save the date)\s*[-:]?\s*/i,
+          ""
+        )
+        .trim();
+      const parts = clean.split(/\s*(?:và|&|\+|\s-\s)\s*/i);
+      if (parts.length >= 2) {
+        groom = parts[0].trim();
+        bride = parts[1].trim();
+      }
+    }
+
+    return { groom: groom || "Chú Rể", bride: bride || "Cô Dâu" };
   };
 
   // Load card data (first local, then fresh from server, then ZenLove template catalog)
@@ -384,11 +454,19 @@ export default function ShowInvitationPage() {
   };
 
   const getVietQrUrl = (bankName?: string, accountNumber?: string, name?: string, customQr?: string): string => {
-    if (customQr && customQr.startsWith("http") && !customQr.includes("api.qrserver.com")) {
+    if (
+      customQr &&
+      customQr.startsWith("http") &&
+      !customQr.includes("api.qrserver.com") &&
+      !customQr.includes("cdn-resource.zenlove.me") &&
+      !customQr.includes("mikobhai9dem4blb")
+    ) {
       return customQr;
     }
-    if (!accountNumber) return "";
-    return generateVietQrUrl(bankName, accountNumber, name, undefined, `Mung cuoi ${name || ""}`);
+    if (accountNumber) {
+      return generateVietQrUrl(bankName, accountNumber, name, undefined, `Mung cuoi ${name || ""}`);
+    }
+    return generateVietQrUrl(bankName || "MB", "240220038888", name || "MUNG CUOI", undefined, `Mung cuoi ${name || ""}`);
   };
 
   if (!card) {
@@ -404,7 +482,31 @@ export default function ShowInvitationPage() {
 
   const { groom: displayGroom, bride: displayBride } = extractNamesFromNodes(activeNodes || card.nodes);
   const groomName = card.groom.name && card.groom.name !== "Chú Rể" ? card.groom.name : displayGroom;
-  const brideName = card.bride.name && card.bride.name !== "Cô Dâu" ? card.bride.name : displayBride;
+  const brideName =
+    card.bride.name && card.bride.name !== "Cô Dâu" && card.bride.name !== "amp;" && card.bride.name !== "amp"
+      ? card.bride.name
+      : displayBride;
+
+  // Clean bank display names (avoid "(BẢN NHÁP)" or generic words from template placeholders)
+  const cleanDisplayName = (name?: string, fallback: string = "") => {
+    if (!name) return fallback;
+    const lower = name.toLowerCase();
+    if (
+      lower.includes("bản nháp") ||
+      lower.includes("chạm để mở thiệp") ||
+      lower.includes("chạm để") ||
+      lower.includes("mẫu thiệp") ||
+      lower.includes("khách hàng")
+    ) {
+      return fallback;
+    }
+    return name;
+  };
+
+  const groomBankOwner =
+    card.groom.accountName || cleanDisplayName(card.groom.name) || cleanDisplayName(groomName) || "CHÚ RỂ";
+  const brideBankOwner =
+    card.bride.accountName || cleanDisplayName(card.bride.name) || cleanDisplayName(brideName) || "CÔ DÂU";
 
   return (
     <div className="min-h-screen bg-[#f3efe6] flex flex-col items-center justify-start relative text-gray-800 selection:bg-rose-100 selection:text-zen-primary">
@@ -526,7 +628,7 @@ export default function ShowInvitationPage() {
             className="absolute inset-0 opacity-15 pointer-events-none bg-cover bg-center"
             style={{
               backgroundImage:
-                "url('https://cdn-resource.zenlove.me/resources/mldw1mdn28infjta.png')",
+                "url('https://cdn-resource.zenlove.me/resources/background/mldw1mdn28infjta.png')",
             }}
           />
 
@@ -682,7 +784,7 @@ export default function ShowInvitationPage() {
               className="absolute inset-0 opacity-10 pointer-events-none bg-repeat-y bg-top"
               style={{
                 backgroundImage:
-                  "url('https://cdn-resource.zenlove.me/resources/mldw1mdn28infjta.png')",
+                  "url('https://cdn-resource.zenlove.me/resources/background/mldw1mdn28infjta.png')",
                 backgroundSize: "100% auto",
               }}
             />
@@ -810,313 +912,325 @@ export default function ShowInvitationPage() {
         )}
 
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
-        <section id="rsvp-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
-          <div className="text-center mb-6">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-              Xác Nhận Tham Dự
-            </span>
-            <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
-              Lời Hẹn Chung Vui
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-              Sự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!
-            </p>
-          </div>
-
-          {rsvpSubmitted ? (
-            <div className="bg-white rounded-2xl p-6 text-center border border-emerald-200 shadow-xs animate-scale-in">
-              <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
-              <h4 className="font-bold text-gray-900 text-sm">
-                Đã gửi xác nhận thành công!
-              </h4>
-              <p className="text-xs text-gray-500 mt-1">
-                Cảm ơn bạn đã phản hồi. Hẹn gặp bạn trong ngày hạnh phúc của chúng mình nhé!
+        {card.showRsvp !== false && (
+          <section id="rsvp-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
+            <div className="text-center mb-6">
+              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                Xác Nhận Tham Dự
+              </span>
+              <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                Lời Hẹn Chung Vui
+              </h2>
+              <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                Sự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!
               </p>
-              <button
-                type="button"
-                onClick={() => setRsvpSubmitted(false)}
-                className="mt-3 text-xs text-zen-primary font-semibold hover:underline"
-              >
-                Gửi lại thông tin khác
-              </button>
             </div>
-          ) : (
-            <form onSubmit={handleSendRsvp} className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 space-y-3.5">
+
+            {rsvpSubmitted ? (
+              <div className="bg-white rounded-2xl p-6 text-center border border-emerald-200 shadow-xs animate-scale-in">
+                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
+                <h4 className="font-bold text-gray-900 text-sm">
+                  Đã gửi xác nhận thành công!
+                </h4>
+                <p className="text-xs text-gray-500 mt-1">
+                  Cảm ơn bạn đã phản hồi. Hẹn gặp bạn trong ngày hạnh phúc của chúng mình nhé!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setRsvpSubmitted(false)}
+                  className="mt-3 text-xs text-zen-primary font-semibold hover:underline"
+                >
+                  Gửi lại thông tin khác
+                </button>
+              </div>
+            ) : (
+              <form onSubmit={handleSendRsvp} className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 space-y-3.5">
+                {/* Anti-bot Honeypot field (hidden from genuine users) */}
+                <input
+                  type="text"
+                  name="b_field_trap"
+                  value={rsvpBotTrap}
+                  onChange={(e) => setRsvpBotTrap(e.target.value)}
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  className="hidden opacity-0 absolute -z-10 pointer-events-none"
+                  style={{ position: "absolute", left: "-9999px" }}
+                />
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Họ và tên của bạn:
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nhập tên của bạn..."
+                      value={rsvpName}
+                      onChange={(e) => setRsvpName(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Số điện thoại:
+                  </label>
+                  <div className="relative">
+                    <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="tel"
+                      required
+                      placeholder="0912..."
+                      value={rsvpPhone}
+                      onChange={(e) => setRsvpPhone(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    Bạn sẽ tham dự chứ?
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setRsvpAttending("yes")}
+                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        rsvpAttending === "yes"
+                          ? "border-zen-primary bg-rose-50 text-zen-primary"
+                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      🎉 Chắc chắn rồi!
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRsvpAttending("no")}
+                      className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
+                        rsvpAttending === "no"
+                          ? "border-gray-400 bg-gray-100 text-gray-800"
+                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                      }`}
+                    >
+                      💌 Tiếc quá bận rồi
+                    </button>
+                  </div>
+                </div>
+
+                {rsvpAttending === "yes" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Số người cùng tham dự:
+                    </label>
+                    <div className="flex items-center gap-2">
+                      {[1, 2, 3, 4].map((num) => (
+                        <button
+                          key={num}
+                          type="button"
+                          onClick={() => setRsvpGuestsCount(num)}
+                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                            rsvpGuestsCount === num
+                              ? "border-zen-primary bg-rose-50 text-zen-primary font-bold"
+                              : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                          }`}
+                        >
+                          {num} người
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full py-2.5 rounded-xl bg-zen-primary text-white text-xs font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2"
+                >
+                  <span>Xác nhận tham dự</span>
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              </form>
+            )}
+          </section>
+        )}
+
+        {/* ================= BANKING GIFT QR BOX (Hộp mừng cưới online) ================= */}
+        {card.showGiftBox !== false && (Boolean(card.groom.accountNumber) || Boolean(card.bride.accountNumber)) && (
+          <section id="gift-section" className="px-6 py-8 relative z-10">
+            <div className="text-center mb-6">
+              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                Hộp Mừng Cưới Online
+              </span>
+              <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                Gửi Quà Mừng Cưới
+              </h2>
+              <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                Dành cho bạn bè, người thân ở xa muốn gửi lời chúc và món quà mừng đến đôi uyên ương.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Chú rể */}
+              {card.groom.accountNumber && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
+                  <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
+                    <img
+                      src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
+                      alt={`QR ${groomBankOwner}`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase">
+                      Mừng Chú Rể {groomBankOwner && groomBankOwner !== "CHÚ RỂ" ? `(${groomBankOwner})` : ""}
+                    </p>
+                    <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                      {card.groom.bankName || "MB BANK"} • {card.groom.accountNumber}
+                    </p>
+                    <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
+                      Chủ TK: {groomBankOwner}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(card.groom.accountNumber!, "groom")}
+                      className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      {copiedBank === "groom" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span className="text-emerald-600">Đã sao chép</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Sao chép STK</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Cô dâu */}
+              {card.bride.accountNumber && (
+                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
+                  <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
+                    <img
+                      src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
+                      alt={`QR ${brideBankOwner}`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-bold text-gray-400 uppercase">
+                      Mừng Cô Dâu {brideBankOwner && brideBankOwner !== "CÔ DÂU" ? `(${brideBankOwner})` : ""}
+                    </p>
+                    <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                      {card.bride.bankName || "TECHCOMBANK"} • {card.bride.accountNumber}
+                    </p>
+                    <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
+                      Chủ TK: {brideBankOwner}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => copyToClipboard(card.bride.accountNumber!, "bride")}
+                      className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                    >
+                      {copiedBank === "bride" ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span className="text-emerald-600">Đã sao chép</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3" />
+                          <span>Sao chép STK</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* ================= GUESTBOOK WISHES (Sổ lưu bút) ================= */}
+        {card.showWishes !== false && (
+          <section id="wishes-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
+            <div className="text-center mb-6">
+              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                Sổ Lưu Bút
+              </span>
+              <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                Gửi Lời Chúc Mừng
+              </h2>
+            </div>
+
+            <form onSubmit={handleSendWish} className="space-y-3 mb-6">
               {/* Anti-bot Honeypot field (hidden from genuine users) */}
               <input
                 type="text"
-                name="b_field_trap"
-                value={rsvpBotTrap}
-                onChange={(e) => setRsvpBotTrap(e.target.value)}
+                name="w_field_trap"
+                value={wishBotTrap}
+                onChange={(e) => setWishBotTrap(e.target.value)}
                 tabIndex={-1}
                 autoComplete="off"
                 aria-hidden="true"
                 className="hidden opacity-0 absolute -z-10 pointer-events-none"
                 style={{ position: "absolute", left: "-9999px" }}
               />
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Họ và tên của bạn:
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="Nhập tên của bạn..."
-                    value={rsvpName}
-                    onChange={(e) => setRsvpName(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Số điện thoại:
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                  <input
-                    type="tel"
-                    required
-                    placeholder="0912..."
-                    value={rsvpPhone}
-                    onChange={(e) => setRsvpPhone(e.target.value)}
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Bạn sẽ tham dự chứ?
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setRsvpAttending("yes")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                      rsvpAttending === "yes"
-                        ? "border-zen-primary bg-rose-50 text-zen-primary"
-                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    🎉 Chắc chắn rồi!
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRsvpAttending("no")}
-                    className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
-                      rsvpAttending === "no"
-                        ? "border-gray-400 bg-gray-100 text-gray-800"
-                        : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                    }`}
-                  >
-                    💌 Tiếc quá bận rồi
-                  </button>
-                </div>
-              </div>
-
-              {rsvpAttending === "yes" && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Số người cùng tham dự:
-                  </label>
-                  <div className="flex items-center gap-2">
-                    {[1, 2, 3, 4].map((num) => (
-                      <button
-                        key={num}
-                        type="button"
-                        onClick={() => setRsvpGuestsCount(num)}
-                        className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                          rsvpGuestsCount === num
-                            ? "border-zen-primary bg-rose-50 text-zen-primary font-bold"
-                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
-                      >
-                        {num} người
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
+              <input
+                type="text"
+                required
+                placeholder="Tên của bạn..."
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary"
+              />
+              <textarea
+                required
+                rows={2}
+                placeholder="Gửi lời chúc phúc tốt đẹp nhất đến cặp đôi..."
+                value={guestWish}
+                onChange={(e) => setGuestWish(e.target.value)}
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary resize-none"
+              />
               <button
                 type="submit"
-                className="w-full py-2.5 rounded-xl bg-zen-primary text-white text-xs font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2"
+                className="w-full py-2.5 rounded-xl bg-[#511419] text-amber-50 text-xs font-bold shadow-md hover:bg-[#3d0f13] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
               >
-                <span>Xác nhận tham dự</span>
-                <Send className="w-3.5 h-3.5" />
+                <span>Gửi lời chúc</span>
+                <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
               </button>
             </form>
-          )}
-        </section>
 
-        {/* ================= BANKING GIFT QR BOX (Hộp mừng cưới online) ================= */}
-        <section id="gift-section" className="px-6 py-8 relative z-10">
-          <div className="text-center mb-6">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-              Hộp Mừng Cưới Online
-            </span>
-            <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
-              Gửi Quà Mừng Cưới
-            </h2>
-            <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-              Dành cho bạn bè, người thân ở xa muốn gửi lời chúc và món quà mừng đến đôi uyên ương.
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            {/* Chú rể */}
-            {card.groom.accountNumber && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
-                <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
-                  <img
-                    src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, card.groom.name, card.groom.qrCode)}
-                    alt={`QR ${card.groom.name}`}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-gray-400 uppercase">
-                    Mừng Chú Rể ({card.groom.name})
-                  </p>
-                  <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
-                    {card.groom.bankName} • {card.groom.accountNumber}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(card.groom.accountNumber!, "groom")}
-                    className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors"
+            {/* Wishes Feed */}
+            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+              {card.wishes && card.wishes.length > 0 ? (
+                card.wishes.map((w) => (
+                  <div
+                    key={w.id}
+                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1"
                   >
-                    {copiedBank === "groom" ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-600" />
-                        <span className="text-emerald-600">Đã sao chép</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span>Sao chép STK</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Cô dâu */}
-            {card.bride.accountNumber && (
-              <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
-                <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
-                  <img
-                    src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, card.bride.name, card.bride.qrCode)}
-                    alt={`QR ${card.bride.name}`}
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-gray-400 uppercase">
-                    Mừng Cô Dâu ({card.bride.name})
-                  </p>
-                  <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
-                    {card.bride.bankName} • {card.bride.accountNumber}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => copyToClipboard(card.bride.accountNumber!, "bride")}
-                    className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors"
-                  >
-                    {copiedBank === "bride" ? (
-                      <>
-                        <Check className="w-3 h-3 text-emerald-600" />
-                        <span className="text-emerald-600">Đã sao chép</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3 h-3" />
-                        <span>Sao chép STK</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* ================= GUESTBOOK WISHES (Sổ lưu bút) ================= */}
-        <section id="wishes-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
-          <div className="text-center mb-6">
-            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-              Sổ Lưu Bút
-            </span>
-            <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
-              Gửi Lời Chúc Mừng
-            </h2>
-          </div>
-
-          <form onSubmit={handleSendWish} className="space-y-3 mb-6">
-            {/* Anti-bot Honeypot field (hidden from genuine users) */}
-            <input
-              type="text"
-              name="w_field_trap"
-              value={wishBotTrap}
-              onChange={(e) => setWishBotTrap(e.target.value)}
-              tabIndex={-1}
-              autoComplete="off"
-              aria-hidden="true"
-              className="hidden opacity-0 absolute -z-10 pointer-events-none"
-              style={{ position: "absolute", left: "-9999px" }}
-            />
-            <input
-              type="text"
-              required
-              placeholder="Tên của bạn..."
-              value={guestName}
-              onChange={(e) => setGuestName(e.target.value)}
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary"
-            />
-            <textarea
-              required
-              rows={2}
-              placeholder="Gửi lời chúc phúc tốt đẹp nhất đến cặp đôi..."
-              value={guestWish}
-              onChange={(e) => setGuestWish(e.target.value)}
-              className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary resize-none"
-            />
-            <button
-              type="submit"
-              className="w-full py-2.5 rounded-xl bg-[#511419] text-amber-50 text-xs font-bold shadow-md hover:bg-[#3d0f13] transition-colors flex items-center justify-center gap-1.5"
-            >
-              <span>Gửi lời chúc</span>
-              <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
-            </button>
-          </form>
-
-          {/* Wishes Feed */}
-          <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-            {card.wishes && card.wishes.length > 0 ? (
-              card.wishes.map((w) => (
-                <div
-                  key={w.id}
-                  className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1"
-                >
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="font-bold text-gray-900">{w.name}</span>
-                    <span className="text-gray-400">{w.createdAt}</span>
+                    <div className="flex items-center justify-between text-[11px]">
+                      <span className="font-bold text-gray-900">{w.name}</span>
+                      <span className="text-gray-400">{w.createdAt}</span>
+                    </div>
+                    <p className="text-xs text-gray-600 leading-relaxed">{w.content}</p>
                   </div>
-                  <p className="text-xs text-gray-600 leading-relaxed">{w.content}</p>
-                </div>
-              ))
-            ) : (
-              <p className="text-xs text-gray-400 text-center py-4">
-                Chưa có lời chúc nào. Hãy là người đầu tiên gửi lời chúc nhé!
-              </p>
-            )}
-          </div>
-        </section>
+                ))
+              ) : (
+                <p className="text-xs text-gray-400 text-center py-4">
+                  Chưa có lời chúc nào. Hãy là người đầu tiên gửi lời chúc nhé!
+                </p>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Bottom ZenLove Watermark & Commercial Ecosystem */}
         <div className="pt-8 pb-14 px-6 text-center text-xs text-gray-400 border-t border-gray-100 relative z-10 bg-white space-y-2.5">
@@ -1145,38 +1259,44 @@ export default function ShowInvitationPage() {
 
         {/* Bottom Floating Share / Action Bar */}
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white/95 backdrop-blur-md border-t border-gray-200 py-1.5 px-3 z-40 shadow-xl flex items-center justify-around gap-1">
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById("rsvp-section");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
-          >
-            <CheckCircle className="w-4 h-4 text-zen-primary" />
-            <span className="text-[10px] font-bold mt-0.5">RSVP</span>
-          </button>
+          {card.showRsvp !== false && (
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("rsvp-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+            >
+              <CheckCircle className="w-4 h-4 text-zen-primary" />
+              <span className="text-[10px] font-bold mt-0.5">RSVP</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => setIsGiftModalOpen(true)}
-            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
-          >
-            <Gift className="w-4 h-4 text-amber-600" />
-            <span className="text-[10px] font-bold mt-0.5">Mừng cưới</span>
-          </button>
+          {card.showGiftBox !== false && (
+            <button
+              type="button"
+              onClick={() => setIsGiftModalOpen(true)}
+              className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+            >
+              <Gift className="w-4 h-4 text-amber-600" />
+              <span className="text-[10px] font-bold mt-0.5">Mừng cưới</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => {
-              const el = document.getElementById("wishes-section");
-              if (el) el.scrollIntoView({ behavior: "smooth" });
-            }}
-            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
-          >
-            <MessageCircle className="w-4 h-4 text-rose-500" />
-            <span className="text-[10px] font-bold mt-0.5">Lời chúc</span>
-          </button>
+          {card.showWishes !== false && (
+            <button
+              type="button"
+              onClick={() => {
+                const el = document.getElementById("wishes-section");
+                if (el) el.scrollIntoView({ behavior: "smooth" });
+              }}
+              className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+            >
+              <MessageCircle className="w-4 h-4 text-rose-500" />
+              <span className="text-[10px] font-bold mt-0.5">Lời chúc</span>
+            </button>
+          )}
 
           <a
             href={card.events?.[0]?.mapUrl || `https://maps.google.com/?q=${encodeURIComponent(card.events?.[0]?.venue || "Hà Nội")}`}
@@ -1258,8 +1378,8 @@ export default function ShowInvitationPage() {
               <div className="space-y-3 text-center">
                 <div className="w-44 h-44 mx-auto bg-white rounded-2xl p-2 border-2 border-dashed border-amber-300 shadow-inner flex items-center justify-center">
                   <img
-                    src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, card.groom.name, card.groom.qrCode)}
-                    alt={`VietQR ${card.groom.name}`}
+                    src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
+                    alt={`VietQR ${groomBankOwner}`}
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -1271,7 +1391,7 @@ export default function ShowInvitationPage() {
                     {card.groom.accountNumber || "240220038888"}
                   </p>
                   <p className="text-[11px] text-gray-500 uppercase font-semibold">
-                    Chủ TK: {card.groom.name || "CHÚ RỂ"}
+                    Chủ TK: {groomBankOwner}
                   </p>
                 </div>
                 <button
@@ -1294,8 +1414,8 @@ export default function ShowInvitationPage() {
               <div className="space-y-3 text-center">
                 <div className="w-44 h-44 mx-auto bg-white rounded-2xl p-2 border-2 border-dashed border-rose-300 shadow-inner flex items-center justify-center">
                   <img
-                    src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, card.bride.name, card.bride.qrCode)}
-                    alt={`VietQR ${card.bride.name}`}
+                    src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
+                    alt={`VietQR ${brideBankOwner}`}
                     className="w-full h-full object-contain"
                   />
                 </div>
@@ -1307,7 +1427,7 @@ export default function ShowInvitationPage() {
                     {card.bride.accountNumber || "190365824988"}
                   </p>
                   <p className="text-[11px] text-gray-500 uppercase font-semibold">
-                    Chủ TK: {card.bride.name || "CÔ DÂU"}
+                    Chủ TK: {brideBankOwner}
                   </p>
                 </div>
                 <button

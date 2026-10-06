@@ -129,7 +129,7 @@ export default function TemplateDetailClient({
     if (!template) return;
     const cloned = duplicateTemplate(template);
     alert(`Đã nhân bản mẫu "${template.title}" vào kho của bạn! 🎉`);
-    router.push(`/kho-template`);
+    router.push(`/templates`);
   };
 
   // Related templates recommendation algorithm
@@ -274,14 +274,22 @@ export default function TemplateDetailClient({
 
               {/* Live Interactive Screen */}
               <div className="relative w-full h-full rounded-[32px] overflow-hidden bg-white">
-                <ModuleRenderer
-                  modules={modules}
-                  bankInfo={template.defaultData.bankInfo}
-                  musicUrl={template.defaultData.musicUrl}
-                  musicTitle={template.defaultData.musicTitle}
-                  initialWishes={template.defaultData.initialWishes}
-                  interactive={true}
-                />
+                {template.slug || template.id ? (
+                  <iframe
+                    src={`/show/${template.slug || template.id}`}
+                    className="w-full h-full border-0"
+                    title={template.title}
+                  />
+                ) : (
+                  <ModuleRenderer
+                    modules={modules}
+                    bankInfo={template.defaultData.bankInfo}
+                    musicUrl={template.defaultData.musicUrl}
+                    musicTitle={template.defaultData.musicTitle}
+                    initialWishes={template.defaultData.initialWishes}
+                    interactive={true}
+                  />
+                )}
               </div>
             </div>
 
@@ -464,9 +472,9 @@ export default function TemplateDetailClient({
                 </a>
 
                 <Link
-                  href={`/template-builder?id=${template.id}`}
+                  href={`/design-template/${template.id}`}
                   className="py-3 px-5 rounded-full bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
-                  title="Mở trong Studio tạo mẫu để kéo thả module"
+                  title="Mở trong Studio tạo mẫu để tùy biến kéo thả Canvas"
                 >
                   <SlidersHorizontal className="w-4 h-4 text-amber-400" />
                   <span>Tùy biến Studio</span>

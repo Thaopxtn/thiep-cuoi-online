@@ -42,6 +42,42 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="vi" className={`${inter.variable} ${playfair.variable} ${dancingScript.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                if (typeof window === 'undefined') return;
+                function isExtensionError(msg, src, err) {
+                  var s = (String(src || '')) + ' ' + (String(msg || '')) + ' ' + (err && err.stack ? String(err.stack) : '');
+                  return s.indexOf('chrome-extension://') !== -1 ||
+                         s.indexOf('moz-extension://') !== -1 ||
+                         s.indexOf('safari-extension://') !== -1 ||
+                         s.indexOf('M_ID') !== -1 ||
+                         s.indexOf('eppiocemhmnlbhjplcgkofciiegomcon') !== -1;
+                }
+                window.addEventListener('error', function(e) {
+                  if (isExtensionError(e.message, e.filename, e.error)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    return true;
+                  }
+                }, true);
+                window.addEventListener('unhandledrejection', function(e) {
+                  var reason = e.reason;
+                  var stack = reason && reason.stack ? reason.stack : '';
+                  var msg = reason && reason.message ? reason.message : String(reason || '');
+                  if (isExtensionError(msg, '', reason)) {
+                    e.stopImmediatePropagation();
+                    e.preventDefault();
+                    return true;
+                  }
+                }, true);
+              })();
+            `,
+          }}
+        />
+      </head>
       <body className="antialiased selection:bg-rose-100 selection:text-zen-primary">
         <AuthProvider>
           {children}

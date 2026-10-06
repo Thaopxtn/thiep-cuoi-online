@@ -1,0 +1,3968 @@
+{
+  "id": "dcdbb5fb-c2e1-409d-878c-531393fb0b1e",
+  "name": "Tiệc Tất Niên 1 Pre",
+  "slug": "tiec-tat-nien-1-pre",
+  "targetPageType": "CANVAS",
+  "audioSettings": {
+    "musicBg": "rgba(247, 186, 134, 1.00)",
+    "musicId": "mp3/happy-new-year-1766517726019-r2g5y7yb.mp3",
+    "musicVol": "80",
+    "musicIcon": "music-1",
+    "musicTitle": "Happy New Year",
+    "musicDuration": 221
+  },
+  "toolbarSettings": {
+    "giftBtn": true,
+    "likeBtn": true,
+    "messageBox": true,
+    "removeWatermark": false
+  },
+  "category": {
+    "id": "3bfbe9e2-3263-467d-82cd-8d6bbb5ffc7c",
+    "idCat": "thiep-moi-tat-nien",
+    "name": "Thiệp Tất Niên"
+  },
+  "parsedNodes": {
+    "ROOT": {
+      "type": {
+        "resolvedName": "Container"
+      },
+      "isCanvas": true,
+      "props": {
+        "height": 3682,
+        "width": 500,
+        "backgroundColor": "rgb(146,0,0)",
+        "backgroundImage": "",
+        "opacity": 1,
+        "isWebview": false,
+        "editorViewportWidth": 500
+      },
+      "displayName": "Container",
+      "custom": {
+        "displayName": "App"
+      },
+      "hidden": false,
+      "nodes": [
+        "B8Fqnx76q0",
+        "SFv7fBI0-Y",
+        "gSBoFqdY5w",
+        "rr7yCBXtn_",
+        "4N7Eq8_A_n",
+        "USeO_1O7pS",
+        "7_p1A6_P5t",
+        "8lFOIzo4Gi",
+        "c-IrwAi_5C",
+        "X_1cLYqhUy",
+        "OEdr6hcfoj",
+        "89GPJ4Pgxr",
+        "i32k8nQH_z",
+        "jC2wET4Ok-",
+        "oUtYLkiIQq",
+        "rOAOSOCgyT",
+        "SUTpSY3shU",
+        "09GG-Aotus",
+        "WG4DAhTwrV",
+        "ip8VJGi36d",
+        "FVxS8vl9uw",
+        "Mo-LCPzj34",
+        "5DWWcvW3DX",
+        "SRDyjoGyOs",
+        "eyDZrwTOgP",
+        "7pBbeDMF5r",
+        "-mSlBCK55C",
+        "ttArX0T4vK",
+        "ypXog4CXOp",
+        "Zzsp2cQgit",
+        "xcFaQPVcx0",
+        "zYFQ9lwoP_",
+        "ZCmS9NsiUO",
+        "zTPedIslW-",
+        "afC1iD9Wtk",
+        "0bk41LJ-Qq",
+        "i06B8iVhjB",
+        "RTHmucH4FG",
+        "qy3yyqqHhd",
+        "4BjmTz7mVm",
+        "uBLFmwu_iO",
+        "GmNpW-_tby",
+        "wMLSNlq2Uj",
+        "itKMEnQ-s4",
+        "ziI1uUVLXV",
+        "xEzEU8LhxB",
+        "aCutNEsyaq",
+        "rWsDRmWNb6",
+        "TkSOHSKQOq",
+        "tkoM9E19ym",
+        "3Vth354_DB",
+        "tBTlEJtfJd",
+        "3uqcBIJjuR"
+      ],
+      "linkedNodes": {}
+    },
+    "FVxS8vl9uw": {
+      "type": {
+        "resolvedName": "PhotoBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 58.7857,
+        "left": 33,
+        "width": 59.2866,
+        "height": 58.2279,
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "imgKey": "/templates/dcdbb5fb-c2e1-409d-878c-531393fb0b1e/images/bG9nb18xNzY4Mzg5MTcyX2QyYg.png",
+        "alt": "",
+        "zIndex": 1,
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "unoptimized": false,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1,
+        "isReplaceable": true
+      },
+      "displayName": "PhotoBox Item",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "Mo-LCPzj34": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "2026",
+        "top": 246.783,
+        "left": 155.558,
+        "width": 536.949,
+        "height": 150,
+        "fontSize": 150,
+        "fontFamily": "DN Cursive",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": "normal",
+        "letterSpacing": 41,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 90,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 2,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "pulse",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "5DWWcvW3DX": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Tiệc mời tất niên",
+        "top": 135.263,
+        "left": 33,
+        "width": 351,
+        "height": 30,
+        "fontSize": 34,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "bold",
+        "lineHeight": 2,
+        "letterSpacing": 2,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 3,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "ip8VJGi36d": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "INVITATION",
+        "top": 188.263,
+        "left": 33,
+        "width": 351,
+        "height": 30,
+        "fontSize": 28,
+        "fontFamily": "Miller Banner",
+        "textAlign": "left",
+        "fontWeight": "bold",
+        "lineHeight": "normal",
+        "letterSpacing": 2,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 3,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "SRDyjoGyOs": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 242.5,
+        "left": 33,
+        "width": 45.9,
+        "height": 9,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 5,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpb69ndhffzq0.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "eyDZrwTOgP": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Tập đoàn Công nghệ ZenLove<div>Trân trọng kính mời</div>",
+        "top": 302.263,
+        "left": 33,
+        "width": 475,
+        "height": "auto",
+        "fontSize": 23,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "lineHeight": 1.31,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 6,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "7pBbeDMF5r": {
+      "type": {
+        "resolvedName": "GuestAutoName"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 361.492,
+        "left": 33,
+        "width": 381,
+        "height": 26,
+        "zIndex": 7,
+        "fontFamily": "Carlytte",
+        "opacity": 1,
+        "textDefault": "Quý khách",
+        "fontSize": 46,
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "fontStyle": "italic",
+        "textDecoration": "none",
+        "textTransform": "none",
+        "letterSpacing": 1,
+        "lineHeight": 1.6,
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "rotation": 0,
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "scale": 1,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        }
+      },
+      "displayName": "GuestAutoName",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "-mSlBCK55C": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Thời gian:",
+        "top": 449.79400000000004,
+        "left": 33,
+        "width": 475,
+        "height": "auto",
+        "fontSize": 20,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "lineHeight": 1.31,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 6,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "WG4DAhTwrV": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "18 giờ 30 ngày 28/02/2026",
+        "top": 485.583,
+        "left": 33,
+        "width": 475,
+        "height": "auto",
+        "fontSize": 22,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "lineHeight": 1.31,
+        "letterSpacing": 1,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 6,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "ttArX0T4vK": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Địa chỉ:",
+        "top": 555,
+        "left": 33,
+        "width": 475,
+        "height": "auto",
+        "fontSize": 20,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "lineHeight": 1.31,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 6,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "ypXog4CXOp": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Nhà hàng Zen Restaurant",
+        "top": 591,
+        "left": 33,
+        "width": 475,
+        "height": "auto",
+        "fontSize": 22,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "lineHeight": 1.31,
+        "letterSpacing": 1,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 6,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "Zzsp2cQgit": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Rắn vàng tiễn Năm Cũ,<div>Ngựa May Rước Xuân Sang</div>",
+        "top": 710.857,
+        "left": 12.5,
+        "width": 475,
+        "height": "auto",
+        "fontSize": 26,
+        "fontFamily": "Artisan",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": "normal",
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 12,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "xcFaQPVcx0": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 660.209,
+        "left": 365.8,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 13,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "zYFQ9lwoP_": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 123.321,
+        "left": 0,
+        "width": 430,
+        "height": 149.306,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 1,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrrauby6qv9cv.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "09GG-Aotus": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 863.576,
+        "left": 349.8,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 13,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "ZCmS9NsiUO": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 960.239,
+        "left": 30.8361,
+        "width": 442.509,
+        "height": 394.27,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 16,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpb69ndhffzq0.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "zTPedIslW-": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Nhân dịp năm cũ sắp khép lại,<div><div>Tập đoàn Công nghệ ZenLove xin trân trọng gửi lời cảm ơn chân thành đến Quý vị đã luôn tin tưởng, đồng hành và ủng hộ chúng tôi trong suốt thời gian qua.</div><div><span style=\"letter-spacing: 0px; background-color: transparent;\">Để cùng nhau nhìn lại chặng đường đã qua và chào đón một năm mới với nhiều hy vọng và thành công,&nbsp;</span><span style=\"background-color: transparent; letter-spacing: 0px;\">chúng tôi trân trọng kính mời Quý vị tham dự Tiệc Tất Niên do công ty tổ chức.<br><br>Sự hiện diện của Quý vị là niềm vinh hạnh và góp phần làm cho buổi tiệc thêm trọn vẹn, ấm áp và ý nghĩa.</span></div></div>",
+        "top": 992.427,
+        "left": 43.96,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 19,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "justify",
+        "fontWeight": "normal",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "afC1iD9Wtk": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 910.939,
+        "left": 36.9904,
+        "width": 164.707,
+        "height": 76.1339,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 18,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/iconElements/mkdyap31bdbao6d0.webp",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "SUTpSY3shU": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "THƯ MỜI",
+        "top": 928.663,
+        "left": 57.99,
+        "width": 182.156,
+        "height": 28.0062,
+        "fontSize": 25,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "justify",
+        "fontWeight": "bold",
+        "lineHeight": 1.63,
+        "letterSpacing": 0.8,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(0, 0, 0, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 19,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "rOAOSOCgyT": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2180.0600000000004,
+        "left": 30.343099999999993,
+        "width": 443.491,
+        "height": 635.679,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 16,
+        "zenStockType": "svg",
+        "svgColor": "rgba(128, 14, 14, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpb69ndhffzq0.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "0bk41LJ-Qq": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Khoảnh khắc nổi bật",
+        "top": 2194.55,
+        "left": 43.529999999999994,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 24,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "i06B8iVhjB": {
+      "type": {
+        "resolvedName": "PhotoBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2255.54,
+        "left": 49.23,
+        "width": 405.8,
+        "height": 227.27,
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "imgKey": "/templates/dcdbb5fb-c2e1-409d-878c-531393fb0b1e/images/TnpJMFh6RTNOalkxTVRjNE56WmZiSFo0XzE3NjgzOTEzNjNfZjFj.png",
+        "alt": "",
+        "zIndex": 22,
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "unoptimized": false,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "isReplaceable": true,
+        "scale": 1
+      },
+      "displayName": "PhotoBox Item",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "RTHmucH4FG": {
+      "type": {
+        "resolvedName": "PhotoBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2498.2200000000003,
+        "left": 49.67999999999999,
+        "width": 197.9,
+        "height": 140.469,
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "imgKey": "/templates/dcdbb5fb-c2e1-409d-878c-531393fb0b1e/images/MTNiMTA1ZmRkYjFkNDc3NGJkMWUwM2FiYmZiNDA4OWFfMTc2ODM5MTM2Nl9rbDM.webp",
+        "alt": "",
+        "zIndex": 23,
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "unoptimized": false,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "isReplaceable": true,
+        "scale": 1
+      },
+      "displayName": "PhotoBox Item",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "oUtYLkiIQq": {
+      "type": {
+        "resolvedName": "PhotoBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2653.6900000000005,
+        "left": 49.23,
+        "width": 197.9,
+        "height": 140.469,
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "imgKey": "/templates/dcdbb5fb-c2e1-409d-878c-531393fb0b1e/images/NWYxNGFiYTRkNmEwNDY0MmJhYzdhY2YwZjIwM2M4NTZfMTc2ODM5MTM3M190NjA.webp",
+        "alt": "",
+        "zIndex": 23,
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "unoptimized": false,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "isReplaceable": true,
+        "previewKey": 1,
+        "scale": 1
+      },
+      "displayName": "PhotoBox Item",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "jC2wET4Ok-": {
+      "type": {
+        "resolvedName": "PhotoBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2498.9,
+        "left": 257.13,
+        "width": 197.9,
+        "height": 140.469,
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "imgKey": "/templates/dcdbb5fb-c2e1-409d-878c-531393fb0b1e/images/OTQ4ZDcwNjc4ZTY1NGQ5ZmEyNTkwZmRlNzdlYTFiMzVfMTc2ODM5MTM3MV9qcWs.webp",
+        "alt": "",
+        "zIndex": 23,
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "unoptimized": false,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "isReplaceable": true,
+        "previewKey": 1,
+        "scale": 1
+      },
+      "displayName": "PhotoBox Item",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "i32k8nQH_z": {
+      "type": {
+        "resolvedName": "PhotoBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2653.67,
+        "left": 257.13,
+        "width": 197.9,
+        "height": 140.469,
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "imgKey": "/templates/dcdbb5fb-c2e1-409d-878c-531393fb0b1e/images/MTNiMTA1ZmRkYjFkNDc3NGJkMWUwM2FiYmZiNDA4OWFfMTc2ODM5MTM2Nl9rbDM.webp",
+        "alt": "",
+        "zIndex": 23,
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "unoptimized": false,
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "isReplaceable": true,
+        "scale": 1
+      },
+      "displayName": "PhotoBox Item",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "89GPJ4Pgxr": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2912.19,
+        "left": 28.012600000000006,
+        "width": 443.491,
+        "height": 635.679,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 16,
+        "zenStockType": "svg",
+        "svgColor": "rgba(128, 14, 14, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpb69ndhffzq0.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "qy3yyqqHhd": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Xác nhận tham dự",
+        "top": 2931,
+        "left": 41.145,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 24,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "4BjmTz7mVm": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Quý Khách<div>vui lòng để lại xác nhận để</div><div>Chúng tôi có thể đón tiếp được chu đáo hơn</div><div>Trân trọng !</div>",
+        "top": 2976,
+        "left": 40.145,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 17,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "uBLFmwu_iO": {
+      "type": {
+        "resolvedName": "RsvpBoxV2"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 3093.52,
+        "left": 46.745000000000005,
+        "width": 405.2,
+        "height": 420.901,
+        "backgroundColor": "rgba(255, 255, 255, 0.00)",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "borderColor": "#e0e0e0",
+        "buttonColor": "rgba(247, 186, 134, 1.00)",
+        "buttonTextColor": "#ffffff",
+        "titleText": "Xác nhận tham dự",
+        "nameLabel": "Họ và tên",
+        "attendLabel": "Bạn sẽ tham dự chứ?",
+        "attendYesText": "Có, tôi sẽ tham dự",
+        "attendNoText": "Tôi bận, rất tiếc không thể tham dự",
+        "attendeeCountLabel": "Số lượng người tham dự",
+        "enableAttendeeCount": true,
+        "submitText": "Gửi xác nhận",
+        "enabledWhich": false,
+        "whichLabel": "Bạn là khách của",
+        "whichList": [
+          {
+            "label": "Nhà trai"
+          },
+          {
+            "label": "Nhà gái"
+          }
+        ],
+        "isContact": false,
+        "contactLabel": "Liên hệ của bạn (sđt hoặc email)",
+        "padding": [
+          16,
+          16,
+          16,
+          16
+        ],
+        "opacity": 1,
+        "rotation": 0,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "hasBoxShadow": true,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "fontSize": 14,
+        "fontFamily": "Arial",
+        "zIndex": 30,
+        "locked": false,
+        "iconRsvpToolbar": true,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "scale": 1
+      },
+      "displayName": "RsvpBoxV2",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "GmNpW-_tby": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1449.68,
+        "left": 29.1545,
+        "width": 443.491,
+        "height": 635.679,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          12,
+          12,
+          12,
+          12
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 16,
+        "zenStockType": "svg",
+        "svgColor": "rgba(128, 14, 14, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpb69ndhffzq0.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "wMLSNlq2Uj": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "thời gian &amp; sự kiện",
+        "top": 1463.89,
+        "left": 43,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 24,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "OEdr6hcfoj": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "tổ chức tại",
+        "top": 1529.8,
+        "left": 43,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 17,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "X_1cLYqhUy": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Zenlove restaurant",
+        "top": 1561.64,
+        "left": 44,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 29,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 1,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "c-IrwAi_5C": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Số 1 Lương Yên, Bạch Đằng, TP Hà Nội",
+        "top": 1603.28,
+        "left": 44,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 17,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "8lFOIzo4Gi": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "chỉ đường",
+        "top": 1651.03,
+        "left": 44.03,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 20,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "bold",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(247, 186, 134, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "https://share.google/eMZrbkAOxWbaw1IVi",
+        "continuousAnimation": {
+          "type": "wobble",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "itKMEnQ-s4": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "CHƯƠNG TRÌNH SỰ KIỆN",
+        "top": 1725.36,
+        "left": 43,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 17,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.6,
+        "letterSpacing": 0,
+        "textTransform": "uppercase",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "7_p1A6_P5t": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "14:00 – 14:30 Đón tiếp &amp; Check-in khách mời<div>14:30 – 15:00 MC phát biểu khai mạc</div><div>15:00 – 15:30 Tiết mục múa mở màn</div><div>15:30 – 17:00 Lãnh đạo phát biểu &amp; gửi lời tri ân</div><div>17:00 – 18:30 Khách mời trình bày chủ đề</div><div>18:30 – 20:00&nbsp;<span style=\"letter-spacing: 0px; background-color: transparent;\">Bốc thăm trúng thưởng</span></div><div><span style=\"letter-spacing: 0px; background-color: transparent;\">20:00 – 20:30 Tiệc tối tri ân</span></div>",
+        "top": 1781.57,
+        "left": 92.26,
+        "width": 371.97,
+        "height": 252.273,
+        "fontSize": 17,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "left",
+        "fontWeight": "normal",
+        "lineHeight": 2.12,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "ziI1uUVLXV": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1790.53,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "USeO_1O7pS": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1821.83,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "4N7Eq8_A_n": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1862.1299999999999,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "rr7yCBXtn_": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1896.4299999999998,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "gSBoFqdY5w": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1932.7299999999998,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "SFv7fBI0-Y": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1969.0299999999997,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "B8Fqnx76q0": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2004.3299999999997,
+        "left": 58.2,
+        "width": 16.3,
+        "height": 16.3,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 39,
+        "zenStockType": "svg",
+        "svgColor": "rgba(247, 186, 134, 1.00)",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/shapeElements/mguzpbvze96sua2w.svg",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "xEzEU8LhxB": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1389.88,
+        "left": 362,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 40,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "aCutNEsyaq": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2085.32,
+        "left": -19.1,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 40,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "rWsDRmWNb6": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2752.85625,
+        "left": 365.8,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 40,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "TkSOHSKQOq": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2910.43,
+        "left": -1.8,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 40,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "tkoM9E19ym": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 3472.9,
+        "left": 349.8,
+        "width": 150,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 40,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mkdxrr7ytaozboip.gif",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "3Vth354_DB": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 2902.9,
+        "left": 395.1,
+        "width": 83.8006,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 51,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "wiggle",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mguzklbpw62e1bnq.png",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "tBTlEJtfJd": {
+      "type": {
+        "resolvedName": "TextBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "text": "Thiết kế thiệp online tại ZenLove.Me",
+        "top": 3644.33,
+        "left": 44,
+        "width": 413.97,
+        "height": 322.842,
+        "fontSize": 17,
+        "fontFamily": "scarlet-bradley.regular",
+        "textAlign": "center",
+        "fontWeight": "normal",
+        "lineHeight": 1.4,
+        "letterSpacing": 0,
+        "textTransform": "none",
+        "textDecoration": "none",
+        "color": "rgba(255, 255, 255, 1.00)",
+        "backgroundColor": "transparent",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 0.59,
+        "rotation": 0,
+        "fontStyle": "normal",
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "hasTextShadow": false,
+        "textShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 5,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 17,
+        "locked": false,
+        "transition": {
+          "effectType": "fade-in",
+          "effectDuration": 1.6,
+          "effectDelay": 0,
+          "effectEasing": "ease-out",
+          "effectEnabled": false
+        },
+        "hyperlink": "",
+        "continuousAnimation": {
+          "type": "none",
+          "duration": 2,
+          "delay": 0
+        },
+        "scale": 1
+      },
+      "displayName": "TextBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    },
+    "3uqcBIJjuR": {
+      "type": {
+        "resolvedName": "ZenStockBox"
+      },
+      "isCanvas": false,
+      "props": {
+        "top": 1439.6,
+        "left": 8.4991,
+        "width": 83.8006,
+        "height": 150,
+        "backgroundColor": "transparent",
+        "color": "#999999",
+        "padding": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "shadow": 0,
+        "opacity": 1,
+        "rotation": 0,
+        "flipX": false,
+        "flipY": false,
+        "borderRadius": [
+          0,
+          0,
+          0,
+          0
+        ],
+        "borderPosition": "all",
+        "borderSize": 0,
+        "borderStyle": "solid",
+        "borderColor": "",
+        "hasBoxShadow": false,
+        "boxShadow": {
+          "offsetX": 0,
+          "offsetY": 0,
+          "blur": 10,
+          "spread": 0,
+          "color": "rgba(0, 0, 0, 0.5)"
+        },
+        "zIndex": 53,
+        "zenStockType": "img",
+        "svgColor": "#000000",
+        "locked": false,
+        "transition": {
+          "effectEnabled": false,
+          "effectType": "fade-in",
+          "effectDuration": 0.5,
+          "effectDelay": 0,
+          "effectEasing": "ease"
+        },
+        "continuousAnimation": {
+          "type": "wiggle",
+          "duration": 2,
+          "delay": 0
+        },
+        "imgKey": "resources/festivalElement/mguzklbpw62e1bnq.png",
+        "scale": 1
+      },
+      "displayName": "ZenStockBox",
+      "custom": {},
+      "parent": "ROOT",
+      "hidden": false,
+      "nodes": [],
+      "linkedNodes": {}
+    }
+  },
+  "clonedAt": "2026-10-05T10:46:52.862Z"
+}

@@ -47,6 +47,19 @@ export async function PUT(request: NextRequest, { params }: Params) {
   const { id } = params;
   try {
     const body = await request.json();
+
+    // Multi-tenancy check: Bảo vệ quyền sở hữu thiệp
+    const existing = await getCardByIdOrSlugFromDb(id);
+    if (existing && existing.userId) {
+      const requesterUserId = body.userId || request.headers.get("x-user-id");
+      if (requesterUserId && requesterUserId !== existing.userId) {
+        return NextResponse.json(
+          { success: false, message: "Bạn không có quyền chỉnh sửa thiệp cưới này" },
+          { status: 403 }
+        );
+      }
+    }
+
     const updated = await upsertCardToDb({
       ...body,
       id,
@@ -80,6 +93,19 @@ export async function PUT(request: NextRequest, { params }: Params) {
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = params;
   try {
+    // Multi-tenancy check: Bảo vệ quyền xóa thiệp
+    const existing = await getCardByIdOrSlugFromDb(id);
+    if (existing && existing.userId) {
+      const requesterUserId =
+        request.nextUrl.searchParams.get("userId") || request.headers.get("x-user-id");
+      if (requesterUserId && requesterUserId !== existing.userId) {
+        return NextResponse.json(
+          { success: false, message: "Bạn không có quyền xóa thiệp cưới này" },
+          { status: 403 }
+        );
+      }
+    }
+
     const ok = await deleteCardFromDb(id);
     if (!ok) {
       return NextResponse.json(
@@ -101,3 +127,4 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     );
   }
 }
+

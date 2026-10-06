@@ -36,7 +36,7 @@ export default function ZenlovePreviewModal({
   const [isLiked, setIsLiked] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [likes, setLikes] = useState(0);
-  const [previewMode, setPreviewMode] = useState<"image" | "interactive">("image");
+  const [previewMode, setPreviewMode] = useState<"image" | "interactive">("interactive");
   const [isCloning, setIsCloning] = useState(false);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function ZenlovePreviewModal({
       setLikes(template.likeCount || 0);
       setIsLiked(false);
       setIsPlayingMusic(true);
-      setPreviewMode("image");
+      setPreviewMode("interactive");
       setIsCloning(false);
     }
   }, [template]);
@@ -146,7 +146,7 @@ export default function ZenlovePreviewModal({
               {previewMode === "interactive" ? (
                 <div className="flex-1 w-full h-full relative overflow-hidden bg-[#faf7f2]">
                   <iframe
-                    src={`/show/${template.slug}`}
+                    src={`/show/${template.slug || template.id}`}
                     className="w-full h-full border-0"
                     title={template.name}
                   />

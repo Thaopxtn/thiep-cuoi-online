@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  Wand2,
   Type,
   Image as ImageIcon,
   Palette,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 
 export type EditorToolTab =
+  | "autofill"
   | "text"
   | "image"
   | "background"
@@ -41,7 +43,13 @@ export default function EditorLeftRail({
   isDrawerOpen,
   onToggleDrawer,
 }: EditorLeftRailProps) {
-  const railItems: Array<{ id: EditorToolTab; label: string; icon: React.ReactNode }> = [
+  const railItems: Array<{ id: EditorToolTab; label: string; icon: React.ReactNode; isSpecial?: boolean }> = [
+    {
+      id: "autofill",
+      label: "Tự động điền",
+      icon: <Wand2 className="w-4 h-4" />,
+      isSpecial: true,
+    },
     { id: "text", label: "Văn bản", icon: <Type className="w-4 h-4" /> },
     { id: "image", label: "Hình ảnh", icon: <ImageIcon className="w-4 h-4" /> },
     { id: "background", label: "Nền", icon: <Palette className="w-4 h-4" /> },
@@ -74,18 +82,23 @@ export default function EditorLeftRail({
               key={item.id}
               type="button"
               onClick={() => handleClick(item.id)}
-              className={`w-full py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all text-center ${
+              className={`w-full py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all text-center relative ${
                 isActive
                   ? "bg-rose-50 text-zen-primary font-bold shadow-2xs"
+                  : item.isSpecial
+                  ? "text-[#e54153] hover:bg-rose-50/60 font-semibold"
                   : "text-gray-500 hover:text-gray-900 hover:bg-gray-100/70"
               }`}
             >
-              <div className={isActive ? "text-zen-primary" : "text-gray-500"}>
+              <div className={isActive ? "text-zen-primary" : item.isSpecial ? "text-[#e54153]" : "text-gray-500"}>
                 {item.icon}
               </div>
               <span className="text-[10px] leading-none tracking-tight">
                 {item.label}
               </span>
+              {item.isSpecial && !isActive && (
+                <span className="w-1.5 h-1.5 rounded-full bg-[#e54153] absolute top-1.5 right-1.5" />
+              )}
             </button>
           );
         })}

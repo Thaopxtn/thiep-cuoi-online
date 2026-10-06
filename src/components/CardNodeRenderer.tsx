@@ -10,7 +10,14 @@ import {
   CheckCircle,
 } from "lucide-react";
 
-import { handleImageFallback } from "@/lib/imageUtils";
+import {
+  handleImageFallback,
+  getSafeImageUrl,
+  isDecorativeAsset,
+  FALLBACK_WEDDING_IMG,
+  DEFAULT_WEDDING_BACKGROUND,
+} from "@/lib/imageUtils";
+import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
@@ -36,11 +43,12 @@ export default function CardNodeRenderer({
   const baseHeight = Number(rootProps.height) || 4500;
   const backgroundColor = rootProps.backgroundColor || "#ffffff";
   const bgImg = rootProps.backgroundImage;
-  const backgroundImage = bgImg
-    ? (bgImg.startsWith("http") || bgImg.startsWith("blob:") || bgImg.startsWith("data:") || bgImg.startsWith("/uploads") || bgImg.startsWith("/")
-        ? bgImg
-        : `https://cdn-resource.zenlove.me/${bgImg.replace(/^\//, "")}`)
-    : null;
+  const rawBg = bgImg ? getSafeImageUrl(bgImg, "") : "";
+  // Tự động sử dụng texture hoa văn cung điện hoàng gia tinh tế khi mẫu không có hình nền
+  const backgroundImage =
+    rawBg && rawBg.trim().length > 0 && !rawBg.endsWith("/none")
+      ? rawBg
+      : DEFAULT_WEDDING_BACKGROUND;
 
   // Responsive scale factor calculation to fit any mobile viewport perfectly
   useEffect(() => {
@@ -82,9 +90,7 @@ export default function CardNodeRenderer({
   );
 
   const getImageUrl = (key?: string) => {
-    if (!key) return "";
-    if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
-    return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
+    return getSafeImageUrl(key, "");
   };
 
   return (
@@ -166,7 +172,13 @@ export default function CardNodeRenderer({
                   <img
                     src={getImageUrl(props.imgKey)}
                     alt={props.alt || ""}
-                    onError={(e) => handleImageFallback(e)}
+                    onError={(e) =>
+                      handleImageFallback(
+                        e,
+                        undefined,
+                        !props.isReplaceable || isDecorativeAsset(props.imgKey)
+                      )
+                    }
                     className="w-full h-full object-cover select-none pointer-events-none"
                     style={{
                       filter: props.filterStyle || undefined,
@@ -246,7 +258,7 @@ export default function CardNodeRenderer({
                     <img
                       src={getImageUrl(props.imgList[0]?.imageKey || props.imgList[0]?.src)}
                       alt="Wedding Gallery"
-                      onError={(e) => handleImageFallback(e)}
+                      onError={(e) => handleImageFallback(e, FALLBACK_WEDDING_IMG, false)}
                       className="w-full h-full object-cover select-none pointer-events-none"
                       draggable={false}
                     />
@@ -327,25 +339,58 @@ export default function CardNodeRenderer({
                 </button>
               )}
 
-              {/* Gift QR Box */}
-              {type === "GiftQrBox" && (
-                <div
-                  onClick={onOpenGiftQr}
-                  className="w-full h-full flex flex-col items-center justify-center p-3 text-center cursor-pointer group"
-                >
-                  {props.imgKey && (
-                    <img
-                      src={getImageUrl(props.imgKey)}
-                      alt="Gift"
-                      onError={(e) => handleImageFallback(e)}
-                      className="w-20 h-20 object-contain group-hover:scale-105 transition-transform"
-                    />
-                  )}
-                  <span className="text-xs font-bold text-[#590310] mt-1 group-hover:underline">
-                    {props.modalTitle || "Hộp Quà Mừng Cưới"}
-                  </span>
-                </div>
-              )}
+              {/* Gift QR Box - Hiển thị mã VietQR thật 100% */}
+              {type === "GiftQrBox" && (() => {
+                const isRealQrKey =
+                  props.imgKey &&
+                  (props.imgKey.includes("vietqr.io") || props.imgKey.includes("vietqr"));
+
+                const qrUrl = isRealQrKey
+                  ? props.imgKey
+                  : generateVietQrUrl(
+                      props.bankName || "MB BANK",
+                      props.accountNumber || "240220038888",
+                      props.accountName || "NGUYEN VAN HUNG",
+                      undefined,
+                      "Mung cuoi hai ban"
+                    );
+
+                return (
+                  <div
+                    onClick={onOpenGiftQr}
+                    className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200/80 shadow-md flex flex-col items-center justify-between text-center cursor-pointer group hover:shadow-xl hover:border-rose-400 transition-all select-none"
+                    title="Chạm để mở Hộp Quà Mừng Cưới"
+                  >
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full">
+                      <span>🎁</span>
+                      <span>{props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)"}</span>
+                    </div>
+
+                    {/* Khung Mã QR Chuẩn Napas 24/7 Thật */}
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
+                      <img
+                        src={qrUrl}
+                        alt="Mã VietQR Mừng Cưới"
+                        onError={(e) => handleImageFallback(e, undefined, false)}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-bold text-gray-800">
+                        {props.bankName || "MB BANK"} • {props.accountNumber || "240220038888"}
+                      </p>
+                      <p className="text-[10px] text-gray-500 uppercase font-semibold truncate max-w-[190px]">
+                        {props.accountName || "NGUYEN VAN HUNG"}
+                      </p>
+                    </div>
+
+                    <span className="text-[10px] text-rose-600 font-bold group-hover:underline">
+                      Chạm để mở STK Cô Dâu & Chú Rể ↗
+                    </span>
+                  </div>
+                );
+              })()}
 
               {/* RSVP Form Box */}
               {type === "RsvpBoxV2" && (

@@ -196,14 +196,14 @@ export default function GuideStepsSection() {
         </div>
 
         <div className="text-center mt-2.5">
-          <a
+          <Link
             className="text-sm text-gray-500 italic hover:text-primary transition-colors underline-offset-4 hover:underline"
             title="Xem hướng dẫn chi tiết tạo thiệp trên ZenLove"
             aria-label="Xem hướng dẫn chi tiết tạo thiệp trên ZenLove"
-            href="#faq"
+            href="/tao-thiep-cuoi-online"
           >
             Xem hướng dẫn chi tiết
-          </a>
+          </Link>
         </div>
       </div>
 

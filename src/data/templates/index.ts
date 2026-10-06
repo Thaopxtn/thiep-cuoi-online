@@ -16,14 +16,9 @@ import { ZENLOVE_PRESET_TEMPLATES } from "@/data/zenlovePresets";
 export * from "./types";
 export * from "./recipes";
 
-// Combine all ZenLove real templates + local crafted presets, deduplicating by ID
+// Chỉ dùng các mẫu thiệp cưới clone thực sự từ trang chủ ZenLove
 const rawPresets: TemplateItem[] = [
   ...ZENLOVE_PRESET_TEMPLATES,
-  ...WEDDING_PRESETS,
-  ...GRADUATION_PRESETS,
-  ...BIRTHDAY_PRESETS,
-  ...ANNIVERSARY_PRESETS,
-  ...EVENT_PRESETS,
 ];
 
 const presetMap = new Map<string, TemplateItem>();

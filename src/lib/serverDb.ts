@@ -91,6 +91,18 @@ function mapDbToCard(row: any): WeddingCard {
     wishes: Array.isArray(row.wishes) ? row.wishes : [],
     nodes,
     userId: row.groom?.userId || row.userId || undefined,
+    showGiftBox:
+      row.showGiftBox !== undefined
+        ? Boolean(row.showGiftBox)
+        : (row.groom?.showGiftBox !== undefined ? Boolean(row.groom.showGiftBox) : true),
+    showWishes:
+      row.showWishes !== undefined
+        ? Boolean(row.showWishes)
+        : (row.groom?.showWishes !== undefined ? Boolean(row.groom.showWishes) : true),
+    showRsvp:
+      row.showRsvp !== undefined
+        ? Boolean(row.showRsvp)
+        : (row.groom?.showRsvp !== undefined ? Boolean(row.groom.showRsvp) : true),
   };
 }
 
@@ -185,8 +197,15 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       groom: {
         ...(card.groom || {}),
         userId: card.userId || (card.groom as any)?.userId,
+        accountName: card.groom?.accountName || card.groom?.name,
+        showGiftBox: card.showGiftBox,
+        showWishes: card.showWishes,
+        showRsvp: card.showRsvp,
       },
-      bride: card.bride || {},
+      bride: {
+        ...(card.bride || {}),
+        accountName: card.bride?.accountName || card.bride?.name,
+      },
       events: card.events || [],
       albumImages: card.album || [],
       musicUrl: card.musicUrl || "",

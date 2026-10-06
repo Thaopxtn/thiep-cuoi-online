@@ -40,6 +40,7 @@ import {
   CloudOff,
   CheckCircle2,
   AlertTriangle,
+  Search,
 } from "lucide-react";
 import { TemplateItem, TEMPLATES_DATA } from "@/data/templatesData";
 import { TemplateModule, ModuleType } from "@/components/modules/types";
@@ -49,6 +50,9 @@ import {
   SAMPLE_PHOTOS,
   createModuleInstance,
 } from "@/lib/availableModules";
+import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
+import { convertZenLoveToTemplateItem } from "@/data/zenlovePresets";
+import { generateDefaultModules } from "@/data/templates";
 import {
   saveCustomTemplate,
   getStoredTemplateById,
@@ -70,7 +74,17 @@ import ImportTemplateModal from "@/components/templates/ImportTemplateModal";
 function TemplateBuilderInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get("id");
+  const editId =
+    searchParams.get("id") ||
+    searchParams.get("template") ||
+    searchParams.get("slug") ||
+    searchParams.get("clone");
+
+  // Tự động chuyển hướng sang Studio Thiết kế Canvas hiện đại (/design-template/[id])
+  useEffect(() => {
+    const target = editId || "8c5055d8-30db-4b38-8831-e11063e3d352";
+    router.replace(`/design-template/${target}`);
+  }, [editId, router]);
 
   // Template State
   const [template, setTemplate] = useState<TemplateItem>(() => {
@@ -78,7 +92,7 @@ function TemplateBuilderInner() {
     const preset = TEMPLATE_PRESETS[0];
     const defaultData = { ...TEMPLATES_DATA[0].defaultData };
     return {
-      id: `custom-tpl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      id: "custom-tpl-starter",
       title: "Mẫu Thiệp Cưới Hoàng Gia Mới",
       slug: "thiep-cuoi-hoang-gia-moi",
       category: "wedding",
@@ -91,7 +105,10 @@ function TemplateBuilderInner() {
       views: 1,
       description: "Mẫu thiệp sang trọng được tạo bởi ZenLove Template Studio",
       type: "wedding",
-      modules: preset.moduleTypes.map((t) => createModuleInstance(t, defaultData)),
+      modules: preset.moduleTypes.map((t, idx) => ({
+        ...createModuleInstance(t, defaultData),
+        id: `mod-init-${t}-${idx}`,
+      })),
       defaultData,
     };
   });
@@ -101,8 +118,10 @@ function TemplateBuilderInner() {
     return template.modules && template.modules.length > 0 ? template.modules[0].id : null;
   });
 
-  // Navigation Tabs
-  const [leftTab, setLeftTab] = useState<"structure" | "catalog" | "presets">("structure");
+  // Navigation Tabs & Viewport
+  const [leftTab, setLeftTab] = useState<"structure" | "catalog" | "cloned" | "presets">("structure");
+  const [clonedSearch, setClonedSearch] = useState<string>("");
+  const [previewMode, setPreviewMode] = useState<"modules" | "live_clone">("modules");
   const [rightTab, setRightTab] = useState<"props" | "eventData" | "metadata">("props");
   const [viewportMode, setViewportMode] = useState<"mobile" | "tablet" | "desktop">("mobile");
   const [zoomScale, setZoomScale] = useState<number>(1);
@@ -173,36 +192,19 @@ function TemplateBuilderInner() {
     markDirty();
   }, [template, markDirty]);
 
-  // Warn before leaving with unsaved changes
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirtyRef.current) {
-        e.preventDefault();
-        e.returnValue = "Bạn có thay đổi chưa lưu. Bạn có chắc muốn rời không?";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, []);
+
+  // Pending draft for non-blocking notification
+  const [pendingDraft, setPendingDraft] = useState<TemplateItem | null>(null);
 
   // Load draft on mount (if no editId)
   useEffect(() => {
     if (!editId) {
       const draft = loadDraft();
       if (draft && draft.title) {
-        // Only restore draft if user confirms
-        const shouldRestore = window.confirm(
-          `Phát hiện bản nháp chưa lưu: "${draft.title}". Bạn có muốn tiếp tục chỉnh sửa không?`
-        );
-        if (shouldRestore) {
-          setTemplate(draft);
-          setSelectedModuleId(draft.modules?.[0]?.id || null);
-        } else {
-          clearDraft();
-        }
+        setPendingDraft(draft);
       }
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -211,29 +213,148 @@ function TemplateBuilderInner() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Load existing template if editId is provided
+  // Load existing template if editId/template query is provided
   useEffect(() => {
     if (editId) {
       hydrateStorage().then(() => {
+        // 1. Kiểm tra trong custom templates đã lưu trong máy
         const found = getStoredTemplateById(editId);
         if (found) {
           setTemplate(found);
           setSelectedModuleId(found.modules?.[0]?.id || null);
+          return;
         }
+
+        // 2. Kiểm tra trong danh sách 20 mẫu ZenLove clone
+        const zenFound = ZENLOVE_TEMPLATES.find(
+          (z) => z.id === editId || z.slug === editId
+        );
+        if (zenFound) {
+          const converted = convertZenLoveToTemplateItem(zenFound);
+          const modules = generateDefaultModules(converted);
+          setTemplate({
+            ...converted,
+            modules,
+          });
+          setSelectedModuleId(modules[0]?.id || null);
+          showToast(`Đã nạp mẫu clone "${zenFound.name}" từ ZenLove! ✨`);
+          return;
+        }
+
+        // 3. Kiểm tra nếu là thiệp khách hàng hoặc mẫu clone trong cache
+        fetch(`/api/zenlove-template/${editId}`)
+          .then((res) => (res.ok ? res.json() : null))
+          .then((resJson) => {
+            if (resJson?.success && resJson.data) {
+              const cardData = resJson.data;
+              const convertedZen: ZenLoveTemplate = {
+                id: cardData.id || editId,
+                name: cardData.name || `Thiệp Khách Hàng ${editId}`,
+                slug: cardData.slugShow || cardData.slug || editId,
+                description: "Mẫu thiệp khách hàng",
+                categoryId: "custom",
+                categoryName: "Khách hàng",
+                categorySlug: "khach-hang",
+                imageUrl: cardData.thumbnail || "",
+                templateType: "custom",
+                targetPageType: "CANVAS",
+                likeCount: 0,
+                viewCount: 0,
+                usageCount: 0,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                musicName: cardData.audioSettings?.musicTitle || "Bản nhạc cưới",
+                musicUrl: cardData.audioSettings?.fileUrl || "",
+              };
+              const converted = convertZenLoveToTemplateItem(convertedZen);
+              const modules = generateDefaultModules(converted);
+              setTemplate({
+                ...converted,
+                modules,
+              });
+              setSelectedModuleId(modules[0]?.id || null);
+              showToast(`Đã nạp thiệp khách hàng "${convertedZen.name}" vào Studio! ✨`);
+            }
+          })
+          .catch((e) => console.warn("Lỗi nạp thiệp khách hàng vào studio:", e));
       });
     }
   }, [editId]);
+
+  // Danh sách các mẫu ZenLove clone được lọc theo từ khóa tìm kiếm
+  const filteredClonedTemplates = useMemo(() => {
+    if (!clonedSearch.trim()) return ZENLOVE_TEMPLATES;
+    const q = clonedSearch.toLowerCase().trim();
+    return ZENLOVE_TEMPLATES.filter(
+      (t) =>
+        t.name.toLowerCase().includes(q) ||
+        (t.slug && t.slug.toLowerCase().includes(q))
+    );
+  }, [clonedSearch]);
+
+  // Áp dụng mẫu ZenLove clone vào Studio
+  const handleApplyClonedTemplate = (zen: ZenLoveTemplate) => {
+    const converted = convertZenLoveToTemplateItem(zen);
+    const modules = generateDefaultModules(converted);
+    const newTpl: TemplateItem = {
+      ...converted,
+      id: `custom-from-${zen.slug || zen.id}-${Date.now().toString(36)}`,
+      title: `${zen.name} (Tùy biến)`,
+      slug: `${zen.slug || zen.id}-custom`,
+      modules,
+    };
+    setTemplate(newTpl);
+    setSelectedModuleId(modules[0]?.id || null);
+    setLeftTab("structure");
+    showToast(`Đã nạp mẫu clone "${zen.name}" vào Studio! 🎨`);
+  };
 
   // Selected module reference
   const selectedModule = useMemo(() => {
     return template.modules?.find((m) => m.id === selectedModuleId) || null;
   }, [template.modules, selectedModuleId]);
 
-  // Synchronize formData updates to modules
+  // Đồng bộ thời gian thực dữ liệu mẫu vào toàn bộ module liên quan
   const handleUpdateDefaultData = (field: string, value: any) => {
     setTemplate((prev) => {
       const updatedData = { ...prev.defaultData, [field]: value };
-      return { ...prev, defaultData: updatedData };
+      const updatedModules = prev.modules?.map((m) => {
+        const nextProps = { ...m.props };
+        if (field === "eventTitle") {
+          if ("title" in nextProps) nextProps.title = value;
+          if ("eventTitle" in nextProps) nextProps.eventTitle = value;
+        }
+        if (field === "person1") {
+          if ("person1" in nextProps) nextProps.person1 = value;
+          if ("groomName" in nextProps) nextProps.groomName = value;
+        }
+        if (field === "person2") {
+          if ("person2" in nextProps) nextProps.person2 = value;
+          if ("brideName" in nextProps) nextProps.brideName = value;
+        }
+        if (field === "date") {
+          if ("date" in nextProps) nextProps.date = value;
+        }
+        if (field === "time") {
+          if ("time" in nextProps) nextProps.time = value;
+        }
+        if (field === "venue") {
+          if ("venue" in nextProps) nextProps.venue = value;
+          if ("event1Venue" in nextProps) nextProps.event1Venue = value;
+        }
+        if (field === "address") {
+          if ("address" in nextProps) nextProps.address = value;
+        }
+        if (field === "quote") {
+          if ("quote" in nextProps) nextProps.quote = value;
+        }
+        if (field === "mainPhoto") {
+          if ("heroPhoto" in nextProps) nextProps.heroPhoto = value;
+          if ("mainPhoto" in nextProps) nextProps.mainPhoto = value;
+        }
+        return { ...m, props: nextProps };
+      });
+      return { ...prev, defaultData: updatedData, modules: updatedModules };
     });
   };
 
@@ -241,9 +362,22 @@ function TemplateBuilderInner() {
   const handleUpdateBankInfo = (field: string, value: string) => {
     setTemplate((prev) => {
       const updatedBank = { ...prev.defaultData.bankInfo, [field]: value };
+      const updatedModules = prev.modules?.map((m) => {
+        if (m.type === "gift-bank") {
+          return {
+            ...m,
+            props: {
+              ...m.props,
+              [field]: value,
+            },
+          };
+        }
+        return m;
+      });
       return {
         ...prev,
         defaultData: { ...prev.defaultData, bankInfo: updatedBank },
+        modules: updatedModules,
       };
     });
   };
@@ -352,7 +486,7 @@ function TemplateBuilderInner() {
   // Save to Storage
   const handleSaveToStore = () => {
     if (!template.title.trim()) {
-      alert("Vui lòng đặt tên cho mẫu template!");
+      showToast("Vui lòng đặt tên cho mẫu template! ⚠️");
       return;
     }
 
@@ -370,7 +504,7 @@ function TemplateBuilderInner() {
       showToast("Đã lưu Template vào Kho thành công! 💾");
     } else {
       setSaveStatus("error");
-      alert(`Lỗi khi lưu: ${res.error}`);
+      showToast(`Lỗi khi lưu: ${res.error} ❌`);
     }
   };
 
@@ -520,6 +654,28 @@ function TemplateBuilderInner() {
             </div>
           )}
 
+          {/* Live Preview Tab */}
+          <Link
+            href={`/show/${template.slug?.replace(/-custom$/, "") || template.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold transition-colors flex items-center gap-1.5 border border-stone-700"
+            title="Mở thiệp xem thực tế trên tab mới"
+          >
+            <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden md:inline">Xem Thiệp Live</span>
+          </Link>
+
+          {/* Canvas Editor Jump */}
+          <Link
+            href={`/design-template/${template.slug?.replace(/-custom$/, "") || template.id}`}
+            className="px-2.5 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 text-xs font-semibold transition-colors flex items-center gap-1.5 border border-stone-700"
+            title="Chuyển sang Canvas Editor chỉnh sửa tự do từng layer (Craft.js)"
+          >
+            <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden md:inline">Canvas Editor</span>
+          </Link>
+
           {/* Import JSON */}
           <button
             onClick={() => setIsImportOpen(true)}
@@ -551,6 +707,40 @@ function TemplateBuilderInner() {
         </div>
       </header>
 
+      {/* Non-blocking Draft Recovery Banner */}
+      {pendingDraft && (
+        <div className="bg-amber-950/90 border-b border-amber-600/40 text-amber-200 px-4 py-2 text-xs flex items-center justify-between z-30 shrink-0 animate-slide-in">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <span>
+              Phát hiện bản nháp chưa lưu gần nhất: <strong className="text-white">&quot;{pendingDraft.title}&quot;</strong>
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => {
+                setTemplate(pendingDraft);
+                setSelectedModuleId(pendingDraft.modules?.[0]?.id || null);
+                setPendingDraft(null);
+                showToast("Đã khôi phục bản nháp! ✨");
+              }}
+              className="px-3 py-1 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-xs font-bold transition-all shadow-sm"
+            >
+              Khôi phục bản nháp
+            </button>
+            <button
+              onClick={() => {
+                clearDraft();
+                setPendingDraft(null);
+              }}
+              className="px-2.5 py-1 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs transition-colors"
+            >
+              Bỏ qua
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ================= THREE-PANEL STUDIO LAYOUT ================= */}
       <div className="flex-1 flex overflow-hidden">
         {/* ================= LEFT PANEL: Structure, Catalog & Presets ================= */}
@@ -559,36 +749,47 @@ function TemplateBuilderInner() {
           <div className="flex border-b border-stone-800 p-1.5 gap-1 bg-stone-900/60">
             <button
               onClick={() => setLeftTab("structure")}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
                 leftTab === "structure"
                   ? "bg-stone-800 text-white shadow-xs"
                   : "text-stone-400 hover:text-white"
               }`}
             >
-              <Layers className="w-3.5 h-3.5" />
+              <Layers className="w-3 h-3" />
               <span>Cấu trúc ({template.modules?.length || 0})</span>
             </button>
             <button
               onClick={() => setLeftTab("catalog")}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
                 leftTab === "catalog"
                   ? "bg-stone-800 text-white shadow-xs"
                   : "text-stone-400 hover:text-white"
               }`}
             >
-              <Plus className="w-3.5 h-3.5 text-zen-primary" />
-              <span>Thêm Module</span>
+              <Plus className="w-3 h-3 text-zen-primary" />
+              <span>Thêm</span>
+            </button>
+            <button
+              onClick={() => setLeftTab("cloned")}
+              className={`flex-1 py-1.5 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
+                leftTab === "cloned"
+                  ? "bg-rose-950/80 text-rose-300 border border-rose-500/30 shadow-xs"
+                  : "text-stone-400 hover:text-white"
+              }`}
+            >
+              <Sparkles className="w-3 h-3 text-rose-400" />
+              <span>Clone ({ZENLOVE_TEMPLATES.length})</span>
             </button>
             <button
               onClick={() => setLeftTab("presets")}
-              className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+              className={`flex-1 py-1.5 px-1.5 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 ${
                 leftTab === "presets"
                   ? "bg-stone-800 text-white shadow-xs"
                   : "text-stone-400 hover:text-white"
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Mẫu sẵn</span>
+              <FolderHeart className="w-3 h-3 text-amber-400" />
+              <span>Khung sẵn</span>
             </button>
           </div>
 
@@ -770,7 +971,82 @@ function TemplateBuilderInner() {
               </div>
             )}
 
-            {/* TAB 3: PRESET BLUEPRINTS */}
+            {/* TAB 3: ZENLOVE CLONED TEMPLATES */}
+            {leftTab === "cloned" && (
+              <div className="space-y-3">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-stone-500 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm mẫu clone ZenLove..."
+                    value={clonedSearch}
+                    onChange={(e) => setClonedSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 bg-stone-900 border border-stone-800 rounded-xl text-xs text-white placeholder-stone-500 focus:outline-none focus:border-zen-primary"
+                  />
+                </div>
+
+                <p className="text-[11px] text-stone-400">
+                  {filteredClonedTemplates.length} mẫu thiệp cưới clone thực tế từ ZenLove. Chọn mẫu để nạp cấu trúc vào Studio:
+                </p>
+
+                <div className="space-y-2.5">
+                  {filteredClonedTemplates.map((zen) => (
+                    <div
+                      key={zen.id}
+                      className="p-2.5 rounded-xl border border-stone-800 bg-stone-900 hover:border-zen-primary/50 transition-all flex flex-col gap-2 group"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-12 h-16 rounded-lg overflow-hidden bg-rose-50 flex-shrink-0 border border-stone-700">
+                          <img
+                            src={zen.imageUrl}
+                            alt={zen.name}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            loading="lazy"
+                          />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <h4 className="text-xs font-bold text-white group-hover:text-zen-primary transition-colors truncate">
+                              {zen.name}
+                            </h4>
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 flex-shrink-0">
+                              {zen.templateType === "hot" ? "HOT" : "FREE"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] font-mono text-stone-400 truncate mt-0.5">
+                            slug: {zen.slug}
+                          </p>
+                          <p className="text-[10px] text-stone-500 truncate mt-0.5">
+                            {zen.description || "Mẫu thiệp cưới online đẹp chuẩn ZenLove"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 pt-1 border-t border-stone-800">
+                        <button
+                          type="button"
+                          onClick={() => handleApplyClonedTemplate(zen)}
+                          className="flex-1 py-1.5 rounded-lg bg-zen-primary hover:bg-red-600 text-white text-[11px] font-bold transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>Nạp vào Studio</span>
+                        </button>
+                        <Link
+                          href={`/design-template/${zen.slug || zen.id}`}
+                          className="py-1.5 px-2.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-stone-300 text-[11px] font-semibold transition-colors flex items-center justify-center gap-1"
+                          title="Mở trong Canvas Editor"
+                        >
+                          <Maximize2 className="w-3 h-3 text-amber-400" />
+                          <span>Canvas</span>
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* TAB 4: PRESET BLUEPRINTS */}
             {leftTab === "presets" && (
               <div className="space-y-3">
                 <p className="text-xs text-stone-400">
@@ -816,39 +1092,78 @@ function TemplateBuilderInner() {
         <main className="flex-1 bg-stone-900 flex flex-col items-center justify-center p-4 overflow-hidden relative">
           {/* Canvas Sub-bar */}
           <div className="absolute top-3 inset-x-0 flex items-center justify-between px-6 z-10 pointer-events-none">
-            <div className="pointer-events-auto flex items-center gap-2 bg-stone-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-800 text-xs">
-              <span className="text-stone-400">Góc nhìn:</span>
-              <span className="font-bold text-white capitalize">{viewportMode}</span>
-              <span className="text-stone-500">•</span>
-              <span className="text-stone-400">Modules hiển thị:</span>
-              <span className="font-bold text-emerald-400">
-                {template.modules?.filter((m) => m.enabled).length || 0}
-              </span>
+            <div className="pointer-events-auto flex items-center gap-2">
+              <div className="flex items-center gap-2 bg-stone-950/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-stone-800 text-xs">
+                <span className="text-stone-400">Góc nhìn:</span>
+                <span className="font-bold text-white capitalize">{viewportMode}</span>
+              </div>
+
+              {/* Mode Switcher */}
+              <div className="flex items-center gap-1 bg-stone-950/90 backdrop-blur-md p-1 rounded-full border border-stone-800 text-xs shadow-lg">
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("modules")}
+                  className={`px-3 py-1 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
+                    previewMode === "modules"
+                      ? "bg-stone-800 text-white shadow-xs"
+                      : "text-stone-400 hover:text-white"
+                  }`}
+                  title="Xem giao diện theo từng Module kéo thả"
+                >
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>Giao diện Modules ({template.modules?.filter((m) => m.enabled).length || 0})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewMode("live_clone")}
+                  className={`px-3 py-1 rounded-full font-semibold transition-all flex items-center gap-1.5 ${
+                    previewMode === "live_clone"
+                      ? "bg-zen-primary text-white shadow-md shadow-zen-primary/30"
+                      : "text-stone-400 hover:text-white"
+                  }`}
+                  title="Xem thiệp cưới thực tế với phong bì, nhạc nền và tương tác"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Thiệp Thực Tế (ZenLove)</span>
+                </button>
+              </div>
             </div>
 
             <div className="pointer-events-auto flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setShowOpeningIntro(!showOpeningIntro)}
-                className={`px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all flex items-center gap-1.5 ${
-                  showOpeningIntro
-                    ? "bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/30"
-                    : "bg-stone-950/80 text-stone-300 border-stone-800 hover:text-white"
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Hiệu ứng mở bì thư: {showOpeningIntro ? "BẬT" : "TẮT"}</span>
-              </button>
+              {previewMode === "modules" && (
+                <button
+                  type="button"
+                  onClick={() => setShowOpeningIntro(!showOpeningIntro)}
+                  className={`px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all flex items-center gap-1.5 ${
+                    showOpeningIntro
+                      ? "bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/30"
+                      : "bg-stone-950/80 text-stone-300 border-stone-800 hover:text-white"
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Hiệu ứng mở bì thư: {showOpeningIntro ? "BẬT" : "TẮT"}</span>
+                </button>
+              )}
 
-              <button
-                type="button"
-                onClick={handleSaveAndOpenLive}
+              <Link
+                href={`/design-template/${template.slug?.replace(/-custom$/, "") || template.id}`}
                 className="px-3 py-1.5 rounded-full bg-stone-950/80 hover:bg-stone-950 text-stone-300 hover:text-white border border-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                title="Mở trong trình chỉnh sửa chi tiết"
+                title="Mở trong Canvas Editor để kéo thả từng layer TextBox, ảnh, sticker"
               >
-                <ExternalLink className="w-3.5 h-3.5" />
-                <span>Mở xem thử</span>
-              </button>
+                <Maximize2 className="w-3.5 h-3.5 text-amber-400" />
+                <span>Canvas Editor</span>
+              </Link>
+
+              <Link
+                href={`/show/${template.slug?.replace(/-custom$/, "") || template.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1.5 rounded-full bg-stone-950/80 hover:bg-stone-950 text-stone-300 hover:text-white border border-stone-800 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                title="Mở thiệp trong tab mới"
+              >
+                <ExternalLink className="w-3.5 h-3.5 text-blue-400" />
+                <span>Xem Tab Mới</span>
+              </Link>
             </div>
           </div>
 
@@ -870,45 +1185,69 @@ function TemplateBuilderInner() {
 
                 {/* Viewport Screen */}
                 <div className="relative w-full h-full rounded-[34px] overflow-hidden bg-white">
-                  <ModuleRenderer
-                    modules={template.modules?.filter((m) => m.enabled) || []}
-                    bankInfo={template.defaultData.bankInfo}
-                    musicUrl={template.defaultData.musicUrl}
-                    musicTitle={template.defaultData.musicTitle}
-                    initialWishes={template.defaultData.initialWishes}
-                    interactive={true}
-                    showOpeningIntro={showOpeningIntro}
-                  />
+                  {previewMode === "live_clone" ? (
+                    <iframe
+                      src={`/show/${template.slug?.replace(/-custom$/, "") || template.id}`}
+                      title="Xem thiệp thực tế ZenLove"
+                      className="w-full h-full border-0 bg-white"
+                    />
+                  ) : (
+                    <ModuleRenderer
+                      modules={template.modules?.filter((m) => m.enabled) || []}
+                      bankInfo={template.defaultData.bankInfo}
+                      musicUrl={template.defaultData.musicUrl}
+                      musicTitle={template.defaultData.musicTitle}
+                      initialWishes={template.defaultData.initialWishes}
+                      interactive={true}
+                      showOpeningIntro={showOpeningIntro}
+                    />
+                  )}
                 </div>
               </div>
             ) : viewportMode === "tablet" ? (
               /* Tablet Mockup */
               <div className="relative w-[600px] h-[680px] bg-black rounded-[36px] p-3 shadow-2xl border-[4px] border-stone-800 flex flex-col overflow-hidden">
                 <div className="relative w-full h-full rounded-[26px] overflow-hidden bg-white">
-                  <ModuleRenderer
-                    modules={template.modules?.filter((m) => m.enabled) || []}
-                    bankInfo={template.defaultData.bankInfo}
-                    musicUrl={template.defaultData.musicUrl}
-                    musicTitle={template.defaultData.musicTitle}
-                    initialWishes={template.defaultData.initialWishes}
-                    interactive={true}
-                    showOpeningIntro={showOpeningIntro}
-                  />
+                  {previewMode === "live_clone" ? (
+                    <iframe
+                      src={`/show/${template.slug?.replace(/-custom$/, "") || template.id}`}
+                      title="Xem thiệp thực tế ZenLove"
+                      className="w-full h-full border-0 bg-white"
+                    />
+                  ) : (
+                    <ModuleRenderer
+                      modules={template.modules?.filter((m) => m.enabled) || []}
+                      bankInfo={template.defaultData.bankInfo}
+                      musicUrl={template.defaultData.musicUrl}
+                      musicTitle={template.defaultData.musicTitle}
+                      initialWishes={template.defaultData.initialWishes}
+                      interactive={true}
+                      showOpeningIntro={showOpeningIntro}
+                    />
+                  )}
                 </div>
               </div>
             ) : (
               /* Desktop Mockup */
               <div className="relative w-[850px] h-[680px] bg-stone-800 rounded-2xl p-2 shadow-2xl border border-stone-700 flex flex-col overflow-hidden">
                 <div className="relative w-full h-full rounded-xl overflow-hidden bg-white">
-                  <ModuleRenderer
-                    modules={template.modules?.filter((m) => m.enabled) || []}
-                    bankInfo={template.defaultData.bankInfo}
-                    musicUrl={template.defaultData.musicUrl}
-                    musicTitle={template.defaultData.musicTitle}
-                    initialWishes={template.defaultData.initialWishes}
-                    interactive={true}
-                    showOpeningIntro={showOpeningIntro}
-                  />
+                  {previewMode === "live_clone" ? (
+                    <iframe
+                      src={`/show/${template.slug?.replace(/-custom$/, "") || template.id}`}
+                      title="Xem thiệp thực tế ZenLove"
+                      className="w-full h-full border-0 bg-white"
+                    />
+                  ) : (
+                    <ModuleRenderer
+                      modules={template.modules?.filter((m) => m.enabled) || []}
+                      bankInfo={template.defaultData.bankInfo}
+                      musicUrl={template.defaultData.musicUrl}
+                      musicTitle={template.defaultData.musicTitle}
+                      initialWishes={template.defaultData.initialWishes}
+                      interactive={true}
+                      showOpeningIntro={showOpeningIntro}
+                    />
+                  )}
                 </div>
               </div>
             )}

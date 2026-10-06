@@ -196,10 +196,13 @@ export default function CreateTemplateModal({
     };
   };
 
+  const [formError, setFormError] = useState<string | null>(null);
+
   // Save template
   const handleSaveOnly = () => {
+    setFormError(null);
     if (!title.trim()) {
-      alert("Vui lòng nhập tên cho mẫu thiệp!");
+      setFormError("Vui lòng nhập tên cho mẫu thiệp!");
       return;
     }
 
@@ -210,14 +213,15 @@ export default function CreateTemplateModal({
       if (onSuccess) onSuccess(newTemplate);
       onClose();
     } else {
-      alert(`Lỗi khi lưu: ${result.error}`);
+      setFormError(`Lỗi khi lưu: ${result.error}`);
     }
   };
 
   // Save & Open Editor
   const handleSaveAndOpenEditor = () => {
+    setFormError(null);
     if (!title.trim()) {
-      alert("Vui lòng nhập tên cho mẫu thiệp!");
+      setFormError("Vui lòng nhập tên cho mẫu thiệp!");
       return;
     }
 
@@ -229,7 +233,7 @@ export default function CreateTemplateModal({
       onClose();
       router.push(`/design-template/${newTemplate.id}`);
     } else {
-      alert(`Lỗi khi lưu: ${result.error}`);
+      setFormError(`Lỗi khi lưu: ${result.error}`);
     }
   };
 
@@ -336,6 +340,13 @@ export default function CreateTemplateModal({
             </button>
           </div>
         </div>
+
+        {formError && (
+          <div className="mx-6 mt-3 px-4 py-2.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs flex items-center justify-between">
+            <span>{formError}</span>
+            <button onClick={() => setFormError(null)} className="text-red-500 hover:text-red-700 font-bold ml-2">×</button>
+          </div>
+        )}
 
         {/* Main Content Area: 2 Columns on Desktop */}
         <div className="flex-1 flex overflow-hidden">

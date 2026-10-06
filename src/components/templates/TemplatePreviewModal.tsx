@@ -121,14 +121,22 @@ export default function TemplatePreviewModal({
 
               {/* Live Interactive Screen */}
               <div className="relative w-full h-full rounded-[30px] overflow-hidden bg-white">
-                <ModuleRenderer
-                  modules={generateDefaultModules(template)}
-                  bankInfo={template.defaultData.bankInfo}
-                  musicUrl={template.defaultData.musicUrl}
-                  musicTitle={template.defaultData.musicTitle}
-                  initialWishes={template.defaultData.initialWishes}
-                  interactive={true}
-                />
+                {template.slug || template.id ? (
+                  <iframe
+                    src={`/show/${template.slug || template.id}`}
+                    className="w-full h-full border-0"
+                    title={template.title}
+                  />
+                ) : (
+                  <ModuleRenderer
+                    modules={generateDefaultModules(template)}
+                    bankInfo={template.defaultData.bankInfo}
+                    musicUrl={template.defaultData.musicUrl}
+                    musicTitle={template.defaultData.musicTitle}
+                    initialWishes={template.defaultData.initialWishes}
+                    interactive={true}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -240,7 +248,7 @@ export default function TemplatePreviewModal({
                 </Link>
 
                 <Link
-                  href={`/template-builder?id=${template.id}`}
+                  href={`/design-template/${template.id}`}
                   onClick={onClose}
                   className="py-2.5 px-3.5 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
                   title="Mở trong Studio Tạo Template"

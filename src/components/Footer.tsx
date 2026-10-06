@@ -52,7 +52,7 @@ export default function Footer() {
                   alt="Zenlove"
                 />
                 <span className="text-[10px] text-gray-500 font-mono bg-white/90 border border-gray-200 px-1 py-0.5 rounded shadow-sm ml-1">
-                  v1.26.8a23
+                  v1.26.10a1
                 </span>
               </Link>
             </div>

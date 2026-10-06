@@ -101,8 +101,8 @@ export default function HeroSection() {
                 <span className="text-sm md:text-lg font-bold">Tạo thiệp ngay</span>
               </Link>
 
-              <a
-                href="#create-page-10min"
+              <Link
+                href="/tao-thiep-cuoi-online"
                 id="hero-btn-guides"
                 title="Xem hướng dẫn tạo thiệp cưới online"
                 aria-label="Xem hướng dẫn tạo thiệp"
@@ -110,7 +110,7 @@ export default function HeroSection() {
               >
                 <span className="text-sm md:text-lg font-bold">Hướng dẫn</span>
                 <ArrowRight className="w-4 h-4 ml-1" />
-              </a>
+              </Link>
             </div>
           </div>
         </div>

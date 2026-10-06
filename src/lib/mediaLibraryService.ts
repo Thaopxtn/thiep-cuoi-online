@@ -6,8 +6,14 @@ export const MEDIA_LIBRARY_STORAGE_KEY = "zenlove_uploaded_media_library_v1";
 export const MEDIA_LIBRARY_EVENT = "zenlove_media_library_updated";
 
 export const DEFAULT_DEMO_IMAGES: string[] = [
-  "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=500",
-  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=500",
+  "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600",
+  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=600",
+  "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=600",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600",
+  "https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600",
+  "https://images.unsplash.com/photo-1519225429980-715cb0215aed?q=80&w=600",
+  "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?q=80&w=600",
+  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=600",
 ];
 
 /**
@@ -162,6 +168,73 @@ export function extractImagesFromNodes(nodes: Record<string, any>): string[] {
   });
 
   return Array.from(new Set(found));
+}
+
+/**
+ * Chuẩn hóa URL ảnh để so sánh trùng khớp (loại bỏ query params, domain CDN, v.v.)
+ */
+export function normalizeImageComparisonUrl(url?: string): string {
+  if (!url || typeof url !== "string") return "";
+  let clean = url.trim().split("?")[0].toLowerCase();
+  clean = clean.replace(/^https?:\/\/cdn-resource\.zenlove\.me\/?/, "");
+  clean = clean.replace(/^\/+/, "");
+  return clean;
+}
+
+/**
+ * Kiểm tra xem 2 URL có đại diện cho cùng một hình ảnh hay không
+ */
+export function isSameImageUrl(url1?: string, url2?: string): boolean {
+  if (!url1 || !url2) return false;
+  if (url1 === url2) return true;
+  const n1 = normalizeImageComparisonUrl(url1);
+  const n2 = normalizeImageComparisonUrl(url2);
+  return Boolean(n1 && n2 && n1 === n2);
+}
+
+/**
+ * Đếm số lần 1 URL ảnh được sử dụng trên toàn bộ các phần tử Canvas của thiệp
+ */
+export function countImageUsageInNodes(targetUrl: string, nodes: Record<string, any>): number {
+  if (!targetUrl || !nodes || typeof nodes !== "object") return 0;
+  let count = 0;
+
+  // 1. Kiểm tra hình nền ROOT
+  const bg = nodes["ROOT"]?.props?.backgroundImage;
+  if (bg && isSameImageUrl(bg, targetUrl)) {
+    count++;
+  }
+
+  // 2. Kiểm tra từng node Canvas
+  Object.values(nodes).forEach((node: any) => {
+    if (!node || !node.props) return;
+
+    let matchedNode = false;
+    if (node.props.imgKey && isSameImageUrl(node.props.imgKey, targetUrl)) {
+      matchedNode = true;
+    } else if (node.props.src && isSameImageUrl(node.props.src, targetUrl)) {
+      matchedNode = true;
+    } else if (node.props.previewKey && isSameImageUrl(node.props.previewKey, targetUrl)) {
+      matchedNode = true;
+    }
+
+    if (matchedNode) {
+      count++;
+      return;
+    }
+
+    // Kiểm tra danh sách ảnh dạng imgList (Carousel, Gallery)
+    if (Array.isArray(node.props.imgList)) {
+      node.props.imgList.forEach((item: any) => {
+        const itemUrl = typeof item === "string" ? item : item?.imageKey || item?.src;
+        if (itemUrl && isSameImageUrl(itemUrl, targetUrl)) {
+          count++;
+        }
+      });
+    }
+  });
+
+  return count;
 }
 
 /**

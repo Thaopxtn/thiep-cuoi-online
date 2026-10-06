@@ -12,7 +12,9 @@ import {
   Keyboard,
   Eye,
   Upload,
-  ArrowLeft,
+  Settings,
+  Save,
+  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -22,9 +24,12 @@ interface EditorHeaderProps {
   canRedo?: boolean;
   onUndo?: () => void;
   onRedo?: () => void;
+  onSave?: () => void;
+  onRepairDecorations?: () => void;
   onPreview: () => void;
   onPublish: () => void;
   onOpenShortcuts: () => void;
+  onOpenSettings?: () => void;
   isSaved?: boolean;
   onBackToTemplates?: () => void;
 }
@@ -35,9 +40,12 @@ export default function EditorHeader({
   canRedo = false,
   onUndo,
   onRedo,
+  onSave,
+  onRepairDecorations,
   onPreview,
   onPublish,
   onOpenShortcuts,
+  onOpenSettings,
   isSaved = true,
   onBackToTemplates,
 }: EditorHeaderProps) {
@@ -137,6 +145,45 @@ export default function EditorHeader({
         >
           <Keyboard className="w-4 h-4" />
         </button>
+
+        {/* Nút Lưu lên máy chủ */}
+        {onSave && (
+          <button
+            type="button"
+            onClick={onSave}
+            className="px-3 py-1.5 rounded-full border border-emerald-500/40 hover:border-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/50 text-xs font-semibold text-emerald-200 flex items-center gap-1.5 transition-all shadow-xs"
+            title="Lưu bản thiết kế & đồng bộ lên máy chủ (Ctrl+S)"
+          >
+            <Save className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Lưu máy chủ</span>
+          </button>
+        )}
+
+        {/* Cài đặt thiệp & các mục cố định */}
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="px-3 py-1.5 rounded-full border border-amber-500/40 hover:border-amber-400 bg-amber-950/40 hover:bg-amber-900/50 text-xs font-semibold text-amber-200 flex items-center gap-1.5 transition-all shadow-xs"
+            title="Cài đặt Hộp mừng cưới (VietQR), Sổ lưu bút, RSVP, Thông tin hôn lễ"
+          >
+            <Settings className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Cài đặt thiệp</span>
+          </button>
+        )}
+
+        {/* Khôi phục & Khóa họa tiết chuẩn */}
+        {onRepairDecorations && (
+          <button
+            type="button"
+            onClick={onRepairDecorations}
+            className="px-3 py-1.5 rounded-full border border-sky-500/40 hover:border-sky-400 bg-sky-950/40 hover:bg-sky-900/50 text-xs font-semibold text-sky-200 flex items-center gap-1.5 transition-all shadow-xs"
+            title="Khôi phục lại phong bì, hoa văn, lâu đài và khóa cố định họa tiết chuẩn gốc của mẫu"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
+            <span className="hidden lg:inline">Khóa họa tiết chuẩn</span>
+          </button>
+        )}
 
         {/* Preview Button */}
         <button

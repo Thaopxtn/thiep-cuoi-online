@@ -56,7 +56,7 @@ export default function ExportTemplateModal({
         setCopied(true);
         setTimeout(() => setCopied(false), 2500);
       } else {
-        alert("Không thể sao chép vào bộ nhớ tạm");
+        console.warn("Không thể sao chép vào bộ nhớ tạm");
       }
     }
   };

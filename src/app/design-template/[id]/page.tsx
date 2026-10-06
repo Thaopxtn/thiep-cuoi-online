@@ -10,19 +10,27 @@ import EditorRightInspector, { SelectedElementData } from "@/components/editor/E
 import EditorPublishModal from "@/components/editor/EditorPublishModal";
 import EditorShortcutsModal from "@/components/editor/EditorShortcutsModal";
 import EditorLivePreviewModal from "@/components/editor/EditorLivePreviewModal";
+import EditorWeddingSettingsModal from "@/components/editor/EditorWeddingSettingsModal";
+import EditorAutoFillModal from "@/components/editor/EditorAutoFillModal";
+import EditorPublishWarningModal from "@/components/editor/EditorPublishWarningModal";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { getStoredTemplateById, saveCustomTemplate } from "@/lib/templateStorage";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
-import { saveCard, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
+import { saveCard, saveCardAsync, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
+import { validateTemplateCompletion, ValidationWarning } from "@/lib/templateValidation";
 import {
   addUploadedImagesToLibrary,
   addUploadedImageToLibrary,
   getSavedUploadedImages,
   extractImagesFromNodes,
 } from "@/lib/mediaLibraryService";
+import {
+  repairAndLockDecorativeNodes,
+  isDecorativeNode,
+} from "@/lib/decorativeLockService";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -53,6 +61,11 @@ export default function DesignTemplatePage() {
   const [isPublishModalOpen, setIsPublishModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isLivePreviewOpen, setIsLivePreviewOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
+  const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
+  const [publishWarnings, setPublishWarnings] = useState<ValidationWarning[]>([]);
+  const [customCardData, setCustomCardData] = useState<WeddingCard | null>(null);
   const [isSaved, setIsSaved] = useState(true);
 
   // Persistent music and toast state
@@ -90,6 +103,7 @@ export default function DesignTemplatePage() {
       // 1. Kiểm tra thiệp cưới đã clone / tùy biến trong weddingCardService
       const existingCard = getCardByIdOrSlug(templateId);
       if (existingCard) {
+        setCustomCardData(existingCard);
         if (existingCard.templateName) setTemplateName(existingCard.templateName);
         // Tự động khôi phục ảnh của thiệp cưới vào Thư viện ảnh đã tải lên
         if (Array.isArray(existingCard.album) && existingCard.album.length > 0) {
@@ -116,6 +130,9 @@ export default function DesignTemplatePage() {
           if (!cardNodes.ROOT) {
             cardNodes = convertFormTemplateToCanvasNodes(cardNodes, existingCard);
           }
+          // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template
+          const { repairedNodes: repairedCardNodes } = repairAndLockDecorativeNodes(cardNodes);
+          cardNodes = repairedCardNodes;
           setNodes(cardNodes);
           setHistory([cardNodes]);
           setHistoryIndex(0);
@@ -161,12 +178,24 @@ export default function DesignTemplatePage() {
             if (!fetchedNodes.ROOT) {
               fetchedNodes = convertFormTemplateToCanvasNodes(fetchedNodes, foundMeta || json.data);
             }
+            // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template
+            const { repairedNodes: repairedFetchedNodes } = repairAndLockDecorativeNodes(fetchedNodes);
+            fetchedNodes = repairedFetchedNodes;
             setNodes(fetchedNodes);
             setHistory([fetchedNodes]);
             setHistoryIndex(0);
 
-            // Sync music from template nodes or metadata
-            if (fetchedNodes["ROOT"]?.props?.musicUrl) {
+            if (json.data?.name) {
+              setTemplateName(json.data.name);
+            }
+
+            // Sync music from audioSettings, template nodes or metadata
+            if (json.data?.audioSettings?.fileUrl) {
+              setCurrentMusic({
+                title: json.data.audioSettings.musicTitle || "Bản nhạc cưới",
+                url: json.data.audioSettings.fileUrl,
+              });
+            } else if (fetchedNodes["ROOT"]?.props?.musicUrl) {
               setCurrentMusic({
                 title: fetchedNodes["ROOT"].props.musicTitle || "Bản nhạc cưới",
                 url: fetchedNodes["ROOT"].props.musicUrl,
@@ -296,6 +325,17 @@ export default function DesignTemplatePage() {
     setNodes((prev) => {
       const existing = prev[elementId];
       if (!existing) return prev;
+
+      // Bảo vệ: Nếu là họa tiết trang trí của mẫu, tuyệt đối không cho phép đổi imgKey
+      if (
+        isDecorativeNode(elementId, existing) &&
+        updatedProps.imgKey &&
+        updatedProps.imgKey !== existing.props.imgKey
+      ) {
+        showToast("🔒 Họa tiết trang trí của mẫu đã được khóa cố định!");
+        return prev;
+      }
+
       const nextNode = {
         ...existing,
         props: { ...existing.props, ...updatedProps },
@@ -311,6 +351,14 @@ export default function DesignTemplatePage() {
       }
       return newNodes;
     });
+  };
+
+  // Khôi phục & Khóa toàn bộ họa tiết trang trí chuẩn của mẫu
+  const handleRepairDecorations = () => {
+    const { repairedNodes, repairedCount } = repairAndLockDecorativeNodes(nodes);
+    setNodes(repairedNodes);
+    pushHistory(repairedNodes);
+    showToast(`🛡️ Đã khôi phục và khóa cố định ${repairedCount} họa tiết trang trí chuẩn của mẫu!`);
   };
 
   // Delete element
@@ -378,10 +426,7 @@ export default function DesignTemplatePage() {
       // Save: Ctrl + S
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        const card = buildCardFromCurrentState();
-        saveCard(card);
-        setIsSaved(true);
-        showToast("💾 Đã lưu bản thiết kế thiệp cưới!");
+        handleManualSave();
       }
       // Duplicate: Ctrl + D
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "d" && selectedElement) {
@@ -746,41 +791,49 @@ export default function DesignTemplatePage() {
       )
     );
 
+    const base = customCardData || existing;
+
     const cardToSave: WeddingCard = {
-      id: existing?.id || templateId,
-      slug: existing?.slug || slug,
-      name: existing?.name || `Thiệp Cưới ${templateName} - ${groomName} & ${brideName}`,
-      templateId: existing?.templateId || templateId,
+      id: base?.id || existing?.id || templateId,
+      slug: base?.slug || existing?.slug || slug,
+      name: base?.name || existing?.name || `Thiệp Cưới ${templateName} - ${groomName} & ${brideName}`,
+      templateId: base?.templateId || existing?.templateId || templateId,
       templateName,
       status: "published",
       updatedAt: new Date().toLocaleDateString("vi-VN"),
-      views: existing?.views || 100,
-      coverImage: coverImage || existing?.coverImage || currentZenloveTemplate?.imageUrl || "",
+      views: base?.views || existing?.views || 100,
+      coverImage: coverImage || base?.coverImage || existing?.coverImage || currentZenloveTemplate?.imageUrl || "",
       story:
+        base?.story ||
         existing?.story ||
         "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
-      weddingDate: existing?.weddingDate || "2026-11-18",
-      weddingTime: existing?.weddingTime || "11:00",
-      lunarDate: existing?.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ",
+      weddingDate: base?.weddingDate || existing?.weddingDate || "2026-11-18",
+      weddingTime: base?.weddingTime || existing?.weddingTime || "11:00",
+      lunarDate: base?.lunarDate || existing?.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ",
+      showGiftBox: base?.showGiftBox !== undefined ? base.showGiftBox : (existing?.showGiftBox !== undefined ? existing.showGiftBox : true),
+      showWishes: base?.showWishes !== undefined ? base.showWishes : (existing?.showWishes !== undefined ? existing.showWishes : true),
+      showRsvp: base?.showRsvp !== undefined ? base.showRsvp : (existing?.showRsvp !== undefined ? existing.showRsvp : true),
       groom: {
-        name: groomName,
+        name: base?.groom?.name || groomName,
         title: "Chú Rể",
-        phone: existing?.groom?.phone || "0912.345.678",
-        parents: existing?.groom?.parents || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
-        bankName: existing?.groom?.bankName || "MB BANK",
-        accountNumber: existing?.groom?.accountNumber || "240220038888",
-        qrCode: existing?.groom?.qrCode,
+        phone: base?.groom?.phone || existing?.groom?.phone || "0912.345.678",
+        parents: base?.groom?.parents || existing?.groom?.parents || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
+        bankName: base?.groom?.bankName || existing?.groom?.bankName || "MB BANK",
+        accountNumber: base?.groom?.accountNumber || existing?.groom?.accountNumber || "240220038888",
+        accountName: base?.groom?.accountName || existing?.groom?.accountName || base?.groom?.name || groomName,
+        qrCode: base?.groom?.qrCode || existing?.groom?.qrCode,
       },
       bride: {
-        name: brideName,
+        name: base?.bride?.name || brideName,
         title: "Cô Dâu",
-        phone: existing?.bride?.phone || "0987.654.321",
-        parents: existing?.bride?.parents || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
-        bankName: existing?.bride?.bankName || "TECHCOMBANK",
-        accountNumber: existing?.bride?.accountNumber || "190365824988",
-        qrCode: existing?.bride?.qrCode,
+        phone: base?.bride?.phone || existing?.bride?.phone || "0987.654.321",
+        parents: base?.bride?.parents || existing?.bride?.parents || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
+        bankName: base?.bride?.bankName || existing?.bride?.bankName || "TECHCOMBANK",
+        accountNumber: base?.bride?.accountNumber || existing?.bride?.accountNumber || "190365824988",
+        accountName: base?.bride?.accountName || existing?.bride?.accountName || base?.bride?.name || brideName,
+        qrCode: base?.bride?.qrCode || existing?.bride?.qrCode,
       },
-      events: existing?.events || [
+      events: base?.events || existing?.events || [
         {
           id: "evt-1",
           title: "Lễ Vu Quy (Nhà Gái)",
@@ -822,20 +875,108 @@ export default function DesignTemplatePage() {
     return cardToSave;
   };
 
+  // Manual Save Handler - Saves current state and syncs to Supabase server
+  const handleManualSave = async () => {
+    const card = buildCardFromCurrentState();
+    setIsSaved(false);
+    showToast("⏳ Đang lưu bản thiết kế lên máy chủ...");
+    const res = await saveCardAsync(card);
+    setIsSaved(true);
+    if (res.success) {
+      showToast("💾 Đã lưu và đồng bộ lên máy chủ thành công!");
+    } else {
+      showToast("💾 Đã lưu tạm thời trên máy (Ngoại tuyến)!");
+    }
+  };
+
+  // Settings Handler - Updates bank, couple info & section toggles and syncs to server
+  const handleSaveSettings = async (updatedCard: WeddingCard) => {
+    setCustomCardData(updatedCard);
+    setIsSaved(false);
+    showToast("⏳ Đang lưu cài đặt lên máy chủ...");
+    if (updatedCard.templateName) {
+      setTemplateName(updatedCard.templateName);
+    }
+    const res = await saveCardAsync(updatedCard);
+    setIsSaved(true);
+    if (res.success) {
+      showToast("⚙️ Đã lưu cài đặt thông tin thiệp & Hộp mừng lên máy chủ!");
+    } else {
+      showToast("⚙️ Đã lưu cài đặt ngoại tuyến trên thiết bị!");
+    }
+  };
+
   // Preview Handler - Saves current nodes and opens live smartphone preview modal
   const handlePreview = () => {
     const card = buildCardFromCurrentState();
     saveCard(card);
+    saveCardAsync(card).catch(() => {});
     setIsSaved(true);
     setIsLivePreviewOpen(true);
   };
 
-  // Publish Handler - Saves card and opens shareable QR code publish modal
-  const handlePublish = () => {
+  // Publish Handler - Saves card, syncs to server and opens shareable QR code publish modal
+  // Publish Handler - Saves card, syncs to server and opens shareable QR code publish modal
+  const handlePublish = async () => {
     const card = buildCardFromCurrentState();
-    saveCard(card);
-    setIsSaved(true);
+    const warnings = validateTemplateCompletion(nodes, card);
+
+    // CẢNH BÁO NẾU CHƯA ĐIỀN HẾT THÔNG TIN QUAN TRỌNG CÓ TRONG TEMPLATE
+    if (warnings.length > 0) {
+      setPublishWarnings(warnings);
+      setIsWarningModalOpen(true);
+      return;
+    }
+
+    proceedPublish(card);
+  };
+
+  const proceedPublish = async (cardToPublish?: WeddingCard) => {
+    const card = cardToPublish || buildCardFromCurrentState();
+    setIsSaved(false);
+    showToast("⏳ Đang chuẩn bị xuất bản thiệp...");
     setIsPublishModalOpen(true);
+    const res = await saveCardAsync(card);
+    setIsSaved(true);
+    if (res.success) {
+      showToast("🚀 Thiệp đã sẵn sàng chia sẻ trực tuyến!");
+    }
+  };
+
+  // Auto-Fill Handler - Applies form data across all template nodes & saves
+  const handleApplyAutoFill = (
+    updatedNodes: Record<string, any>,
+    updatedCard: Partial<WeddingCard>,
+    stats: { textCount: number; photoCount: number; widgetCount: number }
+  ) => {
+    setNodes(updatedNodes);
+    pushHistory(updatedNodes);
+
+    if (updatedCard.templateName) {
+      setTemplateName(updatedCard.templateName);
+    }
+
+    const current = buildCardFromCurrentState();
+    const merged: WeddingCard = {
+      ...current,
+      ...updatedCard,
+      groom: {
+        ...current.groom,
+        ...(updatedCard.groom || {}),
+      },
+      bride: {
+        ...current.bride,
+        ...(updatedCard.bride || {}),
+      },
+      nodes: updatedNodes,
+    };
+    setCustomCardData(merged);
+    saveCard(merged);
+    saveCardAsync(merged).catch(() => {});
+
+    showToast(
+      `✨ Đã tự động điền ${stats.textCount} nội dung, ${stats.photoCount} ảnh & ${stats.widgetCount} tiện ích!`
+    );
   };
 
   return (
@@ -847,9 +988,12 @@ export default function DesignTemplatePage() {
         canRedo={historyIndex < history.length - 1}
         onUndo={handleUndo}
         onRedo={handleRedo}
+        onSave={handleManualSave}
+        onRepairDecorations={handleRepairDecorations}
         onPreview={handlePreview}
         onPublish={handlePublish}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
         isSaved={isSaved}
       />
 
@@ -868,9 +1012,13 @@ export default function DesignTemplatePage() {
 
         {/* Left Flyout Drawer (Upload dropzone, Text, Music, etc.) */}
         <EditorLeftDrawer
+          nodes={nodes}
+          card={buildCardFromCurrentState()}
           activeTab={activeLeftTab}
           isOpen={isLeftDrawerOpen}
           onClose={() => setIsLeftDrawerOpen(false)}
+          onOpenAutoFillModal={() => setIsAutoFillModalOpen(true)}
+          onApplyAutoFill={handleApplyAutoFill}
           onAddImage={handleAddImage}
           selectedElement={selectedElement}
           onUpdateElementProps={handleUpdateProps}
@@ -889,6 +1037,7 @@ export default function DesignTemplatePage() {
           onAddWidget={handleAddWidget}
           onSelectTemplate={handleSelectTemplate}
           onApplyThemePreset={handleApplyThemePreset}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
         />
 
         {/* Center Canvas (Blueprint Grid + Mobile Viewport + Bounding Box) */}
@@ -904,6 +1053,11 @@ export default function DesignTemplatePage() {
           onZoomOut={() => setZoomLevel((z) => Math.max(0.4, z - 0.1))}
           onResetZoom={() => setZoomLevel(0.85)}
           onQuickReplacePhoto={handleQuickReplacePhoto}
+          onOpenImageDrawer={() => {
+            setActiveLeftTab("image");
+            setIsLeftDrawerOpen(true);
+          }}
+          isLeftDrawerOpen={isLeftDrawerOpen}
         />
 
         {/* Right Properties Inspector (Settings & Effects tabs) */}
@@ -946,6 +1100,31 @@ export default function DesignTemplatePage() {
         nodes={nodes}
         templateName={templateName}
         slugOrId={templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId}
+      />
+
+      <EditorWeddingSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        card={buildCardFromCurrentState()}
+        onSave={handleSaveSettings}
+      />
+
+      {/* 4. AUTO-FILL FORM MODAL */}
+      <EditorAutoFillModal
+        isOpen={isAutoFillModalOpen}
+        onClose={() => setIsAutoFillModalOpen(false)}
+        card={buildCardFromCurrentState()}
+        nodes={nodes}
+        onApply={handleApplyAutoFill}
+      />
+
+      {/* 5. PRE-PUBLISH WARNING MODAL */}
+      <EditorPublishWarningModal
+        isOpen={isWarningModalOpen}
+        onClose={() => setIsWarningModalOpen(false)}
+        warnings={publishWarnings}
+        onOpenAutoFill={() => setIsAutoFillModalOpen(true)}
+        onProceedPublish={() => proceedPublish()}
       />
     </div>
   );

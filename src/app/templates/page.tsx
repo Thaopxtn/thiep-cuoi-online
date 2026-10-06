@@ -185,19 +185,19 @@ function TemplatesPageContent() {
           {/* Quick Studio Action Buttons */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
             <Link
-              href="/template-builder"
+              href="/design-template/8c5055d8-30db-4b38-8831-e11063e3d352"
               className="px-4 py-2 rounded-full bg-zen-primary hover:bg-[#d93849] text-white text-xs sm:text-sm font-bold shadow-md shadow-zen-primary/20 transition-all hover:scale-105 flex items-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              <span>Studio Tạo Template</span>
+              <span>Studio Thiết kế Canvas</span>
             </Link>
 
             <Link
-              href="/kho-template"
+              href="/thiep-online/khach-hang"
               className="px-4 py-2 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-bold shadow-xs transition-all hover:scale-105 flex items-center gap-1.5"
             >
               <FolderHeart className="w-3.5 h-3.5 text-rose-400" />
-              <span>Quản lý Kho Mẫu</span>
+              <span>Thiệp Khách Hàng Thực Tế</span>
             </Link>
           </div>
         </div>

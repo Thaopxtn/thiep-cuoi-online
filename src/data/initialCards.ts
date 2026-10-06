@@ -49,6 +49,7 @@ export interface WeddingCard {
     parents?: string;
     bankName?: string;
     accountNumber?: string;
+    accountName?: string;
     qrCode?: string;
   };
   bride: {
@@ -58,6 +59,7 @@ export interface WeddingCard {
     parents?: string;
     bankName?: string;
     accountNumber?: string;
+    accountName?: string;
     qrCode?: string;
   };
   events: WeddingEvent[];
@@ -68,6 +70,9 @@ export interface WeddingCard {
   wishes: WeddingWish[];
   nodes?: Record<string, any>;
   userId?: string;
+  showGiftBox?: boolean;
+  showWishes?: boolean;
+  showRsvp?: boolean;
 }
 
 // Key operational templates
@@ -95,7 +100,8 @@ export const INITIAL_CARDS: WeddingCard[] = [
       parents: "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
       bankName: "MB BANK",
       accountNumber: "240220038888",
-      qrCode: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=240220038888-MBBANK",
+      accountName: "NGUYEN VAN HUNG",
+      qrCode: "https://img.vietqr.io/image/MB-240220038888-compact2.png?amount=0&addInfo=Mung%20cuoi%20hai%20ban&accountName=NGUYEN%20VAN%20HUNG",
     },
     bride: {
       name: "Thùy Dung",
@@ -104,7 +110,8 @@ export const INITIAL_CARDS: WeddingCard[] = [
       parents: "Ông Lê Văn Thành & Bà Vũ Thị Mai",
       bankName: "TECHCOMBANK",
       accountNumber: "190365824988",
-      qrCode: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=190365824988-TECHCOMBANK",
+      accountName: "LE THUY DUNG",
+      qrCode: "https://img.vietqr.io/image/TCB-190365824988-compact2.png?amount=0&addInfo=Mung%20cuoi%20hai%20ban&accountName=LE%20THUY%20DUNG",
     },
     events: [
       {
@@ -213,7 +220,8 @@ export const INITIAL_CARDS: WeddingCard[] = [
       phone: "0904.555.666",
       bankName: "VIETCOMBANK",
       accountNumber: "0011004567890",
-      qrCode: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=0011004567890-VCB",
+      accountName: "TRAN ANH TUAN",
+      qrCode: "https://img.vietqr.io/image/VCB-0011004567890-compact2.png?amount=0&addInfo=Mung%20cuoi%20hai%20ban&accountName=TRAN%20ANH%20TUAN",
     },
     bride: {
       name: "Mai Linh",
@@ -221,7 +229,8 @@ export const INITIAL_CARDS: WeddingCard[] = [
       phone: "0909.888.999",
       bankName: "VPBANK",
       accountNumber: "123456789",
-      qrCode: "https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=123456789-VPB",
+      accountName: "NGUYEN MAI LINH",
+      qrCode: "https://img.vietqr.io/image/VPB-123456789-compact2.png?amount=0&addInfo=Mung%20cuoi%20hai%20ban&accountName=NGUYEN%20MAI%20LINH",
     },
     events: [
       {

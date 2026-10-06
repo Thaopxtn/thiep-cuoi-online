@@ -50,6 +50,14 @@ import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
 
 function KhoTemplateContent() {
   const router = useRouter();
+
+  // Tự động chuyển hướng đồng nhất về Kho Mẫu chuẩn (/templates)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      window.location.replace("/templates");
+    }
+  }, []);
+
   const library = useTemplateLibrary();
 
   // Unified Filters

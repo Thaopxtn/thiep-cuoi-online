@@ -1,10 +1,58 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb, createRsvpInDb, getRsvpsFromDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, createRsvpInDb, getRsvpsFromDb, upsertCardToDb } from "@/lib/serverDb";
+import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
 
 export const dynamic = "force-dynamic";
 
 interface Params {
   params: { slug: string };
+}
+
+/**
+ * Lấy hoặc tự động tạo bản ghi thiệp trong DB nếu chưa có (tránh 404 cho khách)
+ */
+async function ensureCardForSlug(slug: string): Promise<WeddingCard | null> {
+  let card = await getCardByIdOrSlugFromDb(slug);
+  if (card) return card;
+
+  // 1. Kiểm tra INITIAL_CARDS
+  const localFound = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
+  if (localFound) {
+    const upserted = await upsertCardToDb(localFound);
+    return upserted || localFound;
+  }
+
+  // 2. Tạo bản ghi thiệp dự phòng để đảm bảo foreign key và luôn lưu được RSVP
+  const fallbackCard: WeddingCard = {
+    id: slug,
+    slug: slug,
+    name: `Thiệp Cưới (${slug})`,
+    templateId: slug,
+    templateName: "Thiệp Cưới Online",
+    status: "published",
+    updatedAt: new Date().toLocaleDateString("vi-VN"),
+    views: 1,
+    coverImage: "",
+    story: "",
+    weddingDate: "2026-11-20",
+    weddingTime: "11:00",
+    lunarDate: "",
+    groom: { name: "Chú Rể", title: "Chú Rể", phone: "" },
+    bride: { name: "Cô Dâu", title: "Cô Dâu", phone: "" },
+    events: [],
+    album: [],
+    musicTitle: "",
+    musicUrl: "",
+    rsvps: [],
+    wishes: [],
+  };
+
+  try {
+    const upserted = await upsertCardToDb(fallbackCard);
+    return upserted || fallbackCard;
+  } catch {
+    return fallbackCard;
+  }
 }
 
 /**
@@ -14,7 +62,7 @@ interface Params {
 export async function GET(request: NextRequest, { params }: Params) {
   const { slug } = params;
   try {
-    const card = await getCardByIdOrSlugFromDb(slug);
+    const card = await ensureCardForSlug(slug);
     if (!card) {
       return NextResponse.json(
         { success: false, message: "Không tìm thấy thiệp" },
@@ -62,7 +110,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    const card = await getCardByIdOrSlugFromDb(slug);
+    const card = await ensureCardForSlug(slug);
     if (!card) {
       return NextResponse.json(
         { success: false, message: "Không tìm thấy thiệp cưới tương ứng" },

@@ -1,9 +1,13 @@
 "use client";
-
-import React from "react";
+ 
+import React, { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import ArcCarousel from "./ArcCarousel";
+import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
+import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
+import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
 
 interface TemplateCarouselItem {
   id: string;
@@ -156,6 +160,45 @@ const TEMPLATE_ITEMS: TemplateCarouselItem[] = [
 ];
 
 export default function TemplatesSection() {
+  const router = useRouter();
+  const [previewTemplate, setPreviewTemplate] = useState<ZenLoveTemplate | null>(null);
+
+  const handleCardClick = (item: TemplateCarouselItem) => {
+    const found = ZENLOVE_TEMPLATES.find(
+      (t) => t.slug === item.slug || t.id === item.id
+    );
+    if (found) {
+      setPreviewTemplate(found);
+    } else {
+      setPreviewTemplate({
+        id: item.id,
+        name: item.name,
+        slug: item.slug,
+        description: `Mẫu thiệp cưới online ${item.name} đẹp tinh tế và hiện đại từ ZenLove.`,
+        categoryId: "e5a1eb86-bbde-4d17-b9f3-22a55ef0bcf2",
+        categoryName: "Thiệp cưới",
+        categorySlug: "thiep-cuoi",
+        imageUrl: item.image,
+        templateType: "free",
+        targetPageType: "CANVAS",
+        likeCount: 99,
+        viewCount: 1200,
+        usageCount: 88,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  };
+
+  const handleUseTemplate = async (templateId: string) => {
+    try {
+      const card = await cloneTemplateToNewCard(templateId);
+      router.push(`/design-template/${card.id}?clonedFrom=${templateId}`);
+    } catch {
+      router.push(`/design-template/${templateId}`);
+    }
+  };
+
   return (
     <section id="templates" className="bg-[#fbfbfb] py-12">
       <div>
@@ -187,10 +230,11 @@ export default function TemplatesSection() {
             visibleCards={7}
             caption={false}
             renderCard={(item) => (
-              <Link
-                href="/templates"
+              <button
+                type="button"
+                onClick={() => handleCardClick(item)}
                 title={`Xem mẫu thiệp cưới ${item.name}`}
-                className="group/arc-card block w-full rounded-2xl text-left"
+                className="group/arc-card block w-full rounded-2xl text-left cursor-pointer focus:outline-none"
               >
                 <span
                   className="relative block overflow-hidden rounded-2xl border border-rose-100 bg-gray-100 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.45)] [aspect-ratio:1000/1470]"
@@ -210,7 +254,7 @@ export default function TemplatesSection() {
                     className="h-auto w-full align-top [transform:translate3d(0,0,0)] transition-transform duration-200 ease-out group-hover/arc-card:[transition-duration:var(--scroll-duration)] group-hover/arc-card:[transition-timing-function:ease] motion-safe:group-hover/arc-card:[transform:translate3d(0,calc(var(--image-scroll-percent,0%)*-1),0)]"
                   />
                 </span>
-              </Link>
+              </button>
             )}
           />
         </div>
@@ -228,6 +272,16 @@ export default function TemplatesSection() {
           </div>
         </div>
       </div>
+
+      {/* Interactive Modal Previewing Real Cloned Template */}
+      {previewTemplate && (
+        <ZenlovePreviewModal
+          template={previewTemplate}
+          onClose={() => setPreviewTemplate(null)}
+          onUse={handleUseTemplate}
+        />
+      )}
     </section>
   );
 }
+

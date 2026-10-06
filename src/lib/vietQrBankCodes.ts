@@ -124,8 +124,10 @@ export function generateVietQrUrl(
   message?: string
 ): string {
   if (!accountNumber) return "";
+  const cleanAcc = accountNumber.replace(/[^a-zA-Z0-9]/g, "");
+  if (!cleanAcc) return "";
   const bankCode = resolveBankCode(bankName);
-  let url = `https://img.vietqr.io/image/${bankCode}-${accountNumber.trim()}-compact2.png`;
+  let url = `https://img.vietqr.io/image/${bankCode}-${cleanAcc}-compact2.png`;
 
   const params: string[] = [];
   if (amount) params.push(`amount=${encodeURIComponent(String(amount))}`);
@@ -137,3 +139,23 @@ export function generateVietQrUrl(
   }
   return url;
 }
+
+export const POPULAR_BANKS: Array<{ code: string; name: string }> = [
+  { code: "MB", name: "MB Bank (Quân Đội)" },
+  { code: "VCB", name: "Vietcombank (Ngoại Thương)" },
+  { code: "TCB", name: "Techcombank (Kỹ Thương)" },
+  { code: "CTG", name: "VietinBank (Công Thương)" },
+  { code: "BIDV", name: "BIDV (Đầu Tư & Phát Triển)" },
+  { code: "VPB", name: "VPBank (Việt Nam Thịnh Vượng)" },
+  { code: "ACB", name: "ACB (Á Châu)" },
+  { code: "TPB", name: "TPBank (Tiên Phong)" },
+  { code: "HDB", name: "HDBank (Phát Triển TP.HCM)" },
+  { code: "STB", name: "Sacombank (Sài Gòn Thương Tín)" },
+  { code: "VIB", name: "VIB (Quốc Tế)" },
+  { code: "MSB", name: "MSB (Hàng Hải)" },
+  { code: "SHB", name: "SHB (Sài Gòn - Hà Nội)" },
+  { code: "OCB", name: "OCB (Phương Đông)" },
+  { code: "SEAB", name: "SeABank (Đông Nam Á)" },
+  { code: "NAB", name: "Nam A Bank (Nam Á)" },
+];
+

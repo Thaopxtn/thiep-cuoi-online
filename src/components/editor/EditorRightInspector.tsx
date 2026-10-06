@@ -29,9 +29,12 @@ import {
   Send,
   Check,
   ExternalLink,
+  Lock,
 } from "lucide-react";
 import { compressImageToWebP } from "@/lib/imageCompression";
-import { addUploadedImageToLibrary } from "@/lib/mediaLibraryService";
+import { addUploadedImageToLibrary, addUploadedImagesToLibrary } from "@/lib/mediaLibraryService";
+import { getSafeImageUrl } from "@/lib/imageUtils";
+import { isDecorativeNode } from "@/lib/decorativeLockService";
 
 export interface SelectedElementData {
   id: string;
@@ -74,8 +77,14 @@ export default function EditorRightInspector({
 
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
   const carouselFileInputRef = useRef<HTMLInputElement>(null);
+  const carouselBatchFileInputRef = useRef<HTMLInputElement>(null);
+  const carouselSwapSingleInputRef = useRef<HTMLInputElement>(null);
+  const swapIndexRef = useRef<number | null>(null);
+
   const [isReplacingImage, setIsReplacingImage] = useState(false);
   const [isUploadingCarousel, setIsUploadingCarousel] = useState(false);
+  const [carouselUploadProgress, setCarouselUploadProgress] = useState<{ current: number; total: number } | null>(null);
+  const [carouselMessage, setCarouselMessage] = useState<string | null>(null);
 
   const handleTriggerFilePicker = () => {
     if (replaceFileInputRef.current) {
@@ -116,16 +125,144 @@ export default function EditorRightInspector({
     }
   };
 
-  const handleAddCarouselImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBatchReplaceCarouselImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !selectedElement) return;
+
+    try {
+      setIsUploadingCarousel(true);
+      setCarouselUploadProgress({ current: 0, total: files.length });
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setCarouselUploadProgress({ current: i + 1, total: files.length });
+
+        try {
+          const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
+          let uploadedUrl = compressed.dataUrl;
+
+          try {
+            const formData = new FormData();
+            formData.append("file", compressed.file);
+            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            if (res.ok) {
+              const json = await res.json();
+              if (json.url) uploadedUrl = json.url;
+            }
+          } catch (uploadErr) {
+            console.warn("Upload carousel image API warning:", uploadErr);
+          }
+
+          uploadedUrls.push(uploadedUrl);
+        } catch (itemErr) {
+          console.error("Lỗi nén ảnh batch:", itemErr);
+          const fallbackUrl = URL.createObjectURL(file);
+          uploadedUrls.push(fallbackUrl);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        // Tự động lưu tất cả ảnh mới vào Thư viện ảnh đã tải lên
+        addUploadedImagesToLibrary(uploadedUrls);
+
+        // Thay thế toàn bộ danh sách ảnh trong album
+        const newList = uploadedUrls.map((url, idx) => ({
+          imageKey: url,
+          src: url,
+          caption: `Khoảnh khắc cưới ${idx + 1}`,
+        }));
+        onUpdateProps(selectedElement.id, { imgList: newList });
+        setCarouselMessage(`Đã thay thế toàn bộ bằng ${uploadedUrls.length} ảnh mới!`);
+        setTimeout(() => setCarouselMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error("Lỗi thay ảnh hàng loạt:", err);
+    } finally {
+      setIsUploadingCarousel(false);
+      setCarouselUploadProgress(null);
+      if (carouselBatchFileInputRef.current) carouselBatchFileInputRef.current.value = "";
+    }
+  };
+
+  const handleAddCarouselImages = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !selectedElement) return;
+
+    try {
+      setIsUploadingCarousel(true);
+      setCarouselUploadProgress({ current: 0, total: files.length });
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setCarouselUploadProgress({ current: i + 1, total: files.length });
+
+        try {
+          const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
+          let uploadedUrl = compressed.dataUrl;
+
+          try {
+            const formData = new FormData();
+            formData.append("file", compressed.file);
+            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            if (res.ok) {
+              const json = await res.json();
+              if (json.url) uploadedUrl = json.url;
+            }
+          } catch (uploadErr) {
+            console.warn("Upload carousel image API warning:", uploadErr);
+          }
+
+          uploadedUrls.push(uploadedUrl);
+        } catch (itemErr) {
+          console.error("Lỗi nén ảnh thêm album:", itemErr);
+          const fallbackUrl = URL.createObjectURL(file);
+          uploadedUrls.push(fallbackUrl);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        // Tự động lưu vào Thư viện ảnh đã tải lên
+        addUploadedImagesToLibrary(uploadedUrls);
+
+        const currentList = Array.isArray(selectedElement.props.imgList) ? [...selectedElement.props.imgList] : [];
+        const newItems = uploadedUrls.map((url, idx) => ({
+          imageKey: url,
+          src: url,
+          caption: `Khoảnh khắc cưới ${currentList.length + idx + 1}`,
+        }));
+        onUpdateProps(selectedElement.id, { imgList: [...currentList, ...newItems] });
+        setCarouselMessage(`Đã thêm ${uploadedUrls.length} ảnh vào album!`);
+        setTimeout(() => setCarouselMessage(null), 4000);
+      }
+    } catch (err) {
+      console.error("Lỗi thêm ảnh album:", err);
+    } finally {
+      setIsUploadingCarousel(false);
+      setCarouselUploadProgress(null);
+      if (carouselFileInputRef.current) carouselFileInputRef.current.value = "";
+    }
+  };
+
+  const handleTriggerSwapSingleImage = (index: number) => {
+    swapIndexRef.current = index;
+    if (carouselSwapSingleInputRef.current) {
+      carouselSwapSingleInputRef.current.value = "";
+      carouselSwapSingleInputRef.current.click();
+    }
+  };
+
+  const handleSwapSingleFilePicked = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !selectedElement) return;
+    const targetIdx = swapIndexRef.current;
+    if (!file || !selectedElement || targetIdx === null) return;
 
     try {
       setIsUploadingCarousel(true);
       const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
       let uploadedUrl = compressed.dataUrl;
 
-      // Đẩy file lên Server API
       try {
         const formData = new FormData();
         formData.append("file", compressed.file);
@@ -135,24 +272,38 @@ export default function EditorRightInspector({
           if (json.url) uploadedUrl = json.url;
         }
       } catch (uploadErr) {
-        console.warn("Upload carousel image API warning:", uploadErr);
+        console.warn("Upload swap image API warning:", uploadErr);
       }
 
-      // Tự động lưu ảnh album vào Thư viện ảnh đã tải lên
+      // Lưu ảnh mới vào Thư viện đã tải lên
       addUploadedImageToLibrary(uploadedUrl);
 
       const currentList = Array.isArray(selectedElement.props.imgList) ? [...selectedElement.props.imgList] : [];
-      currentList.push({
-        imageKey: uploadedUrl,
-        src: uploadedUrl,
-        caption: "Khoảnh khắc cưới",
-      });
-      onUpdateProps(selectedElement.id, { imgList: currentList });
+      if (currentList[targetIdx]) {
+        currentList[targetIdx] = {
+          ...currentList[targetIdx],
+          imageKey: uploadedUrl,
+          src: uploadedUrl,
+        };
+        onUpdateProps(selectedElement.id, { imgList: currentList });
+        setCarouselMessage(`Đã đổi ảnh vị trí #${targetIdx + 1}!`);
+        setTimeout(() => setCarouselMessage(null), 3000);
+      }
     } catch (err) {
-      console.error("Lỗi thêm ảnh album:", err);
+      console.error("Lỗi đổi ảnh album:", err);
     } finally {
       setIsUploadingCarousel(false);
-      if (carouselFileInputRef.current) carouselFileInputRef.current.value = "";
+      swapIndexRef.current = null;
+      if (carouselSwapSingleInputRef.current) carouselSwapSingleInputRef.current.value = "";
+    }
+  };
+
+  const handleClearCarouselImages = () => {
+    if (!selectedElement) return;
+    if (window.confirm("Bạn có chắc chắn muốn xóa tất cả ảnh trong album này? Bạn có thể thêm lại hoặc thay hàng loạt bất cứ lúc nào.")) {
+      onUpdateProps(selectedElement.id, { imgList: [] });
+      setCarouselMessage("Đã làm trống album ảnh.");
+      setTimeout(() => setCarouselMessage(null), 3000);
     }
   };
 
@@ -178,6 +329,7 @@ export default function EditorRightInspector({
   }
 
   const { id, type, props } = selectedElement;
+  const isLocked = Boolean(props.locked || isDecorativeNode(id, { props, type }));
   const isImage = type === "PhotoBox" || !!props.imgKey;
   const isText = type === "TextBox" || typeof props.text === "string";
   const isShape = type === "GeometricBox" || type === "LineBox";
@@ -206,9 +358,10 @@ export default function EditorRightInspector({
   };
 
   const getFullImageUrl = (key: string) => {
-    if (!key) return "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=400";
-    if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
-    return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
+    return getSafeImageUrl(
+      key,
+      "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=400"
+    );
   };
 
   return (
@@ -246,6 +399,22 @@ export default function EditorRightInspector({
         {/* ================= TAB: CÀI ĐẶT (SETTINGS) ================= */}
         {activeTab === "settings" && (
           <div className="space-y-4">
+            {/* Banner nếu phần tử bị khóa cố định */}
+            {isLocked && (
+              <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-900 shadow-2xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-bold text-xs text-amber-800">
+                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Họa tiết trang trí của mẫu</span>
+                  <span className="ml-auto text-[10px] font-semibold bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded-full">
+                    Đã khóa cố định
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-700 leading-relaxed">
+                  Chi tiết này là đồ họa nghệ thuật gốc của thiệp, được cố định vị trí và hình ảnh để bảo toàn tính thẩm mỹ chuẩn.
+                </p>
+              </div>
+            )}
+
             {/* 1. PHOTO INSPECTOR */}
             {isImage && (
               <div className="space-y-4">
@@ -266,42 +435,52 @@ export default function EditorRightInspector({
                             "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=400";
                         }}
                       />
-                      <div
-                        onClick={handleTriggerFilePicker}
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-[10px] font-bold"
-                      >
-                        Đổi ảnh
-                      </div>
+                      {!isLocked && (
+                        <div
+                          onClick={handleTriggerFilePicker}
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center cursor-pointer transition-opacity text-white text-[10px] font-bold"
+                        >
+                          Đổi ảnh
+                        </div>
+                      )}
                     </div>
-                    <div className="flex-1 space-y-2">
-                      <button
-                        type="button"
-                        onClick={handleTriggerFilePicker}
-                        disabled={isReplacingImage}
-                        className="w-full py-2 px-3 bg-zen-primary hover:bg-[#d93849] active:scale-98 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                      >
-                        {isReplacingImage ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <RotateCw className="w-3.5 h-3.5" />
-                        )}
-                        <span>{isReplacingImage ? "Đang xử lý..." : "Đổi ảnh"}</span>
-                      </button>
 
-                      <button
-                        type="button"
-                        onClick={onRemoveBackground}
-                        disabled={isRemovingBackground}
-                        className="w-full py-1.5 px-3 border border-purple-200 bg-purple-50/60 hover:bg-purple-100/60 disabled:opacity-60 text-purple-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                      >
-                        {isRemovingBackground ? (
-                          <Loader2 className="w-3.5 h-3.5 text-purple-600 animate-spin" />
-                        ) : (
-                          <Wand2 className="w-3.5 h-3.5 text-purple-600" />
-                        )}
-                        <span>{isRemovingBackground ? "Đang tách nền..." : "Xóa phông AI"}</span>
-                      </button>
-                    </div>
+                    {isLocked ? (
+                      <div className="flex-1 p-2.5 bg-stone-50 border border-stone-200/80 rounded-xl text-stone-600 text-xs flex items-center gap-2">
+                        <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                        <span className="text-[11px] leading-tight">Họa tiết cố định, không thể thay đổi ảnh</span>
+                      </div>
+                    ) : (
+                      <div className="flex-1 space-y-2">
+                        <button
+                          type="button"
+                          onClick={handleTriggerFilePicker}
+                          disabled={isReplacingImage}
+                          className="w-full py-2 px-3 bg-zen-primary hover:bg-[#d93849] active:scale-98 text-white rounded-xl text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          {isReplacingImage ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <RotateCw className="w-3.5 h-3.5" />
+                          )}
+                          <span>{isReplacingImage ? "Đang xử lý..." : "Đổi ảnh"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onRemoveBackground}
+                          disabled={isRemovingBackground}
+                          className="w-full py-1.5 px-3 border border-purple-200 bg-purple-50/60 hover:bg-purple-100/60 disabled:opacity-60 text-purple-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        >
+                          {isRemovingBackground ? (
+                            <Loader2 className="w-3.5 h-3.5 text-purple-600 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3.5 h-3.5 text-purple-600" />
+                          )}
+                          <span>{isRemovingBackground ? "Đang tách nền..." : "Xóa phông AI"}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <input
@@ -860,60 +1039,179 @@ export default function EditorRightInspector({
 
             {/* 9. CAROUSEL ALBUM INSPECTOR */}
             {isCarousel && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
-                  <ImageIcon className="w-4 h-4 text-zen-primary" />
-                  <span>Album ảnh cưới trượt (Carousel)</span>
+              <div className="space-y-3.5">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900">
+                    <ImageIcon className="w-4 h-4 text-zen-primary" />
+                    <span>Album ảnh cưới trượt (Carousel)</span>
+                  </div>
+                  <span className="text-[10px] text-gray-500 font-semibold bg-gray-100 px-2 py-0.5 rounded-full">
+                    {Array.isArray(props.imgList) ? props.imgList.length : 0} ảnh
+                  </span>
                 </div>
+                <p className="text-[11px] text-gray-500 leading-relaxed -mt-1">
+                  Trình chiếu lướt ảnh hoặc tự động cuộn các khoảnh khắc cưới
+                </p>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-700">
-                      Ảnh trong album ({Array.isArray(props.imgList) ? props.imgList.length : 0}):
-                    </span>
+                {/* Status Message */}
+                {carouselMessage && (
+                  <div className="p-2 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5">
+                    <Check className="w-3.5 h-3.5 shrink-0 stroke-[3]" />
+                    <span>{carouselMessage}</span>
+                  </div>
+                )}
+
+                {/* Upload Progress Bar */}
+                {carouselUploadProgress && (
+                  <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-[#e54153] space-y-1.5">
+                    <div className="flex items-center justify-between font-semibold">
+                      <span className="flex items-center gap-1.5">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Đang nén & tải ảnh ({carouselUploadProgress.current}/{carouselUploadProgress.total})...</span>
+                      </span>
+                    </div>
+                    <div className="w-full bg-rose-200/60 rounded-full h-1.5 overflow-hidden">
+                      <div
+                        className="bg-[#e54153] h-full transition-all duration-300"
+                        style={{
+                          width: `${Math.round((carouselUploadProgress.current / carouselUploadProgress.total) * 100)}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* BATCH AND ADD CONTROLS */}
+                <div className="space-y-2 pt-1">
+                  {/* Nút THAY TOÀN BỘ ẢNH HÀNG LOẠT NỔI BẬT */}
+                  <button
+                    type="button"
+                    onClick={() => carouselBatchFileInputRef.current?.click()}
+                    disabled={isUploadingCarousel}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5b70] hover:from-[#d93849] hover:to-[#e54153] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow-md active:scale-[0.99] transition-all cursor-pointer disabled:opacity-50"
+                    title="Chọn nhiều ảnh từ máy tính để thay thế toàn bộ album"
+                  >
+                    {isUploadingCarousel ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-4 h-4" />
+                    )}
+                    <span>⚡ Thay toàn bộ ảnh (Hàng loạt)</span>
+                  </button>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Nút Thêm ảnh (chọn nhiều) */}
                     <button
                       type="button"
                       onClick={() => carouselFileInputRef.current?.click()}
                       disabled={isUploadingCarousel}
-                      className="px-2.5 py-1 rounded-lg bg-zen-primary text-white text-[11px] font-bold flex items-center gap-1 hover:bg-[#d93849] transition-colors cursor-pointer"
+                      className="py-1.5 px-2.5 rounded-lg bg-white border border-gray-200 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1 hover:border-gray-300 hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+                      title="Chọn thêm ảnh để nối tiếp vào album"
                     >
-                      {isUploadingCarousel ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                      <span>Thêm ảnh</span>
+                      <Plus className="w-3.5 h-3.5 text-[#e54153]" />
+                      <span>+ Thêm ảnh</span>
+                    </button>
+
+                    {/* Nút Xóa tất cả */}
+                    <button
+                      type="button"
+                      onClick={handleClearCarouselImages}
+                      disabled={isUploadingCarousel || !Array.isArray(props.imgList) || props.imgList.length === 0}
+                      className="py-1.5 px-2.5 rounded-lg bg-white border border-gray-200 text-gray-500 text-[11px] font-semibold flex items-center justify-center gap-1 hover:border-red-200 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer disabled:opacity-40"
+                      title="Làm trống toàn bộ ảnh trong album"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Xóa tất cả</span>
                     </button>
                   </div>
+                </div>
 
-                  <input
-                    ref={carouselFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAddCarouselImage}
-                    className="hidden"
-                  />
+                {/* Ẩn các file input */}
+                <input
+                  ref={carouselBatchFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleBatchReplaceCarouselImages}
+                  className="hidden"
+                />
+                <input
+                  ref={carouselFileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleAddCarouselImages}
+                  className="hidden"
+                />
+                <input
+                  ref={carouselSwapSingleInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleSwapSingleFilePicked}
+                  className="hidden"
+                />
 
-                  {/* Thumbnail Grid */}
-                  <div className="grid grid-cols-3 gap-2 pt-1 max-h-48 overflow-y-auto">
-                    {Array.isArray(props.imgList) &&
-                      props.imgList.map((item: any, idx: number) => (
+                {/* Gợi ý tương tác với thư viện ảnh */}
+                <div className="p-2 rounded-xl bg-amber-50/70 border border-amber-200/70 text-[11px] text-amber-800 flex items-start gap-1.5">
+                  <span className="text-xs">💡</span>
+                  <span>
+                    Bấm mục <strong>Hình ảnh</strong> ở thanh công cụ bên trái để bấm ảnh có sẵn đưa vào album.
+                  </span>
+                </div>
+
+                {/* Thumbnail Grid & Individual swap/delete */}
+                <div className="space-y-1.5 pt-1">
+                  <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+                    <span>Danh sách ảnh ({Array.isArray(props.imgList) ? props.imgList.length : 0}):</span>
+                  </div>
+
+                  {Array.isArray(props.imgList) && props.imgList.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2 pt-1 max-h-56 overflow-y-auto p-1.5 bg-gray-50/50 rounded-xl border border-gray-100">
+                      {props.imgList.map((item: any, idx: number) => (
                         <div
                           key={idx}
-                          className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-gray-50"
+                          className="relative aspect-square rounded-lg overflow-hidden border border-gray-200 group bg-gray-100 shadow-2xs"
                         >
                           <img
                             src={getFullImageUrl(item.imageKey || item.src)}
-                            alt="Album item"
-                            className="w-full h-full object-cover"
+                            alt={`Album item ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                           />
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveCarouselImage(idx)}
-                            className="absolute top-1 right-1 p-1 rounded-full bg-red-600/80 text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-700 cursor-pointer"
-                            title="Xóa ảnh này"
-                          >
-                            <Trash2 className="w-2.5 h-2.5" />
-                          </button>
+
+                          {/* Index badge */}
+                          <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[9px] font-bold pointer-events-none backdrop-blur-xs">
+                            #{idx + 1}
+                          </div>
+
+                          {/* Action overlay */}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
+                            <button
+                              type="button"
+                              onClick={() => handleTriggerSwapSingleImage(idx)}
+                              className="p-1.5 rounded-full bg-white text-gray-800 hover:bg-gray-100 transition-colors shadow-sm cursor-pointer"
+                              title="Đổi ảnh này bằng ảnh khác từ máy"
+                            >
+                              <RotateCw className="w-3 h-3 text-[#e54153]" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveCarouselImage(idx)}
+                              className="p-1.5 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors shadow-sm cursor-pointer"
+                              title="Xóa ảnh này khỏi album"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
-                  </div>
+                    </div>
+                  ) : (
+                    <div className="py-6 text-center text-gray-400 text-xs border border-dashed border-gray-200 rounded-xl bg-gray-50/50">
+                      <ImageIcon className="w-7 h-7 mx-auto mb-1.5 opacity-40 text-gray-400" />
+                      <p className="font-semibold text-gray-600">Album chưa có ảnh nào</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Bấm &quot;⚡ Thay toàn bộ ảnh&quot; hoặc &quot;+ Thêm ảnh&quot;</p>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1.5 pt-2 border-t border-gray-100">

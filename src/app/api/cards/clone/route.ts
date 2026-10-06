@@ -15,11 +15,11 @@ export const dynamic = "force-dynamic";
  */
 function extractNamesFromNodes(nodes?: Record<string, any>): { groom: string; bride: string } {
   let groom = "Đức Mạnh";
-  let bride = "Thùy Dung";
+  let bride = "Lệ Quyên";
 
   if (!nodes) return { groom, bride };
 
-  // Xử lý mẫu FORM (như Đồng Xanh)
+  // 1. Xử lý mẫu FORM (như Đồng Xanh)
   if (nodes.basicInfo) {
     const b = nodes.basicInfo;
     if (b.groomFullName || b.groomShortName) groom = b.groomFullName || b.groomShortName;
@@ -27,16 +27,56 @@ function extractNamesFromNodes(nodes?: Record<string, any>): { groom: string; br
     return { groom, bride };
   }
 
-  // Quét TextBox có chứa '&' hoặc 'và'
-  for (const node of Object.values(nodes)) {
-    if (node?.type?.resolvedName === "TextBox" && typeof node.props?.text === "string") {
-      const clean = node.props.text.replace(/<[^>]*>/g, "").trim();
-      if ((clean.includes("&") || clean.includes("và")) && clean.length > 3 && clean.length < 50) {
-        const parts = clean.split(/&|và/);
-        if (parts[0]?.trim()) groom = parts[0].trim();
-        if (parts[1]?.trim()) bride = parts[1].trim();
-        break;
+  const textBoxes = Object.values(nodes)
+    .filter((n) => n?.type?.resolvedName === "TextBox" && typeof n.props?.text === "string")
+    .map((n) => ({
+      text: n.props.text
+        .replace(/<[^>]*>/g, "")
+        .replace(/&amp;/g, "&")
+        .replace(/&nbsp;/g, " ")
+        .trim(),
+      top: Number(n.props.top) || 0,
+    }))
+    .sort((a, b) => a.top - b.top);
+
+  // 2. Tìm TextBox chứa cả 2 tên dạng "Chú rể & Cô dâu" hoặc "Chú rể và Cô dâu"
+  for (const tb of textBoxes) {
+    const clean = tb.text;
+    if ((clean.includes("&") || clean.includes(" và ")) && clean.length > 5 && clean.length < 50) {
+      const parts = clean.split(/&|\bvà\b/);
+      const p0 = parts[0]?.trim();
+      const p1 = parts[1]?.trim();
+      if (
+        p0 &&
+        p1 &&
+        p0.length >= 2 &&
+        p1.length >= 2 &&
+        !p0.includes("Save") &&
+        !p1.includes("Save") &&
+        p1 !== "amp;" &&
+        !p1.startsWith("amp;")
+      ) {
+        return { groom: p0, bride: p1 };
       }
+    }
+  }
+
+  // 3. Tìm TextBox cô lập '&' có tên chú rể phía trên và tên cô dâu phía dưới (như mẫu Hồng Phong)
+  const ampersandIdx = textBoxes.findIndex(
+    (tb) => tb.text === "&" || tb.text === "♥" || tb.text === "+"
+  );
+  if (ampersandIdx > 0 && ampersandIdx < textBoxes.length - 1) {
+    const prev = textBoxes[ampersandIdx - 1].text;
+    const next = textBoxes[ampersandIdx + 1].text;
+    if (
+      prev.length >= 2 &&
+      prev.length < 30 &&
+      next.length >= 2 &&
+      next.length < 30 &&
+      !prev.includes("Save") &&
+      !next.includes("Save")
+    ) {
+      return { groom: prev, bride: next };
     }
   }
 

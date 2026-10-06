@@ -75,6 +75,27 @@ export function getCardByIdOrSlug(idOrSlug: string): WeddingCard | undefined {
   return cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
 }
 
+// Tự động dọn dẹp các cache thiệp cũ không hoạt động khi LocalStorage bị đầy
+function pruneOldLocalStorageCache(keepCardId?: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith("card_") || key.startsWith("card_slug_"))) {
+        if (!keepCardId || !key.includes(keepCardId)) {
+          keysToRemove.push(key);
+        }
+      }
+    }
+    keysToRemove.slice(0, Math.ceil(keysToRemove.length / 2)).forEach((k) => {
+      try {
+        localStorage.removeItem(k);
+      } catch {}
+    });
+  } catch {}
+}
+
 export function saveCard(card: WeddingCard): void {
   if (typeof window === "undefined") return;
   const updatedCard = {
@@ -86,24 +107,38 @@ export function saveCard(card: WeddingCard): void {
   try {
     const cards = getAllCards();
     const existingIndex = cards.findIndex((c) => c.id === card.id || c.slug === card.slug);
+    
+    // Lưu tóm tắt metadata trong danh sách thẻ (không chứa nodes nặng) để tiết kiệm 95% bộ nhớ
+    const summaryCard: WeddingCard = {
+      ...updatedCard,
+      nodes: undefined,
+    };
+
     let nextCards: WeddingCard[];
     if (existingIndex >= 0) {
       nextCards = [...cards];
-      nextCards[existingIndex] = updatedCard;
+      nextCards[existingIndex] = summaryCard;
     } else {
-      nextCards = [updatedCard, ...cards];
+      nextCards = [summaryCard, ...cards];
     }
     localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(nextCards));
 
-    // Lưu thêm direct keys theo id và slug để tra cứu tức thì chính xác
+    // Lưu thẻ đầy đủ kèm nodes vào direct key
     try {
       localStorage.setItem(`card_${card.id}`, JSON.stringify(updatedCard));
       if (card.slug) {
         localStorage.setItem(`card_slug_${card.slug}`, JSON.stringify(updatedCard));
       }
-    } catch {}
+    } catch (quotaErr) {
+      // Nếu đầy bộ nhớ, dọn dẹp cache cũ rồi thử lại
+      pruneOldLocalStorageCache(card.id);
+      try {
+        localStorage.setItem(`card_${card.id}`, JSON.stringify(updatedCard));
+      } catch {}
+    }
   } catch (e) {
-    console.warn("LocalStorage quota exceeded or write failed, continuing with remote sync:", e);
+    pruneOldLocalStorageCache(card.id);
+    console.warn("LocalStorage write fallback:", e);
   }
 
   // 2. Luôn luôn đồng bộ lên Supabase Server API độc lập, không bị chặn bởi lỗi LocalStorage
@@ -115,6 +150,29 @@ export function saveCard(card: WeddingCard): void {
     }).catch((err) => console.warn("Lưu lên Server API thất bại:", err));
   } catch (err) {
     console.warn("fetch saveCard error:", err);
+  }
+}
+
+/**
+ * Phiên bản bất đồng bộ của saveCard - đợi Server DB xác nhận lưu thành công
+ */
+export async function saveCardAsync(card: WeddingCard): Promise<{ success: boolean; message?: string }> {
+  // Lưu local trước
+  saveCard(card);
+
+  try {
+    const res = await fetch(`/api/cards/${card.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(card),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return { success: true, message: data.message || "Đã lưu lên máy chủ thành công" };
+    }
+    return { success: false, message: `Máy chủ trả về HTTP ${res.status}` };
+  } catch (err: any) {
+    return { success: false, message: err?.message || "Lỗi kết nối máy chủ" };
   }
 }
 

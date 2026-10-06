@@ -14,11 +14,29 @@ import {
   Gift,
   Heart,
   ChevronDown,
+  ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  Check,
+  CheckCircle2,
+  Image as ImageIcon,
   Loader2,
+  Upload,
+  UploadCloud,
+  Lock,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
 import { compressImageToWebP } from "@/lib/imageCompression";
-import { addUploadedImageToLibrary } from "@/lib/mediaLibraryService";
+import { addUploadedImageToLibrary, addUploadedImagesToLibrary } from "@/lib/mediaLibraryService";
+import {
+  getSafeImageUrl,
+  handleImageFallback,
+  FALLBACK_WEDDING_IMG,
+  DEFAULT_WEDDING_BACKGROUND,
+  isDecorativeAsset,
+} from "@/lib/imageUtils";
+import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { isDecorativeNode, getRealWeddingPhotoSlots } from "@/lib/decorativeLockService";
 
 interface EditorCanvasProps {
   nodes: Record<string, any>;
@@ -32,6 +50,8 @@ interface EditorCanvasProps {
   onZoomOut: () => void;
   onResetZoom: () => void;
   onQuickReplacePhoto: (index: number) => void;
+  onOpenImageDrawer?: () => void;
+  isLeftDrawerOpen?: boolean;
 }
 
 export default function EditorCanvas({
@@ -46,6 +66,8 @@ export default function EditorCanvas({
   onZoomOut,
   onResetZoom,
   onQuickReplacePhoto,
+  onOpenImageDrawer,
+  isLeftDrawerOpen = false,
 }: EditorCanvasProps) {
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
@@ -79,69 +101,83 @@ export default function EditorCanvas({
 
   const backgroundColor = rootProps.backgroundColor || "#ffffff";
   const bgImg = rootProps.backgroundImage;
-  const backgroundImage = bgImg
-    ? (bgImg.startsWith("http") || bgImg.startsWith("blob:") || bgImg.startsWith("data:") || bgImg.startsWith("/uploads") || bgImg.startsWith("/")
-        ? bgImg
-        : `https://cdn-resource.zenlove.me/${bgImg.replace(/^\//, "")}`)
-    : null;
+  const rawBg = bgImg ? getSafeImageUrl(bgImg, "") : "";
+  const backgroundImage =
+    rawBg && rawBg.trim().length > 0 && !rawBg.endsWith("/none")
+      ? rawBg
+      : DEFAULT_WEDDING_BACKGROUND;
 
 
-  // Find all PhotoBox nodes that represent real wedding photos
-  const photoCandidates = childNodes.filter(
-    (n) => n.type === "PhotoBox" && (n.props.imgKey || n.props.src)
-  );
-  let photoSlots = [...photoCandidates].sort((a, b) => {
-    // Prioritize explicitly replaceable, or hero photos with large width or top position
-    const aScore = (a.props.isReplaceable ? 1000 : 0) + ((a.props.width || 0) > 150 ? 500 : 0) - (a.props.top || 0) * 0.05;
-    const bScore = (b.props.isReplaceable ? 1000 : 0) + ((b.props.width || 0) > 150 ? 500 : 0) - (b.props.top || 0) * 0.05;
-    return bScore - aScore;
-  });
+  // Track replaced photo slot IDs and panel state
+  const [replacedSlotIds, setReplacedSlotIds] = useState<Set<string>>(new Set());
+  const [isQuickPanelCollapsed, setIsQuickPanelCollapsed] = useState(false);
+  const quickScrollRef = useRef<HTMLDivElement>(null);
+  const initialSlotImagesRef = useRef<Record<string, string>>({});
 
-  // If none matched, check any node with imgKey
-  if (photoSlots.length === 0) {
-    const anyImageNodes = Object.entries(nodes)
-      .filter(([id, n]) => id !== "ROOT" && (n.props?.imgKey || n.type?.resolvedName === "PhotoBox"))
-      .map(([id, n]) => ({ id, type: "PhotoBox", props: n.props || {}, zIndex: n.props?.zIndex || 1 }));
-    if (anyImageNodes.length > 0) {
-      photoSlots = anyImageNodes;
+  // Danh sách các khung ảnh cưới THỰC SỰ trong template (loại trừ 100% họa tiết trang trí)
+  const photoSlots = React.useMemo(() => {
+    return getRealWeddingPhotoSlots(nodes);
+  }, [nodes]);
+
+  // Record initial image URLs to detect changes
+  React.useEffect(() => {
+    photoSlots.forEach((slot) => {
+      const img = slot.props?.imgKey || slot.props?.src || "";
+      if (img && !initialSlotImagesRef.current[slot.id]) {
+        initialSlotImagesRef.current[slot.id] = img;
+      }
+    });
+  }, [photoSlots]);
+
+  // Check if a photo slot has been successfully replaced
+  const isSlotReplaced = (slot: any) => {
+    if (replacedSlotIds.has(slot.id)) return true;
+    const initialImg = initialSlotImagesRef.current[slot.id];
+    const currentImg = (slot.props?.imgKey || slot.props?.src || "").trim();
+    if (initialImg && currentImg && initialImg !== currentImg) return true;
+    if (currentImg.startsWith("blob:") || currentImg.startsWith("data:")) return true;
+    return false;
+  };
+
+  const replacedCount = photoSlots.filter(isSlotReplaced).length;
+
+  // Calculate thumbnail dimensions based on actual aspect ratio of photo box
+  const getSlotDimensions = (slot: any) => {
+    const rawW = Number(slot.props?.width) || 100;
+    const rawH = Number(slot.props?.height) || 120;
+    const ratio = Math.max(0.4, Math.min(2.5, rawW / rawH));
+    const baseHeight = 58;
+    let width = Math.round(baseHeight * ratio);
+    width = Math.max(44, Math.min(94, width));
+    return {
+      width,
+      height: baseHeight,
+      ratioLabel: ratio > 1.25 ? "Ngang" : ratio < 0.8 ? "Dọc" : "Vuông",
+    };
+  };
+
+  const scrollQuickPanel = (direction: "left" | "right") => {
+    if (quickScrollRef.current) {
+      quickScrollRef.current.scrollBy({
+        left: direction === "left" ? -180 : 180,
+        behavior: "smooth",
+      });
     }
-  }
-
-  // If still none found, provide couple default thumbnails
-  if (photoSlots.length === 0) {
-    photoSlots = [
-      {
-        id: "U4ZPPsHPXy",
-        type: "PhotoBox",
-        props: {
-          imgKey:
-            "uploads/20ebff90-ba33-4679-b427-52cdb622de1e/trong-nha-3-cuoi/aW1hZ2UtOHdhdGVybWFya2VkXzE3ODA2MDk1NDQ3MTBfN3ltMzBoMjZ0cA.jpg",
-        },
-        zIndex: 9,
-      },
-      {
-        id: "nc326y93D4",
-        type: "PhotoBox",
-        props: {
-          imgKey:
-            "uploads/8a871955-90a1-4541-b4e2-f998447e57fb/ngoai-troi-cay-xanh/TURBd016SXdNalF0TVRJdE1qY3RTMVJoUzJoRVkwZzFhRE15Y0dWcldqUjNSRUpSV21WTmEwVkxkMkp5V1ZsZk1UYzNOVFUxTVRnME56QTFPVjh4ZVRFNFpXRnJkVGc0Tnd3YXRlcm1hcmtlZF8xNzgwMDc2MzU1MzQxX2Fla3ZqcGhzd3M.jpg?crop=0,653,1080,720",
-        },
-        zIndex: 59,
-      },
-    ];
-  } else if (photoSlots.length > 2) {
-    photoSlots = photoSlots.slice(0, 2);
-  }
+  };
 
   const getImageUrl = (key: string) => {
-    if (!key) return "";
-    if (key.startsWith("http") || key.startsWith("blob:") || key.startsWith("data:") || key.startsWith("/uploads") || key.startsWith("/")) return key;
-    return `https://cdn-resource.zenlove.me/${key.replace(/^\//, "")}`;
+    return getSafeImageUrl(key, "");
   };
 
   const quickFileInputRef = useRef<HTMLInputElement>(null);
+  const batchFileInputRef = useRef<HTMLInputElement>(null);
+  const activeSlotIdRef = useRef<string | null>(null);
   const [activeSlotId, setActiveSlotId] = useState<string | null>(null);
+  const [barActiveSlotId, setBarActiveSlotId] = useState<string | null>(null);
   const [isUploadingSlot, setIsUploadingSlot] = useState(false);
+  const [isBatchUploading, setIsBatchUploading] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<{ current: number; total: number } | null>(null);
+  const [batchMessage, setBatchMessage] = useState<string | null>(null);
 
   // Drag-to-move and drag-to-rotate states
   const [isDragging, setIsDragging] = useState(false);
@@ -158,6 +194,11 @@ export default function EditorCanvas({
     if (e.button !== 0) return;
     e.stopPropagation();
     onSelectElement({ id, type, props });
+
+    // Không cho phép kéo di chuyển nếu phần tử bị khóa hoặc là họa tiết trang trí của mẫu
+    if (props.locked || isDecorativeNode(id, nodes[id])) {
+      return;
+    }
 
     dragStartRef.current = {
       startX: e.clientX,
@@ -328,6 +369,11 @@ export default function EditorCanvas({
     const touch = e.touches[0];
     onSelectElement({ id, type, props });
 
+    // Không cho phép chạm kéo di chuyển nếu phần tử bị khóa hoặc là họa tiết trang trí của mẫu
+    if (props.locked || isDecorativeNode(id, nodes[id])) {
+      return;
+    }
+
     dragStartRef.current = {
       startX: touch.clientX,
       startY: touch.clientY,
@@ -478,18 +524,53 @@ export default function EditorCanvas({
     window.addEventListener("touchend", handleTouchEnd);
   };
 
+  // Đồng bộ activeSlotId khi người dùng chọn/bỏ chọn phần tử trên canvas
+  React.useEffect(() => {
+    if (selectedElement && selectedElement.type === "PhotoBox") {
+      setActiveSlotId(selectedElement.id);
+      activeSlotIdRef.current = selectedElement.id;
+    } else {
+      setActiveSlotId(null);
+      activeSlotIdRef.current = null;
+      setBarActiveSlotId(null);
+    }
+  }, [selectedElement]);
+
   const handleSlotClick = (slot: any) => {
+    // Kiểm tra xem ô ảnh này ĐÃ ĐƯỢC BẤM LẦN 1 TRÊN THANH NÀY hay chưa
+    const isSecondClick = barActiveSlotId === slot.id;
+
+    if (isSecondClick) {
+      // === BẤM LẦN 2: CHỌN ẢNH TỪ MÁY TÍNH ===
+      activeSlotIdRef.current = slot.id;
+      setActiveSlotId(slot.id);
+      if (quickFileInputRef.current) {
+        quickFileInputRef.current.value = "";
+        quickFileInputRef.current.click();
+      }
+      return;
+    }
+
+    // === BẤM LẦN 1: CHỌN ẢNH ĐÓ ĐỂ CÓ THỂ CHỌN ẢNH SẴN CÓ BÊN TRÁI ===
+    setBarActiveSlotId(slot.id);
+    activeSlotIdRef.current = slot.id;
     setActiveSlotId(slot.id);
     onSelectElement({ id: slot.id, type: "PhotoBox", props: slot.props || {} });
-    if (quickFileInputRef.current) {
-      quickFileInputRef.current.value = "";
-      quickFileInputRef.current.click();
+
+    // Tự động cuộn canvas đến chính giữa vị trí ảnh được chọn trên thiệp
+    const element = document.getElementById(`canvas-node-${slot.id}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+
+    // Tự động mở ngăn thư viện "Hình ảnh" có sẵn bên trái
+    onOpenImageDrawer?.();
   };
 
   const handleQuickFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeSlotId) return;
+    const targetSlotId = activeSlotIdRef.current || activeSlotId;
+    if (!file || !targetSlotId) return;
 
     try {
       setIsUploadingSlot(true);
@@ -507,20 +588,103 @@ export default function EditorCanvas({
       // Tự động lưu ảnh thay thế vào Thư viện ảnh đã tải lên
       addUploadedImageToLibrary(uploadedUrl);
 
-      onUpdateElementProps(activeSlotId, { imgKey: uploadedUrl, src: uploadedUrl });
+      onUpdateElementProps(targetSlotId, { imgKey: uploadedUrl, src: uploadedUrl });
       onSelectElement({
-        id: activeSlotId,
+        id: targetSlotId,
         type: "PhotoBox",
-        props: { ...(nodes[activeSlotId]?.props || {}), imgKey: uploadedUrl, src: uploadedUrl },
+        props: { ...(nodes[targetSlotId]?.props || {}), imgKey: uploadedUrl, src: uploadedUrl },
+      });
+
+      // Đánh dấu tích xanh đã thay ảnh thành công
+      setReplacedSlotIds((prev) => {
+        const next = new Set(prev);
+        next.add(targetSlotId);
+        return next;
       });
     } catch (err) {
       console.error("Lỗi thay ảnh nhanh:", err);
       const localUrl = URL.createObjectURL(file);
       addUploadedImageToLibrary(localUrl);
-      onUpdateElementProps(activeSlotId, { imgKey: localUrl, src: localUrl });
+      onUpdateElementProps(targetSlotId, { imgKey: localUrl, src: localUrl });
+      setReplacedSlotIds((prev) => {
+        const next = new Set(prev);
+        next.add(targetSlotId);
+        return next;
+      });
     } finally {
       setIsUploadingSlot(false);
       if (quickFileInputRef.current) quickFileInputRef.current.value = "";
+    }
+  };
+
+  const handleBatchFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    try {
+      setIsBatchUploading(true);
+      setBatchProgress({ current: 0, total: files.length });
+
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < files.length; i++) {
+        setBatchProgress({ current: i + 1, total: files.length });
+        const file = files[i];
+        try {
+          const compressed = await compressImageToWebP(file, { maxDimension: 1600, quality: 0.82 });
+          const formData = new FormData();
+          formData.append("file", compressed.file);
+
+          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          let uploadedUrl = compressed.dataUrl;
+          if (res.ok) {
+            const json = await res.json();
+            if (json.url) uploadedUrl = json.url;
+          }
+          uploadedUrls.push(uploadedUrl);
+        } catch (err) {
+          console.error("Lỗi nén/tải ảnh:", err);
+          const localUrl = URL.createObjectURL(file);
+          uploadedUrls.push(localUrl);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        // 1. Lưu TẤT CẢ các ảnh đã chọn (cả ảnh thay thế và ảnh thừa) vào Thư viện ảnh đã tải lên
+        addUploadedImagesToLibrary(uploadedUrls);
+
+        // 2. Tự động thay thế tuần tự các khung ảnh trong template theo thứ tự từ trên xuống dưới
+        const slotsToReplace = Math.min(uploadedUrls.length, photoSlots.length);
+        const replacedIds = new Set(replacedSlotIds);
+
+        for (let i = 0; i < slotsToReplace; i++) {
+          const slot = photoSlots[i];
+          const newUrl = uploadedUrls[i];
+          onUpdateElementProps(slot.id, { imgKey: newUrl, src: newUrl });
+          replacedIds.add(slot.id);
+        }
+        setReplacedSlotIds(replacedIds);
+
+        // 3. Thông báo kết quả và số lượng ảnh thừa
+        const extraCount = uploadedUrls.length - slotsToReplace;
+        if (extraCount > 0) {
+          setBatchMessage(
+            `Đã thay ${slotsToReplace} ảnh trên thiệp! ${extraCount} ảnh thừa đã lưu vào Thư viện đã tải lên.`
+          );
+        } else {
+          setBatchMessage(`Đã thay thành công ${slotsToReplace}/${photoSlots.length} ảnh trên thiệp!`);
+        }
+        setTimeout(() => setBatchMessage(null), 6000);
+
+        // 4. Mở ngăn thư viện bên trái để người dùng xem ngay ảnh đã tải và ảnh thừa
+        onOpenImageDrawer?.();
+      }
+    } catch (err) {
+      console.error("Lỗi thay ảnh hàng loạt:", err);
+    } finally {
+      setIsBatchUploading(false);
+      setBatchProgress(null);
+      if (batchFileInputRef.current) batchFileInputRef.current.value = "";
     }
   };
 
@@ -630,8 +794,11 @@ export default function EditorCanvas({
                     src={getImageUrl(props.imgKey)}
                     alt={props.alt || ""}
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src =
-                        "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600";
+                      handleImageFallback(
+                        e,
+                        undefined,
+                        !props.isReplaceable || isDecorativeAsset(props.imgKey)
+                      );
                     }}
                     className="w-full h-full object-cover pointer-events-none select-none transition-all duration-300"
                     style={{
@@ -710,8 +877,7 @@ export default function EditorCanvas({
                       src={getImageUrl(props.imgList[0]?.imageKey || props.imgList[0]?.src)}
                       alt="Wedding Album Carousel"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600";
+                        handleImageFallback(e, FALLBACK_WEDDING_IMG, false);
                       }}
                       className="w-full h-full object-cover select-none pointer-events-none"
                       draggable={false}
@@ -783,20 +949,53 @@ export default function EditorCanvas({
                 </div>
               )}
 
-              {type === "GiftQrBox" && (
-                <div className="w-full h-full flex flex-col items-center justify-center p-3 text-center">
-                  {props.imgKey && (
-                    <img
-                      src={getImageUrl(props.imgKey)}
-                      alt="Gift"
-                      className="w-24 h-24 object-contain animate-bounce"
-                    />
-                  )}
-                  <span className="text-xs font-bold text-[#590310] mt-1">
-                    {props.modalTitle || "Hộp Quà Yêu Thương"}
-                  </span>
-                </div>
-              )}
+              {type === "GiftQrBox" && (() => {
+                const isRealQrKey =
+                  props.imgKey &&
+                  (props.imgKey.includes("vietqr.io") || props.imgKey.includes("vietqr"));
+
+                const qrUrl = isRealQrKey
+                  ? props.imgKey
+                  : generateVietQrUrl(
+                      props.bankName || "MB BANK",
+                      props.accountNumber || "240220038888",
+                      props.accountName || "NGUYEN VAN HUNG",
+                      undefined,
+                      "Mung cuoi hai ban"
+                    );
+
+                return (
+                  <div className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200 shadow-md flex flex-col items-center justify-between text-center select-none">
+                    <div className="flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full">
+                      <span>🎁</span>
+                      <span>{props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)"}</span>
+                    </div>
+
+                    {/* Mã QR chuẩn Napas 24/7 Thật */}
+                    <div className="w-28 h-28 sm:w-32 sm:h-32 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 overflow-hidden">
+                      <img
+                        src={qrUrl}
+                        alt="Mã VietQR Mừng Cưới"
+                        onError={(e) => handleImageFallback(e, undefined, false)}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <p className="text-[11px] font-bold text-gray-800">
+                        {props.bankName || "MB BANK"} • {props.accountNumber || "240220038888"}
+                      </p>
+                      <p className="text-[10px] text-gray-500 uppercase font-semibold truncate max-w-[190px]">
+                        {props.accountName || "NGUYEN VAN HUNG"}
+                      </p>
+                    </div>
+
+                    <span className="text-[10px] text-rose-600 font-bold">
+                      Quét mã chuyển khoản Napas 24/7 ↗
+                    </span>
+                  </div>
+                );
+              })()}
 
               {type === "RsvpBoxV2" && (
                 <div className="w-full h-full p-5 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between text-left">
@@ -846,6 +1045,7 @@ export default function EditorCanvas({
           const node = nodes[selectedElement.id];
           if (!node) return null;
           const p = node.props || {};
+          const isLocked = Boolean(p.locked || isDecorativeNode(selectedElement.id, node));
           const top = p.top ?? 0;
           const left = p.left ?? 0;
           const width = p.width ?? 100;
@@ -854,7 +1054,11 @@ export default function EditorCanvas({
 
           return (
             <div
-              className="absolute pointer-events-none border border-[#e54153] z-50 select-none"
+              className={`absolute pointer-events-none z-50 select-none ${
+                isLocked
+                  ? "border-2 border-dashed border-amber-500/80"
+                  : "border border-[#e54153]"
+              }`}
               style={{
                 top: `${top}px`,
                 left: `${left}px`,
@@ -863,169 +1067,187 @@ export default function EditorCanvas({
                 transform: `rotate(${rotation}deg)`,
               }}
             >
-              {/* Drag Move Hit Area (Border edges allow direct dragging) */}
+              {/* Drag Move Hit Area (chỉ kéo được nếu phần tử chưa bị khóa) */}
               <div
                 onMouseDown={(e) => handleMouseDownElement(e, selectedElement.id, p, selectedElement.type)}
                 onTouchStart={(e) => handleTouchStartElement(e, selectedElement.id, p, selectedElement.type)}
-                className="absolute inset-0 pointer-events-auto cursor-move"
-                title="Giữ chuột hoặc chạm để di chuyển vị trí"
+                className={`absolute inset-0 pointer-events-auto ${
+                  isLocked ? "cursor-default" : "cursor-move"
+                }`}
+                title={isLocked ? "Họa tiết cố định của mẫu (Không thể di chuyển)" : "Giữ chuột hoặc chạm để di chuyển vị trí"}
               />
 
-              {/* 8-Point Interactive Resize Handles (Mouse & Touch Enabled) */}
-              {/* Top-Left (nw) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "nw", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "nw", p)}
-                className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để co giãn kích thước"
-              />
-              {/* Top-Center (n) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "n", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "n", p)}
-                className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để thay đổi chiều cao"
-              />
-              {/* Top-Right (ne) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "ne", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "ne", p)}
-                className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để co giãn kích thước"
-              />
-              {/* Center-Right (e) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "e", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "e", p)}
-                className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để thay đổi chiều rộng"
-              />
-              {/* Bottom-Right (se) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "se", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "se", p)}
-                className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để co giãn kích thước"
-              />
-              {/* Bottom-Center (s) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "s", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "s", p)}
-                className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để thay đổi chiều cao"
-              />
-              {/* Bottom-Left (sw) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "sw", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "sw", p)}
-                className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để co giãn kích thước"
-              />
-              {/* Center-Left (w) */}
-              <div
-                onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "w", p)}
-                onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "w", p)}
-                className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
-                title="Kéo để thay đổi chiều rộng"
-              />
-
-              {/* Real-time coordinates tooltip when moving/rotating/resizing */}
-              {(isDragging || isRotating || isResizing) && (
+              {/* Nếu phần tử bị khóa: Hiển thị Badge thông báo ĐÃ KHÓA CỐ ĐỊNH */}
+              {isLocked ? (
                 <div
-                  className="absolute -bottom-14 left-1/2 pointer-events-none bg-gray-900/90 text-white text-[10px] font-mono px-2 py-0.5 rounded-md shadow-md whitespace-nowrap z-50"
+                  className="absolute -top-9 left-1/2 pointer-events-auto bg-amber-600 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap z-50"
                   style={{
                     transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
                     transformOrigin: "center center",
                   }}
                 >
-                  {isRotating
-                    ? `Góc xoay: ${rotation}°`
-                    : isResizing
-                    ? `Rộng: ${width}px • Cao: ${height}px`
-                    : `X: ${left}px • Y: ${top}px`}
+                  <Lock className="w-3 h-3 text-amber-200" />
+                  <span>Họa tiết cố định</span>
                 </div>
+              ) : (
+                <>
+                  {/* 8-Point Interactive Resize Handles (Mouse & Touch Enabled) */}
+                  {/* Top-Left (nw) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "nw", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "nw", p)}
+                    className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để co giãn kích thước"
+                  />
+                  {/* Top-Center (n) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "n", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "n", p)}
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để thay đổi chiều cao"
+                  />
+                  {/* Top-Right (ne) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "ne", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "ne", p)}
+                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để co giãn kích thước"
+                  />
+                  {/* Center-Right (e) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "e", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "e", p)}
+                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để thay đổi chiều rộng"
+                  />
+                  {/* Bottom-Right (se) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "se", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "se", p)}
+                    className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để co giãn kích thước"
+                  />
+                  {/* Bottom-Center (s) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "s", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "s", p)}
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để thay đổi chiều cao"
+                  />
+                  {/* Bottom-Left (sw) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "sw", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "sw", p)}
+                    className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để co giãn kích thước"
+                  />
+                  {/* Center-Left (w) */}
+                  <div
+                    onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "w", p)}
+                    onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "w", p)}
+                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
+                    title="Kéo để thay đổi chiều rộng"
+                  />
+
+                  {/* Real-time coordinates tooltip when moving/rotating/resizing */}
+                  {(isDragging || isRotating || isResizing) && (
+                    <div
+                      className="absolute -bottom-14 left-1/2 pointer-events-none bg-gray-900/90 text-white text-[10px] font-mono px-2 py-0.5 rounded-md shadow-md whitespace-nowrap z-50"
+                      style={{
+                        transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                    >
+                      {isRotating
+                        ? `Góc xoay: ${rotation}°`
+                        : isResizing
+                        ? `Rộng: ${width}px • Cao: ${height}px`
+                        : `X: ${left}px • Y: ${top}px`}
+                    </div>
+                  )}
+
+                  {/* Top Floating Mini-Toolbar (Counter-rotated to remain horizontal) */}
+                  <div
+                    className="absolute -top-11 left-1/2 pointer-events-auto bg-white rounded-lg shadow-md border border-gray-200 flex items-center px-1.5 py-1 gap-1.5 z-50"
+                    style={{
+                      transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
+                      transformOrigin: "center center",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDuplicateElement(selectedElement.id);
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+                      title="Nhân bản"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteElement(selectedElement.id);
+                      }}
+                      className="p-1 hover:bg-red-50 rounded text-gray-600 hover:text-[#e54153] transition-colors cursor-pointer"
+                      title="Xóa phần tử"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const currentZ = Number(p.zIndex) || 1;
+                        onUpdateElementProps(selectedElement.id, { zIndex: currentZ + 1 });
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
+                      title="Đưa lên lớp trên (+1)"
+                    >
+                      <Layers className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateElementProps(selectedElement.id, {
+                          left: Math.round((canvasWidth - (p.width || 100)) / 2),
+                        });
+                      }}
+                      className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer text-[10px] font-bold px-1"
+                      title="Căn giữa thiệp"
+                    >
+                      Căn giữa
+                    </button>
+                  </div>
+
+                  {/* Bottom Rotation Handle */}
+                  <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center z-50">
+                    <div className="w-px h-3.5 bg-[#e54153]" />
+                    <div
+                      onMouseDown={(e) => handleMouseDownRotate(e, selectedElement.id)}
+                      onTouchStart={(e) => handleTouchStartRotate(e, selectedElement.id)}
+                      className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform touch-none"
+                      title="Kéo chuột hoặc chạm xoay phần tử"
+                    >
+                      <RotateCw className="w-3 h-3" />
+                    </div>
+                  </div>
+                </>
               )}
-
-              {/* Top Floating Mini-Toolbar (Counter-rotated to remain horizontal) */}
-              <div
-                className="absolute -top-11 left-1/2 pointer-events-auto bg-white rounded-lg shadow-md border border-gray-200 flex items-center px-1.5 py-1 gap-1.5 z-50"
-                style={{
-                  transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
-                  transformOrigin: "center center",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDuplicateElement(selectedElement.id);
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-                  title="Nhân bản"
-                >
-                  <Copy className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onDeleteElement(selectedElement.id);
-                  }}
-                  className="p-1 hover:bg-red-50 rounded text-gray-600 hover:text-[#e54153] transition-colors cursor-pointer"
-                  title="Xóa phần tử"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const currentZ = Number(p.zIndex) || 1;
-                    onUpdateElementProps(selectedElement.id, { zIndex: currentZ + 1 });
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-                  title="Đưa lên lớp trên (+1)"
-                >
-                  <Layers className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onUpdateElementProps(selectedElement.id, {
-                      left: Math.round((canvasWidth - (p.width || 100)) / 2),
-                    });
-                  }}
-                  className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer text-[10px] font-bold px-1"
-                  title="Căn giữa thiệp"
-                >
-                  Căn giữa
-                </button>
-              </div>
-
-              {/* Bottom Rotation Handle */}
-              <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center z-50">
-                <div className="w-px h-3.5 bg-[#e54153]" />
-                <div
-                  onMouseDown={(e) => handleMouseDownRotate(e, selectedElement.id)}
-                  onTouchStart={(e) => handleTouchStartRotate(e, selectedElement.id)}
-                  className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform touch-none"
-                  title="Kéo chuột hoặc chạm xoay phần tử"
-                >
-                  <RotateCw className="w-3 h-3" />
-                </div>
-              </div>
             </div>
           );
         })()}
       </div>
 
-      {/* ================= FLOATING RIGHT ZOOM CONTROLS (Matches screenshot!) ================= */}
-      <div className="absolute right-4 top-1/2 -translate-y-1/2 flex flex-col bg-white rounded-full shadow-md border border-gray-200 overflow-hidden z-40">
+      {/* ================= FLOATING RIGHT ZOOM CONTROLS (Fixed on screen) ================= */}
+      <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col bg-white rounded-full shadow-md border border-gray-200 overflow-hidden z-40">
         <button
           type="button"
           onClick={onZoomIn}
-          className="p-2 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+          className="p-2 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center cursor-pointer"
           title="Phóng to"
         >
           <Plus className="w-3.5 h-3.5" />
@@ -1033,7 +1255,7 @@ export default function EditorCanvas({
         <button
           type="button"
           onClick={onResetZoom}
-          className="px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 text-center"
+          className="px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 text-center cursor-pointer"
           title="Đặt lại 100%"
         >
           {Math.round(zoomLevel * 100)}%
@@ -1041,66 +1263,297 @@ export default function EditorCanvas({
         <button
           type="button"
           onClick={onZoomOut}
-          className="p-2 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center"
+          className="p-2 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center cursor-pointer"
           title="Thu nhỏ"
         >
           <span className="font-bold text-xs block leading-none text-center">−</span>
         </button>
       </div>
 
-      {/* ================= FLOATING BOTTOM-LEFT: THAY ẢNH NHANH (2) ⤹ (Matches screenshot!) ================= */}
-      <div className="absolute bottom-4 left-6 z-40 bg-white rounded-xl shadow-lg border border-gray-200 p-2.5 flex flex-col gap-1.5 pointer-events-auto">
-        <span className="text-[12px] font-semibold text-gray-700 flex items-center justify-between">
-          <span>Thay ảnh nhanh ({photoSlots.length}) ⤹</span>
-          {isUploadingSlot && <Loader2 className="w-3 h-3 text-[#e54153] animate-spin" />}
-        </span>
-        <div className="flex items-center gap-2">
-          {photoSlots.map((slot, i) => {
-            const isThisLoading = isUploadingSlot && activeSlotId === slot.id;
-            return (
-              <button
-                key={slot.id || i}
-                type="button"
-                onClick={() => handleSlotClick(slot)}
-                disabled={isUploadingSlot}
-                className="w-12 h-14 rounded-lg overflow-hidden border border-gray-200 hover:border-[#e54153] shadow-xs relative group transition-transform hover:scale-105 active:scale-95 cursor-pointer"
-                title={`Nhấn để chọn và thay thế ảnh cưới #${i + 1} từ máy tính`}
-              >
-                <img
-                  src={getImageUrl(slot.props?.imgKey)}
-                  alt="Couple Slot"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=200";
-                  }}
-                  className="w-full h-full object-cover"
-                />
-                {/* Small swap icon badge in bottom-right corner */}
-                <div className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-white/90 border border-gray-300 shadow-2xs flex items-center justify-center text-gray-700 group-hover:bg-[#e54153] group-hover:text-white transition-colors">
-                  {isThisLoading ? (
-                    <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                  ) : (
-                    <RotateCw className="w-2.5 h-2.5" />
-                  )}
+      {/* ================= FIXED BOTTOM-LEFT: THAY ẢNH NHANH TOÀN BỘ TEMPLATE ================= */}
+      {!isQuickPanelCollapsed ? (
+        <div
+          className={`fixed bottom-5 z-40 max-w-[calc(100vw-120px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
+            isLeftDrawerOpen ? "left-4 sm:left-[395px]" : "left-16 sm:left-24"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-gray-200/90 p-3 sm:p-3.5 flex flex-col gap-2 transition-all">
+            {/* Header info */}
+            <div className="flex items-center justify-between gap-3 border-b border-gray-100 pb-2">
+              <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                <div className="w-6 h-6 rounded-lg bg-rose-50 text-[#e54153] flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-3.5 h-3.5" />
                 </div>
-              </button>
-            );
-          })}
-        </div>
-        <input
-          ref={quickFileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleQuickFileChange}
-        />
-      </div>
+                <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5 whitespace-nowrap">
+                  Thay ảnh nhanh ({photoSlots.length} ảnh)
+                </span>
 
-      {/* ================= FLOATING BOTTOM-RIGHT: AI COLOR (Matches screenshot!) ================= */}
-      <div className="absolute bottom-4 right-6 z-40 pointer-events-auto">
+                {/* NÚT THAY HÀNG LOẠT */}
+                <button
+                  type="button"
+                  onClick={() => batchFileInputRef.current?.click()}
+                  disabled={isUploadingSlot || isBatchUploading}
+                  className="bg-gradient-to-r from-rose-500 to-[#e54153] hover:from-rose-600 hover:to-[#c93243] text-white text-[10px] font-bold px-2.5 py-1 rounded-full shadow-xs flex items-center gap-1 transition-all hover:scale-105 active:scale-95 cursor-pointer whitespace-nowrap disabled:opacity-50"
+                  title={`Chọn nhiều ảnh cùng lúc từ máy tính để tự động thay ${photoSlots.length} ảnh trên thiệp. Ảnh thừa sẽ được lưu vào Thư viện đã tải lên.`}
+                >
+                  <Sparkles className="w-3 h-3 text-amber-200 fill-amber-200" />
+                  <span>Thay hàng loạt</span>
+                </button>
+
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 transition-colors whitespace-nowrap ${
+                    replacedCount === photoSlots.length && photoSlots.length > 0
+                      ? "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                      : "bg-gray-100 text-gray-600 border border-gray-200"
+                  }`}
+                >
+                  {replacedCount === photoSlots.length && photoSlots.length > 0 ? (
+                    <>
+                      <Check className="w-3 h-3 text-emerald-600 stroke-[3]" />
+                      <span>Đã thay đủ {replacedCount}/{photoSlots.length}</span>
+                    </>
+                  ) : (
+                    <span>Đã thay: {replacedCount}/{photoSlots.length}</span>
+                  )}
+                </span>
+
+                {/* Badge slot đang chọn + Nút Tải từ máy */}
+                {barActiveSlotId && (
+                  <div className="flex items-center gap-1.5 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full text-[10px] font-semibold text-[#e54153] animate-fade-in">
+                    <span>
+                      Đang chọn #{photoSlots.findIndex((s) => s.id === barActiveSlotId) + 1}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        activeSlotIdRef.current = barActiveSlotId;
+                        if (quickFileInputRef.current) {
+                          quickFileInputRef.current.value = "";
+                          quickFileInputRef.current.click();
+                        }
+                      }}
+                      className="bg-[#e54153] hover:bg-[#c93243] text-white px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                      title="Bấm để chọn ảnh từ máy tính"
+                    >
+                      <Upload className="w-2.5 h-2.5" />
+                      <span>Tải từ máy</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Trạng thái đang tải đơn lẻ */}
+                {isUploadingSlot && !isBatchUploading && (
+                  <span className="flex items-center gap-1 text-[11px] text-[#e54153] font-semibold animate-pulse whitespace-nowrap">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Đang tải ảnh...</span>
+                  </span>
+                )}
+
+                {/* Trạng thái đang tải hàng loạt */}
+                {isBatchUploading && batchProgress && (
+                  <span className="flex items-center gap-1 text-[11px] text-[#e54153] font-semibold animate-pulse whitespace-nowrap bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <span>Đang xử lý {batchProgress.current}/{batchProgress.total} ảnh...</span>
+                  </span>
+                )}
+
+                {/* Thông báo kết quả thay hàng loạt */}
+                {batchMessage && (
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full font-semibold animate-fade-in flex items-center gap-1 whitespace-nowrap">
+                    <Check className="w-3 h-3 stroke-[3]" />
+                    <span>{batchMessage}</span>
+                  </span>
+                )}
+              </div>
+
+              {/* Panel controls */}
+              <div className="flex items-center gap-1 shrink-0">
+                {photoSlots.length > 5 && (
+                  <div className="flex items-center gap-0.5 mr-1">
+                    <button
+                      type="button"
+                      onClick={() => scrollQuickPanel("left")}
+                      className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+                      title="Cuộn sang trái"
+                    >
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => scrollQuickPanel("right")}
+                      className="p-1 rounded-md hover:bg-gray-100 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+                      title="Cuộn sang phải"
+                    >
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsQuickPanelCollapsed(true)}
+                  className="p-1 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
+                  title="Thu nhỏ thanh thay ảnh nhanh"
+                >
+                  <ChevronDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Hướng dẫn thao tác rõ ràng */}
+            <div className="flex items-center justify-between text-[10px] text-gray-500 px-0.5">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#e54153] inline-block animate-pulse"></span>
+                <span>
+                  <strong>Bấm lần 1:</strong> Chọn ảnh &amp; xem ảnh sẵn có •{" "}
+                  <strong>Bấm lần 2:</strong> Chọn ảnh từ máy •{" "}
+                  <strong>Thay hàng loạt:</strong> Tự động gán {photoSlots.length} ảnh, ảnh thừa lưu vào Thư viện
+                </span>
+              </span>
+              {photoSlots.length > 5 && (
+                <span className="text-gray-400 hidden md:inline">← Cuộn ngang →</span>
+              )}
+            </div>
+
+            {/* Thumbnails Row - Mở rộng theo tỉ lệ ảnh và số lượng ảnh */}
+            <div
+              ref={quickScrollRef}
+              className="flex items-center gap-2.5 overflow-x-auto scrollbar-thin py-1.5 px-0.5 scroll-smooth max-w-full"
+            >
+              {photoSlots.map((slot, i) => {
+                const isThisLoading = isUploadingSlot && activeSlotId === slot.id;
+                const replaced = isSlotReplaced(slot);
+                const dims = getSlotDimensions(slot);
+                const isBarActive = barActiveSlotId === slot.id;
+
+                return (
+                  <button
+                    key={slot.id || i}
+                    type="button"
+                    onClick={() => handleSlotClick(slot)}
+                    disabled={isUploadingSlot}
+                    style={{
+                      width: `${dims.width}px`,
+                      height: `${dims.height}px`,
+                    }}
+                    className={`shrink-0 rounded-xl overflow-hidden relative group transition-all cursor-pointer ${
+                      isBarActive
+                        ? "ring-3 ring-[#e54153] ring-offset-2 border-2 border-white shadow-xl scale-105 z-10"
+                        : replaced
+                        ? "border-2 border-emerald-500 ring-2 ring-emerald-200/70 shadow-sm"
+                        : "border border-gray-200 hover:border-[#e54153] hover:ring-2 hover:ring-[#e54153]/20 shadow-2xs"
+                    } hover:scale-105 active:scale-95`}
+                    title={
+                      isBarActive
+                        ? `Ảnh cưới #${i + 1} (${dims.ratioLabel}) • ĐANG CHỌN! BẤM LẦN 2 ĐỂ TẢI ẢNH TỪ MÁY TÍNH 📁`
+                        : `Ảnh cưới #${i + 1} (${dims.ratioLabel}) • ${
+                            replaced ? "Đã thay thành công ✓ • " : ""
+                          }Bấm lần 1: Chọn ảnh & xem ảnh sẵn có`
+                    }
+                  >
+                    <img
+                      src={getImageUrl(slot.props?.imgKey || slot.props?.src)}
+                      alt={`Ảnh ${i + 1}`}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src =
+                          "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=200";
+                      }}
+                      className="w-full h-full object-cover"
+                    />
+
+                    {/* Số thứ tự ảnh */}
+                    <div className="absolute top-1 left-1 px-1 py-0.2 bg-black/60 backdrop-blur-xs text-white text-[9px] font-bold rounded-md leading-tight pointer-events-none">
+                      #{i + 1}
+                    </div>
+
+                    {/* Badge gợi ý bấm lần 2 khi đang được chọn */}
+                    {isBarActive && (
+                      <div className="absolute top-1 right-1 px-1 py-0.2 bg-[#e54153] text-white text-[8px] font-bold rounded shadow-xs flex items-center gap-0.5 pointer-events-none animate-pulse">
+                        <Upload className="w-2 h-2" />
+                        <span>Lần 2</span>
+                      </div>
+                    )}
+
+                    {/* Tích xanh khi đã thay ảnh thành công HOẶC icon Rotate khi chưa thay */}
+                    {replaced ? (
+                      <div
+                        className="absolute bottom-1 right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 text-white shadow-md flex items-center justify-center animate-scale-in z-20"
+                        title="Đã thay ảnh thành công ✓"
+                      >
+                        <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 stroke-[3]" />
+                      </div>
+                    ) : (
+                      <div className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-white/90 border border-gray-300 shadow-2xs flex items-center justify-center text-gray-700 group-hover:bg-[#e54153] group-hover:text-white transition-colors">
+                        {isThisLoading ? (
+                          <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                        ) : (
+                          <RotateCw className="w-2.5 h-2.5" />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Loading overlay khi đang tải ảnh */}
+                    {isThisLoading && (
+                      <div className="absolute inset-0 bg-black/45 flex items-center justify-center z-30">
+                        <Loader2 className="w-4 h-4 text-white animate-spin" />
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <input
+            ref={quickFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleQuickFileChange}
+          />
+          <input
+            ref={batchFileInputRef}
+            type="file"
+            multiple
+            accept="image/*"
+            className="hidden"
+            onChange={handleBatchFileChange}
+          />
+        </div>
+      ) : (
+        /* Trạng thái thu nhỏ gọn gàng */
+        <div
+          className={`fixed bottom-5 z-40 pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
+            isLeftDrawerOpen ? "left-4 sm:left-[395px]" : "left-16 sm:left-24"
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => setIsQuickPanelCollapsed(false)}
+            className="px-3.5 py-2 rounded-full bg-white/95 backdrop-blur-md text-gray-700 hover:text-[#e54153] border border-gray-200/90 shadow-xl text-xs font-bold flex items-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            title="Mở rộng thanh thay ảnh nhanh"
+          >
+            <div className="w-5 h-5 rounded-full bg-rose-50 text-[#e54153] flex items-center justify-center">
+              <ImageIcon className="w-3 h-3" />
+            </div>
+            <span>Thay ảnh nhanh ({photoSlots.length})</span>
+            {replacedCount > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold flex items-center gap-0.5">
+                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                <span>{replacedCount}/{photoSlots.length}</span>
+              </span>
+            )}
+            <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
+          </button>
+        </div>
+      )}
+
+      {/* ================= FLOATING BOTTOM-RIGHT: AI COLOR (Fixed on screen) ================= */}
+      <div className="fixed bottom-5 right-6 z-40 pointer-events-auto">
         <button
           type="button"
-          className="px-4 py-2 rounded-full bg-white text-gray-700 hover:text-[#e54153] border border-gray-200 shadow-md text-xs font-semibold flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95"
+          className="px-4 py-2 rounded-full bg-white text-gray-700 hover:text-[#e54153] border border-gray-200 shadow-md text-xs font-semibold flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
         >
           <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
           <span>AI Color</span>
