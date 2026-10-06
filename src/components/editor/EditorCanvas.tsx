@@ -747,19 +747,27 @@ export default function EditorCanvas({
             animClass = "animate-zen-shake";
           }
 
+          const isDecorative = isDecorativeNode(id, nodes[id]) || Boolean(props.locked);
+
           return (
             <div
               key={id}
               id={`canvas-node-${id}`}
-              onMouseDown={(e) => handleMouseDownElement(e, id, props, type)}
+              onMouseDown={(e) => {
+                if (isDecorative) return;
+                handleMouseDownElement(e, id, props, type);
+              }}
               onClick={(e) => {
+                if (isDecorative) return;
                 e.stopPropagation();
                 onSelectElement({ id, type, props });
               }}
               className={`absolute group select-none ${
-                selectedElement?.id === id
-                  ? "cursor-grab active:cursor-grabbing ring-1 ring-[#e54153]/40"
-                  : "cursor-pointer hover:ring-1 hover:ring-gray-300/60"
+                isDecorative
+                  ? "pointer-events-none"
+                  : selectedElement?.id === id
+                  ? "cursor-grab active:cursor-grabbing ring-1 ring-[#e54153]/40 pointer-events-auto"
+                  : "cursor-pointer hover:ring-1 hover:ring-gray-300/60 pointer-events-auto"
               }`}
               style={{
                 top: `${top}px`,

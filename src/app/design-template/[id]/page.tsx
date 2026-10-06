@@ -1019,6 +1019,8 @@ export default function DesignTemplatePage() {
           onClose={() => setIsLeftDrawerOpen(false)}
           onOpenAutoFillModal={() => setIsAutoFillModalOpen(true)}
           onApplyAutoFill={handleApplyAutoFill}
+          onSelectElement={(el) => setSelectedElement(el)}
+          onRepairDecorations={handleRepairDecorations}
           onAddImage={handleAddImage}
           selectedElement={selectedElement}
           onUpdateElementProps={handleUpdateProps}

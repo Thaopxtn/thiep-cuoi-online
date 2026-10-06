@@ -13,11 +13,13 @@ import {
   FileText,
   Sparkles,
   Layers,
+  SlidersHorizontal,
   HelpCircle,
 } from "lucide-react";
 
 export type EditorToolTab =
   | "autofill"
+  | "layers"
   | "text"
   | "image"
   | "background"
@@ -50,6 +52,11 @@ export default function EditorLeftRail({
       icon: <Wand2 className="w-4 h-4" />,
       isSpecial: true,
     },
+    {
+      id: "layers",
+      label: "Thành phần",
+      icon: <Layers className="w-4 h-4" />,
+    },
     { id: "text", label: "Văn bản", icon: <Type className="w-4 h-4" /> },
     { id: "image", label: "Hình ảnh", icon: <ImageIcon className="w-4 h-4" /> },
     { id: "background", label: "Nền", icon: <Palette className="w-4 h-4" /> },
@@ -59,7 +66,7 @@ export default function EditorLeftRail({
     { id: "widgets", label: "Tiện ích", icon: <LayoutGrid className="w-4 h-4" /> },
     { id: "templates", label: "Mẫu", icon: <FileText className="w-4 h-4" /> },
     { id: "effects", label: "Hiệu ứng", icon: <Sparkles className="w-4 h-4" /> },
-    { id: "presets", label: "Presets", icon: <Layers className="w-4 h-4" /> },
+    { id: "presets", label: "Bộ màu", icon: <SlidersHorizontal className="w-4 h-4" /> },
   ];
 
   const handleClick = (id: EditorToolTab) => {

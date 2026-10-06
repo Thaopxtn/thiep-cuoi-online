@@ -38,13 +38,20 @@ import {
   Trash2,
   Settings,
   Lock,
+  Type,
+  LayoutGrid,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { compressImageToWebP, formatBytes } from "@/lib/imageCompression";
 import { useUploadedMediaLibrary, countImageUsageInNodes } from "@/lib/mediaLibraryService";
 import { getSafeImageUrl, handleImageFallback, DEFAULT_WEDDING_BACKGROUND, DEFAULT_WEDDING_BACKGROUND_RED, DEFAULT_WEDDING_BACKGROUND_SILK } from "@/lib/imageUtils";
-import { isDecorativeNode } from "@/lib/decorativeLockService";
+import {
+  isDecorativeNode,
+  classifyTemplateElements,
+  TemplateElementItem,
+  repairAndLockDecorativeNodes,
+} from "@/lib/decorativeLockService";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { SelectedElementData } from "./EditorRightInspector";
 import { WeddingCard } from "@/data/initialCards";
@@ -62,6 +69,8 @@ interface EditorLeftDrawerProps {
     updatedCard: Partial<WeddingCard>,
     stats: { textCount: number; photoCount: number; widgetCount: number }
   ) => void;
+  onSelectElement?: (element: { id: string; type: string; props: any }) => void;
+  onRepairDecorations?: () => void;
   // Image
   onAddImage: (url: string) => void;
   selectedElement?: SelectedElementData | null;
@@ -110,6 +119,8 @@ export default function EditorLeftDrawer({
   card,
   onOpenAutoFillModal,
   onApplyAutoFill,
+  onSelectElement,
+  onRepairDecorations,
   onAddImage,
   selectedElement,
   onUpdateElementProps,
@@ -128,6 +139,10 @@ export default function EditorLeftDrawer({
   onApplyThemePreset,
   onOpenSettings,
 }: EditorLeftDrawerProps) {
+  // Layers State
+  const [layersFilter, setLayersFilter] = useState<"all" | "decorative" | "photos" | "texts" | "widgets">("all");
+  const [layersSearch, setLayersSearch] = useState("");
+
   // AutoFill state inside Drawer
   const [quickGroom, setQuickGroom] = useState(card?.groom?.name || "");
   const [quickBride, setQuickBride] = useState(card?.bride?.name || "");
@@ -627,6 +642,7 @@ export default function EditorLeftDrawer({
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
           {activeTab === "autofill" && "⚡ Tự động điền"}
+          {activeTab === "layers" && "Thành phần thiệp"}
           {activeTab === "image" && "Hình ảnh"}
           {activeTab === "text" && "Văn bản"}
           {activeTab === "background" && "Nền thiệp"}
@@ -778,6 +794,232 @@ export default function EditorLeftDrawer({
             </div>
           </div>
         )}
+
+        {/* ================= TAB: THÀNH PHẦN THIỆP (LAYERS) ================= */}
+        {activeTab === "layers" && (() => {
+          const { decorativeList, photosList, textsList, widgetsList, allList, stats } = classifyTemplateElements(nodes);
+
+          let displayList: TemplateElementItem[] = allList;
+          if (layersFilter === "decorative") displayList = decorativeList;
+          else if (layersFilter === "photos") displayList = photosList;
+          else if (layersFilter === "texts") displayList = textsList;
+          else if (layersFilter === "widgets") displayList = widgetsList;
+
+          if (layersSearch.trim()) {
+            const q = layersSearch.toLowerCase().trim();
+            displayList = displayList.filter(
+              (item) =>
+                item.name.toLowerCase().includes(q) ||
+                item.description.toLowerCase().includes(q) ||
+                (item.previewText && item.previewText.toLowerCase().includes(q)) ||
+                item.id.toLowerCase().includes(q)
+            );
+          }
+
+          const handleFocusElement = (item: TemplateElementItem) => {
+            onSelectElement?.({
+              id: item.id,
+              type: item.type,
+              props: item.props,
+            });
+            const domEl = document.getElementById(`canvas-node-${item.id}`);
+            if (domEl) {
+              domEl.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+          };
+
+          return (
+            <div className="space-y-4">
+              {/* Thẻ thống kê tổng quan */}
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-50 to-rose-50/40 border border-gray-200/80 shadow-xs space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
+                      <Layers className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900">
+                        Cấu trúc mẫu thiệp ({stats.total} thành phần)
+                      </h4>
+                      <p className="text-[10px] text-gray-500">
+                        Đã khóa {stats.decorative} họa tiết cố định & sẵn sàng {stats.photos + stats.texts + stats.widgets} mục chỉnh sửa
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nút khôi phục chuẩn họa tiết */}
+                {onRepairDecorations && (
+                  <button
+                    type="button"
+                    onClick={onRepairDecorations}
+                    className="w-full py-2 px-3 rounded-xl bg-white hover:bg-rose-50 border border-gray-200 hover:border-rose-300 text-gray-700 hover:text-[#e54153] text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs"
+                    title="Khôi phục chuẩn xác mọi hoa văn và phong bì về vị trí gốc nếu lỡ bị lệch"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Khôi phục chuẩn họa tiết trang trí</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Ô tìm kiếm thành phần */}
+              <div className="relative">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm thành phần (VD: Chú rể, ảnh, phong bì...)"
+                  value={layersSearch}
+                  onChange={(e) => setLayersSearch(e.target.value)}
+                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#e54153] bg-white placeholder-gray-400"
+                />
+                {layersSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setLayersSearch("")}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+
+              {/* Bộ lọc tab con */}
+              <div className="flex gap-1 p-1 bg-gray-100 rounded-xl text-[11px] font-semibold text-gray-600 overflow-x-auto scrollbar-none">
+                <button
+                  type="button"
+                  onClick={() => setLayersFilter("all")}
+                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
+                    layersFilter === "all"
+                      ? "bg-white text-gray-900 shadow-2xs font-bold"
+                      : "hover:text-gray-900"
+                  }`}
+                >
+                  Tất cả ({stats.total})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayersFilter("decorative")}
+                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all flex items-center gap-1 ${
+                    layersFilter === "decorative"
+                      ? "bg-white text-amber-800 shadow-2xs font-bold"
+                      : "hover:text-amber-800"
+                  }`}
+                >
+                  <Lock className="w-3 h-3 text-amber-600" />
+                  <span>Cố định ({stats.decorative})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayersFilter("photos")}
+                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
+                    layersFilter === "photos"
+                      ? "bg-white text-rose-600 shadow-2xs font-bold"
+                      : "hover:text-rose-600"
+                  }`}
+                >
+                  Ảnh cưới ({stats.photos})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayersFilter("texts")}
+                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
+                    layersFilter === "texts"
+                      ? "bg-white text-indigo-600 shadow-2xs font-bold"
+                      : "hover:text-indigo-600"
+                  }`}
+                >
+                  Văn bản ({stats.texts})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLayersFilter("widgets")}
+                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
+                    layersFilter === "widgets"
+                      ? "bg-white text-emerald-600 shadow-2xs font-bold"
+                      : "hover:text-emerald-600"
+                  }`}
+                >
+                  Tiện ích ({stats.widgets})
+                </button>
+              </div>
+
+              {/* Danh sách thành phần */}
+              <div className="space-y-2">
+                {displayList.length === 0 ? (
+                  <div className="p-6 text-center text-gray-400 text-xs">
+                    Không tìm thấy thành phần nào phù hợp
+                  </div>
+                ) : (
+                  displayList.map((item) => {
+                    const isSelected = selectedElement?.id === item.id;
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => handleFocusElement(item)}
+                        className={`p-2.5 rounded-xl border transition-all cursor-pointer text-xs flex items-center gap-2.5 ${
+                          isSelected
+                            ? "bg-rose-50/70 border-[#e54153] ring-1 ring-[#e54153]/30 shadow-xs"
+                            : "bg-white hover:bg-gray-50 border-gray-200/80 hover:border-gray-300"
+                        }`}
+                      >
+                        {/* Icon hoặc Thumbnail */}
+                        <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
+                          {item.previewImage ? (
+                            <img
+                              src={getSafeImageUrl(item.previewImage)}
+                              alt={item.name}
+                              onError={(e) => handleImageFallback(e, undefined, false)}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : item.group === "decorative" ? (
+                            <Lock className="w-4 h-4 text-amber-600" />
+                          ) : item.group === "photos" ? (
+                            <ImageIcon className="w-4 h-4 text-rose-500" />
+                          ) : item.group === "texts" ? (
+                            <Type className="w-4 h-4 text-indigo-500" />
+                          ) : (
+                            <LayoutGrid className="w-4 h-4 text-emerald-500" />
+                          )}
+                        </div>
+
+                        {/* Thông tin thành phần */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 justify-between">
+                            <span className="font-bold text-gray-900 truncate">
+                              {item.name}
+                            </span>
+                            {item.isLocked ? (
+                              <span className="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                <Lock className="w-2.5 h-2.5" />
+                                <span>Cố định</span>
+                              </span>
+                            ) : item.group === "photos" ? (
+                              <span className="shrink-0 text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md">
+                                Thay ảnh
+                              </span>
+                            ) : null}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 truncate mt-0.5">
+                            <span>{item.type}</span>
+                            <span>•</span>
+                            <span>Vị trí: top {Math.round(item.top)}px</span>
+                          </div>
+
+                          {item.previewText && (
+                            <p className="text-[10px] text-gray-600 line-clamp-1 italic mt-0.5 bg-gray-50/80 px-1.5 py-0.5 rounded">
+                              "{item.previewText}"
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ================= 1. TAB: HÌNH ẢNH ================= */}
         {activeTab === "image" && (
