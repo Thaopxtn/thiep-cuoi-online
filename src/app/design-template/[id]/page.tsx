@@ -31,6 +31,7 @@ import {
   repairAndLockDecorativeNodes,
   isDecorativeNode,
 } from "@/lib/decorativeLockService";
+import { syncLinkedTextNodes } from "@/lib/textSyncService";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -320,7 +321,7 @@ export default function DesignTemplatePage() {
     }
   };
 
-  // Update element properties
+  // Update element properties with two-way smart sync
   const handleUpdateProps = (elementId: string, updatedProps: Record<string, any>) => {
     setNodes((prev) => {
       const existing = prev[elementId];
@@ -340,7 +341,33 @@ export default function DesignTemplatePage() {
         ...existing,
         props: { ...existing.props, ...updatedProps },
       };
-      const newNodes = { ...prev, [elementId]: nextNode };
+      let newNodes = { ...prev, [elementId]: nextNode };
+
+      // ================= ĐỒNG BỘ HAI CHIỀU THÔNG MINH CHO VĂN BẢN (Text Synchronization) =================
+      if (typeof updatedProps.text === "string") {
+        const { syncedNodes, hasChanges, syncedField, updatedCardPatch } = syncLinkedTextNodes(
+          elementId,
+          updatedProps.text,
+          newNodes,
+          customCardData
+        );
+        if (hasChanges) {
+          newNodes = syncedNodes;
+          if (syncedField) {
+            showToast(`✨ Đã tự động đồng bộ ${syncedField} trên toàn bộ thiệp!`);
+          }
+        }
+        if (updatedCardPatch) {
+          setCustomCardData((prevCard) => {
+            const current = prevCard || buildCardFromCurrentState();
+            const merged = { ...current, ...updatedCardPatch };
+            saveCard(merged);
+            saveCardAsync(merged).catch(() => {});
+            return merged;
+          });
+        }
+      }
+
       pushHistory(newNodes);
 
       if (selectedElement?.id === elementId) {

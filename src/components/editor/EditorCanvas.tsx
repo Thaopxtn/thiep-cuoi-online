@@ -653,7 +653,7 @@ export default function EditorCanvas({
         // 1. Lưu TẤT CẢ các ảnh đã chọn (cả ảnh thay thế và ảnh thừa) vào Thư viện ảnh đã tải lên
         addUploadedImagesToLibrary(uploadedUrls);
 
-        // 2. Tự động thay thế tuần tự các khung ảnh trong template theo thứ tự từ trên xuống dưới
+        // 2. Tự động thay thế tuần tự 2 khung ảnh chính (Phong bì & Chân thiệp)
         const slotsToReplace = Math.min(uploadedUrls.length, photoSlots.length);
         const replacedIds = new Set(replacedSlotIds);
 
@@ -665,18 +665,42 @@ export default function EditorCanvas({
         }
         setReplacedSlotIds(replacedIds);
 
-        // 3. Thông báo kết quả và số lượng ảnh thừa
-        const extraCount = uploadedUrls.length - slotsToReplace;
-        if (extraCount > 0) {
+        // 3. Tự động nạp các ảnh tiếp theo (ảnh 3 đến 8) vào Album Carousel (CarouselBox)
+        const carouselEntry = Object.entries(nodes).find(
+          ([, n]: [string, any]) => n?.type?.resolvedName === "CarouselBox"
+        );
+        let carouselFilledCount = 0;
+        if (carouselEntry && uploadedUrls.length > slotsToReplace) {
+          const [carouselId, carouselNode] = carouselEntry;
+          const carouselImages = uploadedUrls.slice(slotsToReplace, slotsToReplace + 6);
+          const newImgList = carouselImages.map((url, idx) => ({
+            id: `carousel-img-${Date.now()}-${idx}`,
+            imageKey: url,
+            src: url,
+          }));
+          onUpdateElementProps(carouselId, { imgList: newImgList });
+          carouselFilledCount = newImgList.length;
+        }
+
+        // 4. Thông báo kết quả và số lượng ảnh thừa
+        const totalAssigned = slotsToReplace + carouselFilledCount;
+        const extraCount = uploadedUrls.length - totalAssigned;
+        if (carouselFilledCount > 0) {
           setBatchMessage(
-            `Đã thay ${slotsToReplace} ảnh trên thiệp! ${extraCount} ảnh thừa đã lưu vào Thư viện đã tải lên.`
+            `Đã gán ${slotsToReplace} ảnh cưới chính & ${carouselFilledCount} ảnh vào Album Carousel! ${
+              extraCount > 0 ? `${extraCount} ảnh lưu vào Thư viện.` : ""
+            }`
+          );
+        } else if (extraCount > 0) {
+          setBatchMessage(
+            `Đã thay ${slotsToReplace} ảnh cưới! ${extraCount} ảnh thừa đã lưu vào Thư viện media.`
           );
         } else {
-          setBatchMessage(`Đã thay thành công ${slotsToReplace}/${photoSlots.length} ảnh trên thiệp!`);
+          setBatchMessage(`Đã thay thành công ${slotsToReplace}/${photoSlots.length} ảnh cưới trên thiệp!`);
         }
         setTimeout(() => setBatchMessage(null), 6000);
 
-        // 4. Mở ngăn thư viện bên trái để người dùng xem ngay ảnh đã tải và ảnh thừa
+        // 5. Mở ngăn thư viện bên trái để người dùng xem ngay ảnh đã tải và ảnh thừa
         onOpenImageDrawer?.();
       }
     } catch (err) {
