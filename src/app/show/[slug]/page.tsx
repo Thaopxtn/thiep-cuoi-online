@@ -40,6 +40,8 @@ import FallingPetals from "@/components/FallingPetals";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
+import { weddingSounds } from "@/lib/soundEffects";
+import AnimatedReveal from "@/components/AnimatedReveal";
 
 export default function ShowInvitationPage() {
   const params = useParams();
@@ -67,6 +69,7 @@ export default function ShowInvitationPage() {
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
   const [isEnvelopeOpening, setIsEnvelopeOpening] = useState(false);
   const [petalsEnabled, setPetalsEnabled] = useState(true);
+  const [sfxEnabled, setSfxEnabled] = useState(true);
 
   // Gift QR Modal & Toast state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -354,16 +357,29 @@ export default function ShowInvitationPage() {
     }
   };
 
+  // Interactive sound effects toggle
+  const toggleSfx = () => {
+    const next = !sfxEnabled;
+    setSfxEnabled(next);
+    weddingSounds.setMuted(!next);
+    if (next) {
+      weddingSounds.playSoftClick();
+    }
+  };
+
   const handleOpenEnvelope = () => {
     if (isEnvelopeOpening) return;
     setIsEnvelopeOpening(true);
+    if (sfxEnabled) {
+      weddingSounds.playEnvelopeOpen();
+    }
     if (audioRef.current && !isPlayingAudio) {
       audioRef.current.play().then(() => setIsPlayingAudio(true)).catch(() => {});
     }
     setTimeout(() => {
       setIsEnvelopeOpen(true);
       setIsEnvelopeOpening(false);
-    }, 1150);
+    }, 1250);
   };
 
   // RSVP Form state
@@ -422,6 +438,9 @@ export default function ShowInvitationPage() {
       note: rsvpNote.trim(),
     });
     setRsvpSubmitted(true);
+    if (sfxEnabled) {
+      weddingSounds.playCelebration();
+    }
     // Refresh card
     setCard(getCardByIdOrSlug(card.id) || card);
   };
@@ -436,6 +455,10 @@ export default function ShowInvitationPage() {
     }
     if (!card || !guestName.trim() || !guestWish.trim()) return;
     addWish(card.id, guestName.trim(), guestWish.trim());
+    if (sfxEnabled) {
+      weddingSounds.playCelebration();
+      weddingSounds.playHeartPop();
+    }
     setGuestName("");
     setGuestWish("");
     // Refresh card
@@ -444,6 +467,9 @@ export default function ShowInvitationPage() {
 
   const copyToClipboard = (text: string, type: string) => {
     navigator.clipboard?.writeText(text);
+    if (sfxEnabled) {
+      weddingSounds.playSoftClick();
+    }
     if (type === "link") {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
@@ -527,8 +553,22 @@ export default function ShowInvitationPage() {
       {/* Falling Rose Petals HTML5 Canvas Engine */}
       <FallingPetals density={26} active={petalsEnabled} />
 
-      {/* Floating Vinyl Record Audio Player + Petals Toggle */}
+      {/* Floating Vinyl Record Audio Player + SFX & Petals Toggle */}
       <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+        {/* Interactive Sound Effects (SFX) Toggle */}
+        <button
+          type="button"
+          onClick={toggleSfx}
+          className={`p-2 rounded-full backdrop-blur-md border shadow-lg transition-all ${
+            sfxEnabled
+              ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 shadow-amber-900/10"
+              : "bg-white/80 text-gray-400 border-gray-200 hover:bg-white"
+          }`}
+          title={sfxEnabled ? "Tắt âm thanh tương tác (SFX)" : "Bật âm thanh tương tác (SFX)"}
+        >
+          {sfxEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+        </button>
+
         {/* Falling Petals Toggle Button */}
         <button
           type="button"
@@ -622,7 +662,11 @@ export default function ShowInvitationPage() {
 
       {/* ================= 3D ENVELOPE MODAL (IF CLOSED) ================= */}
       {!isEnvelopeOpen && (
-        <div className={`fixed inset-0 z-50 bg-[#25080c]/90 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-opacity duration-700 ${isEnvelopeOpening ? "pointer-events-none" : ""}`}>
+        <div
+          className={`fixed inset-0 z-50 bg-[#25080c]/90 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all duration-700 ${
+            isEnvelopeOpening ? "opacity-0 scale-105 pointer-events-none" : "opacity-100 scale-100"
+          }`}
+        >
           {/* Architectural Sketch Background */}
           <div
             className="absolute inset-0 opacity-15 pointer-events-none bg-cover bg-center"
@@ -644,7 +688,7 @@ export default function ShowInvitationPage() {
                   isEnvelopeOpening ? "envelope-letter-up" : ""
                 }`}
               >
-                <div className="border border-amber-700/20 rounded-lg p-3 h-full flex flex-col justify-between">
+                <div className="border border-amber-700/20 rounded-lg p-3 h-full flex flex-col justify-between shimmer-gold-overlay">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-amber-800">
                     Thiệp Mời Thành Hôn
                   </span>
@@ -696,8 +740,8 @@ export default function ShowInvitationPage() {
 
               {/* 3D Top Flap with Wax Seal Stamp */}
               <div
-                className={`envelope-flap-3d absolute top-0 inset-x-0 h-[150px] z-30 origin-top cursor-pointer ${
-                  isEnvelopeOpening ? "envelope-flap-open" : ""
+                className={`envelope-flap-3d envelope-flap-3d-smooth absolute top-0 inset-x-0 h-[150px] z-30 origin-top cursor-pointer ${
+                  isEnvelopeOpening ? "envelope-flap-3d-open envelope-flap-open" : ""
                 }`}
                 onClick={handleOpenEnvelope}
               >
@@ -711,14 +755,14 @@ export default function ShowInvitationPage() {
                   <div className="absolute inset-0 bg-black/10" />
                 </div>
 
-                {/* 3D Wax Seal Stamp (Con dấu sáp đỏ viền vàng) */}
+                {/* 3D Wax Seal Stamp (Con dấu sáp đỏ viền vàng phát sáng lấp lánh) */}
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenEnvelope();
                   }}
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 border-2 border-amber-200/80 shadow-[0_10px_25px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.4)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer group z-40"
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 border-2 border-amber-200/80 shadow-[0_10px_25px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.4)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer group z-40 animate-wax-seal-glow"
                   title="Chạm để mở thiệp cưới"
                 >
                   <div className="w-10 h-10 rounded-full border border-amber-200/60 bg-gradient-to-br from-[#7a1c24] to-[#4a0d12] flex items-center justify-center shadow-inner">
@@ -790,472 +834,505 @@ export default function ShowInvitationPage() {
             />
 
             {/* Top Header */}
-            <div className="pt-8 pb-4 px-6 text-center relative z-10">
-              <p className="text-[11px] uppercase tracking-widest text-amber-800 font-bold mb-1">
-                Save The Date
-              </p>
-              <div className="w-12 h-0.5 bg-amber-700/30 mx-auto mb-4"></div>
-
-              {/* Groom & Bride Typography */}
-              <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
-                {groomName}
-              </h1>
-              <div className="my-1 flex items-center justify-center gap-3">
-                <span className="w-8 h-px bg-amber-700/40"></span>
-                <Heart className="w-4 h-4 text-zen-primary fill-zen-primary" />
-                <span className="w-8 h-px bg-amber-700/40"></span>
-              </div>
-              <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
-                {brideName}
-              </h1>
-
-              <p className="text-xs text-gray-500 mt-3 font-medium">
-                Ngày trọng đại: <strong className="text-gray-900 font-semibold">{card.weddingDate}</strong>
-              </p>
-              {card.lunarDate && (
-                <p className="text-[11px] text-gray-400 mt-0.5 italic">
-                  ({card.lunarDate})
+            <AnimatedReveal animation="fade-up">
+              <div className="pt-8 pb-4 px-6 text-center relative z-10">
+                <p className="text-[11px] uppercase tracking-widest text-amber-800 font-bold mb-1">
+                  Save The Date
                 </p>
-              )}
-            </div>
+                <div className="w-12 h-0.5 bg-amber-700/30 mx-auto mb-4"></div>
+
+                {/* Groom & Bride Typography */}
+                <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
+                  {groomName}
+                </h1>
+                <div className="my-1 flex items-center justify-center gap-3">
+                  <span className="w-8 h-px bg-amber-700/40"></span>
+                  <Heart className="w-4 h-4 text-zen-primary fill-zen-primary animate-pulse" />
+                  <span className="w-8 h-px bg-amber-700/40"></span>
+                </div>
+                <h1 className="text-4xl sm:text-5xl font-great-vibes text-[#511419] font-normal tracking-wide leading-tight drop-shadow-xs">
+                  {brideName}
+                </h1>
+
+                <p className="text-xs text-gray-500 mt-3 font-medium">
+                  Ngày trọng đại: <strong className="text-gray-900 font-semibold">{card.weddingDate}</strong>
+                </p>
+                {card.lunarDate && (
+                  <p className="text-[11px] text-gray-400 mt-0.5 italic">
+                    ({card.lunarDate})
+                  </p>
+                )}
+              </div>
+            </AnimatedReveal>
 
             {/* Hero Photo with Envelope Framing */}
-            <div className="px-6 py-2 relative z-10">
-              <div className="relative rounded-2xl overflow-hidden shadow-lg border-4 border-white aspect-3/4 bg-gray-100 group">
-                <img
-                  src={card.coverImage}
-                  alt={card.name}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute -top-12 -right-12 w-24 h-24 bg-[#511419] rotate-45 flex items-end justify-center pb-1 text-[10px] text-amber-200 font-bold">
-                  WEDDING
+            <AnimatedReveal animation="zoom-in" delay={100}>
+              <div className="px-6 py-2 relative z-10">
+                <div className="relative rounded-2xl overflow-hidden shadow-lg border-4 border-white aspect-3/4 bg-gray-100 group shimmer-gold-overlay">
+                  <img
+                    src={card.coverImage}
+                    alt={card.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute -top-12 -right-12 w-24 h-24 bg-[#511419] rotate-45 flex items-end justify-center pb-1 text-[10px] text-amber-200 font-bold">
+                    WEDDING
+                  </div>
                 </div>
               </div>
-            </div>
+            </AnimatedReveal>
 
             {/* Romantic Quote */}
-            <div className="px-8 py-6 text-center relative z-10">
-              <p className="text-base sm:text-lg text-gray-700 italic font-parisienne leading-relaxed">
-                "{card.story}"
-              </p>
-            </div>
+            <AnimatedReveal animation="fade-up" delay={150}>
+              <div className="px-8 py-6 text-center relative z-10">
+                <p className="text-base sm:text-lg text-gray-700 italic font-parisienne leading-relaxed">
+                  "{card.story}"
+                </p>
+              </div>
+            </AnimatedReveal>
 
             {/* Countdown Timer */}
-            <section className="px-6 py-6 bg-gradient-to-b from-[#fbf6f0] to-white mx-4 rounded-2xl border border-amber-900/10 shadow-xs relative z-10 text-center">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-3">
-                Đếm ngược ngày chung đôi
-              </h3>
-              <div className="grid grid-cols-4 gap-2">
-                {[
-                  { val: timeLeft.days, label: "Ngày" },
-                  { val: timeLeft.hours, label: "Giờ" },
-                  { val: timeLeft.minutes, label: "Phút" },
-                  { val: timeLeft.seconds, label: "Giây" },
-                ].map((t, idx) => (
-                  <div
-                    key={idx}
-                    className="bg-white rounded-xl py-2 px-1 shadow-xs border border-gray-100 flex flex-col items-center"
-                  >
-                    <span className="text-xl sm:text-2xl font-bold font-cormorant text-[#511419]">
-                      {String(t.val).padStart(2, "0")}
-                    </span>
-                    <span className="text-[10px] text-gray-500 uppercase font-semibold">
-                      {t.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <AnimatedReveal animation="zoom-in" delay={100}>
+              <section className="px-6 py-6 bg-gradient-to-b from-[#fbf6f0] to-white mx-4 rounded-2xl border border-amber-900/10 shadow-xs relative z-10 text-center">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-3">
+                  Đếm ngược ngày chung đôi
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                  {[
+                    { val: timeLeft.days, label: "Ngày" },
+                    { val: timeLeft.hours, label: "Giờ" },
+                    { val: timeLeft.minutes, label: "Phút" },
+                    { val: timeLeft.seconds, label: "Giây" },
+                  ].map((t, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-white rounded-xl py-2 px-1 shadow-xs border border-gray-100 flex flex-col items-center"
+                    >
+                      <span className="text-xl sm:text-2xl font-bold font-cormorant text-[#511419]">
+                        {String(t.val).padStart(2, "0")}
+                      </span>
+                      <span className="text-[10px] text-gray-500 uppercase font-semibold">
+                        {t.label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </AnimatedReveal>
 
             {/* Event Schedule */}
-            <section className="px-6 py-8 relative z-10 space-y-6">
-              <div className="text-center">
-                <h2 className="text-xl sm:text-2xl font-cinzel font-bold text-[#511419] tracking-wider">
-                  Chương Trình Hôn Lễ
-                </h2>
-                <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
-              </div>
+            <AnimatedReveal animation="fade-up" delay={150}>
+              <section className="px-6 py-8 relative z-10 space-y-6">
+                <div className="text-center">
+                  <h2 className="text-xl sm:text-2xl font-cinzel font-bold text-[#511419] tracking-wider">
+                    Chương Trình Hôn Lễ
+                  </h2>
+                  <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
+                </div>
 
-              <div className="space-y-4">
-                {card.events.map((evt) => (
-                  <div
-                    key={evt.id}
-                    className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs relative overflow-hidden"
-                  >
-                    <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
-                      <Clock className="w-4 h-4" />
-                      <span>{evt.time}</span>
+                <div className="space-y-4">
+                  {card.events.map((evt) => (
+                    <div
+                      key={evt.id}
+                      className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs relative overflow-hidden"
+                    >
+                      <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
+                        <Clock className="w-4 h-4" />
+                        <span>{evt.time}</span>
+                      </div>
+                      <h4 className="font-bold text-gray-900 text-base">
+                        {evt.title}
+                      </h4>
+                      <div className="mt-2 flex items-start gap-2 text-xs text-gray-600">
+                        <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                        <span>{evt.address || evt.venue}</span>
+                      </div>
+                      {evt.mapUrl && (
+                        <a
+                          href={evt.mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            if (sfxEnabled) weddingSounds.playSoftClick();
+                          }}
+                          className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 text-zen-primary text-xs font-bold hover:bg-rose-100 transition-colors"
+                        >
+                          <Navigation className="w-3.5 h-3.5" />
+                          <span>Chỉ đường Google Maps</span>
+                        </a>
+                      )}
                     </div>
-                    <h4 className="font-bold text-gray-900 text-base">
-                      {evt.title}
-                    </h4>
-                    <div className="mt-2 flex items-start gap-2 text-xs text-gray-600">
-                      <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                      <span>{evt.address || evt.venue}</span>
-                    </div>
-                    {evt.mapUrl && (
-                      <a
-                        href={evt.mapUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 text-zen-primary text-xs font-bold hover:bg-rose-100 transition-colors"
-                      >
-                        <Navigation className="w-3.5 h-3.5" />
-                        <span>Chỉ đường Google Maps</span>
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
+                </div>
+              </section>
+            </AnimatedReveal>
           </>
         )}
 
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
         {card.showRsvp !== false && (
-          <section id="rsvp-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
-            <div className="text-center mb-6">
-              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-                Xác Nhận Tham Dự
-              </span>
-              <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
-                Lời Hẹn Chung Vui
-              </h2>
-              <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                Sự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!
-              </p>
-            </div>
-
-            {rsvpSubmitted ? (
-              <div className="bg-white rounded-2xl p-6 text-center border border-emerald-200 shadow-xs animate-scale-in">
-                <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
-                <h4 className="font-bold text-gray-900 text-sm">
-                  Đã gửi xác nhận thành công!
-                </h4>
-                <p className="text-xs text-gray-500 mt-1">
-                  Cảm ơn bạn đã phản hồi. Hẹn gặp bạn trong ngày hạnh phúc của chúng mình nhé!
+          <AnimatedReveal animation="reveal" delay={100}>
+            <section id="rsvp-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
+              <div className="text-center mb-6">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                  Xác Nhận Tham Dự
+                </span>
+                <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                  Lời Hẹn Chung Vui
+                </h2>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                  Sự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setRsvpSubmitted(false)}
-                  className="mt-3 text-xs text-zen-primary font-semibold hover:underline"
-                >
-                  Gửi lại thông tin khác
-                </button>
               </div>
-            ) : (
-              <form onSubmit={handleSendRsvp} className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 space-y-3.5">
+
+              {rsvpSubmitted ? (
+                <div className="bg-white rounded-2xl p-6 text-center border border-emerald-200 shadow-xs animate-scale-in">
+                  <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
+                  <h4 className="font-bold text-gray-900 text-sm">
+                    Đã gửi xác nhận thành công!
+                  </h4>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Cảm ơn bạn đã phản hồi. Hẹn gặp bạn trong ngày hạnh phúc của chúng mình nhé!
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRsvpSubmitted(false);
+                      if (sfxEnabled) weddingSounds.playSoftClick();
+                    }}
+                    className="mt-3 text-xs text-zen-primary font-semibold hover:underline"
+                  >
+                    Gửi lại thông tin khác
+                  </button>
+                </div>
+              ) : (
+                <form onSubmit={handleSendRsvp} className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 space-y-3.5">
+                  {/* Anti-bot Honeypot field (hidden from genuine users) */}
+                  <input
+                    type="text"
+                    name="b_field_trap"
+                    value={rsvpBotTrap}
+                    onChange={(e) => setRsvpBotTrap(e.target.value)}
+                    tabIndex={-1}
+                    autoComplete="off"
+                    aria-hidden="true"
+                    className="hidden opacity-0 absolute -z-10 pointer-events-none"
+                    style={{ position: "absolute", left: "-9999px" }}
+                  />
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Họ và tên của bạn:
+                    </label>
+                    <div className="relative">
+                      <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nhập tên của bạn..."
+                        value={rsvpName}
+                        onChange={(e) => setRsvpName(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Số điện thoại:
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <input
+                        type="tel"
+                        required
+                        placeholder="0912..."
+                        value={rsvpPhone}
+                        onChange={(e) => setRsvpPhone(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      Bạn sẽ tham dự chứ?
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRsvpAttending("yes");
+                          if (sfxEnabled) weddingSounds.playSoftClick();
+                        }}
+                        className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                          rsvpAttending === "yes"
+                            ? "border-zen-primary bg-rose-50 text-zen-primary"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        🎉 Chắc chắn rồi!
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRsvpAttending("no");
+                          if (sfxEnabled) weddingSounds.playSoftClick();
+                        }}
+                        className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
+                          rsvpAttending === "no"
+                            ? "border-gray-400 bg-gray-100 text-gray-800"
+                            : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        💌 Tiếc quá bận rồi
+                      </button>
+                    </div>
+                  </div>
+
+                  {rsvpAttending === "yes" && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                        Số người cùng tham dự:
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4].map((num) => (
+                          <button
+                            key={num}
+                            type="button"
+                            onClick={() => {
+                              setRsvpGuestsCount(num);
+                              if (sfxEnabled) weddingSounds.playSoftClick();
+                            }}
+                            className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
+                              rsvpGuestsCount === num
+                                ? "border-zen-primary bg-rose-50 text-zen-primary font-bold"
+                                : "border-gray-200 text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            {num} người
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    className="w-full py-2.5 rounded-xl bg-zen-primary text-white text-xs font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                  >
+                    <span>Xác nhận tham dự</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                </form>
+              )}
+            </section>
+          </AnimatedReveal>
+        )}
+
+        {/* ================= BANKING GIFT QR BOX (Hộp mừng cưới online) ================= */}
+        {card.showGiftBox !== false && (Boolean(card.groom.accountNumber) || Boolean(card.bride.accountNumber)) && (
+          <AnimatedReveal animation="fade-up" delay={150}>
+            <section id="gift-section" className="px-6 py-8 relative z-10">
+              <div className="text-center mb-6">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                  Hộp Mừng Cưới Online
+                </span>
+                <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                  Gửi Quà Mừng Cưới
+                </h2>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                  Dành cho bạn bè, người thân ở xa muốn gửi lời chúc và món quà mừng đến đôi uyên ương.
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {/* Chú rể */}
+                {card.groom.accountNumber && (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
+                    <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
+                      <img
+                        src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
+                        alt={`QR ${groomBankOwner}`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase">
+                        Mừng Chú Rể {groomBankOwner && groomBankOwner !== "CHÚ RỂ" ? `(${groomBankOwner})` : ""}
+                      </p>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                        {card.groom.bankName || "MB BANK"} • {card.groom.accountNumber}
+                      </p>
+                      <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
+                        Chủ TK: {groomBankOwner}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(card.groom.accountNumber!, "groom")}
+                        className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        {copiedBank === "groom" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600">Đã sao chép</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Sao chép STK</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Cô dâu */}
+                {card.bride.accountNumber && (
+                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
+                    <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
+                      <img
+                        src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
+                        alt={`QR ${brideBankOwner}`}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[11px] font-bold text-gray-400 uppercase">
+                        Mừng Cô Dâu {brideBankOwner && brideBankOwner !== "CÔ DÂU" ? `(${brideBankOwner})` : ""}
+                      </p>
+                      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                        {card.bride.bankName || "TECHCOMBANK"} • {card.bride.accountNumber}
+                      </p>
+                      <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
+                        Chủ TK: {brideBankOwner}
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(card.bride.accountNumber!, "bride")}
+                        className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                      >
+                        {copiedBank === "bride" ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span className="text-emerald-600">Đã sao chép</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-3 h-3" />
+                            <span>Sao chép STK</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </AnimatedReveal>
+        )}
+
+        {/* ================= GUESTBOOK WISHES (Sổ lưu bút) ================= */}
+        {card.showWishes !== false && (
+          <AnimatedReveal animation="fade-up" delay={150}>
+            <section id="wishes-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
+              <div className="text-center mb-6">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                  Sổ Lưu Bút
+                </span>
+                <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                  Gửi Lời Chúc Mừng
+                </h2>
+              </div>
+
+              <form onSubmit={handleSendWish} className="space-y-3 mb-6">
                 {/* Anti-bot Honeypot field (hidden from genuine users) */}
                 <input
                   type="text"
-                  name="b_field_trap"
-                  value={rsvpBotTrap}
-                  onChange={(e) => setRsvpBotTrap(e.target.value)}
+                  name="w_field_trap"
+                  value={wishBotTrap}
+                  onChange={(e) => setWishBotTrap(e.target.value)}
                   tabIndex={-1}
                   autoComplete="off"
                   aria-hidden="true"
                   className="hidden opacity-0 absolute -z-10 pointer-events-none"
                   style={{ position: "absolute", left: "-9999px" }}
                 />
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Họ và tên của bạn:
-                  </label>
-                  <div className="relative">
-                    <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Nhập tên của bạn..."
-                      value={rsvpName}
-                      onChange={(e) => setRsvpName(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Số điện thoại:
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                    <input
-                      type="tel"
-                      required
-                      placeholder="0912..."
-                      value={rsvpPhone}
-                      onChange={(e) => setRsvpPhone(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 mb-1">
-                    Bạn sẽ tham dự chứ?
-                  </label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setRsvpAttending("yes")}
-                      className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
-                        rsvpAttending === "yes"
-                          ? "border-zen-primary bg-rose-50 text-zen-primary"
-                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      🎉 Chắc chắn rồi!
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setRsvpAttending("no")}
-                      className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
-                        rsvpAttending === "no"
-                          ? "border-gray-400 bg-gray-100 text-gray-800"
-                          : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                      }`}
-                    >
-                      💌 Tiếc quá bận rồi
-                    </button>
-                  </div>
-                </div>
-
-                {rsvpAttending === "yes" && (
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
-                      Số người cùng tham dự:
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {[1, 2, 3, 4].map((num) => (
-                        <button
-                          key={num}
-                          type="button"
-                          onClick={() => setRsvpGuestsCount(num)}
-                          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
-                            rsvpGuestsCount === num
-                              ? "border-zen-primary bg-rose-50 text-zen-primary font-bold"
-                              : "border-gray-200 text-gray-600 hover:bg-gray-50"
-                          }`}
-                        >
-                          {num} người
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
+                <input
+                  type="text"
+                  required
+                  placeholder="Tên của bạn..."
+                  value={guestName}
+                  onChange={(e) => setGuestName(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary"
+                />
+                <textarea
+                  required
+                  rows={2}
+                  placeholder="Gửi lời chúc phúc tốt đẹp nhất đến cặp đôi..."
+                  value={guestWish}
+                  onChange={(e) => setGuestWish(e.target.value)}
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary resize-none"
+                />
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-zen-primary text-white text-xs font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2"
+                  className="w-full py-2.5 rounded-xl bg-[#511419] text-amber-50 text-xs font-bold shadow-md hover:bg-[#3d0f13] transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
                 >
-                  <span>Xác nhận tham dự</span>
-                  <Send className="w-3.5 h-3.5" />
+                  <span>Gửi lời chúc</span>
+                  <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
                 </button>
               </form>
-            )}
-          </section>
-        )}
 
-        {/* ================= BANKING GIFT QR BOX (Hộp mừng cưới online) ================= */}
-        {card.showGiftBox !== false && (Boolean(card.groom.accountNumber) || Boolean(card.bride.accountNumber)) && (
-          <section id="gift-section" className="px-6 py-8 relative z-10">
-            <div className="text-center mb-6">
-              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-                Hộp Mừng Cưới Online
-              </span>
-              <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
-                Gửi Quà Mừng Cưới
-              </h2>
-              <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
-                Dành cho bạn bè, người thân ở xa muốn gửi lời chúc và món quà mừng đến đôi uyên ương.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              {/* Chú rể */}
-              {card.groom.accountNumber && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
-                  <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
-                    <img
-                      src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
-                      alt={`QR ${groomBankOwner}`}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase">
-                      Mừng Chú Rể {groomBankOwner && groomBankOwner !== "CHÚ RỂ" ? `(${groomBankOwner})` : ""}
-                    </p>
-                    <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
-                      {card.groom.bankName || "MB BANK"} • {card.groom.accountNumber}
-                    </p>
-                    <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
-                      Chủ TK: {groomBankOwner}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(card.groom.accountNumber!, "groom")}
-                      className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+              {/* Wishes Feed */}
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
+                {card.wishes && card.wishes.length > 0 ? (
+                  card.wishes.map((w) => (
+                    <div
+                      key={w.id}
+                      className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1"
                     >
-                      {copiedBank === "groom" ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-600" />
-                          <span className="text-emerald-600">Đã sao chép</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Sao chép STK</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Cô dâu */}
-              {card.bride.accountNumber && (
-                <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
-                  <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
-                    <img
-                      src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
-                      alt={`QR ${brideBankOwner}`}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-bold text-gray-400 uppercase">
-                      Mừng Cô Dâu {brideBankOwner && brideBankOwner !== "CÔ DÂU" ? `(${brideBankOwner})` : ""}
-                    </p>
-                    <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
-                      {card.bride.bankName || "TECHCOMBANK"} • {card.bride.accountNumber}
-                    </p>
-                    <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
-                      Chủ TK: {brideBankOwner}
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => copyToClipboard(card.bride.accountNumber!, "bride")}
-                      className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
-                    >
-                      {copiedBank === "bride" ? (
-                        <>
-                          <Check className="w-3 h-3 text-emerald-600" />
-                          <span className="text-emerald-600">Đã sao chép</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-3 h-3" />
-                          <span>Sao chép STK</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* ================= GUESTBOOK WISHES (Sổ lưu bút) ================= */}
-        {card.showWishes !== false && (
-          <section id="wishes-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
-            <div className="text-center mb-6">
-              <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-                Sổ Lưu Bút
-              </span>
-              <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
-                Gửi Lời Chúc Mừng
-              </h2>
-            </div>
-
-            <form onSubmit={handleSendWish} className="space-y-3 mb-6">
-              {/* Anti-bot Honeypot field (hidden from genuine users) */}
-              <input
-                type="text"
-                name="w_field_trap"
-                value={wishBotTrap}
-                onChange={(e) => setWishBotTrap(e.target.value)}
-                tabIndex={-1}
-                autoComplete="off"
-                aria-hidden="true"
-                className="hidden opacity-0 absolute -z-10 pointer-events-none"
-                style={{ position: "absolute", left: "-9999px" }}
-              />
-              <input
-                type="text"
-                required
-                placeholder="Tên của bạn..."
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary"
-              />
-              <textarea
-                required
-                rows={2}
-                placeholder="Gửi lời chúc phúc tốt đẹp nhất đến cặp đôi..."
-                value={guestWish}
-                onChange={(e) => setGuestWish(e.target.value)}
-                className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary resize-none"
-              />
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-[#511419] text-amber-50 text-xs font-bold shadow-md hover:bg-[#3d0f13] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
-              >
-                <span>Gửi lời chúc</span>
-                <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
-              </button>
-            </form>
-
-            {/* Wishes Feed */}
-            <div className="space-y-3 max-h-72 overflow-y-auto pr-1">
-              {card.wishes && card.wishes.length > 0 ? (
-                card.wishes.map((w) => (
-                  <div
-                    key={w.id}
-                    className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between text-[11px]">
-                      <span className="font-bold text-gray-900">{w.name}</span>
-                      <span className="text-gray-400">{w.createdAt}</span>
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-bold text-gray-900">{w.name}</span>
+                        <span className="text-gray-400">{w.createdAt}</span>
+                      </div>
+                      <p className="text-xs text-gray-600 leading-relaxed">{w.content}</p>
                     </div>
-                    <p className="text-xs text-gray-600 leading-relaxed">{w.content}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-xs text-gray-400 text-center py-4">
-                  Chưa có lời chúc nào. Hãy là người đầu tiên gửi lời chúc nhé!
-                </p>
-              )}
-            </div>
-          </section>
+                  ))
+                ) : (
+                  <p className="text-xs text-gray-400 text-center py-4">
+                    Chưa có lời chúc nào. Hãy là người đầu tiên gửi lời chúc nhé!
+                  </p>
+                )}
+              </div>
+            </section>
+          </AnimatedReveal>
         )}
 
         {/* Bottom ZenLove Watermark & Commercial Ecosystem */}
-        <div className="pt-8 pb-14 px-6 text-center text-xs text-gray-400 border-t border-gray-100 relative z-10 bg-white space-y-2.5">
-          <p className="text-[11px] text-gray-500">
-            Thiệp cưới online được tạo miễn phí bởi{" "}
-            <Link href="/" className="font-bold text-zen-primary hover:underline">
-              ZenLove.me
-            </Link>
-          </p>
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <Link
-              href="/templates"
-              className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-gray-50 border border-gray-200 shadow-2xs"
-            >
-              <span>Tạo thiệp như mẫu này</span>
-              <ExternalLink className="w-3 h-3" />
-            </Link>
-            <Link
-              href="/doi-tac-cuoi"
-              className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 shadow-2xs"
-            >
-              <span>🎁 Ưu đãi đối tác cưới</span>
-            </Link>
+        <AnimatedReveal animation="fade-up" delay={200}>
+          <div className="pt-8 pb-14 px-6 text-center text-xs text-gray-400 border-t border-gray-100 relative z-10 bg-white space-y-2.5">
+            <p className="text-[11px] text-gray-500">
+              Thiệp cưới online được tạo miễn phí bởi{" "}
+              <Link href="/" className="font-bold text-zen-primary hover:underline">
+                ZenLove.me
+              </Link>
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <Link
+                href="/templates"
+                className="inline-flex items-center gap-1 text-xs font-bold text-gray-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-gray-50 border border-gray-200 shadow-2xs"
+              >
+                <span>Tạo thiệp như mẫu này</span>
+                <ExternalLink className="w-3 h-3" />
+              </Link>
+              <Link
+                href="/doi-tac-cuoi"
+                className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 shadow-2xs"
+              >
+                <span>🎁 Ưu đãi đối tác cưới</span>
+              </Link>
+            </div>
           </div>
-        </div>
+        </AnimatedReveal>
 
         {/* Bottom Floating Share / Action Bar */}
         <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white/95 backdrop-blur-md border-t border-gray-200 py-1.5 px-3 z-40 shadow-xl flex items-center justify-around gap-1">
@@ -1263,6 +1340,7 @@ export default function ShowInvitationPage() {
             <button
               type="button"
               onClick={() => {
+                if (sfxEnabled) weddingSounds.playSoftClick();
                 const el = document.getElementById("rsvp-section");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
@@ -1276,7 +1354,10 @@ export default function ShowInvitationPage() {
           {card.showGiftBox !== false && (
             <button
               type="button"
-              onClick={() => setIsGiftModalOpen(true)}
+              onClick={() => {
+                if (sfxEnabled) weddingSounds.playSwoosh();
+                setIsGiftModalOpen(true);
+              }}
               className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
             >
               <Gift className="w-4 h-4 text-amber-600" />
@@ -1288,6 +1369,7 @@ export default function ShowInvitationPage() {
             <button
               type="button"
               onClick={() => {
+                if (sfxEnabled) weddingSounds.playSoftClick();
                 const el = document.getElementById("wishes-section");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
@@ -1302,6 +1384,9 @@ export default function ShowInvitationPage() {
             href={card.events?.[0]?.mapUrl || `https://maps.google.com/?q=${encodeURIComponent(card.events?.[0]?.venue || "Hà Nội")}`}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => {
+              if (sfxEnabled) weddingSounds.playSoftClick();
+            }}
             className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
           >
             <Navigation className="w-4 h-4 text-blue-600" />
@@ -1311,6 +1396,7 @@ export default function ShowInvitationPage() {
           <button
             type="button"
             onClick={() => {
+              if (sfxEnabled) weddingSounds.playSoftClick();
               copyToClipboard(window.location.href, "link");
               setToastMessage("Đã sao chép link thiệp cưới!");
               setTimeout(() => setToastMessage(null), 2500);
@@ -1329,7 +1415,10 @@ export default function ShowInvitationPage() {
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 shadow-2xl space-y-4 border border-rose-100 relative animate-scale-in">
             <button
               type="button"
-              onClick={() => setIsGiftModalOpen(false)}
+              onClick={() => {
+                if (sfxEnabled) weddingSounds.playSoftClick();
+                setIsGiftModalOpen(false);
+              }}
               className="absolute top-4 right-4 w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
             >
               ✕
@@ -1351,7 +1440,10 @@ export default function ShowInvitationPage() {
             <div className="flex bg-gray-100 rounded-xl p-1 text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => setActiveGiftTab("groom")}
+                onClick={() => {
+                  if (sfxEnabled) weddingSounds.playSoftClick();
+                  setActiveGiftTab("groom");
+                }}
                 className={`flex-1 py-1.5 rounded-lg transition-all ${
                   activeGiftTab === "groom"
                     ? "bg-white text-[#511419] font-bold shadow-2xs"
@@ -1362,7 +1454,10 @@ export default function ShowInvitationPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveGiftTab("bride")}
+                onClick={() => {
+                  if (sfxEnabled) weddingSounds.playSoftClick();
+                  setActiveGiftTab("bride");
+                }}
                 className={`flex-1 py-1.5 rounded-lg transition-all ${
                   activeGiftTab === "bride"
                     ? "bg-white text-[#511419] font-bold shadow-2xs"

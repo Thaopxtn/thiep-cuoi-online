@@ -18,6 +18,7 @@ import {
   DEFAULT_WEDDING_BACKGROUND,
 } from "@/lib/imageUtils";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { weddingSounds } from "@/lib/soundEffects";
 
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
@@ -329,10 +330,11 @@ export default function CardNodeRenderer({
                 <button
                   type="button"
                   onClick={() => {
+                    weddingSounds.playSoftClick();
                     const title = encodeURIComponent("Đám cưới hạnh phúc");
                     window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}`, "_blank");
                   }}
-                  className="w-full h-full rounded-full bg-[#ece4d8] hover:bg-[#dfd4c4] text-[#590310] flex items-center justify-center font-bold text-xs sm:text-sm shadow-xs gap-2 transition-colors cursor-pointer"
+                  className="w-full h-full rounded-full bg-[#ece4d8] hover:bg-[#dfd4c4] text-[#590310] flex items-center justify-center font-bold text-xs sm:text-sm shadow-xs gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer"
                 >
                   <CalendarIcon className="w-4 h-4 text-[#590310]" />
                   <span>{props.text || "Thêm vào lịch"}</span>
@@ -357,8 +359,11 @@ export default function CardNodeRenderer({
 
                 return (
                   <div
-                    onClick={onOpenGiftQr}
-                    className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200/80 shadow-md flex flex-col items-center justify-between text-center cursor-pointer group hover:shadow-xl hover:border-rose-400 transition-all select-none"
+                    onClick={() => {
+                      weddingSounds.playChime();
+                      onOpenGiftQr?.();
+                    }}
+                    className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200/80 shadow-md flex flex-col items-center justify-between text-center cursor-pointer group hover:shadow-xl hover:border-rose-400 transition-all select-none hover:scale-[1.01]"
                     title="Chạm để mở Hộp Quà Mừng Cưới"
                   >
                     <div className="flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full">
@@ -396,7 +401,7 @@ export default function CardNodeRenderer({
               {type === "RsvpBoxV2" && (
                 <div className="w-full h-full p-4 sm:p-5 bg-white rounded-2xl border border-gray-100 shadow-md flex flex-col justify-between text-left">
                   {rsvpSent ? (
-                    <div className="text-center py-6 space-y-2">
+                    <div className="text-center py-6 space-y-2 animate-scale-up">
                       <CheckCircle className="w-10 h-10 text-emerald-500 mx-auto" />
                       <h4 className="font-bold text-sm text-gray-800">Đã gửi xác nhận thành công!</h4>
                       <p className="text-xs text-gray-500">Hẹn gặp bạn trong ngày vui!</p>
@@ -406,6 +411,7 @@ export default function CardNodeRenderer({
                       onSubmit={(e) => {
                         e.preventDefault();
                         if (!rsvpName.trim()) return;
+                        weddingSounds.playCelebration();
                         setRsvpSent(true);
                         if (onRsvpSuccess) {
                           onRsvpSuccess({ name: rsvpName, attending: rsvpAttending });
@@ -427,10 +433,13 @@ export default function CardNodeRenderer({
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setRsvpAttending(true)}
-                          className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold ${
+                          onClick={() => {
+                            weddingSounds.playSoftClick();
+                            setRsvpAttending(true);
+                          }}
+                          className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                             rsvpAttending
-                              ? "bg-rose-50 text-zen-primary border-zen-primary"
+                              ? "bg-rose-50 text-zen-primary border-zen-primary shadow-2xs"
                               : "bg-gray-50 text-gray-600 border-gray-200"
                           }`}
                         >
@@ -438,10 +447,13 @@ export default function CardNodeRenderer({
                         </button>
                         <button
                           type="button"
-                          onClick={() => setRsvpAttending(false)}
-                          className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold ${
+                          onClick={() => {
+                            weddingSounds.playSoftClick();
+                            setRsvpAttending(false);
+                          }}
+                          className={`flex-1 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
                             !rsvpAttending
-                              ? "bg-gray-200 text-gray-800 border-gray-400"
+                              ? "bg-gray-200 text-gray-800 border-gray-400 shadow-2xs"
                               : "bg-gray-50 text-gray-600 border-gray-200"
                           }`}
                         >
