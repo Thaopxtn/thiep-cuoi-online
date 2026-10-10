@@ -43,6 +43,7 @@ export interface WeddingCard {
   weddingTime: string; // HH:mm
   lunarDate: string;
   groom: {
+    userId?: string;
     name: string;
     title: string;
     phone: string;

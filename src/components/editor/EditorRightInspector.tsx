@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { AdvancedColorPicker } from "@/components/ui/AdvancedColorPicker";
 import {
   Settings,
   Sparkles,
@@ -32,7 +33,7 @@ import {
   Lock,
 } from "lucide-react";
 import { compressImageToWebP } from "@/lib/imageCompression";
-import { addUploadedImageToLibrary, addUploadedImagesToLibrary } from "@/lib/mediaLibraryService";
+import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import { getSafeImageUrl } from "@/lib/imageUtils";
 import { isDecorativeNode } from "@/lib/decorativeLockService";
 
@@ -103,7 +104,7 @@ export default function EditorRightInspector({
       const formData = new FormData();
       formData.append("file", compressed.file);
 
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await uploadFileToServer(formData);
       let uploadedUrl = compressed.dataUrl;
       if (res.ok) {
         const json = await res.json();
@@ -145,7 +146,7 @@ export default function EditorRightInspector({
           try {
             const formData = new FormData();
             formData.append("file", compressed.file);
-            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            const res = await uploadFileToServer(formData);
             if (res.ok) {
               const json = await res.json();
               if (json.url) uploadedUrl = json.url;
@@ -205,7 +206,7 @@ export default function EditorRightInspector({
           try {
             const formData = new FormData();
             formData.append("file", compressed.file);
-            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            const res = await uploadFileToServer(formData);
             if (res.ok) {
               const json = await res.json();
               if (json.url) uploadedUrl = json.url;
@@ -266,7 +267,7 @@ export default function EditorRightInspector({
       try {
         const formData = new FormData();
         formData.append("file", compressed.file);
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        const res = await uploadFileToServer(formData);
         if (res.ok) {
           const json = await res.json();
           if (json.url) uploadedUrl = json.url;
@@ -680,20 +681,19 @@ export default function EditorRightInspector({
 
                 {/* Color picker */}
                 <div className="space-y-2 pt-1 border-t border-gray-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-700">Màu chữ:</span>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        value={toHexColor(props.color)}
-                        onChange={(e) => handlePropChange("color", e.target.value)}
-                        className="w-8 h-8 rounded-lg cursor-pointer border-0"
-                      />
-                      <span className="text-xs font-mono text-gray-500 uppercase">
-                        {props.color || "#1c171a"}
-                      </span>
-                    </div>
-                  </div>
+                  <AdvancedColorPicker
+                    label="Màu chữ"
+                    color={props.color || "#1c171a"}
+                    onChange={(hex: string) => handlePropChange("color", hex)}
+                    defaultSwatches={[
+                      { label: "Đỏ đô hoàng gia", color: "#511419" },
+                      { label: "Đen than trang trọng", color: "#1c171a" },
+                      { label: "Nâu đất đậm", color: "#451a03" },
+                      { label: "Vàng đồng ánh kim", color: "#b45309" },
+                      { label: "Trắng nổi bật", color: "#ffffff" },
+                      { label: "Hồng đất lãng mạn", color: "#9f1239" },
+                    ]}
+                  />
 
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {[

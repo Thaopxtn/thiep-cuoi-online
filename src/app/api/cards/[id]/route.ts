@@ -50,9 +50,14 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     // Multi-tenancy check: Bảo vệ quyền sở hữu thiệp
     const existing = await getCardByIdOrSlugFromDb(id);
-    if (existing && existing.userId) {
-      const requesterUserId = body.userId || request.headers.get("x-user-id");
-      if (requesterUserId && requesterUserId !== existing.userId) {
+    const requesterUserId = body.userId || request.headers.get("x-user-id");
+    const adminPasscode = request.headers.get("x-admin-passcode");
+    const token = request.headers.get("authorization")?.split(" ")[1];
+    const configuredPasscode = process.env.ADMIN_PASSCODE || process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "zenlove8888";
+    const isAdmin = adminPasscode && adminPasscode.trim() === configuredPasscode.trim();
+
+    if (existing && existing.userId && !isAdmin) {
+      if (!requesterUserId || requesterUserId !== existing.userId) {
         return NextResponse.json(
           { success: false, message: "Bạn không có quyền chỉnh sửa thiệp cưới này" },
           { status: 403 }
@@ -62,8 +67,9 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
     const updated = await upsertCardToDb({
       ...body,
+      userId: existing?.userId || requesterUserId || body.userId,
       id,
-    });
+    }, token);
 
     if (!updated) {
       return NextResponse.json(
@@ -95,10 +101,15 @@ export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     // Multi-tenancy check: Bảo vệ quyền xóa thiệp
     const existing = await getCardByIdOrSlugFromDb(id);
-    if (existing && existing.userId) {
-      const requesterUserId =
-        request.nextUrl.searchParams.get("userId") || request.headers.get("x-user-id");
-      if (requesterUserId && requesterUserId !== existing.userId) {
+    const requesterUserId =
+      request.nextUrl.searchParams.get("userId") || request.headers.get("x-user-id");
+    const adminPasscode = request.headers.get("x-admin-passcode");
+    const token = request.headers.get("authorization")?.split(" ")[1];
+    const configuredPasscode = process.env.ADMIN_PASSCODE || process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "zenlove8888";
+    const isAdmin = adminPasscode && adminPasscode.trim() === configuredPasscode.trim();
+
+    if (existing && existing.userId && !isAdmin) {
+      if (!requesterUserId || requesterUserId !== existing.userId) {
         return NextResponse.json(
           { success: false, message: "Bạn không có quyền xóa thiệp cưới này" },
           { status: 403 }
@@ -106,7 +117,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
       }
     }
 
-    const ok = await deleteCardFromDb(id);
+    const ok = await deleteCardFromDb(id, token);
     if (!ok) {
       return NextResponse.json(
         { success: false, message: "Không thể xóa thiệp cưới từ cơ sở dữ liệu" },

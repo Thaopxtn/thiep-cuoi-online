@@ -90,7 +90,8 @@ function extractNamesFromNodes(nodes?: Record<string, any>): { groom: string; br
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { templateId, templateSlug, customGroom, customBride } = body;
+    const { templateId, templateSlug, customGroom, customBride, userId: bodyUserId } = body;
+    const userId = bodyUserId || request.headers.get("x-user-id") || undefined;
 
     if (!templateId && !templateSlug) {
       return NextResponse.json(
@@ -218,12 +219,14 @@ export async function POST(request: NextRequest) {
       status: "published",
       updatedAt: new Date().toLocaleDateString("vi-VN"),
       views: 1,
+      userId,
       coverImage,
       story: "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
       weddingDate: "2026-11-18",
       weddingTime: "11:00",
       lunarDate: "Ngày 10 tháng 10 năm Bính Ngọ",
       groom: {
+        userId,
         name: groom,
         title: "Chú Rể",
         phone: "0912.345.678",

@@ -18,6 +18,7 @@ import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { getStoredTemplateById, saveCustomTemplate } from "@/lib/templateStorage";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { saveCard, saveCardAsync, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
+import { useAuth } from "@/context/AuthContext";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import { validateTemplateCompletion, ValidationWarning } from "@/lib/templateValidation";
@@ -38,6 +39,7 @@ export default function DesignTemplatePage() {
   const router = useRouter();
   const templateId =
     (params?.id as string) || "8c5055d8-30db-4b38-8831-e11063e3d352";
+  const { user } = useAuth();
 
   // Template info
   const [templateName, setTemplateName] = useState<string>("Hồng Phong");
@@ -820,6 +822,8 @@ export default function DesignTemplatePage() {
 
     const base = customCardData || existing;
 
+    const currentUserId = base?.userId || existing?.userId || user?.id;
+
     const cardToSave: WeddingCard = {
       id: base?.id || existing?.id || templateId,
       slug: base?.slug || existing?.slug || slug,
@@ -829,6 +833,7 @@ export default function DesignTemplatePage() {
       status: "published",
       updatedAt: new Date().toLocaleDateString("vi-VN"),
       views: base?.views || existing?.views || 100,
+      userId: currentUserId,
       coverImage: coverImage || base?.coverImage || existing?.coverImage || currentZenloveTemplate?.imageUrl || "",
       story:
         base?.story ||
@@ -841,6 +846,7 @@ export default function DesignTemplatePage() {
       showWishes: base?.showWishes !== undefined ? base.showWishes : (existing?.showWishes !== undefined ? existing.showWishes : true),
       showRsvp: base?.showRsvp !== undefined ? base.showRsvp : (existing?.showRsvp !== undefined ? existing.showRsvp : true),
       groom: {
+        userId: currentUserId,
         name: base?.groom?.name || groomName,
         title: "Chú Rể",
         phone: base?.groom?.phone || existing?.groom?.phone || "0912.345.678",

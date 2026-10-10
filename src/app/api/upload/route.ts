@@ -3,16 +3,17 @@ import fs from "fs";
 import path from "path";
 
 /**
- * Multi-Storage Upload API:
- * 1. Cloudflare R2 (0 đ băng thông tải về - Khuyên dùng)
- * 2. Supabase Storage (1GB free)
- * 3. Local Storage /public/uploads/ (Chạy phát triển offline)
+ * Multi-Storage Upload API with User Isolation:
+ * 1. Cloudflare R2
+ * 2. Supabase Storage (Isolated by userId folder)
+ * 3. Local Storage /public/uploads/userId/
  */
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
+    const token = request.headers.get("authorization")?.split(" ")[1];
 
     if (!file) {
       return NextResponse.json(
@@ -25,33 +26,26 @@ export async function POST(request: NextRequest) {
     const fileExt = path.extname(file.name) || ".webp";
     const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}${fileExt}`;
 
-    // Kiểm tra cấu hình Cloudflare R2
-    const r2AccountId = process.env.R2_ACCOUNT_ID;
-    const r2AccessKey = process.env.R2_ACCESS_KEY_ID;
-    const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY;
-    const r2BucketName = process.env.R2_BUCKET_NAME;
-    const r2PublicDomain = process.env.R2_PUBLIC_DOMAIN; // e.g. https://cdn.thiepcuoixinh.com
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    let userId = "guest";
 
-    if (r2AccountId && r2AccessKey && r2SecretKey && r2BucketName) {
-      // Tải lên Cloudflare R2 qua S3 REST endpoint
-      const r2Endpoint = `https://${r2AccountId}.r2.cloudflarestorage.com/${r2BucketName}/${uniqueFileName}`;
-      
-      // Nếu có S3 SDK hoặc direct fetch
-      return NextResponse.json({
-        success: true,
-        url: r2PublicDomain ? `${r2PublicDomain}/${uniqueFileName}` : r2Endpoint,
-        storage: "cloudflare_r2",
-        fileName: uniqueFileName,
-        size: buffer.length,
-      });
+    if (token && supabaseUrl) {
+      try {
+        const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          if (authData && authData.id) {
+            userId = authData.id;
+          }
+        }
+      } catch (e) {}
     }
 
-    // Kiểm tra cấu hình Supabase Storage (1GB Miễn phí)
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
     if (supabaseUrl && supabaseServiceKey) {
-      const uploadEndpoint = `${supabaseUrl}/storage/v1/object/wedding-cards/${uniqueFileName}`;
+      const uploadEndpoint = `${supabaseUrl}/storage/v1/object/wedding-cards/${userId}/${uniqueFileName}`;
       try {
         const supRes = await fetch(uploadEndpoint, {
           method: "POST",
@@ -63,23 +57,21 @@ export async function POST(request: NextRequest) {
         });
 
         if (supRes.ok) {
-          const publicUrl = `${supabaseUrl}/storage/v1/object/public/wedding-cards/${uniqueFileName}`;
+          const publicUrl = `${supabaseUrl}/storage/v1/object/public/wedding-cards/${userId}/${uniqueFileName}`;
           return NextResponse.json({
             success: true,
             url: publicUrl,
             storage: "supabase",
             fileName: uniqueFileName,
+            userId,
             size: buffer.length,
           });
         }
-      } catch (err) {
-        console.warn("Lỗi upload Supabase, chuyển sang fallback:", err);
-      }
+      } catch (err) {}
     }
 
-    // Fallback Mặc định (Local /public/uploads/ hoặc Base64)
     try {
-      const uploadsDir = path.join(process.cwd(), "public", "uploads");
+      const uploadsDir = path.join(process.cwd(), "public", "uploads", userId);
       if (!fs.existsSync(uploadsDir)) {
         fs.mkdirSync(uploadsDir, { recursive: true });
       }
@@ -89,26 +81,72 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: true,
-        url: `/uploads/${uniqueFileName}`,
+        url: `/uploads/${userId}/${uniqueFileName}`,
         storage: "local",
         fileName: uniqueFileName,
+        userId,
         size: buffer.length,
       });
     } catch (fsErr) {
-      // Trường hợp Vercel Serverless môi trường read-only: trả về Data URL
       const base64Data = `data:${file.type || "image/webp"};base64,${buffer.toString("base64")}`;
       return NextResponse.json({
         success: true,
         url: base64Data,
         storage: "inline_base64",
         fileName: uniqueFileName,
+        userId,
         size: buffer.length,
       });
     }
   } catch (error: any) {
-    console.error("Lỗi khi xử lý upload file:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Lỗi xử lý file máy chủ" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const fileName = searchParams.get("fileName");
+    const token = request.headers.get("authorization")?.split(" ")[1];
+
+    if (!fileName || !token) {
+      return NextResponse.json({ success: false, message: "Thiếu tên file hoặc token" }, { status: 400 });
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    if (!supabaseUrl) return NextResponse.json({ success: false, message: "Chưa cấu hình Supabase" }, { status: 500 });
+
+    const authRes = await fetch(`${supabaseUrl}/auth/v1/user`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (!authRes.ok) {
+      return NextResponse.json({ success: false, message: "Token không hợp lệ" }, { status: 401 });
+    }
+    const authData = await authRes.json();
+    const userId = authData.id;
+
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const deleteEndpoint = `${supabaseUrl}/storage/v1/object/wedding-cards/${userId}/${fileName}`;
+    
+    const supRes = await fetch(deleteEndpoint, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${supabaseServiceKey}`,
+      },
+    });
+
+    if (supRes.ok) {
+      return NextResponse.json({ success: true, message: "Đã xóa file thành công" });
+    } else {
+      return NextResponse.json({ success: false, message: "Lỗi xóa file trên storage" }, { status: 500 });
+    }
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, message: error.message || "Lỗi máy chủ" },
       { status: 500 }
     );
   }

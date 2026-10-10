@@ -12,7 +12,19 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get("userId");
-    const cards = await getCardsFromDb(userId || undefined);
+    const token = request.headers.get("authorization")?.split(" ")[1];
+    
+    const cards = await getCardsFromDb(userId || undefined, token);
+    if (userId) {
+      // Khi đã đăng nhập, chỉ trả về đúng danh sách thiệp của người dùng đó (kể cả rỗng)
+      return NextResponse.json({
+        success: true,
+        source: "database",
+        count: cards.length,
+        cards: cards || [],
+      });
+    }
+
     if (cards && cards.length > 0) {
       return NextResponse.json({
         success: true,
@@ -22,7 +34,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Nếu database chưa có thiệp nào, trả về danh sách mẫu mặc định
+    // Nếu khách vãng lai và database chưa có thiệp, trả về danh sách mẫu mặc định
     return NextResponse.json({
       success: true,
       source: "fallback",
@@ -52,11 +64,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const userId = body.userId || request.headers.get("x-user-id") || undefined;
+    const token = request.headers.get("authorization")?.split(" ")[1];
+    
     const cardId = body.id || `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const savedCard = await upsertCardToDb({
       ...body,
+      userId,
       id: cardId,
-    });
+    }, token);
 
     if (!savedCard) {
       return NextResponse.json(

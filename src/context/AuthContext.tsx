@@ -8,6 +8,7 @@ export interface UserProfile {
   email: string;
   avatar: string;
   provider: "google" | "email";
+  accessToken?: string;
   createdAt: string;
 }
 
@@ -109,7 +110,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/auth/update-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(user.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {})
+        },
         body: JSON.stringify({ userId: user.id, newPassword }),
       });
       const data = await res.json();
@@ -124,7 +128,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const res = await fetch("/api/auth/update-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(user.accessToken ? { Authorization: `Bearer ${user.accessToken}` } : {})
+        },
         body: JSON.stringify({ userId: user.id, name }),
       });
       const data = await res.json();

@@ -67,15 +67,17 @@ export default function DashboardPage() {
   }, [user]);
 
   useEffect(() => {
-    // Tải trước từ cache cục bộ (ngay lập tức)
-    setMyCards(getAllCards());
+    // Tải trước từ cache cục bộ của user này
+    setMyCards(getAllCards(user?.id));
 
     // Tải đồng bộ mới nhất từ Supabase Cloud theo tài khoản đăng nhập
-    fetchCardsFromServer(user?.id).then((remoteCards) => {
-      if (remoteCards && remoteCards.length > 0) {
-        setMyCards(remoteCards);
-      }
-    });
+    if (user?.id) {
+      fetchCardsFromServer(user.id).then((remoteCards) => {
+        setMyCards(remoteCards || []);
+      });
+    } else {
+      setMyCards(getAllCards());
+    }
   }, [user?.id]);
 
   // Aggregated RSVPs from all user cards
@@ -103,10 +105,18 @@ export default function DashboardPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const handleDeleteCard = (cardId: string) => {
+  const handleDeleteCard = async (cardId: string) => {
     if (confirm("Bạn có chắc chắn muốn xóa thiệp cưới này không?")) {
       deleteCard(cardId);
-      setMyCards(getAllCards());
+      if (user?.id) {
+        try {
+          await fetch(`/api/cards/${cardId}?userId=${encodeURIComponent(user.id)}`, {
+            method: "DELETE",
+            headers: { "x-user-id": user.id },
+          });
+        } catch (e) {}
+      }
+      setMyCards(getAllCards(user?.id));
     }
   };
 

@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
 import { compressImageToWebP } from "@/lib/imageCompression";
-import { addUploadedImageToLibrary, addUploadedImagesToLibrary } from "@/lib/mediaLibraryService";
+import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import {
   getSafeImageUrl,
   handleImageFallback,
@@ -578,7 +578,7 @@ export default function EditorCanvas({
       const formData = new FormData();
       formData.append("file", compressed.file);
 
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await uploadFileToServer(formData);
       let uploadedUrl = compressed.dataUrl;
       if (res.ok) {
         const json = await res.json();
@@ -635,7 +635,7 @@ export default function EditorCanvas({
           const formData = new FormData();
           formData.append("file", compressed.file);
 
-          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          const res = await uploadFileToServer(formData);
           let uploadedUrl = compressed.dataUrl;
           if (res.ok) {
             const json = await res.json();

@@ -13,24 +13,58 @@ import {
 export type { WeddingEvent, WeddingRsvp, WeddingWish, WeddingCard };
 export { INITIAL_CARDS };
 
-const CARDS_STORAGE_KEY = "zenlove_operational_cards_v1";
+export function getCurrentAuth(): { id?: string, token?: string } {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = localStorage.getItem("zenlove_auth_user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      return { id: u?.id, token: u?.accessToken };
+    }
+  } catch {}
+  return {};
+}
+
+export function getCurrentUserId(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = localStorage.getItem("zenlove_auth_user");
+    if (raw) {
+      const u = JSON.parse(raw);
+      return u?.id;
+    }
+  } catch {}
+  return undefined;
+}
+
+export function getCardsStorageKey(userId?: string): string {
+  const uid = userId || getCurrentUserId();
+  return uid ? `zenlove_cards_${uid}` : "zenlove_guest_cards_v1";
+}
 
 export async function fetchCardsFromServer(userId?: string): Promise<WeddingCard[]> {
+  const uid = userId || getCurrentUserId();
+  const storageKey = getCardsStorageKey(uid);
   try {
-    const url = userId ? `/api/cards?userId=${encodeURIComponent(userId)}` : "/api/cards";
-    const res = await fetch(url);
-    if (!res.ok) return getAllCards();
+    const url = uid ? `/api/cards?userId=${encodeURIComponent(uid)}` : "/api/cards";
+    const res = await fetch(url, {
+      headers: {
+        ...(uid ? { "x-user-id": uid } : {}),
+        ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
+      },
+    });
+    if (!res.ok) return getAllCards(uid);
     const data = await res.json();
-    if (data.success && Array.isArray(data.cards) && data.cards.length > 0) {
+    if (data.success && Array.isArray(data.cards)) {
       if (typeof window !== "undefined") {
-        localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(data.cards));
+        localStorage.setItem(storageKey, JSON.stringify(data.cards));
       }
       return data.cards;
     }
   } catch (err) {
     console.warn("fetchCardsFromServer fallback to local:", err);
   }
-  return getAllCards();
+  return getAllCards(uid);
 }
 
 export async function fetchCardFromServer(slugOrId: string): Promise<WeddingCard | null> {
@@ -47,18 +81,21 @@ export async function fetchCardFromServer(slugOrId: string): Promise<WeddingCard
   return null;
 }
 
-export function getAllCards(): WeddingCard[] {
-  if (typeof window === "undefined") return INITIAL_CARDS;
+export function getAllCards(userId?: string): WeddingCard[] {
+  if (typeof window === "undefined") return [];
+  const uid = userId || getCurrentUserId();
+  const storageKey = getCardsStorageKey(uid);
   try {
-    const raw = localStorage.getItem(CARDS_STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) {
-      localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(INITIAL_CARDS));
-      return INITIAL_CARDS;
+      // Khách vãng lai chưa đăng nhập: trả về thiệp mẫu
+      // Đã đăng nhập: trả về mảng rỗng để không bị lẫn thiệp của tài khoản khác
+      return uid ? [] : INITIAL_CARDS;
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_CARDS;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (e) {
-    return INITIAL_CARDS;
+    return [];
   }
 }
 
@@ -98,14 +135,18 @@ function pruneOldLocalStorageCache(keepCardId?: string) {
 
 export function saveCard(card: WeddingCard): void {
   if (typeof window === "undefined") return;
-  const updatedCard = {
+  const currentUid = card.userId || getCurrentUserId();
+  const updatedCard: WeddingCard = {
     ...card,
+    userId: currentUid,
     updatedAt: new Date().toLocaleDateString("vi-VN"),
   };
 
+  const storageKey = getCardsStorageKey(currentUid);
+
   // 1. Thử lưu vào localStorage (bọc cẩn thận phòng QuotaExceededError khi nodes canvas lớn)
   try {
-    const cards = getAllCards();
+    const cards = getAllCards(currentUid);
     const existingIndex = cards.findIndex((c) => c.id === card.id || c.slug === card.slug);
     
     // Lưu tóm tắt metadata trong danh sách thẻ (không chứa nodes nặng) để tiết kiệm 95% bộ nhớ
@@ -121,7 +162,7 @@ export function saveCard(card: WeddingCard): void {
     } else {
       nextCards = [summaryCard, ...cards];
     }
-    localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(nextCards));
+    localStorage.setItem(storageKey, JSON.stringify(nextCards));
 
     // Lưu thẻ đầy đủ kèm nodes vào direct key
     try {
@@ -145,7 +186,11 @@ export function saveCard(card: WeddingCard): void {
   try {
     fetch(`/api/cards/${card.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+          "Content-Type": "application/json",
+          ...(currentUid ? { "x-user-id": currentUid } : {}),
+          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
+        },
       body: JSON.stringify(updatedCard),
     }).catch((err) => console.warn("Lưu lên Server API thất bại:", err));
   } catch (err) {
@@ -157,14 +202,24 @@ export function saveCard(card: WeddingCard): void {
  * Phiên bản bất đồng bộ của saveCard - đợi Server DB xác nhận lưu thành công
  */
 export async function saveCardAsync(card: WeddingCard): Promise<{ success: boolean; message?: string }> {
+  const currentUid = card.userId || getCurrentUserId();
+  const cardWithUid = {
+    ...card,
+    userId: currentUid,
+  };
+
   // Lưu local trước
-  saveCard(card);
+  saveCard(cardWithUid);
 
   try {
     const res = await fetch(`/api/cards/${card.id}`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(card),
+      headers: {
+          "Content-Type": "application/json",
+          ...(currentUid ? { "x-user-id": currentUid } : {}),
+          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
+        },
+      body: JSON.stringify(cardWithUid),
     });
     if (res.ok) {
       const data = await res.json();
@@ -179,12 +234,18 @@ export async function saveCardAsync(card: WeddingCard): Promise<{ success: boole
 export function deleteCard(cardId: string): void {
   if (typeof window === "undefined") return;
   try {
+    const storageKey = getCardsStorageKey();
     const cards = getAllCards().filter((c) => c.id !== cardId);
-    localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
+    localStorage.setItem(storageKey, JSON.stringify(cards));
 
     // Đồng bộ xóa lên Supabase Server API
+    const currentUid = getCurrentUserId();
     fetch(`/api/cards/${cardId}`, {
       method: "DELETE",
+      headers: {
+          ...(currentUid ? { "x-user-id": currentUid } : {}),
+          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
+        },
     }).catch((err) => console.warn("Xóa trên Server API thất bại:", err));
   } catch (e) {
     console.error("Failed to delete card:", e);
@@ -194,13 +255,14 @@ export function deleteCard(cardId: string): void {
 export function incrementCardViews(idOrSlug: string): void {
   if (typeof window === "undefined") return;
   try {
+    const storageKey = getCardsStorageKey();
     const cards = getAllCards();
     const card = cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
     if (card) {
       card.views = (card.views || 0) + 1;
       const existingIndex = cards.findIndex((c) => c.id === card.id);
       cards[existingIndex] = card;
-      localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
+      localStorage.setItem(storageKey, JSON.stringify(cards));
     }
 
     // Ghi nhận lên Server
@@ -220,13 +282,14 @@ export function addRsvp(cardId: string, rsvp: Omit<WeddingRsvp, "id" | "cardId" 
 
   if (typeof window !== "undefined") {
     try {
+      const storageKey = getCardsStorageKey();
       const cards = getAllCards();
       const card = cards.find((c) => c.id === cardId || c.slug === cardId);
       if (card) {
         card.rsvps = [newRsvp, ...(card.rsvps || [])];
         const existingIndex = cards.findIndex((c) => c.id === card.id);
         cards[existingIndex] = card;
-        localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
+        localStorage.setItem(storageKey, JSON.stringify(cards));
       }
 
       // Đồng bộ lên Supabase Server API
@@ -251,13 +314,14 @@ export function addWish(cardId: string, name: string, content: string): WeddingW
 
   if (typeof window !== "undefined") {
     try {
+      const storageKey = getCardsStorageKey();
       const cards = getAllCards();
       const card = cards.find((c) => c.id === cardId || c.slug === cardId);
       if (card) {
         card.wishes = [newWish, ...(card.wishes || [])];
         const existingIndex = cards.findIndex((c) => c.id === card.id);
         cards[existingIndex] = card;
-        localStorage.setItem(CARDS_STORAGE_KEY, JSON.stringify(cards));
+        localStorage.setItem(storageKey, JSON.stringify(cards));
       }
 
       // Đồng bộ lên Supabase Server API
@@ -277,18 +341,25 @@ export function addWish(cardId: string, name: string, content: string): WeddingW
 export async function cloneTemplateToNewCard(
   templateIdOrSlug: string,
   customGroom?: string,
-  customBride?: string
+  customBride?: string,
+  userId?: string
 ): Promise<WeddingCard> {
+  const currentUid = userId || getCurrentUserId();
   // 1. Thử gọi API server clone
   try {
     const res = await fetch("/api/cards/clone", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+          "Content-Type": "application/json",
+          ...(currentUid ? { "x-user-id": currentUid } : {}),
+          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
+        },
       body: JSON.stringify({
         templateId: templateIdOrSlug,
         templateSlug: templateIdOrSlug,
         customGroom,
         customBride,
+        userId: currentUid,
       }),
     });
 

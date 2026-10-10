@@ -44,7 +44,7 @@ import {
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { compressImageToWebP, formatBytes } from "@/lib/imageCompression";
-import { useUploadedMediaLibrary, countImageUsageInNodes } from "@/lib/mediaLibraryService";
+import {  useUploadedMediaLibrary, countImageUsageInNodes , uploadFileToServer } from "@/lib/mediaLibraryService";
 import { getSafeImageUrl, handleImageFallback, DEFAULT_WEDDING_BACKGROUND, DEFAULT_WEDDING_BACKGROUND_RED, DEFAULT_WEDDING_BACKGROUND_SILK } from "@/lib/imageUtils";
 import {
   isDecorativeNode,
@@ -241,7 +241,7 @@ export default function EditorLeftDrawer({
       setIsUploadingAudio(true);
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await uploadFileToServer(formData);
       let audioSrc = "";
       if (res.ok) {
         const json = await res.json();
@@ -294,7 +294,7 @@ export default function EditorLeftDrawer({
 
           const formData = new FormData();
           formData.append("file", result.file);
-          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          const res = await uploadFileToServer(formData);
           if (res.ok) {
             const json = await res.json();
             if (json.url) newUrls.push(json.url);
@@ -334,7 +334,7 @@ export default function EditorLeftDrawer({
       const result = await compressImageToWebP(file, { maxDimension: 1920, quality: 0.82 });
       const formData = new FormData();
       formData.append("file", result.file);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const res = await uploadFileToServer(formData);
       let uploadedUrl = result.dataUrl;
       if (res.ok) {
         const json = await res.json();

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Menu, X, Moon, Sun, ArrowRight, User, LogOut, FolderHeart, Sparkles } from "lucide-react";
+import { Menu, X, Moon, Sun, ArrowRight, User, LogOut, FolderHeart, Sparkles, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
@@ -151,12 +151,20 @@ export default function Navbar() {
                         <span>Chỉnh sửa mẫu Hồng Phong</span>
                       </Link>
 
+                      <Link
+                        href="/admin"
+                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors border-t border-gray-100"
+                      >
+                        <ShieldCheck className="w-4 h-4 text-zen-primary" />
+                        <span>Trang Quản trị (Admin)</span>
+                      </Link>
+
                       <button
                         onClick={() => {
                           logout();
                           setUserMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors border-t border-gray-100 mt-1"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors border-t border-gray-100 mt-1"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Đăng xuất</span>
@@ -341,12 +349,20 @@ export default function Navbar() {
                       <p className="text-[10px] text-gray-500 truncate">{user.email}</p>
                     </div>
                   </div>
+                  <Link
+                    href="/admin"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border-t border-gray-100"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-zen-primary" />
+                    <span>Trang Quản trị (Admin)</span>
+                  </Link>
                   <button
                     onClick={() => {
                       logout();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-center text-xs text-red-600 font-semibold py-1.5 hover:bg-red-50 rounded-lg transition-colors"
+                    className="w-full text-center text-xs text-gray-500 font-semibold py-1.5 hover:bg-gray-50 rounded-lg transition-colors border-t border-gray-50"
                   >
                     Đăng xuất
                   </button>

@@ -21,7 +21,7 @@ import {
 import { WeddingCard } from "@/data/initialCards";
 import { AutoFillFormData, applyAutoFillToNodes } from "@/lib/templateValidation";
 import { compressImageToWebP } from "@/lib/imageCompression";
-import { addUploadedImageToLibrary, addUploadedImagesToLibrary } from "@/lib/mediaLibraryService";
+import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import { POPULAR_BANKS } from "@/lib/vietQrBankCodes";
 
 interface EditorAutoFillModalProps {
@@ -105,7 +105,7 @@ export default function EditorAutoFillModal({
       try {
         const data = new FormData();
         data.append("file", compressed.file);
-        const res = await fetch("/api/upload", { method: "POST", body: data });
+        const res = await uploadFileToServer(data);
         if (res.ok) {
           const json = await res.json();
           if (json.url) uploadedUrl = json.url;
@@ -141,7 +141,7 @@ export default function EditorAutoFillModal({
           try {
             const data = new FormData();
             data.append("file", compressed.file);
-            const res = await fetch("/api/upload", { method: "POST", body: data });
+            const res = await uploadFileToServer(data);
             if (res.ok) {
               const json = await res.json();
               if (json.url) uploadedUrl = json.url;

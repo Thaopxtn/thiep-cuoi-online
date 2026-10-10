@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from "react";
 export const MEDIA_LIBRARY_STORAGE_KEY = "zenlove_uploaded_media_library_v1";
 export const MEDIA_LIBRARY_EVENT = "zenlove_media_library_updated";
 
+import { getCurrentAuth } from "./weddingCardService";
+
 export const DEFAULT_DEMO_IMAGES: string[] = [
   "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600",
   "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=600",
@@ -15,6 +17,17 @@ export const DEFAULT_DEMO_IMAGES: string[] = [
   "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?q=80&w=600",
   "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=600",
 ];
+
+export async function uploadFileToServer(formData: FormData): Promise<Response> {
+  const { token } = getCurrentAuth();
+  return fetch("/api/upload", {
+    method: "POST",
+    headers: {
+      ...(token ? { "Authorization": `Bearer ${token}` } : {})
+    },
+    body: formData,
+  });
+}
 
 /**
  * Lấy danh sách ảnh đã tải lên từ localStorage
@@ -107,6 +120,19 @@ export function addUploadedImagesToLibrary(urls: string[]): string[] {
  * Xóa 1 ảnh khỏi thư viện
  */
 export function removeUploadedImageFromLibrary(url: string): string[] {
+  const { token } = getCurrentAuth();
+  if (token && url.includes('/wedding-cards/')) {
+    // Extract filename from URL (it's the last part)
+    const parts = url.split('/');
+    const fileName = parts[parts.length - 1];
+    
+    // Call API without waiting to not block UI
+    fetch(`/api/upload?fileName=${encodeURIComponent(fileName)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` }
+    }).catch(console.warn);
+  }
+
   const current = getSavedUploadedImages();
   const next = current.filter((item) => item !== url);
   const result = next.length > 0 ? next : DEFAULT_DEMO_IMAGES;
@@ -240,6 +266,30 @@ export function countImageUsageInNodes(targetUrl: string, nodes: Record<string, 
 /**
  * React Hook đồng bộ trạng thái Media Library theo thời gian thực
  */
+
+export async function syncMediaLibraryWithServer() {
+  const { token } = getCurrentAuth();
+  if (!token) return;
+  try {
+    const res = await fetch("/api/upload/list", {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && Array.isArray(data.urls)) {
+        const current = getSavedUploadedImages();
+        const merged = Array.from(new Set([...data.urls, ...current]));
+        localStorage.setItem(MEDIA_LIBRARY_STORAGE_KEY, JSON.stringify(merged));
+        window.dispatchEvent(
+          new CustomEvent(MEDIA_LIBRARY_EVENT, { detail: merged })
+        );
+      }
+    }
+  } catch (err) {
+    console.warn("Failed to sync media library", err);
+  }
+}
+
 export function useUploadedMediaLibrary() {
   const [images, setImages] = useState<string[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -247,6 +297,7 @@ export function useUploadedMediaLibrary() {
   useEffect(() => {
     setImages(getSavedUploadedImages());
     setIsLoaded(true);
+    syncMediaLibraryWithServer();
 
     const handleUpdate = (e: Event) => {
       const customEvent = e as CustomEvent<string[]>;
