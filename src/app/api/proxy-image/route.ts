@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSafeExternalUrl } from "@/lib/securityUtils";
 
-// Cache in-memory simple Map if needed, or rely on Cache-Control headers
+export const dynamic = "force-dynamic";
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // Giới hạn 10MB để chống cạn kiệt bộ nhớ
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get("url");
@@ -9,9 +13,11 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Missing url parameter", { status: 400 });
   }
 
-  // Chặn SSRF/gọi URL local nguy hiểm
-  if (!imageUrl.startsWith("http://") && !imageUrl.startsWith("https://")) {
-    return new NextResponse("Invalid protocol", { status: 400 });
+  // Chống SSRF: Chặn localhost, IP nội bộ, AWS/GCP/Azure metadata endpoints
+  if (!isSafeExternalUrl(imageUrl)) {
+    return new NextResponse("Forbidden: Target URL is restricted or points to a private network", {
+      status: 403,
+    });
   }
 
   try {
@@ -31,19 +37,32 @@ export async function GET(request: NextRequest) {
     clearTimeout(timeoutId);
 
     if (!res.ok) {
-      // Fallback về SVG placeholder nếu link bị 403 / 404
       return createSvgFallbackResponse(imageUrl);
     }
 
-    const contentType = res.headers.get("content-type") || "image/webp";
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType && !contentType.startsWith("image/") && !contentType.includes("octet-stream")) {
+      return new NextResponse("Invalid Content-Type: Target is not an image", { status: 400 });
+    }
+
+    // Kiểm tra dung lượng
+    const contentLength = res.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > MAX_IMAGE_SIZE_BYTES) {
+      return new NextResponse("Image size exceeds limit (10MB)", { status: 413 });
+    }
+
     const buffer = await res.arrayBuffer();
+    if (buffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
+      return new NextResponse("Image size exceeds limit (10MB)", { status: 413 });
+    }
 
     return new NextResponse(buffer, {
       status: 200,
       headers: {
-        "Content-Type": contentType,
+        "Content-Type": contentType || "image/webp",
         "Cache-Control": "public, max-age=604800, s-maxage=2592000, immutable",
         "Access-Control-Allow-Origin": "*",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err) {
@@ -74,6 +93,7 @@ function createSvgFallbackResponse(originalUrl: string) {
     headers: {
       "Content-Type": "image/svg+xml; charset=utf-8",
       "Cache-Control": "public, max-age=86400",
+      "X-Content-Type-Options": "nosniff",
     },
   });
 }

@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isDbConfigured } from "@/lib/serverDb";
+import { verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
+/**
+ * GET /api/admin/health
+ * Kiểm tra trạng thái sức khỏe và kết nối các dịch vụ hạ tầng (Yêu cầu quyền Admin)
+ */
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền xem thông tin hạ tầng hệ thống" },
+      { status: 401 }
+    );
+  }
+
   try {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const hasServiceKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY);

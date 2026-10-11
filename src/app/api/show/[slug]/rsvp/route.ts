@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb, createRsvpInDb, getRsvpsFromDb, upsertCardToDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, createRsvpInDb, getRsvpsFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
 import { recordActivity } from "@/lib/activityService";
+import { verifyUserAuth, verifyAdminAuth, isCardOwner } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -10,72 +11,69 @@ interface Params {
 }
 
 /**
- * Lấy hoặc tự động tạo bản ghi thiệp trong DB nếu chưa có (tránh 404 cho khách)
+ * Tìm kiếm thiệp cưới đã xuất bản hợp lệ theo slug hoặc id
+ * Không tự động tạo thiệp ảo (ghost cards)
  */
-async function ensureCardForSlug(slug: string): Promise<WeddingCard | null> {
-  let card = await getCardByIdOrSlugFromDb(slug);
+async function findPublishedCard(slug: string): Promise<WeddingCard | null> {
+  const card = await getCardByIdOrSlugFromDb(slug);
   if (card) return card;
 
-  // 1. Kiểm tra INITIAL_CARDS
+  // Kiểm tra mẫu thiệp có sẵn trong INITIAL_CARDS
   const localFound = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
-  if (localFound) {
-    const upserted = await upsertCardToDb(localFound);
-    return upserted || localFound;
-  }
+  if (localFound) return localFound;
 
-  // 2. Tạo bản ghi thiệp dự phòng để đảm bảo foreign key và luôn lưu được RSVP
-  const fallbackCard: WeddingCard = {
-    id: slug,
-    slug: slug,
-    name: `Thiệp Cưới (${slug})`,
-    templateId: slug,
-    templateName: "Thiệp Cưới Online",
-    status: "published",
-    updatedAt: new Date().toLocaleDateString("vi-VN"),
-    views: 1,
-    coverImage: "",
-    story: "",
-    weddingDate: "2026-11-20",
-    weddingTime: "11:00",
-    lunarDate: "",
-    groom: { name: "Chú Rể", title: "Chú Rể", phone: "" },
-    bride: { name: "Cô Dâu", title: "Cô Dâu", phone: "" },
-    events: [],
-    album: [],
-    musicTitle: "",
-    musicUrl: "",
-    rsvps: [],
-    wishes: [],
-  };
-
-  try {
-    const upserted = await upsertCardToDb(fallbackCard);
-    return upserted || fallbackCard;
-  } catch {
-    return fallbackCard;
-  }
+  return null;
 }
 
 /**
  * GET /api/show/[slug]/rsvp
  * Lấy danh sách phản hồi tham dự của thiệp
+ * - Nếu là chủ thiệp hoặc Admin: Trả về đầy đủ số điện thoại và ghi chú khách mời
+ * - Nếu là khách mời công khai: Ẩn số điện thoại và ghi chú riêng tư để bảo vệ quyền riêng tư
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const { slug } = params;
   try {
-    const card = await ensureCardForSlug(slug);
+    const card = await findPublishedCard(slug);
     if (!card) {
       return NextResponse.json(
-        { success: false, message: "Không tìm thấy thiệp" },
+        { success: false, message: "Thiệp cưới không tồn tại" },
         { status: 404 }
       );
     }
 
+    if (card.status !== "published") {
+      return NextResponse.json(
+        { success: false, message: "Thiệp cưới chưa được xuất bản" },
+        { status: 403 }
+      );
+    }
+
     const rsvps = await getRsvpsFromDb(card.id);
+
+    // Kiểm tra xem người gọi có phải chủ sở hữu hoặc Quản trị viên hay không
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
+    const isOwner = userAuth.authenticated && userAuth.userId && isCardOwner(card, userAuth.userId);
+    const canViewPrivateDetails = Boolean(isOwner || adminAuth.authenticated);
+
+    // Phân tách dữ liệu: Khách công cộng chỉ xem được danh sách tên và số lượng người tham dự
+    const sanitizedRsvps = rsvps.map((r) => ({
+      id: r.id,
+      name: r.name,
+      attending: r.attending,
+      guests: r.guests || 1,
+      createdAt: r.createdAt,
+      // Chỉ chủ thiệp mới được xem số điện thoại và lời nhắn riêng tư
+      phone: canViewPrivateDetails ? r.phone : undefined,
+      note: canViewPrivateDetails ? r.note : undefined,
+    }));
+
     return NextResponse.json({
       success: true,
-      count: rsvps.length,
-      rsvps,
+      count: sanitizedRsvps.length,
+      rsvps: sanitizedRsvps,
+      isOwner: canViewPrivateDetails,
     });
   } catch (error: any) {
     console.error(`GET /api/show/${slug}/rsvp error:`, error);
@@ -88,7 +86,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 /**
  * POST /api/show/[slug]/rsvp
- * Khách gửi phản hồi xác nhận tham dự
+ * Khách gửi phản hồi xác nhận tham dự với validation chặt chẽ
  */
 export async function POST(request: NextRequest, { params }: Params) {
   const { slug } = params;
@@ -96,7 +94,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = await request.json();
     const { name, phone, attending, guests, note, b_field_trap } = body;
 
-    // Honeypot chống bot tự động spam
+    // 1. Honeypot chống bot tự động spam
     if (b_field_trap) {
       return NextResponse.json({
         success: true,
@@ -104,28 +102,53 @@ export async function POST(request: NextRequest, { params }: Params) {
       });
     }
 
-    if (!name || !phone) {
+    // 2. Validation dữ liệu đầu vào
+    const cleanName = String(name || "").trim();
+    const cleanPhone = String(phone || "").trim().replace(/[\s.-]/g, "");
+
+    if (!cleanName || cleanName.length < 2 || cleanName.length > 100) {
       return NextResponse.json(
-        { success: false, message: "Vui lòng nhập họ tên và số điện thoại" },
+        { success: false, message: "Vui lòng nhập họ và tên hợp lệ (từ 2 đến 100 ký tự)" },
         { status: 400 }
       );
     }
 
-    const card = await ensureCardForSlug(slug);
+    // Kiểm tra định dạng số điện thoại Việt Nam (8-15 ký tự số)
+    const phoneRegex = /^(\+?84|0)[3|5|7|8|9][0-9]{8}$/;
+    if (!cleanPhone || (!phoneRegex.test(cleanPhone) && cleanPhone.length < 8)) {
+      return NextResponse.json(
+        { success: false, message: "Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại liên hệ đúng." },
+        { status: 400 }
+      );
+    }
+
+    const numGuests = Math.min(Math.max(parseInt(String(guests), 10) || 1, 1), 10);
+    const cleanNote = note ? String(note).trim().slice(0, 500) : "";
+
+    // 3. Tìm thiệp thực tế (không tự sinh thiệp ma)
+    const card = await findPublishedCard(slug);
     if (!card) {
       return NextResponse.json(
-        { success: false, message: "Không tìm thấy thiệp cưới tương ứng" },
+        { success: false, message: "Thiệp cưới không tồn tại hoặc đường link không hợp lệ" },
         { status: 404 }
       );
     }
 
+    if (card.status !== "published") {
+      return NextResponse.json(
+        { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp và chưa mở nhận phản hồi" },
+        { status: 400 }
+      );
+    }
+
+    // 4. Lưu phản hồi vào cơ sở dữ liệu
     const savedRsvp = await createRsvpInDb({
       cardId: card.id,
-      name: name.trim(),
-      phone: phone.trim(),
+      name: cleanName,
+      phone: cleanPhone,
       attending: attending !== false,
-      guests: Number(guests) || 1,
-      note: note ? String(note).trim() : "",
+      guests: numGuests,
+      note: cleanNote,
     });
 
     if (!savedRsvp) {
@@ -145,11 +168,11 @@ export async function POST(request: NextRequest, { params }: Params) {
         targetName: card.name,
         targetId: card.id,
         targetSlug: card.slug,
-        details: savedRsvp.attending !== false
-          ? `Số lượng: ${savedRsvp.guests || 1} người • SĐT: ${savedRsvp.phone}${savedRsvp.note ? ` • Ghi chú: "${savedRsvp.note}"` : ""}`
-          : `Không thể tham gia • SĐT: ${savedRsvp.phone}${savedRsvp.note ? ` • Lý do: "${savedRsvp.note}"` : ""}`,
+        details:
+          savedRsvp.attending !== false
+            ? `Số lượng: ${savedRsvp.guests || 1} người${savedRsvp.note ? ` • Ghi chú: "${savedRsvp.note}"` : ""}`
+            : `Không thể tham gia${savedRsvp.note ? ` • Lý do: "${savedRsvp.note}"` : ""}`,
         metadata: {
-          phone: savedRsvp.phone,
           attending: savedRsvp.attending,
           guests: savedRsvp.guests,
           cardId: card.id,
@@ -162,7 +185,13 @@ export async function POST(request: NextRequest, { params }: Params) {
     return NextResponse.json({
       success: true,
       message: "Cảm ơn bạn đã phản hồi xác nhận tham dự!",
-      rsvp: savedRsvp,
+      rsvp: {
+        id: savedRsvp.id,
+        name: savedRsvp.name,
+        attending: savedRsvp.attending,
+        guests: savedRsvp.guests,
+        createdAt: savedRsvp.createdAt,
+      },
     });
   } catch (error: any) {
     console.error(`POST /api/show/${slug}/rsvp error:`, error);

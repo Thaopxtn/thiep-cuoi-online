@@ -290,7 +290,7 @@ export default function ExportTemplateModal({
         <div className="px-6 py-3.5 border-t border-gray-100 bg-stone-50 flex items-center justify-between text-xs text-gray-500">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Tương thích hoàn toàn với tính năng "Nhập mẫu JSON"</span>
+            <span>Tương thích hoàn toàn với tính năng &quot;Nhập mẫu JSON&quot;</span>
           </div>
           <button
             type="button"

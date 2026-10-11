@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, getAllRsvpsFromDb, deleteRsvpFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
+import { verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/rsvps
- * Lấy danh sách toàn bộ phản hồi RSVP của tất cả đám cưới
+ * Lấy danh sách toàn bộ phản hồi RSVP của tất cả đám cưới (Yêu cầu quyền Admin)
  */
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền xem danh sách khách mời toàn sàn" },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const cardIdFilter = searchParams.get("cardId");
@@ -62,9 +71,17 @@ export async function GET(request: NextRequest) {
 
 /**
  * DELETE /api/admin/rsvps
- * Xóa một bản ghi RSVP
+ * Xóa một bản ghi RSVP (Yêu cầu quyền Admin)
  */
 export async function DELETE(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền xóa phản hồi khách mời" },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

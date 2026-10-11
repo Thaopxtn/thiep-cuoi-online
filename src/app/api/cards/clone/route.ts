@@ -10,81 +10,9 @@ import fs from "fs";
 import path from "path";
 // @ts-ignore
 import lzutf8 from "lzutf8";
+import { verifyUserAuth, verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
-
-/**
- * Trích xuất tên Cô dâu, Chú rể từ cây nodes
- */
-function extractNamesFromNodes(nodes?: Record<string, any>): { groom: string; bride: string } {
-  let groom = "Đức Mạnh";
-  let bride = "Lệ Quyên";
-
-  if (!nodes) return { groom, bride };
-
-  // 1. Xử lý mẫu FORM (như Đồng Xanh)
-  if (nodes.basicInfo) {
-    const b = nodes.basicInfo;
-    if (b.groomFullName || b.groomShortName) groom = b.groomFullName || b.groomShortName;
-    if (b.brideFullName || b.brideShortName) bride = b.brideFullName || b.brideShortName;
-    return { groom, bride };
-  }
-
-  const textBoxes = Object.values(nodes)
-    .filter((n) => n?.type?.resolvedName === "TextBox" && typeof n.props?.text === "string")
-    .map((n) => ({
-      text: n.props.text
-        .replace(/<[^>]*>/g, "")
-        .replace(/&amp;/g, "&")
-        .replace(/&nbsp;/g, " ")
-        .trim(),
-      top: Number(n.props.top) || 0,
-    }))
-    .sort((a, b) => a.top - b.top);
-
-  // 2. Tìm TextBox chứa cả 2 tên dạng "Chú rể & Cô dâu" hoặc "Chú rể và Cô dâu"
-  for (const tb of textBoxes) {
-    const clean = tb.text;
-    if ((clean.includes("&") || clean.includes(" và ")) && clean.length > 5 && clean.length < 50) {
-      const parts = clean.split(/&|\bvà\b/);
-      const p0 = parts[0]?.trim();
-      const p1 = parts[1]?.trim();
-      if (
-        p0 &&
-        p1 &&
-        p0.length >= 2 &&
-        p1.length >= 2 &&
-        !p0.includes("Save") &&
-        !p1.includes("Save") &&
-        p1 !== "amp;" &&
-        !p1.startsWith("amp;")
-      ) {
-        return { groom: p0, bride: p1 };
-      }
-    }
-  }
-
-  // 3. Tìm TextBox cô lập '&' có tên chú rể phía trên và tên cô dâu phía dưới (như mẫu Hồng Phong)
-  const ampersandIdx = textBoxes.findIndex(
-    (tb) => tb.text === "&" || tb.text === "♥" || tb.text === "+"
-  );
-  if (ampersandIdx > 0 && ampersandIdx < textBoxes.length - 1) {
-    const prev = textBoxes[ampersandIdx - 1].text;
-    const next = textBoxes[ampersandIdx + 1].text;
-    if (
-      prev.length >= 2 &&
-      prev.length < 30 &&
-      next.length >= 2 &&
-      next.length < 30 &&
-      !prev.includes("Save") &&
-      !next.includes("Save")
-    ) {
-      return { groom: prev, bride: next };
-    }
-  }
-
-  return { groom, bride };
-}
 
 /**
  * POST /api/cards/clone
@@ -92,12 +20,11 @@ function extractNamesFromNodes(nodes?: Record<string, any>): { groom: string; br
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { templateId, templateSlug, customGroom, customBride, userId: bodyUserId } = body;
-    const userId = bodyUserId || request.headers.get("x-user-id") || undefined;
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
 
     // Yêu cầu bắt buộc đăng nhập để tạo/clone thiệp mời
-    if (!userId) {
+    if (!userAuth.authenticated && !adminAuth.authenticated) {
       return NextResponse.json(
         {
           success: false,
@@ -106,6 +33,10 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    const body = await request.json();
+    const { templateId, templateSlug, customGroom, customBride } = body;
+    const userId = adminAuth.authenticated && body.userId ? body.userId : userAuth.userId;
 
     if (!templateId && !templateSlug) {
       return NextResponse.json(

@@ -65,7 +65,10 @@ export default function AdminActivityTab({
   const fetchActivities = useCallback(async (isSilent = false) => {
     if (!isSilent) setLoading(true);
     try {
-      const res = await fetch("/api/admin/activities?limit=200");
+      const token = typeof window !== "undefined" ? localStorage.getItem("zenlove_admin_auth_token") : "";
+      const res = await fetch("/api/admin/activities?limit=200", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       if (data.success && Array.isArray(data.activities)) {
         setActivities(data.activities);

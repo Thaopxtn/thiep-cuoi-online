@@ -1,57 +1,134 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb, createWishInDb } from "@/lib/serverDb";
+import crypto from "crypto";
+
+export const dynamic = "force-dynamic";
+
+// Bộ nhớ đệm Idempotency: Lưu mã giao dịch đã xử lý trong 24 giờ để chống replay attack
+const processedTransactions = new Map<string, number>();
+
+function isTransactionProcessed(txId: string): boolean {
+  const now = Date.now();
+  // Dọn dẹp các transaction cũ hơn 24 giờ
+  processedTransactions.forEach((ts, id) => {
+    if (now - ts > 24 * 60 * 60 * 1000) {
+      processedTransactions.delete(id);
+    }
+  });
+
+  if (processedTransactions.has(txId)) {
+    return true;
+  }
+  processedTransactions.set(txId, now);
+  return false;
+}
 
 /**
  * POST /api/webhook/payment
  * Webhook lắng nghe biến động số dư ngân hàng tự động (SePay / PayOS / Casso)
- * 1. Tự động cộng tiền mừng cưới vào danh sách quà tặng của cặp đôi.
- * 2. Tự động ghi lời chúc mừng kèm số tiền mừng vào Sổ lưu bút (nếu khách chuyển khoản kèm lời chúc).
- * 3. Tự động kích hoạt gói VIP cho người dùng khi nâng cấp tài khoản.
+ * Bảo vệ: Bắt buộc Webhook Secret Token + Chống Replay + An toàn bảo mật thông tin
  */
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization") || "";
     const webhookToken = process.env.PAYMENT_WEBHOOK_TOKEN;
+    const isProd = process.env.NODE_ENV === "production";
 
-    // Kiểm tra bảo mật Webhook (nếu có thiết lập PAYMENT_WEBHOOK_TOKEN)
-    if (webhookToken && !authHeader.includes(webhookToken)) {
+    // 1. Kiểm tra bí mật Webhook
+    if (isProd && !webhookToken) {
+      console.error("LỖI: PAYMENT_WEBHOOK_TOKEN chưa được cấu hình trên môi trường Production!");
       return NextResponse.json(
-        { success: false, message: "Unauthorized Webhook Request" },
-        { status: 401 }
+        { success: false, message: "Payment webhook endpoint is not configured with secure credentials" },
+        { status: 503 }
       );
     }
 
+    if (webhookToken) {
+      const authHeader = request.headers.get("authorization") || "";
+      const apiKeyHeader = request.headers.get("x-api-key") || "";
+
+      let bearerToken = "";
+      if (authHeader.toLowerCase().startsWith("bearer ")) {
+        bearerToken = authHeader.substring(7).trim();
+      } else if (authHeader) {
+        bearerToken = authHeader.trim();
+      }
+
+      const receivedToken = bearerToken || apiKeyHeader;
+      if (!receivedToken) {
+        return NextResponse.json(
+          { success: false, message: "Unauthorized Webhook Request (Missing Token)" },
+          { status: 401 }
+        );
+      }
+
+      // So sánh Constant-Time chống Timing Attack
+      let match = false;
+      try {
+        const receivedBuffer = Buffer.from(receivedToken);
+        const expectedBuffer = Buffer.from(webhookToken);
+        if (receivedBuffer.length === expectedBuffer.length) {
+          match = crypto.timingSafeEqual(receivedBuffer, expectedBuffer);
+        }
+      } catch {
+        match = false;
+      }
+
+      if (!match) {
+        return NextResponse.json(
+          { success: false, message: "Unauthorized Webhook Request (Invalid Token)" },
+          { status: 401 }
+        );
+      }
+    }
+
     const payload = await request.json();
-    console.log("Received payment webhook payload:", JSON.stringify(payload));
 
-    // Chuẩn hóa dữ liệu từ SePay / PayOS / Casso
-    // Thường có: amountIn, content (nội dung ck), transactionDate, referenceCode
+    // 2. Chuẩn hóa dữ liệu từ SePay / PayOS / Casso
     const amount = Number(payload.amountIn || payload.amount || payload.transferAmount || 0);
-    const content = String(payload.content || payload.description || payload.orderCode || "");
+    const content = String(payload.content || payload.description || payload.orderCode || "").trim();
     const transferDate = payload.transactionDate || payload.when || new Date().toISOString();
+    const referenceCode = String(
+      payload.referenceCode || payload.id || payload.transactionId || `${transferDate}_${amount}_${content.slice(0, 10)}`
+    );
 
-    // Phân tích nội dung chuyển khoản để nhận diện thiệp cưới hoặc khách mừng
-    // Ví dụ cú pháp: "MC HONGPHONG Nguyen Van A mung hai ban"
+    if (amount <= 0) {
+      return NextResponse.json(
+        { success: false, message: "Số tiền giao dịch không hợp lệ" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Chống Replay Attack & Xử lý trùng lặp giao dịch
+    if (isTransactionProcessed(referenceCode)) {
+      return NextResponse.json({
+        success: true,
+        message: "Giao dịch đã được ghi nhận trước đó (Idempotent)",
+        alreadyProcessed: true,
+      });
+    }
+
+    // 4. Phân tích nội dung chuyển khoản để nhận diện thiệp cưới
+    // Cú pháp quy ước: "MC [SLUG] [TÊN KHÁCH] mung hai ban"
     let matchedCardId: string | null = null;
-    let guestWishContent = content;
-
-    // Tìm mã thiệp trong nội dung
     const cardMatch = content.match(/MC\s+([a-zA-Z0-9_-]+)/i);
+
     if (cardMatch && cardMatch[1]) {
       const slugCandidate = cardMatch[1].toLowerCase();
       const card = await getCardByIdOrSlugFromDb(slugCandidate);
       if (card) {
         matchedCardId = card.id;
-        // Tự động tạo một lời chúc mừng kèm số tiền vào sổ lưu bút
         const formattedAmount = new Intl.NumberFormat("vi-VN", {
           style: "currency",
           currency: "VND",
         }).format(amount);
 
+        const senderName = String(payload.senderName || payload.accountName || "Khách mừng cưới Online").trim();
+
+        // Ghi nhận vào Sổ lưu bút thiệp cưới
         await createWishInDb({
           cardId: card.id,
-          name: payload.senderName || "Khách mừng cưới Online",
-          content: `${content} (Mừng cưới: ${formattedAmount})`,
+          name: senderName.slice(0, 100),
+          content: `${content.slice(0, 200)} (Mừng cưới: ${formattedAmount})`,
         });
       }
     }
@@ -60,16 +137,16 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Xử lý thông báo thanh toán thành công",
       processed: {
-        amount,
-        content,
         matchedCardId,
+        referenceCode,
+        amount,
         transferDate,
       },
     });
   } catch (error: any) {
-    console.error("Lỗi /api/webhook/payment:", error);
+    console.error("Lỗi /api/webhook/payment:", error?.message || "Lỗi xử lý");
     return NextResponse.json(
-      { success: false, message: error.message || "Lỗi xử lý webhook thanh toán" },
+      { success: false, message: "Lỗi xử lý webhook thanh toán" },
       { status: 500 }
     );
   }

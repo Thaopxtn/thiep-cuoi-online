@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, getAllWishesFromDb, deleteWishFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
+import { verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/wishes
- * Lấy toàn bộ lời chúc mừng từ Sổ lưu bút của tất cả đám cưới
+ * Lấy toàn bộ lời chúc mừng từ Sổ lưu bút của tất cả đám cưới (Yêu cầu quyền Admin)
  */
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền xem toàn bộ sổ lưu bút quản trị" },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const cardIdFilter = searchParams.get("cardId");
@@ -62,9 +71,17 @@ export async function GET(request: NextRequest) {
 
 /**
  * DELETE /api/admin/wishes
- * Xóa một lời chúc khỏi Sổ lưu bút (nội dung rác hoặc thô tục)
+ * Xóa một lời chúc khỏi hệ thống (Yêu cầu quyền Admin)
  */
 export async function DELETE(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền xóa lời chúc" },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

@@ -274,7 +274,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       payload.pageData = pageData;
     }
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/cards`, {
+    let res = await fetch(`${SUPABASE_URL}/rest/v1/cards`, {
       method: "POST",
       headers: {
         ...getDbHeaders(),
@@ -284,8 +284,25 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
     });
 
     if (!res.ok) {
-      console.error("Lỗi upsertCardToDb HTTP:", res.status, await res.text());
-      return null;
+      const errText = await res.text();
+      // Graceful fallback nếu Supabase schema cache chưa nhận diện cột user_id (PGRST204)
+      if (payload.user_id && (errText.includes("user_id") || errText.includes("PGRST204"))) {
+        console.warn("Cột user_id chưa có trong schema cache Supabase, thử lại lưu qua groom metadata...");
+        delete payload.user_id;
+        res = await fetch(`${SUPABASE_URL}/rest/v1/cards`, {
+          method: "POST",
+          headers: {
+            ...getDbHeaders(),
+            Prefer: "resolution=merge-duplicates,return=representation",
+          },
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (!res.ok) {
+        console.error("Lỗi upsertCardToDb HTTP:", res.status, errText);
+        return null;
+      }
     }
 
     const result = await res.json();

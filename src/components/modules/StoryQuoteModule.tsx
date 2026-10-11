@@ -46,7 +46,7 @@ export default function StoryQuoteModule({
       )}
 
       <p className="text-xs sm:text-sm text-gray-600 mt-4 leading-relaxed whitespace-pre-line italic font-serif">
-        "{quote}"
+        &ldquo;{quote}&rdquo;
       </p>
     </section>
   );

@@ -34,7 +34,6 @@ import AdminTemplatesTab from "@/components/admin/AdminTemplatesTab";
 import AdminSettingsTab from "@/components/admin/AdminSettingsTab";
 
 const ADMIN_SESSION_KEY = "zenlove_admin_auth_token";
-const DEFAULT_PIN = "zenlove8888";
 
 export default function AdminPage() {
   // Trạng thái xác thực Admin
@@ -79,40 +78,75 @@ export default function AdminPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Kiểm tra phiên đăng nhập đã có trong localStorage
+  // Lấy header xác thực Quản trị viên
+  const getAdminHeaders = useCallback((includeJson = false) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem(ADMIN_SESSION_KEY) || "" : "";
+    return {
+      ...(includeJson ? { "Content-Type": "application/json" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }, []);
+
+  // Kiểm tra phiên đăng nhập đã có với API Server
   useEffect(() => {
-    try {
-      const token = localStorage.getItem(ADMIN_SESSION_KEY);
-      if (token) {
-        setIsAuthenticated(true);
-      } else {
+    const checkServerAuth = async () => {
+      try {
+        const token = localStorage.getItem(ADMIN_SESSION_KEY);
+        if (!token) {
+          setIsAuthenticated(false);
+          return;
+        }
+
+        const res = await fetch("/api/admin/verify", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.authenticated) {
+            setIsAuthenticated(true);
+            return;
+          }
+        }
+
+        // Token không còn hợp lệ
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+        setIsAuthenticated(false);
+      } catch (e) {
         setIsAuthenticated(false);
       }
-    } catch (e) {
-      setIsAuthenticated(false);
-    }
+    };
+
+    checkServerAuth();
   }, []);
 
   // Hàm tải toàn bộ dữ liệu quản trị
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
+      const headers = getAdminHeaders();
       const [statsRes, activitiesRes, cardsRes, rsvpsRes, wishesRes, usersRes] = await Promise.all([
-        fetch("/api/admin/stats"),
-        fetch("/api/admin/activities?limit=100"),
-        fetch("/api/admin/cards"),
-        fetch("/api/admin/rsvps"),
-        fetch("/api/admin/wishes"),
-        fetch("/api/admin/users"),
+        fetch("/api/admin/stats", { headers }),
+        fetch("/api/admin/activities?limit=100", { headers }),
+        fetch("/api/admin/cards", { headers }),
+        fetch("/api/admin/rsvps", { headers }),
+        fetch("/api/admin/wishes", { headers }),
+        fetch("/api/admin/users", { headers }),
       ]);
 
+      if (statsRes.status === 401 || cardsRes.status === 401) {
+        localStorage.removeItem(ADMIN_SESSION_KEY);
+        setIsAuthenticated(false);
+        return;
+      }
+
       const [statsJson, activitiesJson, cardsJson, rsvpsJson, wishesJson, usersJson] = await Promise.all([
-        statsRes.json(),
-        activitiesRes.json(),
-        cardsRes.json(),
-        rsvpsRes.json(),
-        wishesRes.json(),
-        usersRes.json(),
+        statsRes.json().catch(() => ({})),
+        activitiesRes.json().catch(() => ({})),
+        cardsRes.json().catch(() => ({})),
+        rsvpsRes.json().catch(() => ({})),
+        wishesRes.json().catch(() => ({})),
+        usersRes.json().catch(() => ({})),
       ]);
 
       if (statsJson.success) setStatsData(statsJson.stats);
@@ -128,7 +162,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getAdminHeaders]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -136,7 +170,7 @@ export default function AdminPage() {
     }
   }, [isAuthenticated, fetchAllData]);
 
-  // Xử lý xác thực mã PIN
+  // Xử lý xác thực mã PIN qua API Server bảo mật
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!pinInput.trim()) return;
@@ -144,30 +178,19 @@ export default function AdminPage() {
     setPinError(null);
 
     try {
-      const customPin = localStorage.getItem("zenlove_custom_admin_pin");
-      const expectedPin = customPin || DEFAULT_PIN;
+      const res = await fetch("/api/admin/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ passcode: pinInput.trim() }),
+      });
 
-      // So khớp với API Server hoặc mã PIN tùy biến
-      if (pinInput.trim() === expectedPin || pinInput.trim() === DEFAULT_PIN) {
-        const fakeToken = "adm_" + Date.now().toString(36);
-        localStorage.setItem(ADMIN_SESSION_KEY, fakeToken);
+      const data = await res.json();
+      if (res.ok && data.success && data.token) {
+        localStorage.setItem(ADMIN_SESSION_KEY, data.token);
         setIsAuthenticated(true);
         setPinInput("");
       } else {
-        // Thử gửi lên server kiểm tra
-        const res = await fetch("/api/admin/verify", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ passcode: pinInput.trim() }),
-        });
-        const data = await res.json();
-        if (data.success) {
-          localStorage.setItem(ADMIN_SESSION_KEY, data.token || "adm_token");
-          setIsAuthenticated(true);
-          setPinInput("");
-        } else {
-          setPinError(data.message || "Mã PIN Quản trị viên không chính xác!");
-        }
+        setPinError(data.message || "Mã PIN Quản trị viên không chính xác!");
       }
     } catch (err: any) {
       setPinError("Lỗi kết nối máy chủ khi xác thực PIN");
@@ -192,11 +215,11 @@ export default function AdminPage() {
     try {
       const res = await fetch(`/api/admin/cards?id=${id}`, {
         method: "DELETE",
+        headers: getAdminHeaders(),
       });
       const data = await res.json();
       if (data.success) {
         setCardsData((prev) => prev.filter((c) => c.id !== id));
-        // Cập nhật lại stats
         fetchAllData();
       } else {
         alert(data.message || "Không thể xóa thiệp");
@@ -212,7 +235,7 @@ export default function AdminPage() {
     try {
       const res = await fetch("/api/admin/cards", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: getAdminHeaders(true),
         body: JSON.stringify({ id, status: nextStatus }),
       });
       const data = await res.json();
@@ -233,11 +256,16 @@ export default function AdminPage() {
   const handleDeleteRsvp = async (id: string, name: string) => {
     if (!confirm(`Xóa phản hồi tham dự của khách "${name}"?`)) return;
     try {
-      const res = await fetch(`/api/admin/rsvps?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/rsvps?id=${id}`, {
+        method: "DELETE",
+        headers: getAdminHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setRsvpsData((prev) => prev.filter((r) => r.id !== id));
         fetchAllData();
+      } else {
+        alert(data.message || "Không thể xóa RSVP");
       }
     } catch (e) {
       alert("Lỗi khi xóa RSVP");
@@ -248,11 +276,16 @@ export default function AdminPage() {
   const handleDeleteWish = async (id: string, name: string) => {
     if (!confirm(`Xóa lời chúc của "${name}" khỏi Sổ lưu bút?`)) return;
     try {
-      const res = await fetch(`/api/admin/wishes?id=${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/admin/wishes?id=${id}`, {
+        method: "DELETE",
+        headers: getAdminHeaders(),
+      });
       const data = await res.json();
       if (data.success) {
         setWishesData((prev) => prev.filter((w) => w.id !== id));
         fetchAllData();
+      } else {
+        alert(data.message || "Không thể xóa lời chúc");
       }
     } catch (e) {
       alert("Lỗi khi xóa lời chúc");
@@ -323,8 +356,9 @@ export default function AdminPage() {
             </form>
 
             <div className="mt-6 pt-5 border-t border-gray-100 flex items-center justify-between text-xs text-gray-400">
-              <span className="text-[11px]">
-                PIN mặc định: <strong className="text-gray-700 font-mono">zenlove8888</strong>
+              <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                <span>HMAC Secured Portal</span>
               </span>
               <Link
                 href="/"

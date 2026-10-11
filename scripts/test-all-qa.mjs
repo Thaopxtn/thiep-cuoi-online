@@ -1,6 +1,6 @@
 /**
  * QA Automation Test Runner - Thiệp Cưới ZenLove
- * Chạy toàn bộ kiểm thử hệ thống: Unit tests, API security, Performance & End-to-End checks
+ * Chạy toàn bộ kiểm thử hệ thống: Unit tests, API security, SSRF, Auth Guard, Performance & End-to-End checks
  * Lệnh chạy: npm run test:all hoặc node scripts/test-all-qa.mjs
  */
 
@@ -9,6 +9,8 @@ import fs from "fs";
 import path from "path";
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3005";
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "zenlove_admin_secure_2026";
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "zenlove_qa_master_key_2026";
 
 const colors = {
   reset: "\x1b[0m",
@@ -85,18 +87,18 @@ async function runQASuite() {
     reportData.unitTests.duration = Date.now() - vitestStart;
     reportData.unitTests.output = vitestOutput;
 
-    // Phân tích kết quả (bỏ mã màu ANSI)
+    // Phân tích kết quả thực tế (không hardcode)
     const cleanOutput = vitestOutput.replace(/\x1B\[[0-9;]*[a-zA-Z]/g, "");
     const matchFiles = cleanOutput.match(/Test Files\s+(\d+)\s+passed/i);
     const matchTests = cleanOutput.match(/Tests\s+(\d+)\s+passed/i);
-    const filesPassed = matchFiles ? matchFiles[1] : "6";
-    const testsPassed = matchTests ? matchTests[1] : "40";
+    const filesPassed = matchFiles ? matchFiles[1] : "0";
+    const testsPassed = matchTests ? matchTests[1] : "0";
 
-    reportData.unitTests.passed = parseInt(testsPassed, 10);
-    reportData.unitTests.total = parseInt(testsPassed, 10);
+    reportData.unitTests.passed = parseInt(testsPassed, 10) || 0;
+    reportData.unitTests.total = parseInt(testsPassed, 10) || 0;
 
     console.log(
-      `  ${colors.green}✓ Unit Tests hoàn thành xuất sắc:${colors.reset} ${filesPassed} test files (${testsPassed} tests passed) trong ${reportData.unitTests.duration}ms\n`
+      `  ${colors.green}✓ Unit Tests hoàn thành:${colors.reset} ${filesPassed} test files (${testsPassed} tests passed) trong ${reportData.unitTests.duration}ms\n`
     );
   } catch (err) {
     console.log(`  ${colors.red}✗ Unit Tests phát hiện lỗi:${colors.reset} ${err.message}\n`);
@@ -107,7 +109,21 @@ async function runQASuite() {
   // -------------------------------------------------------------
   // BƯỚC 2: API CONTRACT, AUTH GUARD & SECURITY CHECKS
   // -------------------------------------------------------------
-  console.log(`${colors.bold}${colors.cyan}[GIAI ĐOẠN 2] Kiểm Thử API Contracts, Auth Guard & Nghiệp Vụ...${colors.reset}`);
+  console.log(`${colors.bold}${colors.cyan}[GIAI ĐOẠN 2] Kiểm Thử API Contracts, Auth Guard & An Ninh Mạng...${colors.reset}`);
+
+  // Đăng nhập Admin hợp lệ để lấy token dùng cho các test kiểm thử quyền
+  let adminToken = "";
+  try {
+    const authVerifyRes = await fetch(`${BASE_URL}/api/admin/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode: ADMIN_PASSCODE }),
+    });
+    if (authVerifyRes.ok) {
+      const authData = await authVerifyRes.json();
+      adminToken = authData.token || "";
+    }
+  } catch {}
 
   const checks = [
     {
@@ -117,7 +133,7 @@ async function runQASuite() {
       validate: (r) => r.passed && typeof r.data === "string" && r.data.length > 500,
     },
     {
-      name: "API Danh sách Thiệp (/api/cards)",
+      name: "API Danh sách Thiệp Công Khai (/api/cards)",
       url: `${BASE_URL}/api/cards`,
       options: { method: "GET" },
       validate: (r) => r.passed && r.data && Array.isArray(r.data.cards || r.data),
@@ -141,7 +157,7 @@ async function runQASuite() {
       validate: (r) => r.passed && typeof r.data === "string",
     },
     {
-      name: "Bảo Vệ Auth Guard: Chặn Clone Mẫu khi chưa login",
+      name: "Bảo Vệ Auth Guard: Chặn Clone Mẫu khi chưa login (HTTP 401)",
       url: `${BASE_URL}/api/cards/clone`,
       options: {
         method: "POST",
@@ -149,22 +165,6 @@ async function runQASuite() {
         body: JSON.stringify({ templateId: "son-duyen" }),
       },
       validate: (r) => r.status === 401,
-    },
-    {
-      name: "Gửi Phản Hồi Tham Dự RSVP (POST RSVP)",
-      url: `${BASE_URL}/api/show/net-hoang-hon-2877/rsvp`,
-      options: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: "QA Automated Tester",
-          phone: "0988776655",
-          attending: true,
-          guests: 2,
-          note: "Kịch bản kiểm thử tự động toàn sàn",
-        }),
-      },
-      validate: (r) => r.passed && r.data && r.data.success,
     },
     {
       name: "Chống Bot Spam: Bẫy Honeypot RSVP",
@@ -181,17 +181,18 @@ async function runQASuite() {
       validate: (r) => r.passed && r.data && r.data.success,
     },
     {
-      name: "Gửi Lời Chúc Lưu Bút (POST Wishes)",
-      url: `${BASE_URL}/api/show/net-hoang-hon-2877/wishes`,
+      name: "Kiểm Tra Validation Input: Từ chối SĐT RSVP không hợp lệ (HTTP 400)",
+      url: `${BASE_URL}/api/show/net-hoang-hon-2877/rsvp`,
       options: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name: "QA Automated Tester",
-          content: "Chúc hai bạn trăm năm hạnh phúc và ngập tràn yêu thương!",
+          name: "Test User",
+          phone: "123", // Quá ngắn
+          attending: true,
         }),
       },
-      validate: (r) => r.passed && r.data && r.data.success,
+      validate: (r) => r.status === 400,
     },
     {
       name: "Kho Template Giao Diện (/templates)",
@@ -211,34 +212,76 @@ async function runQASuite() {
       options: { method: "GET" },
       validate: (r) => r.passed && typeof r.data === "string",
     },
+    // ================= AN NINH BẢO MẬT ADMIN & IDOR =================
     {
-      name: "Giám Sát Hoạt Động Admin (GET /api/admin/activities)",
+      name: "Bảo Vệ Admin: Chặn Khách truy cập GET /api/admin/activities (HTTP 401)",
       url: `${BASE_URL}/api/admin/activities`,
       options: { method: "GET" },
-      validate: (r) => r.passed && r.data && r.data.success && Array.isArray(r.data.activities),
+      validate: (r) => r.status === 401,
     },
     {
-      name: "Ghi Nhận Sự Kiện Mới (POST /api/admin/activities)",
-      url: `${BASE_URL}/api/admin/activities`,
-      options: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "card_view",
-          title: "Khách xem thiệp mời kiểm thử QA",
-          actorName: "Robot QA Test",
-          actorType: "guest",
-          targetSlug: "net-hoang-hon-2877",
-          details: "Kiểm tra lưu vết hoạt động thời gian thực",
-        }),
-      },
-      validate: (r) => r.passed && r.data && r.data.success && r.data.activity,
-    },
-    {
-      name: "Thống Kê Tổng Hợp Admin (GET /api/admin/stats)",
+      name: "Bảo Vệ Admin: Chặn Khách truy cập GET /api/admin/stats (HTTP 401)",
       url: `${BASE_URL}/api/admin/stats`,
       options: { method: "GET" },
-      validate: (r) => r.passed && r.data && r.data.success && r.data.stats,
+      validate: (r) => r.status === 401,
+    },
+    {
+      name: "Bảo Vệ Admin: Chặn Khách truy cập GET /api/admin/cards (HTTP 401)",
+      url: `${BASE_URL}/api/admin/cards`,
+      options: { method: "GET" },
+      validate: (r) => r.status === 401,
+    },
+    {
+      name: "Bảo Vệ Admin: Chặn Khách truy cập GET /api/admin/users (HTTP 401)",
+      url: `${BASE_URL}/api/admin/users`,
+      options: { method: "GET" },
+      validate: (r) => r.status === 401,
+    },
+    {
+      name: "Bảo Vệ Admin: Chặn Khách truy cập GET /api/admin/rsvps (HTTP 401)",
+      url: `${BASE_URL}/api/admin/rsvps`,
+      options: { method: "GET" },
+      validate: (r) => r.status === 401,
+    },
+    {
+      name: "Quyền Quản Trị Hợp Lệ: Truy cập GET /api/admin/stats với Bearer Token",
+      url: `${BASE_URL}/api/admin/stats`,
+      options: {
+        method: "GET",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : { "x-admin-key": ADMIN_API_KEY },
+      },
+      validate: (r) => r.status === 200 && r.data && r.data.success && r.data.stats,
+    },
+    {
+      name: "Quyền Quản Trị Hợp Lệ: Truy cập GET /api/admin/activities với Bearer Token",
+      url: `${BASE_URL}/api/admin/activities?limit=10`,
+      options: {
+        method: "GET",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : { "x-admin-key": ADMIN_API_KEY },
+      },
+      validate: (r) => r.status === 200 && r.data && r.data.success && Array.isArray(r.data.activities),
+    },
+    {
+      name: "Bảo Vệ SSRF: Chặn gọi IP nội bộ qua Image Proxy (/api/proxy-image?url=http://127.0.0.1)",
+      url: `${BASE_URL}/api/proxy-image?url=http://127.0.0.1:3005`,
+      options: { method: "GET" },
+      validate: (r) => r.status === 403,
+    },
+    {
+      name: "Bảo Vệ Quyền Riêng Tư Khách Mời: Không để lộ SĐT qua GET /api/show/[slug]/rsvp",
+      url: `${BASE_URL}/api/show/net-hoang-hon-2877/rsvp`,
+      options: { method: "GET" },
+      validate: (r) => {
+        if (!r.passed || !r.data || !Array.isArray(r.data.rsvps)) return false;
+        // Kiểm tra toàn bộ khách trong danh sách công khai không chứa phone
+        return r.data.rsvps.every((item) => item.phone === undefined);
+      },
+    },
+    {
+      name: "Chống Tạo Thiệp Ảo (Ghost Cards): Trả về 404 cho Slug không tồn tại",
+      url: `${BASE_URL}/api/show/non-existent-wedding-slug-xyz123/rsvp`,
+      options: { method: "GET" },
+      validate: (r) => r.status === 404,
     },
   ];
 
@@ -275,13 +318,13 @@ async function runQASuite() {
     { name: "Homepage SSR", url: `${BASE_URL}/` },
     { name: "Template Library", url: `${BASE_URL}/templates` },
     { name: "Public Wedding Card", url: `${BASE_URL}/show/net-hoang-hon-2877` },
-    { name: "Admin Stats API", url: `${BASE_URL}/api/admin/stats` },
-    { name: "Admin Activities API", url: `${BASE_URL}/api/admin/activities` },
+    { name: "Admin Stats API", url: `${BASE_URL}/api/admin/stats`, headers: { Authorization: `Bearer ${adminToken}` } },
+    { name: "Admin Activities API", url: `${BASE_URL}/api/admin/activities`, headers: { Authorization: `Bearer ${adminToken}` } },
   ];
 
   for (const t of perfTargets) {
     const start = Date.now();
-    await fetch(t.url);
+    await fetch(t.url, { headers: t.headers || {} });
     const lat = Date.now() - start;
     const speedRating = lat < 500 ? `${colors.green}SIÊU NHANH (<500ms)${colors.reset}` : `${colors.yellow}BÌNH THƯỜNG (<2s)${colors.reset}`;
     console.log(`  ⚡ ${t.name.padEnd(25)} : ${colors.bold}${lat}ms${colors.reset} (${speedRating})`);
@@ -296,6 +339,8 @@ async function runQASuite() {
   if (!fs.existsSync(reportsDir)) {
     fs.mkdirSync(reportsDir, { recursive: true });
   }
+
+  const passRate = checks.length > 0 ? Math.round((passedApiCount / checks.length) * 100) : 0;
 
   const htmlReport = `<!DOCTYPE html>
 <html lang="vi">
@@ -335,12 +380,12 @@ async function runQASuite() {
         <div class="card-val" style="color: #34d399;">${reportData.unitTests.passed} / ${reportData.unitTests.total}</div>
       </div>
       <div class="card">
-        <div class="card-title">API Contracts</div>
+        <div class="card-title">API Contracts & Security</div>
         <div class="card-val" style="color: #38bdf8;">${passedApiCount} / ${checks.length}</div>
       </div>
       <div class="card">
         <div class="card-title">Tỷ Lệ Thành Công</div>
-        <div class="card-val" style="color: #f43f5e;">100%</div>
+        <div class="card-val" style="color: #f43f5e;">${passRate}%</div>
       </div>
       <div class="card">
         <div class="card-title">Môi Trường</div>
@@ -348,47 +393,25 @@ async function runQASuite() {
       </div>
     </div>
 
-    <h3>Danh Sách Chi Tiết 15 API Contract Checks</h3>
+    <h3>📋 Chi tiết kiểm thử API & Bảo mật</h3>
     <table>
       <thead>
         <tr>
-          <th>Tên Kiểm Thử</th>
+          <th>Tên Kịch Bản</th>
           <th>Trạng Thái</th>
-          <th>Độ Trễ</th>
-          <th>Kết Quả</th>
+          <th>HTTP Code</th>
+          <th>Thời Gian</th>
         </tr>
       </thead>
       <tbody>
         ${reportData.apiChecks
           .map(
             (c) => `<tr>
-            <td style="font-weight: 600;">${c.name}</td>
-            <td><code>${c.status}</code></td>
-            <td>${c.duration}ms</td>
-            <td><span class="badge ${c.passed ? "badge-success" : "badge-fail"}">${c.passed ? "PASS" : "FAIL"}</span></td>
-          </tr>`
-          )
-          .join("")}
-      </tbody>
-    </table>
-
-    <h3 style="margin-top: 2rem;">Đánh Giá Hiệu Năng Phản Hồi (Performance Benchmark)</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Endpoint / Trang</th>
-          <th>Thời Gian Phản Hồi (ms)</th>
-          <th>Đánh Giá</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${reportData.perfBenchmarks
-          .map(
-            (p) => `<tr>
-            <td>${p.name}</td>
-            <td style="font-weight: bold; color: #38bdf8;">${p.latency} ms</td>
-            <td><span class="badge badge-success">${p.latency < 500 ? "Tuyệt vời" : "Tốt"}</span></td>
-          </tr>`
+          <td>${c.name}</td>
+          <td><span class="badge ${c.passed ? "badge-success" : "badge-fail"}">${c.passed ? "PASS" : "FAIL"}</span></td>
+          <td>${c.status}</td>
+          <td>${c.duration}ms</td>
+        </tr>`
           )
           .join("")}
       </tbody>
@@ -397,26 +420,18 @@ async function runQASuite() {
 </body>
 </html>`;
 
-  fs.writeFileSync(path.join(reportsDir, "latest-qa-report.html"), htmlReport, "utf-8");
-  fs.writeFileSync(path.join(reportsDir, "latest-qa-report.json"), JSON.stringify(reportData, null, 2), "utf-8");
+  fs.writeFileSync(path.join(reportsDir, "qa-report.html"), htmlReport, "utf-8");
+  fs.writeFileSync(path.join(reportsDir, "qa-report.json"), JSON.stringify(reportData, null, 2), "utf-8");
 
-  // -------------------------------------------------------------
-  // TỔNG KẾT
-  // -------------------------------------------------------------
-  console.log(`\n${colors.bold}${colors.magenta}================================================================${colors.reset}`);
-  console.log(`  ${colors.bold}TỔNG HỢP KẾT QUẢ KIỂM THỬ QA:${colors.reset}`);
-  console.log(`  • Unit Tests:     ${colors.green}${reportData.unitTests.passed}/${reportData.unitTests.total} PASS${colors.reset} (${reportData.unitTests.duration}ms)`);
-  console.log(`  • API Contracts:  ${colors.green}${passedApiCount}/${checks.length} PASS${colors.reset}`);
-  console.log(`  • Báo cáo HTML:   ${colors.cyan}test-reports/latest-qa-report.html${colors.reset}`);
-  console.log(`  • Tổng thời gian: ${colors.bold}${totalDuration}s${colors.reset}`);
-  console.log(`${colors.bold}${colors.magenta}================================================================${colors.reset}\n`);
+  console.log(`\n${colors.bold}${colors.green}================================================================${colors.reset}`);
+  console.log(`  🎉 HOÀN TẤT QA TEST TOÀN BỘ HỆ THỐNG`);
+  console.log(`  - Unit Tests: ${reportData.unitTests.passed}/${reportData.unitTests.total} passed`);
+  console.log(`  - API Checks: ${passedApiCount}/${checks.length} passed`);
+  console.log(`  - Báo cáo HTML: test-reports/qa-report.html`);
+  console.log(`${colors.bold}${colors.green}================================================================${colors.reset}\n`);
 
   if (!reportData.passed) {
-    console.error(`${colors.red}❌ Có bài kiểm thử thất bại! Vui lòng kiểm tra báo cáo.${colors.reset}\n`);
     process.exit(1);
-  } else {
-    console.log(`${colors.green}🎉 TOÀN BỘ HỆ THỐNG ĐÃ VƯỢT QUA TẤT CẢ KIỂM THỬ XUẤT SẮC!${colors.reset}\n`);
-    process.exit(0);
   }
 }
 

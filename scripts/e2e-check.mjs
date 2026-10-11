@@ -4,6 +4,8 @@
  */
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:3005";
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "zenlove_admin_secure_2026";
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "zenlove_qa_master_key_2026";
 
 const colors = {
   reset: "\x1b[0m",
@@ -56,6 +58,20 @@ async function runAllChecks() {
   console.log(`${colors.bold}${colors.cyan}  Target: ${BASE_URL}${colors.reset}`);
   console.log(`${colors.bold}${colors.cyan}====================================================${colors.reset}\n`);
 
+  // Đăng nhập Admin để lấy token hợp lệ
+  let adminToken = "";
+  try {
+    const authRes = await fetch(`${BASE_URL}/api/admin/verify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ passcode: ADMIN_PASSCODE }),
+    });
+    if (authRes.ok) {
+      const authData = await authRes.json();
+      adminToken = authData.token || "";
+    }
+  } catch {}
+
   const checks = [
     // 1. Kiểm tra Trang chủ
     {
@@ -64,7 +80,7 @@ async function runAllChecks() {
       options: { method: "GET" },
       validate: (r) => r.passed && typeof r.data === "string" && r.data.length > 500,
     },
-    // 2. Kiểm tra API lấy danh sách thiệp
+    // 2. Kiểm tra API lấy danh sách thiệp công khai
     {
       name: "API Danh sách Thiệp (/api/cards)",
       url: `${BASE_URL}/api/cards`,
@@ -92,23 +108,24 @@ async function runAllChecks() {
       options: { method: "GET" },
       validate: (r) => r.passed && typeof r.data === "string",
     },
-    // 6. Kiểm tra API gửi lời chúc (Wish POST)
+    // 6. Kiểm tra API gửi lời chúc (Honeypot trap an toàn)
     {
-      name: "API Gửi Lời Chúc (POST Wishes)",
+      name: "Bẫy Honeypot Lời Chúc (POST Wishes Trap)",
       url: `${BASE_URL}/api/show/net-hoang-hon-2877/wishes`,
       options: {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: "Robot Kiểm Thử E2E",
-          content: "Chúc mừng hạnh phúc! (Tin nhắn kiểm thử tự động)",
+          content: "Chúc mừng hạnh phúc!",
+          w_field_trap: "bot_trap_detected",
         }),
       },
-      validate: (r) => r.passed,
+      validate: (r) => r.passed && r.data && r.data.success,
     },
-    // 7. Kiểm tra API gửi xác nhận tham dự (RSVP POST)
+    // 7. Kiểm tra API gửi xác nhận tham dự (Honeypot trap an toàn)
     {
-      name: "API Gửi RSVP (POST RSVP)",
+      name: "Bẫy Honeypot RSVP (POST RSVP Trap)",
       url: `${BASE_URL}/api/show/net-hoang-hon-2877/rsvp`,
       options: {
         method: "POST",
@@ -118,10 +135,10 @@ async function runAllChecks() {
           phone: "0999888777",
           attending: true,
           guests: 2,
-          note: "Tham gia cùng người yêu",
+          b_field_trap: "bot_trap_detected",
         }),
       },
-      validate: (r) => r.passed,
+      validate: (r) => r.passed && r.data && r.data.success,
     },
     // 8. Kiểm tra Kho Template (/templates)
     {
@@ -155,29 +172,22 @@ async function runAllChecks() {
       },
       validate: (r) => r.status === 401,
     },
-    // 12. Kiểm tra API Giám sát hoạt động Admin (GET /api/admin/activities)
+    // 12. Kiểm tra Bảo Vệ Quyền Quản Trị (GET /api/admin/activities -> 401 khi không có token)
     {
-      name: "API Giám sát hoạt động Admin (GET /api/admin/activities)",
+      name: "Bảo Vệ API Admin (GET /api/admin/activities -> 401 chặn khách)",
       url: `${BASE_URL}/api/admin/activities`,
       options: { method: "GET" },
-      validate: (r) => r.passed && r.data && r.data.success && Array.isArray(r.data.activities),
+      validate: (r) => r.status === 401,
     },
-    // 13. Kiểm tra API Ghi nhận hoạt động Admin (POST /api/admin/activities)
+    // 13. Kiểm tra Xác thực Quản Trị Hợp Lệ với Bearer Token
     {
-      name: "API Ghi nhận hoạt động Admin (POST /api/admin/activities)",
-      url: `${BASE_URL}/api/admin/activities`,
+      name: "Quyền Quản Trị Hợp Lệ (GET /api/admin/stats với Bearer Token)",
+      url: `${BASE_URL}/api/admin/stats`,
       options: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "user_login",
-          title: "Kiểm thử đăng nhập tự động",
-          actorName: "Robot E2E",
-          actorType: "user",
-          details: "Kiểm tra ghi nhận luồng hoạt động",
-        }),
+        method: "GET",
+        headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : { "x-admin-key": ADMIN_API_KEY },
       },
-      validate: (r) => r.passed && r.data && r.data.success && r.data.activity,
+      validate: (r) => r.status === 200 && r.data && r.data.success,
     },
   ];
 

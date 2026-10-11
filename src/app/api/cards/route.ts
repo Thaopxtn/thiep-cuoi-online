@@ -2,22 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, upsertCardToDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
 import { recordActivity } from "@/lib/activityService";
+import { verifyUserAuth, verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/cards
- * Lấy danh sách toàn bộ thiệp cưới của người dùng từ Supabase Database
+ * Lấy danh sách thiệp cưới của người dùng đã xác thực
  */
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const userId = searchParams.get("userId");
+    const requestedUserId = searchParams.get("userId");
     const token = request.headers.get("authorization")?.split(" ")[1];
-    
-    const cards = await getCardsFromDb(userId || undefined, token);
-    if (userId) {
-      // Khi đã đăng nhập, chỉ trả về đúng danh sách thiệp của người dùng đó (kể cả rỗng)
+
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
+
+    // 1. Nếu là Quản trị viên: Có thể xem theo userId hoặc toàn bộ
+    if (adminAuth.authenticated) {
+      const cards = await getCardsFromDb(requestedUserId || undefined, token);
+      return NextResponse.json({
+        success: true,
+        source: "database_admin",
+        count: cards.length,
+        cards,
+      });
+    }
+
+    // 2. Nếu người dùng đã đăng nhập: CHỈ trả về đúng thiệp của tài khoản đã xác thực
+    if (userAuth.authenticated && userAuth.userId) {
+      const cards = await getCardsFromDb(userAuth.userId, token);
       return NextResponse.json({
         success: true,
         source: "database",
@@ -26,19 +41,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (cards && cards.length > 0) {
-      return NextResponse.json({
-        success: true,
-        source: "database",
-        count: cards.length,
-        cards,
-      });
+    // 3. Nếu là khách chưa đăng nhập yêu cầu xem thiệp theo userId -> Chặn BOLA/IDOR
+    if (requestedUserId) {
+      return NextResponse.json(
+        { success: false, message: "Vui lòng đăng nhập để xem danh sách thiệp của tài khoản" },
+        { status: 401 }
+      );
     }
 
-    // Nếu khách vãng lai và database chưa có thiệp, trả về danh sách mẫu mặc định
+    // 4. Nếu khách vãng lai xem trang chủ hoặc kho template: Trả về danh sách mẫu công khai mặc định
     return NextResponse.json({
       success: true,
-      source: "fallback",
+      source: "showcase",
       count: INITIAL_CARDS.length,
       cards: INITIAL_CARDS,
     });
@@ -53,10 +67,20 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/cards
- * Tạo một thiệp cưới mới từ mẫu hoặc sao chép thiệp cũ
+ * Tạo một thiệp cưới mới (Bắt buộc xác thực danh tính người dùng)
  */
 export async function POST(request: NextRequest) {
   try {
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
+
+    if (!userAuth.authenticated && !adminAuth.authenticated) {
+      return NextResponse.json(
+        { success: false, message: "Vui lòng đăng nhập để tạo hoặc lưu thiệp cưới." },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     if (!body.name) {
       return NextResponse.json(
@@ -65,23 +89,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const userId = body.userId || request.headers.get("x-user-id") || undefined;
+    // Gán userId từ danh tính đã xác minh trên server (chống giả mạo userId)
+    const effectiveUserId = adminAuth.authenticated && body.userId ? body.userId : userAuth.userId;
     const token = request.headers.get("authorization")?.split(" ")[1];
 
-    // Yêu cầu bắt buộc đăng nhập để tạo hoặc lưu thiệp cưới mới
-    if (!userId) {
-      return NextResponse.json(
-        { success: false, message: "Vui lòng đăng nhập để tạo hoặc lưu thiệp cưới." },
-        { status: 401 }
-      );
-    }
-    
     const cardId = body.id || `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const savedCard = await upsertCardToDb({
-      ...body,
-      userId,
-      id: cardId,
-    }, token);
+    const savedCard = await upsertCardToDb(
+      {
+        ...body,
+        userId: effectiveUserId,
+        id: cardId,
+      },
+      token
+    );
 
     if (!savedCard) {
       return NextResponse.json(
@@ -101,7 +121,7 @@ export async function POST(request: NextRequest) {
         targetSlug: savedCard.slug,
         details: `Mẫu "${savedCard.templateName || "Hồng Phong"}"`,
         metadata: {
-          userId,
+          userId: effectiveUserId,
           status: savedCard.status,
         },
       });

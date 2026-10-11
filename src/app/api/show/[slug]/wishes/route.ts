@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb, createWishInDb, getWishesFromDb, upsertCardToDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, createWishInDb, getWishesFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
 import { recordActivity } from "@/lib/activityService";
 
@@ -10,50 +10,17 @@ interface Params {
 }
 
 /**
- * Lấy hoặc tự động tạo bản ghi thiệp trong DB nếu chưa có (tránh 404 cho khách khi gửi lời chúc)
+ * Tìm kiếm thiệp cưới hợp lệ theo slug hoặc id
+ * Không tự tạo thiệp ma (ghost cards)
  */
-async function ensureCardForSlug(slug: string): Promise<WeddingCard | null> {
-  let card = await getCardByIdOrSlugFromDb(slug);
+async function findPublishedCard(slug: string): Promise<WeddingCard | null> {
+  const card = await getCardByIdOrSlugFromDb(slug);
   if (card) return card;
 
-  // 1. Kiểm tra INITIAL_CARDS
   const localFound = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
-  if (localFound) {
-    const upserted = await upsertCardToDb(localFound);
-    return upserted || localFound;
-  }
+  if (localFound) return localFound;
 
-  // 2. Tạo bản ghi thiệp dự phòng
-  const fallbackCard: WeddingCard = {
-    id: slug,
-    slug: slug,
-    name: `Thiệp Cưới (${slug})`,
-    templateId: slug,
-    templateName: "Thiệp Cưới Online",
-    status: "published",
-    updatedAt: new Date().toLocaleDateString("vi-VN"),
-    views: 1,
-    coverImage: "",
-    story: "",
-    weddingDate: "2026-11-20",
-    weddingTime: "11:00",
-    lunarDate: "",
-    groom: { name: "Chú Rể", title: "Chú Rể", phone: "" },
-    bride: { name: "Cô Dâu", title: "Cô Dâu", phone: "" },
-    events: [],
-    album: [],
-    musicTitle: "",
-    musicUrl: "",
-    rsvps: [],
-    wishes: [],
-  };
-
-  try {
-    const upserted = await upsertCardToDb(fallbackCard);
-    return upserted || fallbackCard;
-  } catch {
-    return fallbackCard;
-  }
+  return null;
 }
 
 /**
@@ -63,11 +30,18 @@ async function ensureCardForSlug(slug: string): Promise<WeddingCard | null> {
 export async function GET(request: NextRequest, { params }: Params) {
   const { slug } = params;
   try {
-    const card = await ensureCardForSlug(slug);
+    const card = await findPublishedCard(slug);
     if (!card) {
       return NextResponse.json(
-        { success: false, message: "Không tìm thấy thiệp" },
+        { success: false, message: "Thiệp cưới không tồn tại" },
         { status: 404 }
+      );
+    }
+
+    if (card.status !== "published") {
+      return NextResponse.json(
+        { success: false, message: "Thiệp cưới chưa được xuất bản" },
+        { status: 403 }
       );
     }
 
@@ -96,7 +70,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = await request.json();
     const { name, content, w_field_trap } = body;
 
-    // Honeypot chống bot tự động spam
+    // 1. Honeypot chống bot tự động spam
     if (w_field_trap) {
       return NextResponse.json({
         success: true,
@@ -104,25 +78,45 @@ export async function POST(request: NextRequest, { params }: Params) {
       });
     }
 
-    if (!name || !content) {
+    // 2. Validation dữ liệu đầu vào
+    const cleanName = String(name || "").trim();
+    const cleanContent = String(content || "").trim();
+
+    if (!cleanName || cleanName.length < 2 || cleanName.length > 100) {
       return NextResponse.json(
-        { success: false, message: "Vui lòng nhập tên và nội dung lời chúc" },
+        { success: false, message: "Vui lòng nhập tên người gửi hợp lệ (2 - 100 ký tự)" },
         { status: 400 }
       );
     }
 
-    const card = await ensureCardForSlug(slug);
+    if (!cleanContent || cleanContent.length < 2 || cleanContent.length > 1000) {
+      return NextResponse.json(
+        { success: false, message: "Nội dung lời chúc cần có độ dài từ 2 đến 1000 ký tự" },
+        { status: 400 }
+      );
+    }
+
+    // 3. Tìm thiệp thực tế trong hệ thống
+    const card = await findPublishedCard(slug);
     if (!card) {
       return NextResponse.json(
-        { success: false, message: "Không tìm thấy thiệp cưới tương ứng" },
+        { success: false, message: "Thiệp cưới không tồn tại hoặc đường link không hợp lệ" },
         { status: 404 }
       );
     }
 
+    if (card.status !== "published") {
+      return NextResponse.json(
+        { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp và chưa nhận lời chúc" },
+        { status: 400 }
+      );
+    }
+
+    // 4. Lưu lời chúc vào cơ sở dữ liệu
     const savedWish = await createWishInDb({
       cardId: card.id,
-      name: name.trim(),
-      content: content.trim(),
+      name: cleanName,
+      content: cleanContent,
     });
 
     if (!savedWish) {
@@ -132,7 +126,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Ghi nhận sự kiện hoạt động của khách gửi lời chúc
+    // Ghi nhận sự kiện hoạt động
     try {
       recordActivity({
         type: "wish_submit",
@@ -142,7 +136,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         targetName: card.name,
         targetId: card.id,
         targetSlug: card.slug,
-        details: `"${savedWish.content}"`,
+        details: `"${savedWish.content.slice(0, 100)}${savedWish.content.length > 100 ? "..." : ""}"`,
         metadata: {
           cardId: card.id,
         },

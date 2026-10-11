@@ -76,7 +76,10 @@ export default function AdminSettingsTab({ onLogoutAdmin }: AdminSettingsTabProp
   const fetchHealth = async () => {
     setLoadingHealth(true);
     try {
-      const res = await fetch("/api/admin/health");
+      const token = typeof window !== "undefined" ? localStorage.getItem("zenlove_admin_auth_token") : "";
+      const res = await fetch("/api/admin/health", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       const data = await res.json();
       if (data.success) {
         setHealth(data);
@@ -310,7 +313,7 @@ export default function AdminSettingsTab({ onLogoutAdmin }: AdminSettingsTabProp
                   Mã PIN Bảo Mật Quản Trị
                 </h3>
                 <p className="text-xs text-gray-500">
-                  Mã PIN mặc định: <strong className="text-gray-800 font-mono">zenlove8888</strong>
+                  Mã PIN được cấu hình qua biến môi trường <strong className="text-gray-800 font-mono">ADMIN_PASSCODE</strong>
                 </p>
               </div>
             </div>

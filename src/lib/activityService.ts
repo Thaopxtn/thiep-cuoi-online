@@ -20,7 +20,7 @@ export interface SystemActivity {
   title: string;
   actorName: string;
   actorEmail?: string;
-  actorType: "user" | "guest" | "system";
+  actorType: "user" | "guest" | "system" | "admin";
   targetName?: string;
   targetId?: string;
   targetSlug?: string;

@@ -1,14 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, deleteCardFromDb, updateCardStatusInDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
+import { verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/admin/cards
- * Lấy toàn bộ danh sách thiệp cưới trong hệ thống kèm thông tin chi tiết
+ * Lấy toàn bộ danh sách thiệp cưới trong hệ thống kèm thông tin chi tiết (Yêu cầu quyền Admin)
  */
 export async function GET(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền truy cập dữ liệu Quản trị viên" },
+      { status: 401 }
+    );
+  }
+
   try {
     let cards = await getCardsFromDb();
     if (!cards || cards.length === 0) {
@@ -34,6 +43,7 @@ export async function GET(request: NextRequest) {
       wishesCount: Array.isArray(c.wishes) ? c.wishes.length : 0,
       updatedAt: c.updatedAt,
       musicTitle: c.musicTitle,
+      userId: c.userId,
     }));
 
     return NextResponse.json({
@@ -52,9 +62,17 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/admin/cards
- * Cập nhật trạng thái thiệp cưới (Draft <-> Published)
+ * Cập nhật trạng thái thiệp cưới (Draft <-> Published) (Yêu cầu quyền Admin)
  */
 export async function PATCH(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền quản trị thiệp" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { id, status } = body;
@@ -62,6 +80,13 @@ export async function PATCH(request: NextRequest) {
     if (!id || !status) {
       return NextResponse.json(
         { success: false, message: "Thiếu ID hoặc trạng thái thiệp" },
+        { status: 400 }
+      );
+    }
+
+    if (status !== "published" && status !== "draft") {
+      return NextResponse.json(
+        { success: false, message: "Trạng thái thiệp không hợp lệ" },
         { status: 400 }
       );
     }
@@ -89,9 +114,17 @@ export async function PATCH(request: NextRequest) {
 
 /**
  * DELETE /api/admin/cards
- * Xóa vĩnh viễn thiệp cưới khỏi hệ thống
+ * Xóa vĩnh viễn thiệp cưới khỏi hệ thống (Yêu cầu quyền Admin)
  */
 export async function DELETE(request: NextRequest) {
+  const auth = await verifyAdminAuth(request);
+  if (!auth.authenticated) {
+    return NextResponse.json(
+      { success: false, message: auth.error || "Không có quyền xóa thiệp quản trị" },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");

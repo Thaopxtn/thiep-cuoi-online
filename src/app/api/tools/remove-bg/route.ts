@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isSafeExternalUrl } from "@/lib/securityUtils";
+
+export const dynamic = "force-dynamic";
+
+const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
 
 /**
  * POST /api/tools/remove-bg
  * Endpoint AI Xóa phông nền ảnh
  * Hỗ trợ nhận imageUrl hoặc base64 image
- * 1. Nếu có REMOVE_BG_API_KEY / CLIPDROP_API_KEY: Gọi AI chuyên nghiệp
- * 2. Nếu chế độ 0đ: Tải dữ liệu ảnh proxy về Base64 Data URL để Client Canvas xử lý cắt nền và tạo alpha trong suốt tức thì không dính CORS
+ * Chống SSRF khi fetch ảnh từ URL ngoài
  */
 export async function POST(request: NextRequest) {
   try {
@@ -17,6 +21,16 @@ export async function POST(request: NextRequest) {
         { success: false, message: "Thiếu dữ liệu ảnh để xóa nền" },
         { status: 400 }
       );
+    }
+
+    // Chặn SSRF nếu nhận imageUrl
+    if (imageUrl) {
+      if (!isSafeExternalUrl(imageUrl)) {
+        return NextResponse.json(
+          { success: false, message: "URL ảnh không hợp lệ hoặc trỏ tới mạng nội bộ bị cấm" },
+          { status: 403 }
+        );
+      }
     }
 
     // 1. Kiểm tra API Key chuyên nghiệp
@@ -53,13 +67,26 @@ export async function POST(request: NextRequest) {
     // 2. Chế độ Zero-Cost Proxy: Chuyển ảnh từ URL sang Base64 để Client Canvas xử lý không lỗi CORS
     if (imageUrl && imageUrl.startsWith("http")) {
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+
         const imgRes = await fetch(imageUrl, {
           headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
           },
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
+
         if (imgRes.ok) {
           const buffer = await imgRes.arrayBuffer();
+          if (buffer.byteLength > MAX_IMAGE_SIZE_BYTES) {
+            return NextResponse.json(
+              { success: false, message: "Dung lượng ảnh vượt quá giới hạn 10MB" },
+              { status: 413 }
+            );
+          }
           const mimeType = imgRes.headers.get("content-type") || "image/png";
           const base64 = Buffer.from(buffer).toString("base64");
           return NextResponse.json({

@@ -5,6 +5,7 @@ import {
   deleteCardFromDb,
 } from "@/lib/serverDb";
 import { recordActivity } from "@/lib/activityService";
+import { verifyUserAuth, verifyAdminAuth, isCardOwner } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,8 @@ interface Params {
 /**
  * GET /api/cards/[id]
  * Lấy chi tiết thiệp theo ID hoặc Slug
+ * - Nếu thiệp ở trạng thái 'draft': Chỉ chủ sở hữu hoặc Quản trị viên mới được xem
+ * - Nếu thiệp ở trạng thái 'published': Khách và công chúng đều xem được
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = params;
@@ -25,6 +28,20 @@ export async function GET(request: NextRequest, { params }: Params) {
         { success: false, message: `Không tìm thấy thiệp cưới với ID: ${id}` },
         { status: 404 }
       );
+    }
+
+    // Bảo vệ bản nháp (Draft) không để lộ công khai
+    if (card.status === "draft") {
+      const userAuth = await verifyUserAuth(request);
+      const adminAuth = await verifyAdminAuth(request);
+
+      const isOwner = userAuth.authenticated && userAuth.userId && isCardOwner(card, userAuth.userId);
+      if (!isOwner && !adminAuth.authenticated) {
+        return NextResponse.json(
+          { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp. Vui lòng đăng nhập với tài khoản chủ sở hữu để xem." },
+          { status: 403 }
+        );
+      }
     }
 
     return NextResponse.json({
@@ -42,43 +59,53 @@ export async function GET(request: NextRequest, { params }: Params) {
 
 /**
  * PUT /api/cards/[id]
- * Cập nhật thông tin thiệp hoặc lưu bản thiết kế nodes mới
+ * Cập nhật thông tin thiệp hoặc lưu bản thiết kế nodes mới (Bảo vệ quyền sở hữu BOLA/IDOR)
  */
 export async function PUT(request: NextRequest, { params }: Params) {
   const { id } = params;
   try {
-    const body = await request.json();
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
 
-    // Multi-tenancy check: Bảo vệ quyền sở hữu thiệp
-    const existing = await getCardByIdOrSlugFromDb(id);
-    const requesterUserId = body.userId || request.headers.get("x-user-id");
-    const adminPasscode = request.headers.get("x-admin-passcode");
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const configuredPasscode = process.env.ADMIN_PASSCODE || process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "zenlove8888";
-    const isAdmin = adminPasscode && adminPasscode.trim() === configuredPasscode.trim();
-
-    // Bắt buộc đăng nhập hoặc quyền Admin khi cập nhật/lưu thiệp
-    if (!requesterUserId && !isAdmin) {
+    // 1. Bắt buộc đăng nhập tài khoản hoặc quyền Admin
+    if (!userAuth.authenticated && !adminAuth.authenticated) {
       return NextResponse.json(
         { success: false, message: "Vui lòng đăng nhập để cập nhật hoặc lưu thiệp cưới." },
         { status: 401 }
       );
     }
 
-    if (existing && existing.userId && !isAdmin) {
-      if (!requesterUserId || requesterUserId !== existing.userId) {
-        return NextResponse.json(
-          { success: false, message: "Bạn không có quyền chỉnh sửa thiệp cưới này" },
-          { status: 403 }
-        );
-      }
+    const existing = await getCardByIdOrSlugFromDb(id);
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, message: `Không tìm thấy thiệp cưới với ID: ${id}` },
+        { status: 404 }
+      );
     }
 
-    const updated = await upsertCardToDb({
-      ...body,
-      userId: existing?.userId || requesterUserId || body.userId,
-      id,
-    }, token);
+    // 2. Multi-tenancy check: Xác thực quyền sở hữu thiệp
+    const isOwner = userAuth.authenticated && userAuth.userId && isCardOwner(existing, userAuth.userId);
+    if (!isOwner && !adminAuth.authenticated) {
+      return NextResponse.json(
+        { success: false, message: "Bạn không có quyền chỉnh sửa thiệp cưới của người dùng khác" },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const token = request.headers.get("authorization")?.split(" ")[1];
+
+    // Chặn người dùng tự thay đổi quyền sở hữu (userId) của thiệp
+    const preservedUserId = existing.userId || (userAuth.authenticated ? userAuth.userId : body.userId);
+
+    const updated = await upsertCardToDb(
+      {
+        ...body,
+        userId: preservedUserId,
+        id, // Đảm bảo ID không bị ghi đè
+      },
+      token
+    );
 
     if (!updated) {
       return NextResponse.json(
@@ -123,29 +150,40 @@ export async function PUT(request: NextRequest, { params }: Params) {
 
 /**
  * DELETE /api/cards/[id]
- * Xóa thiệp cưới và toàn bộ RSVP/Wishes liên quan
+ * Xóa thiệp cưới (Bảo vệ quyền sở hữu BOLA/IDOR)
  */
 export async function DELETE(request: NextRequest, { params }: Params) {
   const { id } = params;
   try {
-    // Multi-tenancy check: Bảo vệ quyền xóa thiệp
-    const existing = await getCardByIdOrSlugFromDb(id);
-    const requesterUserId =
-      request.nextUrl.searchParams.get("userId") || request.headers.get("x-user-id");
-    const adminPasscode = request.headers.get("x-admin-passcode");
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const configuredPasscode = process.env.ADMIN_PASSCODE || process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "zenlove8888";
-    const isAdmin = adminPasscode && adminPasscode.trim() === configuredPasscode.trim();
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
 
-    if (existing && existing.userId && !isAdmin) {
-      if (!requesterUserId || requesterUserId !== existing.userId) {
-        return NextResponse.json(
-          { success: false, message: "Bạn không có quyền xóa thiệp cưới này" },
-          { status: 403 }
-        );
-      }
+    // 1. Bắt buộc đăng nhập hoặc quyền Admin
+    if (!userAuth.authenticated && !adminAuth.authenticated) {
+      return NextResponse.json(
+        { success: false, message: "Vui lòng đăng nhập để thực hiện xóa thiệp cưới." },
+        { status: 401 }
+      );
     }
 
+    const existing = await getCardByIdOrSlugFromDb(id);
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, message: `Không tìm thấy thiệp cưới với ID: ${id}` },
+        { status: 404 }
+      );
+    }
+
+    // 2. Xác thực quyền sở hữu
+    const isOwner = userAuth.authenticated && userAuth.userId && isCardOwner(existing, userAuth.userId);
+    if (!isOwner && !adminAuth.authenticated) {
+      return NextResponse.json(
+        { success: false, message: "Bạn không có quyền xóa thiệp cưới của người dùng khác" },
+        { status: 403 }
+      );
+    }
+
+    const token = request.headers.get("authorization")?.split(" ")[1];
     const ok = await deleteCardFromDb(id, token);
     if (!ok) {
       return NextResponse.json(
@@ -182,4 +220,3 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     );
   }
 }
-

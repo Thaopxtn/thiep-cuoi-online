@@ -105,6 +105,7 @@ export default function CreateTemplateModal({
   // Add Module Picker modal state
   const [showAddModuleModal, setShowAddModuleModal] = useState(false);
   const [selectedModuleCategory, setSelectedModuleCategory] = useState<string>("all");
+  const [formError, setFormError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -195,8 +196,6 @@ export default function CreateTemplateModal({
       defaultData,
     };
   };
-
-  const [formError, setFormError] = useState<string | null>(null);
 
   // Save template
   const handleSaveOnly = () => {
