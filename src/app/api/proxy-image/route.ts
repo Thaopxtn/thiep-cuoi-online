@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSafeExternalUrl } from "@/lib/securityUtils";
+import { isSafeExternalUrlAsync, safeFetchExternal } from "@/lib/securityUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -13,28 +13,25 @@ export async function GET(request: NextRequest) {
     return new NextResponse("Missing url parameter", { status: 400 });
   }
 
-  // Chống SSRF: Chặn localhost, IP nội bộ, AWS/GCP/Azure metadata endpoints
-  if (!isSafeExternalUrl(imageUrl)) {
+  // Chống SSRF: Chặn localhost, IP nội bộ, AWS/GCP/Azure metadata, DNS rebinding
+  const isSafe = await isSafeExternalUrlAsync(imageUrl);
+  if (!isSafe) {
     return new NextResponse("Forbidden: Target URL is restricted or points to a private network", {
       status: 403,
     });
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
-
-    const res = await fetch(imageUrl, {
+    const res = await safeFetchExternal(imageUrl, {
+      timeoutMs: 6000,
+      maxSizeBytes: MAX_IMAGE_SIZE_BYTES,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
         Referer: "https://zenlove.me/",
         Accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
       },
-      signal: controller.signal,
     });
-
-    clearTimeout(timeoutId);
 
     if (!res.ok) {
       return createSvgFallbackResponse(imageUrl);

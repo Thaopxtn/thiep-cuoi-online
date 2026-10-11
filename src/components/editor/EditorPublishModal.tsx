@@ -27,6 +27,7 @@ import {
 } from "@/lib/brandedSlug";
 import { saveCard, saveCardAsync } from "@/lib/weddingCardService";
 import { useAuth } from "@/context/AuthContext";
+import { apiFetch } from "@/lib/apiClient";
 
 interface EditorPublishModalProps {
   isOpen: boolean;
@@ -125,7 +126,7 @@ export default function EditorPublishModal({
         };
         saveCard(updated);
         if (card.id) {
-          fetch(`/api/cards/${card.id}`, {
+          apiFetch(`/api/cards/${card.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updated),
@@ -191,7 +192,7 @@ export default function EditorPublishModal({
 
         // Đồng bộ lên API nếu card đã có id
         if (card.id) {
-          await fetch(`/api/cards/${card.id}`, {
+          await apiFetch(`/api/cards/${card.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedCard),
@@ -220,7 +221,7 @@ export default function EditorPublishModal({
       };
       saveCard(updatedCard);
       if (card.id) {
-        fetch(`/api/cards/${card.id}`, {
+        apiFetch(`/api/cards/${card.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(updatedCard),

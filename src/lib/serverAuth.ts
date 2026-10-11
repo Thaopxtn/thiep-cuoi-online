@@ -4,6 +4,7 @@
  * - HMAC-SHA256 Signed Admin Session Tokens with Timing-Safe Verification
  * - Multi-Tenant Ownership & BOLA/IDOR Protection
  * - Admin Rate Limiting (Brute Force Defense)
+ * - Strict Fail-Closed Policy: No Hardcoded Default Fallback Secrets
  */
 
 import { NextRequest } from "next/server";
@@ -15,25 +16,55 @@ const SUPABASE_ANON_KEY =
   process.env.SUPABASE_PUBLISHABLE_KEY ||
   "";
 
-// Bí mật dùng để ký HMAC cho Admin Session
-const ADMIN_HMAC_SECRET =
-  process.env.ADMIN_SESSION_SECRET ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "zenlove_secure_admin_secret_key_v2";
+/**
+ * Lấy HMAC Secret cho Admin Session
+ * KHÔNG sử dụng secret mặc định tĩnh. Phải cấu hình qua biến môi trường.
+ */
+export function getAdminHmacSecret(): string {
+  return (
+    process.env.ADMIN_SESSION_SECRET ||
+    process.env.SUPABASE_SERVICE_ROLE_KEY ||
+    ""
+  ).trim();
+}
 
-// Mã PIN quản trị viên
-const CONFIGURED_ADMIN_PASSCODE =
-  process.env.ADMIN_PASSCODE ||
-  process.env.NEXT_PUBLIC_ADMIN_PASSCODE ||
-  "zenlove_admin_secure_2026";
+/**
+ * Lấy Passcode Quản trị viên
+ * KHÔNG sử dụng mã PIN mặc định tĩnh. Phải cấu hình qua biến môi trường.
+ */
+export function getConfiguredAdminPasscode(): string {
+  return (
+    process.env.ADMIN_PASSCODE ||
+    process.env.NEXT_PUBLIC_ADMIN_PASSCODE ||
+    ""
+  ).trim();
+}
 
-// API Key cố định cho các tác vụ server-to-server hoặc QA Automation
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "zenlove_qa_master_key_2026";
+/**
+ * Lấy Admin API Key (nếu được cấu hình riêng cho automation)
+ * KHÔNG có khóa QA mặc định tĩnh.
+ */
+export function getConfiguredAdminApiKey(): string {
+  return (process.env.ADMIN_API_KEY || "").trim();
+}
+
+/**
+ * Kiểm tra xem hệ thống xác thực Quản trị viên đã được cấu hình đầy đủ chưa
+ */
+export function isAdminAuthConfigured(): boolean {
+  const secret = getAdminHmacSecret();
+  const passcode = getConfiguredAdminPasscode();
+  return Boolean(secret && secret.length >= 16 && passcode && passcode.length >= 6);
+}
+
+// Danh sách token admin đã bị thu hồi (Revocation store)
+const revokedAdminTokens = new Set<string>();
 
 // Cache ngắn hạn cho token người dùng (tránh gửi request lặp tới Supabase Auth)
 interface CachedUser {
   userId: string;
   email?: string;
+  isAdmin?: boolean;
   expiresAt: number;
 }
 const userTokenCache = new Map<string, CachedUser>();
@@ -46,7 +77,7 @@ interface RateLimitRecord {
 }
 const adminRateLimits = new Map<string, RateLimitRecord>();
 
-function getClientIp(request: NextRequest): string {
+export function getClientIp(request: NextRequest): string {
   const forwarded = request.headers.get("x-forwarded-for");
   if (forwarded) return forwarded.split(",")[0].trim();
   const realIp = request.headers.get("x-real-ip");
@@ -94,7 +125,7 @@ export function recordAdminFailedAttempt(ip: string): void {
   }
 
   record.count += 1;
-  // Nếu sai quá 5 lần liên tiếp -> khóa 15 phút
+  // Nếu sai từ 5 lần trở lên -> khóa 15 phút
   if (record.count >= 5) {
     record.blockedUntil = now + 15 * 60 * 1000;
   }
@@ -109,12 +140,28 @@ export function resetAdminRateLimit(ip: string): void {
 
 /**
  * Tạo token HMAC có chữ ký bảo mật cho Quản trị viên
+ * Thời hạn hiệu lực: 4 giờ
  */
 export function generateAdminSessionToken(): string {
+  const secret = getAdminHmacSecret();
+  if (!secret) {
+    throw new Error("Không thể tạo phiên Admin: ADMIN_SESSION_SECRET chưa được cấu hình");
+  }
+
   const timestamp = Date.now();
-  const payload = `admin_${timestamp}`;
-  const hmac = crypto.createHmac("sha256", ADMIN_HMAC_SECRET).update(payload).digest("hex");
-  return `zen_${timestamp}_${hmac}`;
+  const nonce = crypto.randomBytes(8).toString("hex");
+  const payload = `admin_${timestamp}_${nonce}`;
+  const hmac = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+  return `zen_${timestamp}_${nonce}_${hmac}`;
+}
+
+/**
+ * Thu hồi một token Admin Session (Revoke)
+ */
+export function revokeAdminSessionToken(token: string): void {
+  if (token) {
+    revokedAdminTokens.add(token);
+  }
 }
 
 /**
@@ -122,21 +169,26 @@ export function generateAdminSessionToken(): string {
  */
 export function verifyAdminSessionToken(token: string): boolean {
   if (!token || !token.startsWith("zen_")) return false;
+  if (revokedAdminTokens.has(token)) return false;
+
+  const secret = getAdminHmacSecret();
+  if (!secret) return false;
 
   const parts = token.split("_");
-  if (parts.length !== 3) return false;
+  if (parts.length !== 4) return false;
 
   const timestamp = parseInt(parts[1], 10);
-  const providedHmac = parts[2];
+  const nonce = parts[2];
+  const providedHmac = parts[3];
 
-  if (isNaN(timestamp) || !providedHmac) return false;
+  if (isNaN(timestamp) || !nonce || !providedHmac) return false;
 
-  // Thời hạn token: 7 ngày
-  const maxAgeMs = 7 * 24 * 60 * 60 * 1000;
+  // Thời hạn token: 4 giờ (14,400,000 ms)
+  const maxAgeMs = 4 * 60 * 60 * 1000;
   if (Date.now() - timestamp > maxAgeMs) return false;
 
-  const expectedPayload = `admin_${timestamp}`;
-  const expectedHmac = crypto.createHmac("sha256", ADMIN_HMAC_SECRET).update(expectedPayload).digest("hex");
+  const payload = `admin_${timestamp}_${nonce}`;
+  const expectedHmac = crypto.createHmac("sha256", secret).update(payload).digest("hex");
 
   try {
     const providedBuffer = Buffer.from(providedHmac, "hex");
@@ -150,38 +202,60 @@ export function verifyAdminSessionToken(token: string): boolean {
 
 /**
  * Xác thực yêu cầu Admin từ Request HTTP
- * Kiểm tra qua:
- * 1. Header Authorization: Bearer <zen_admin_token>
- * 2. Header x-admin-token: <zen_admin_token>
- * 3. Header x-admin-key: <ADMIN_API_KEY> (cho automation/cron)
+ * Kiểm tra tuần tự:
+ * 1. Bearer token / Header x-admin-token / Cookie admin_session:
+ *    - Xác thực qua HMAC Admin Session Token
+ *    - Hoặc xác thực qua Supabase Auth nếu user có role === 'admin' trong app_metadata
+ * 2. Header x-admin-key: Chỉ chấp nhận nếu ADMIN_API_KEY được cấu hình cụ thể và so sánh constant-time
  */
 export async function verifyAdminAuth(
   request: NextRequest
 ): Promise<{ authenticated: boolean; error?: string }> {
-  // 1. Kiểm tra API Key (cho script QA/E2E hoặc internal service)
-  const apiKey = request.headers.get("x-admin-key");
-  if (ADMIN_API_KEY && apiKey && apiKey.trim() === ADMIN_API_KEY.trim()) {
-    return { authenticated: true };
+  // 1. Kiểm tra API Key (nếu có cấu hình)
+  const configuredApiKey = getConfiguredAdminApiKey();
+  const providedApiKey = request.headers.get("x-admin-key");
+  if (configuredApiKey && providedApiKey) {
+    try {
+      const provBuf = Buffer.from(providedApiKey.trim());
+      const confBuf = Buffer.from(configuredApiKey);
+      if (provBuf.length === confBuf.length && crypto.timingSafeEqual(provBuf, confBuf)) {
+        return { authenticated: true };
+      }
+    } catch {}
   }
 
-  // 2. Lấy session token từ Bearer hoặc header x-admin-token
-  const authHeader = request.headers.get("authorization");
+  // 2. Lấy session token từ Bearer header, x-admin-token header hoặc admin_session cookie
   let token = "";
+  const authHeader = request.headers.get("authorization");
   if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
     token = authHeader.substring(7).trim();
-  } else {
+  } else if (request.headers.get("x-admin-token")) {
     token = request.headers.get("x-admin-token") || "";
+  } else {
+    // Kiểm tra cookie an toàn
+    const cookieToken = request.cookies.get("admin_session")?.value;
+    if (cookieToken) token = cookieToken;
   }
 
   if (!token) {
     return { authenticated: false, error: "Yêu cầu quyền Quản trị viên (Thiếu token xác thực)" };
   }
 
-  if (verifyAdminSessionToken(token)) {
+  // 3. Nếu là token phiên Admin ký HMAC
+  if (token.startsWith("zen_")) {
+    if (verifyAdminSessionToken(token)) {
+      return { authenticated: true };
+    }
+    return { authenticated: false, error: "Phiên Quản trị viên không hợp lệ hoặc đã hết hạn" };
+  }
+
+  // 4. Nếu là token Supabase JWT: kiểm tra quyền Admin qua Supabase Auth
+  const userAuth = await verifyUserAuth(request);
+  if (userAuth.authenticated && userAuth.isAdmin) {
     return { authenticated: true };
   }
 
-  return { authenticated: false, error: "Token Quản trị viên không hợp lệ hoặc đã hết hạn" };
+  return { authenticated: false, error: "Tài khoản không có đặc quyền Quản trị viên" };
 }
 
 /**
@@ -192,16 +266,15 @@ export async function verifyAdminAuth(
  */
 export async function verifyUserAuth(
   request: NextRequest
-): Promise<{ authenticated: boolean; userId?: string; email?: string; error?: string }> {
+): Promise<{
+  authenticated: boolean;
+  userId?: string;
+  email?: string;
+  isAdmin?: boolean;
+  error?: string;
+}> {
   const authHeader = request.headers.get("authorization");
   if (!authHeader || !authHeader.toLowerCase().startsWith("bearer ")) {
-    // Nếu ở môi trường local development không có Supabase, cho phép dev fallback
-    if (process.env.NODE_ENV !== "production" && !SUPABASE_URL) {
-      const devUserId = request.headers.get("x-user-id");
-      if (devUserId) {
-        return { authenticated: true, userId: devUserId, email: "dev@zenlove.local" };
-      }
-    }
     return { authenticated: false, error: "Chưa đăng nhập (Thiếu Bearer Token)" };
   }
 
@@ -210,19 +283,19 @@ export async function verifyUserAuth(
     return { authenticated: false, error: "Token xác thực rỗng" };
   }
 
-  // Kiểm tra cache ngắn hạn (1 phút)
+  // Kiểm tra cache ngắn hạn (60s)
   const cached = userTokenCache.get(token);
   if (cached && cached.expiresAt > Date.now()) {
-    return { authenticated: true, userId: cached.userId, email: cached.email };
+    return {
+      authenticated: true,
+      userId: cached.userId,
+      email: cached.email,
+      isAdmin: cached.isAdmin,
+    };
   }
 
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    // Chế độ offline dev
-    if (process.env.NODE_ENV !== "production") {
-      const devUserId = request.headers.get("x-user-id") || `dev_${token.slice(0, 8)}`;
-      return { authenticated: true, userId: devUserId, email: "dev@zenlove.local" };
-    }
-    return { authenticated: false, error: "Chưa cấu hình Supabase Auth" };
+    return { authenticated: false, error: "Chưa cấu hình Supabase Auth trên máy chủ" };
   }
 
   try {
@@ -243,30 +316,74 @@ export async function verifyUserAuth(
       return { authenticated: false, error: "Không tìm thấy thông tin người dùng" };
     }
 
+    // Kiểm tra quyền Admin trong metadata máy chủ
+    const isAdmin = Boolean(
+      userData.app_metadata?.role === "admin" ||
+      userData.user_metadata?.role === "admin"
+    );
+
     // Lưu cache 60s
     userTokenCache.set(token, {
       userId: userData.id,
       email: userData.email,
+      isAdmin,
       expiresAt: Date.now() + 60 * 1000,
     });
 
-    return { authenticated: true, userId: userData.id, email: userData.email };
+    return {
+      authenticated: true,
+      userId: userData.id,
+      email: userData.email,
+      isAdmin,
+    };
   } catch (err: any) {
-    return { authenticated: false, error: err.message || "Lỗi kiểm tra phiên xác thực người dùng" };
+    return {
+      authenticated: false,
+      error: err.message || "Lỗi kiểm tra phiên xác thực người dùng",
+    };
   }
 }
 
 /**
- * Kiểm tra xem một người dùng có quyền sở hữu thiệp cưới hay không
+ * Kiểm tra xem một người dùng có quyền sở hữu thiệp cưới hay không (BOLA/IDOR Defense)
+ * - Nếu không có verifiedUserId: Luôn trả về FALSE.
+ * - Nếu thiệp không có ownerId: Luôn trả về FALSE (Không bao giờ coi thiệp không chủ là của bất kỳ ai!).
+ * - Chỉ trả về TRUE khi ownerId trùng khớp chính xác với verifiedUserId.
  */
 export function isCardOwner(
-  card: { userId?: string; groom?: { userId?: string } },
-  verifiedUserId: string
+  card: { userId?: string; groom?: { userId?: string } } | null | undefined,
+  verifiedUserId: string | null | undefined
 ): boolean {
-  if (!card) return false;
+  if (!card || !verifiedUserId) return false;
   const ownerId = card.userId || card.groom?.userId;
-  if (!ownerId) return true; // Thiệp chưa gắn chủ sở hữu cụ thể (legacy)
+  if (!ownerId) {
+    // Thiệp không có chủ sở hữu -> Tuyệt đối KHÔNG gán cho người dùng bất kỳ!
+    return false;
+  }
   return ownerId === verifiedUserId;
 }
 
-export { CONFIGURED_ADMIN_PASSCODE, getClientIp };
+/**
+ * Quy trình kiểm tra điều kiện claim/migrate thiệp cũ (Legacy Card)
+ * Chỉ cho phép claim nếu:
+ * 1. Thiệp thực sự chưa có chủ sở hữu (không ghi đè thiệp đã có chủ).
+ * 2. Người thực hiện là Admin đã xác thực, HOẶC cung cấp mã khóa claim hợp lệ.
+ */
+export function canClaimLegacyCard(
+  card: { userId?: string; groom?: { userId?: string } },
+  isAdmin: boolean,
+  claimSecretKey?: string
+): boolean {
+  if (!card) return false;
+  const existingOwner = card.userId || card.groom?.userId;
+  if (existingOwner) return false; // Đã có chủ, chống xung đột ghi đè
+
+  if (isAdmin) return true;
+
+  const validMigrationSecret = process.env.CARD_MIGRATION_SECRET;
+  if (validMigrationSecret && claimSecretKey && claimSecretKey === validMigrationSecret) {
+    return true;
+  }
+
+  return false;
+}

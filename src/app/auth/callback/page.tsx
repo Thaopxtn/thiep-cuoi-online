@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
 import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
 
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [status, setStatus] = useState("Đang hoàn tất đăng nhập...");
+  const [isError, setIsError] = useState(false);
 
   const redirectAfterAuth = async (profile: any) => {
     try {
@@ -38,34 +38,27 @@ export default function AuthCallbackPage() {
 
   useEffect(() => {
     try {
-      // Kiểm tra tham số từ URL
+      // 1. Kiểm tra tham số từ URL
       const searchParams = new URLSearchParams(window.location.search);
       const isProviderDisabled = searchParams.get("provider_disabled") === "true";
+      const errorMsg = searchParams.get("error_description") || searchParams.get("error");
 
-      if (isProviderDisabled) {
-        setStatus("Google Provider chưa gạt bật trên Supabase -> Đang kích hoạt phiên Khách VIP...");
-        const profile = {
-          id: "vip-user-" + Date.now(),
-          name: "Chủ Tiệc Cưới VIP",
-          email: "thaoh.user@gmail.com",
-          avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
-          provider: "google",
-          createdAt: new Date().toISOString(),
-        };
-        localStorage.setItem("zenlove_auth_user", JSON.stringify(profile));
+      if (isProviderDisabled || errorMsg) {
+        setIsError(true);
+        setStatus("Phương thức Google OAuth chưa được kích hoạt trên hệ thống. Vui lòng đăng nhập bằng Email.");
         setTimeout(() => {
-          redirectAfterAuth(profile);
-        }, 500);
+          router.push("/?openLogin=true&mode=email");
+        }, 2000);
         return;
       }
 
-      // Phân tích access_token từ URL hash của Supabase Auth (dạng #access_token=...&refresh_token=...)
+      // 2. Phân tích access_token và refresh_token từ URL hash (#access_token=...&refresh_token=...)
       const hash = window.location.hash.substring(1);
       const params = new URLSearchParams(hash);
       const accessToken = params.get("access_token");
+      const refreshToken = params.get("refresh_token");
 
       if (accessToken) {
-        // Lấy thông tin user từ Supabase token
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yeqosgjxjeiitevaquoz.supabase.co";
         const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
 
@@ -82,10 +75,15 @@ export default function AuthCallbackPage() {
                 id: user.id,
                 name: user.user_metadata?.full_name || user.email?.split("@")[0] || "Người dùng Google",
                 email: user.email || "",
-                avatar: user.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
+                avatar:
+                  user.user_metadata?.avatar_url ||
+                  "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
                 provider: "google",
+                accessToken,
+                refreshToken: refreshToken || undefined,
                 createdAt: new Date().toISOString(),
               };
+
               localStorage.setItem("zenlove_auth_user", JSON.stringify(profile));
               setStatus("Đăng nhập thành công! Đang chuyển hướng...");
               setTimeout(() => {
@@ -96,12 +94,14 @@ export default function AuthCallbackPage() {
             router.push("/dashboard");
           })
           .catch(() => {
-            router.push("/dashboard");
+            setIsError(true);
+            setStatus("Không thể lấy thông tin tài khoản. Vui lòng thử lại.");
+            setTimeout(() => router.push("/"), 1500);
           });
       } else {
         router.push("/dashboard");
       }
-    } catch (e) {
+    } catch {
       router.push("/dashboard");
     }
   }, [router]);
@@ -109,9 +109,15 @@ export default function AuthCallbackPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#fdfaf8] text-gray-800">
       <div className="bg-white p-8 rounded-3xl shadow-lg border border-gray-100 text-center max-w-sm w-full mx-4">
-        <div className="w-12 h-12 border-3 border-zen-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <h2 className="text-lg font-bold text-gray-900">Xác thực Google</h2>
-        <p className="text-xs text-gray-500 mt-2">{status}</p>
+        {!isError && (
+          <div className="w-12 h-12 border-3 border-zen-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        )}
+        <h2 className="text-lg font-bold text-gray-900">
+          {isError ? "Thông báo xác thực" : "Xác thực Google"}
+        </h2>
+        <p className={`text-xs mt-2 ${isError ? "text-amber-700 font-medium" : "text-gray-500"}`}>
+          {status}
+        </p>
       </div>
     </div>
   );

@@ -45,7 +45,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const targetKey = templateSlug || templateId;
+    const targetKey = String(templateSlug || templateId).trim();
+    // Chống Path Traversal: chỉ cho phép chữ cái, chữ số, gạch ngang và gạch dưới
+    if (!/^[a-zA-Z0-9_-]+$/.test(targetKey)) {
+      return NextResponse.json(
+        { success: false, message: "ID hoặc slug mẫu không hợp lệ" },
+        { status: 400 }
+      );
+    }
+
     const meta = findZenloveTemplate(targetKey) || findZenloveTemplate(templateId);
 
     let parsedNodes: Record<string, any> | null = null;
@@ -173,9 +181,9 @@ export async function POST(request: NextRequest) {
       name: `Thiệp Cưới ${templateName} - ${groom} & ${bride}`,
       templateId: meta?.id || templateId,
       templateName,
-      status: "published",
+      status: "draft", // Bản sao mới tạo luôn là Draft
       updatedAt: new Date().toLocaleDateString("vi-VN"),
-      views: 1,
+      views: 0,
       userId,
       coverImage,
       story:
@@ -188,18 +196,18 @@ export async function POST(request: NextRequest) {
         userId,
         name: groom,
         title: "Chú Rể",
-        phone: "0912.345.678",
-        parents: extracted.parentsGroom || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
-        bankName: "MB BANK",
-        accountNumber: "240220038888",
+        phone: "",
+        parents: extracted.parentsGroom || "",
+        bankName: "",
+        accountNumber: "",
       },
       bride: {
         name: bride,
         title: "Cô Dâu",
-        phone: "0987.654.321",
-        parents: extracted.parentsBride || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
-        bankName: "TECHCOMBANK",
-        accountNumber: "190365824988",
+        phone: "",
+        parents: extracted.parentsBride || "",
+        bankName: "",
+        accountNumber: "",
       },
       events: [
         {
@@ -235,11 +243,14 @@ export async function POST(request: NextRequest) {
       nodes: parsedNodes || undefined,
     };
 
-    // 4. Lưu lên Supabase Database
-    try {
-      await upsertCardToDb(newCard);
-    } catch (dbErr) {
-      console.warn("upsertCardToDb error in clone:", dbErr);
+    // 4. Lưu lên Supabase Database và xác nhận kết quả
+    const savedCard = await upsertCardToDb(newCard);
+    if (!savedCard) {
+      console.error("LỖI: upsertCardToDb thất bại khi clone thiệp:", newCard.id);
+      return NextResponse.json(
+        { success: false, message: "Không thể lưu thiệp mới vào cơ sở dữ liệu máy chủ" },
+        { status: 500 }
+      );
     }
 
     recordActivity({
@@ -250,7 +261,7 @@ export async function POST(request: NextRequest) {
       targetName: newCard.name,
       targetId: newCard.id,
       targetSlug: newCard.slug,
-      details: `Nhân bản từ mẫu "${templateName}"`,
+      details: `Nhân bản từ mẫu "${templateName}" (Bản nháp)`,
       metadata: { userId, templateId },
     });
 

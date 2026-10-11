@@ -9,6 +9,8 @@ import { getOrCloneCustomerCard } from "@/lib/zenloveCloner";
 import lzutf8 from "lzutf8";
 
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
+import { toPublicCardDTO } from "@/lib/cardDto";
+import { verifyUserAuth, verifyAdminAuth, isCardOwner } from "@/lib/serverAuth";
 import fs from "fs";
 import path from "path";
 
@@ -188,10 +190,22 @@ export async function GET(request: NextRequest, { params }: Params) {
     // 1. Kiểm tra trong Supabase DB
     const dbCard = await getCardByIdOrSlugFromDb(slug);
     if (dbCard) {
+      // Bảo vệ thiệp draft: Chỉ chủ sở hữu hoặc Quản trị viên mới được xem bản nháp
+      if (dbCard.status === "draft") {
+        const userAuth = await verifyUserAuth(request);
+        const adminAuth = await verifyAdminAuth(request);
+        const isOwner = Boolean(userAuth.authenticated && userAuth.userId && isCardOwner(dbCard, userAuth.userId));
+        if (!isOwner && !adminAuth.authenticated) {
+          return NextResponse.json(
+            { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp. Chưa xuất bản công khai." },
+            { status: 403 }
+          );
+        }
+      }
       return NextResponse.json({
         success: true,
         source: "database",
-        card: dbCard,
+        card: toPublicCardDTO(dbCard),
       });
     }
 
@@ -205,13 +219,24 @@ export async function GET(request: NextRequest, { params }: Params) {
         return false;
       });
       if (matched) {
+        if (matched.status === "draft") {
+          const userAuth = await verifyUserAuth(request);
+          const adminAuth = await verifyAdminAuth(request);
+          const isOwner = Boolean(userAuth.authenticated && userAuth.userId && isCardOwner(matched, userAuth.userId));
+          if (!isOwner && !adminAuth.authenticated) {
+            return NextResponse.json(
+              { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp. Chưa xuất bản công khai." },
+              { status: 403 }
+            );
+          }
+        }
         return NextResponse.json({
           success: true,
           source: "database_branded_match",
-          card: {
+          card: toPublicCardDTO({
             ...matched,
             slug,
-          },
+          }),
         });
       }
     }
@@ -222,7 +247,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({
         success: true,
         source: "initial_cards",
-        card: localFound,
+        card: toPublicCardDTO(localFound),
       });
     }
 
@@ -343,7 +368,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({
         success: true,
         source: "cloned_customer_card",
-        card: custCard,
+        card: toPublicCardDTO(custCard),
       });
     }
 
@@ -532,7 +557,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({
         success: true,
         source: "zenlove_template",
-        card: templateCard,
+        card: toPublicCardDTO(templateCard),
       });
     }
 
@@ -599,7 +624,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({
         success: true,
         source: "on_demand_cloned",
-        card: dynamicCard,
+        card: toPublicCardDTO(dynamicCard),
       });
     }
 

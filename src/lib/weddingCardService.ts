@@ -13,6 +13,7 @@ import {
   type WeddingCard,
   INITIAL_CARDS,
 } from "@/data/initialCards";
+import { apiFetch } from "@/lib/apiClient";
 export type { WeddingEvent, WeddingRsvp, WeddingWish, WeddingCard };
 export { INITIAL_CARDS };
 
@@ -50,12 +51,7 @@ export async function fetchCardsFromServer(userId?: string): Promise<WeddingCard
   const storageKey = getCardsStorageKey(uid);
   try {
     const url = uid ? `/api/cards?userId=${encodeURIComponent(uid)}` : "/api/cards";
-    const res = await fetch(url, {
-      headers: {
-        ...(uid ? { "x-user-id": uid } : {}),
-        ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
-      },
-    });
+    const res = await apiFetch(url);
     if (!res.ok) return getAllCards(uid);
     const data = await res.json();
     if (data.success && Array.isArray(data.cards)) {
@@ -211,24 +207,22 @@ export async function saveCardAsync(card: WeddingCard): Promise<{ success: boole
     userId: currentUid,
   };
 
-  // Lưu local trước
-  saveCard(cardWithUid);
-
   try {
-    const res = await fetch(`/api/cards/${card.id}`, {
+    const res = await apiFetch(`/api/cards/${card.id}`, {
       method: "PUT",
       headers: {
-          "Content-Type": "application/json",
-          ...(currentUid ? { "x-user-id": currentUid } : {}),
-          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
-        },
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(cardWithUid),
     });
     if (res.ok) {
       const data = await res.json();
+      // Chỉ lưu local cache sau khi server xác nhận lưu thành công
+      saveCard(cardWithUid);
       return { success: true, message: data.message || "Đã lưu lên máy chủ thành công" };
     }
-    return { success: false, message: `Máy chủ trả về HTTP ${res.status}` };
+    const errData = await res.json().catch(() => ({}));
+    return { success: false, message: errData.message || `Máy chủ trả về HTTP ${res.status}` };
   } catch (err: any) {
     return { success: false, message: err?.message || "Lỗi kết nối máy chủ" };
   }
@@ -402,21 +396,19 @@ export async function cloneTemplateToNewCard(
     throw new Error("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới mới.");
   }
 
-  // 1. Thử gọi API server clone
+  // 1. Gọi API server clone với Bearer Token
   try {
-    const res = await fetch("/api/cards/clone", {
+    const res = await apiFetch("/api/cards/clone", {
       method: "POST",
       headers: {
-          "Content-Type": "application/json",
-          ...(currentUid ? { "x-user-id": currentUid } : {}),
-          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
-        },
+        "Content-Type": "application/json",
+        ...(currentUid ? { "x-user-id": currentUid } : {}),
+      },
       body: JSON.stringify({
         templateId: templateIdOrSlug,
         templateSlug: templateIdOrSlug,
         customGroom,
         customBride,
-        userId: currentUid,
       }),
     });
 
@@ -427,8 +419,12 @@ export async function cloneTemplateToNewCard(
         return data.card;
       }
     }
-  } catch (err) {
-    console.warn("Lỗi gọi server clone, chuyển sang client fallback:", err);
+
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.message || "Không thể khởi tạo mẫu thiệp cưới trên máy chủ.");
+  } catch (err: any) {
+    console.error("Lỗi clone thiệp:", err);
+    throw err;
   }
 
   // 2. Client-side fallback: Tải dữ liệu nodes từ API zenlove-template
@@ -441,9 +437,13 @@ export async function cloneTemplateToNewCard(
     if (tplRes.ok) {
       const tplData = await tplRes.json();
       if (tplData.success && tplData.data) {
-        parsedNodes = tplData.data.parsedNodes;
-        if (parsedNodes && !parsedNodes.ROOT) {
-          parsedNodes = convertFormTemplateToCanvasNodes(parsedNodes, tplData.data);
+        const incomingNodes = tplData.data.parsedNodes;
+        if (incomingNodes) {
+          if (!incomingNodes.ROOT) {
+            parsedNodes = convertFormTemplateToCanvasNodes(incomingNodes, tplData.data);
+          } else {
+            parsedNodes = incomingNodes;
+          }
         }
         coverImage = tplData.data.imageUrl || "";
         templateName = tplData.data.name || templateName;
@@ -452,7 +452,7 @@ export async function cloneTemplateToNewCard(
   } catch {}
 
   const meta = findZenloveTemplate(templateIdOrSlug);
-  const templateCode = meta?.code || (meta?.orderNumber ? `mau${String(meta.orderNumber).padStart(2, "0")}` : "mau01");
+  const templateCode = meta?.code || (meta?.orderNumber ? `mau${String(meta?.orderNumber).padStart(2, "0")}` : "mau01");
 
   // Trích xuất thông tin thực tế từ template nodes và metadata
   const extracted = extractWeddingDetailsFromTemplate(parsedNodes, meta);

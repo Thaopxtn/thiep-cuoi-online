@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSafeExternalUrl } from "@/lib/securityUtils";
+import { isSafeExternalUrlAsync } from "@/lib/securityUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,8 @@ export async function POST(request: NextRequest) {
 
     // Chặn SSRF nếu nhận imageUrl
     if (imageUrl) {
-      if (!isSafeExternalUrl(imageUrl)) {
+      const isSafe = await isSafeExternalUrlAsync(imageUrl);
+      if (!isSafe) {
         return NextResponse.json(
           { success: false, message: "URL ảnh không hợp lệ hoặc trỏ tới mạng nội bộ bị cấm" },
           { status: 403 }

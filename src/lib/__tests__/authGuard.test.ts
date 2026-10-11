@@ -77,15 +77,12 @@ describe("Auth Guard - Kiểm soát bắt buộc đăng nhập để tạo thi�
     expect(card.id).toBe("card_mock_123");
     expect(card.userId).toBe("user_test_888");
 
-    // Kiểm tra header x-user-id đã được truyền đúng
-    expect(global.fetch).toHaveBeenCalledWith(
-      "/api/cards/clone",
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          "x-user-id": "user_test_888",
-        }),
-      })
-    );
+    // Kiểm tra header x-user-id đã được truyền đúng qua apiFetch
+    const [callUrl, callOptions] = (global.fetch as any).mock.calls[0];
+    expect(callUrl).toBe("/api/cards/clone");
+    const headers = callOptions.headers;
+    const userIdHeader = headers instanceof Headers ? headers.get("x-user-id") : headers?.["x-user-id"];
+    expect(userIdHeader).toBe("user_test_888");
   });
 
   it("cơ chế PendingIntent lưu trữ và giải phóng chính xác trong sessionStorage", () => {

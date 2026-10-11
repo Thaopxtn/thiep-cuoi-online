@@ -6,8 +6,10 @@ import {
   resetAdminRateLimit,
   getClientIp,
   verifyAdminAuth,
-  CONFIGURED_ADMIN_PASSCODE,
+  getConfiguredAdminPasscode,
+  isAdminAuthConfigured,
 } from "@/lib/serverAuth";
+import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,7 @@ export async function GET(request: NextRequest) {
 /**
  * POST /api/admin/verify
  * Xác thực mã PIN Quản trị viên và cấp HMAC-SHA256 session token
+ * Hỗ trợ HttpOnly Cookie và Bearer Token
  */
 export async function POST(request: NextRequest) {
   const clientIp = getClientIp(request);
@@ -56,26 +59,38 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const body = await request.json();
-    const { passcode } = body;
-
-    // 2. Kiểm tra cấu hình môi trường
-    const isProd = process.env.NODE_ENV === "production";
-    const configuredPasscode = CONFIGURED_ADMIN_PASSCODE;
-
-    if (isProd && (!configuredPasscode || configuredPasscode === "zenlove8888")) {
-      console.error("CẢNH BÁO: ADMIN_PASSCODE chưa được thiết lập an toàn trên môi trường Production!");
+    // 2. Kiểm tra cấu hình an ninh hệ thống (Fail Closed nếu thiếu biến môi trường)
+    if (!isAdminAuthConfigured()) {
+      console.error("LỖI BẢO MẬT: ADMIN_PASSCODE hoặc ADMIN_SESSION_SECRET chưa được cấu hình!");
       return NextResponse.json(
         {
           success: false,
-          message: "Hệ thống Quản trị viên chưa được cấu hình biến môi trường ADMIN_PASSCODE an toàn trên Production.",
+          message: "Hệ thống Quản trị viên chưa được cấu hình biến môi trường an toàn trên máy chủ.",
         },
         { status: 503 }
       );
     }
 
-    // 3. So khớp mã PIN (hỗ trợ so sánh an toàn)
-    if (!passcode || String(passcode).trim() !== configuredPasscode.trim()) {
+    const body = await request.json();
+    const { passcode } = body;
+
+    const configuredPasscode = getConfiguredAdminPasscode();
+
+    // 3. So khớp mã PIN bằng Timing-Safe Equal chống Timing Attack
+    let isMatch = false;
+    if (passcode && typeof passcode === "string") {
+      try {
+        const provBuf = Buffer.from(passcode.trim());
+        const confBuf = Buffer.from(configuredPasscode);
+        if (provBuf.length === confBuf.length) {
+          isMatch = crypto.timingSafeEqual(provBuf, confBuf);
+        }
+      } catch {
+        isMatch = false;
+      }
+    }
+
+    if (!isMatch) {
       recordAdminFailedAttempt(clientIp);
       return NextResponse.json(
         { success: false, message: "Mã PIN Quản trị viên không chính xác!" },
@@ -87,12 +102,24 @@ export async function POST(request: NextRequest) {
     resetAdminRateLimit(clientIp);
     const token = generateAdminSessionToken();
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       success: true,
       message: "Xác thực Quản trị viên thành công!",
       token,
-      expiresIn: 86400 * 7, // 7 ngày
+      expiresIn: 14400, // 4 giờ
     });
+
+    // Thiết lập HttpOnly Cookie an toàn
+    const isProd = process.env.NODE_ENV === "production";
+    response.cookies.set("admin_session", token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 14400,
+    });
+
+    return response;
   } catch (error: any) {
     console.error("Lỗi xác thực Admin:", error);
     return NextResponse.json(

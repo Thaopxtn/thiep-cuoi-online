@@ -78,6 +78,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Failed to restore user session:", e);
     }
+
+    const handleSessionExpired = (e: any) => {
+      openLoginModal("Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục lưu và xuất bản.");
+    };
+
+    window.addEventListener("zenlove:session-expired", handleSessionExpired);
+    return () => {
+      window.removeEventListener("zenlove:session-expired", handleSessionExpired);
+    };
   }, []);
 
   const loginWithGoogle = () => {

@@ -1,32 +1,87 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb, createWishInDb } from "@/lib/serverDb";
+import { recordActivity } from "@/lib/activityService";
 import crypto from "crypto";
 
 export const dynamic = "force-dynamic";
 
-// Bộ nhớ đệm Idempotency: Lưu mã giao dịch đã xử lý trong 24 giờ để chống replay attack
-const processedTransactions = new Map<string, number>();
+// Bộ nhớ đệm Idempotency runtime (24h)
+const runtimeProcessedTransactions = new Map<string, number>();
 
-function isTransactionProcessed(txId: string): boolean {
+/**
+ * Kiểm tra xem giao dịch đã được xử lý thành công trước đó hay chưa (Durable Idempotency)
+ * Kiểm tra cả runtime memory và persistent database activities
+ */
+async function isPaymentAlreadyProcessed(txId: string): Promise<boolean> {
   const now = Date.now();
-  // Dọn dẹp các transaction cũ hơn 24 giờ
-  processedTransactions.forEach((ts, id) => {
+  // Dọn dẹp cache cũ > 24 giờ
+  runtimeProcessedTransactions.forEach((ts, id) => {
     if (now - ts > 24 * 60 * 60 * 1000) {
-      processedTransactions.delete(id);
+      runtimeProcessedTransactions.delete(id);
     }
   });
 
-  if (processedTransactions.has(txId)) {
+  if (runtimeProcessedTransactions.has(txId)) {
     return true;
   }
-  processedTransactions.set(txId, now);
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (supabaseUrl && serviceKey) {
+    try {
+      const res = await fetch(
+        `${supabaseUrl}/rest/v1/activities?targetId=eq.${encodeURIComponent(txId)}&type=eq.payment_webhook&select=id`,
+        {
+          headers: {
+            apikey: serviceKey,
+            Authorization: `Bearer ${serviceKey}`,
+          },
+          cache: "no-store",
+        }
+      );
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          runtimeProcessedTransactions.set(txId, now);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn("Lỗi kiểm tra persistent idempotency:", err);
+    }
+  }
+
   return false;
+}
+
+/**
+ * Đánh dấu giao dịch đã được xử lý THÀNH CÔNG (Chỉ gọi sau khi nghiệp vụ hoàn tất)
+ */
+async function markPaymentProcessed(
+  txId: string,
+  amount: number,
+  cardId?: string,
+  content?: string
+): Promise<void> {
+  runtimeProcessedTransactions.set(txId, Date.now());
+
+  recordActivity({
+    type: "payment_webhook" as any,
+    title: `Xử lý webhook thanh toán thành công (${amount.toLocaleString("vi-VN")}đ)`,
+    actorName: "Payment Gateway",
+    actorType: "system",
+    targetId: txId,
+    targetName: cardId || "System",
+    details: content ? content.slice(0, 200) : "Đã xử lý biến động số dư thành công",
+    metadata: { amount, txId, cardId },
+  });
 }
 
 /**
  * POST /api/webhook/payment
  * Webhook lắng nghe biến động số dư ngân hàng tự động (SePay / PayOS / Casso)
- * Bảo vệ: Bắt buộc Webhook Secret Token + Chống Replay + An toàn bảo mật thông tin
+ * Bảo vệ: Bắt buộc Webhook Secret Token + Chống Replay + Durable Idempotency
  */
 export async function POST(request: NextRequest) {
   try {
@@ -98,8 +153,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Chống Replay Attack & Xử lý trùng lặp giao dịch
-    if (isTransactionProcessed(referenceCode)) {
+    // 3. Chống Replay Attack: Kiểm tra Durable Idempotency
+    const alreadyDone = await isPaymentAlreadyProcessed(referenceCode);
+    if (alreadyDone) {
       return NextResponse.json({
         success: true,
         message: "Giao dịch đã được ghi nhận trước đó (Idempotent)",
@@ -132,6 +188,9 @@ export async function POST(request: NextRequest) {
         });
       }
     }
+
+    // 5. CHỈ đánh dấu giao dịch đã hoàn tất SAU KHI nghiệp vụ chạy thành công
+    await markPaymentProcessed(referenceCode, amount, matchedCardId || undefined, content);
 
     return NextResponse.json({
       success: true,

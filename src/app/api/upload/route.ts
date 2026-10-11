@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { verifyUserAuth, verifyAdminAuth } from "@/lib/serverAuth";
+import { detectImageMimeFromBuffer } from "@/lib/securityUtils";
 
 export const dynamic = "force-dynamic";
 
@@ -52,27 +53,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Kiểm tra định dạng MIME và Extension (Chống mã độc / XSS qua SVG, HTML, v.v.)
+    // 3. Kiểm tra phần mở rộng file (Extension whitelist)
     const fileExt = path.extname(file.name).toLowerCase();
-    const fileType = file.type.toLowerCase();
-
-    if (!ALLOWED_EXTENSIONS.has(fileExt) || (!ALLOWED_MIME_TYPES.has(fileType) && fileType !== "application/octet-stream")) {
+    if (!ALLOWED_EXTENSIONS.has(fileExt)) {
       return NextResponse.json(
         {
           success: false,
-          message: "Định dạng file không được hỗ trợ. Chỉ chấp nhận ảnh JPG, PNG, WEBP, GIF, AVIF.",
+          message: "Định dạng đuôi file không được hỗ trợ. Chỉ chấp nhận .jpg, .jpeg, .png, .webp, .gif, .avif.",
         },
         { status: 415 }
       );
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const uniqueFileName = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}${fileExt}`;
+
+    // 4. Kiểm tra Magic Bytes thực tế của dữ liệu nhị phân (chống giả mạo extension/header)
+    const detectedMime = detectImageMimeFromBuffer(buffer);
+    if (!detectedMime || !ALLOWED_MIME_TYPES.has(detectedMime)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Dữ liệu file không phải là định dạng hình ảnh hợp lệ (Magic byte mismatch).",
+        },
+        { status: 415 }
+      );
+    }
+
+    const uniqueFileName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}${fileExt}`;
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // 4. Ưu tiên lưu lên Supabase Storage trong thư mục userId riêng biệt
+    // 5. Lưu lên Supabase Storage trong thư mục userId riêng biệt
     if (supabaseUrl && supabaseServiceKey) {
       const uploadEndpoint = `${supabaseUrl}/storage/v1/object/wedding-cards/${userId}/${uniqueFileName}`;
       try {
@@ -80,7 +92,7 @@ export async function POST(request: NextRequest) {
           method: "POST",
           headers: {
             Authorization: `Bearer ${supabaseServiceKey}`,
-            "Content-Type": fileType || "image/webp",
+            "Content-Type": detectedMime,
           },
           body: buffer,
         });
@@ -97,8 +109,19 @@ export async function POST(request: NextRequest) {
           });
         }
       } catch (err) {
-        console.warn("Lưu ảnh lên Supabase Storage thất bại, chuyển về fallback:", err);
+        console.warn("Lưu ảnh lên Supabase Storage thất bại:", err);
       }
+    }
+
+    // Trên production: nếu Supabase Storage thất bại, không lưu đĩa tạm thời ephemeral
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Không thể lưu trữ ảnh vào Supabase Storage bền vững trên Production.",
+        },
+        { status: 503 }
+      );
     }
 
     // 5. Fallback đĩa cục bộ (theo phân vùng userId)
@@ -121,7 +144,7 @@ export async function POST(request: NextRequest) {
       });
     } catch (fsErr) {
       // 6. Fallback Data URL Base64 an toàn nếu không ghi được đĩa
-      const base64Data = `data:${fileType || "image/webp"};base64,${buffer.toString("base64")}`;
+      const base64Data = `data:${detectedMime || "image/webp"};base64,${buffer.toString("base64")}`;
       return NextResponse.json({
         success: true,
         url: base64Data,

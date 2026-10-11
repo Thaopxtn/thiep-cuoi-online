@@ -113,11 +113,11 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Kiểm tra định dạng số điện thoại Việt Nam (8-15 ký tự số)
-    const phoneRegex = /^(\+?84|0)[3|5|7|8|9][0-9]{8}$/;
-    if (!cleanPhone || (!phoneRegex.test(cleanPhone) && cleanPhone.length < 8)) {
+    // Kiểm tra định dạng số điện thoại Việt Nam chuẩn (10 chữ số, đầu số 03, 05, 07, 08, 09 hoặc +84)
+    const phoneRegex = /^(?:\+84|0)[35789]\d{8}$/;
+    if (!cleanPhone || !phoneRegex.test(cleanPhone)) {
       return NextResponse.json(
-        { success: false, message: "Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại liên hệ đúng." },
+        { success: false, message: "Số điện thoại không hợp lệ. Vui lòng nhập số điện thoại Việt Nam hợp lệ (ví dụ: 0912345678)." },
         { status: 400 }
       );
     }

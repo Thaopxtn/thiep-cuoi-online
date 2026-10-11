@@ -168,22 +168,19 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
     });
     if (!res.ok) {
       console.error("Lỗi getCardsFromDb HTTP:", res.status, await res.text());
-      return localCards;
+      return userId ? localCards.filter((c) => c.userId === userId) : localCards;
     }
     const data = await res.json();
     const mapped = data.map(mapDbToCard);
-    // Hợp nhất với localCards để không bị mất thiệp offline
-    const mergedMap = new Map<string, WeddingCard>();
-    localCards.forEach((c) => mergedMap.set(c.id, c));
-    mapped.forEach((c: WeddingCard) => mergedMap.set(c.id, c));
-    const all = Array.from(mergedMap.values());
+
+    // Nếu có userId: lọc nghiêm ngặt theo đúng userId của tài khoản (Tuyệt đối không gộp thiệp lạ không chủ)
     if (userId) {
-      return all.filter((c: WeddingCard) => c.userId === userId || !c.userId);
+      return mapped.filter((c: WeddingCard) => c.userId === userId);
     }
-    return all;
+    return mapped;
   } catch (err) {
     console.error("Lỗi getCardsFromDb:", err);
-    return localCards;
+    return userId ? localCards.filter((c) => c.userId === userId) : localCards;
   }
 }
 
@@ -218,10 +215,11 @@ export async function getCardByIdOrSlugFromDb(idOrSlug: string): Promise<Wedding
  * Lưu hoặc cập nhật thiệp cưới (Upsert)
  */
 export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; name: string }, token?: string): Promise<WeddingCard | null> {
-  // Luôn lưu bản sao vào file đĩa cục bộ
-  writeLocalCard(card as any);
-
-  if (!isDbConfigured) return card as any;
+  // Chỉ ghi local cache khi chế độ offline không cấu hình database
+  if (!isDbConfigured) {
+    writeLocalCard(card as any);
+    return card as any;
+  }
   try {
     const slug =
       card.slug ||
@@ -306,7 +304,13 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
     }
 
     const result = await res.json();
-    return result && result.length > 0 ? mapDbToCard(result[0]) : null;
+    if (result && result.length > 0) {
+      const saved = mapDbToCard(result[0]);
+      // Chỉ đồng bộ cache sau khi database đã xác nhận lưu thành công
+      writeLocalCard(saved);
+      return saved;
+    }
+    return null;
   } catch (err) {
     console.error("Lỗi upsertCardToDb:", err);
     return null;
@@ -321,9 +325,15 @@ export async function deleteCardFromDb(id: string, token?: string): Promise<bool
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
       method: "DELETE",
-      headers: getDbHeaders(token),
+      headers: {
+        ...getDbHeaders(token),
+        Prefer: "return=representation",
+      },
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const deletedRows = await res.json().catch(() => []);
+    // Xác minh thực tế có bản ghi bị xóa (tránh báo thành công giả khi ID không tồn tại)
+    return Array.isArray(deletedRows) && deletedRows.length > 0;
   } catch (err) {
     console.error("Lỗi deleteCardFromDb:", err);
     return false;

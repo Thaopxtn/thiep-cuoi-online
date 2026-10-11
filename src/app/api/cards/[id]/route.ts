@@ -6,6 +6,7 @@ import {
 } from "@/lib/serverDb";
 import { recordActivity } from "@/lib/activityService";
 import { verifyUserAuth, verifyAdminAuth, isCardOwner } from "@/lib/serverAuth";
+import { toPublicCardDTO } from "@/lib/cardDto";
 
 export const dynamic = "force-dynamic";
 
@@ -30,23 +31,28 @@ export async function GET(request: NextRequest, { params }: Params) {
       );
     }
 
-    // Bảo vệ bản nháp (Draft) không để lộ công khai
-    if (card.status === "draft") {
-      const userAuth = await verifyUserAuth(request);
-      const adminAuth = await verifyAdminAuth(request);
+    // Xác thực quyền chủ sở hữu hoặc Admin
+    const userAuth = await verifyUserAuth(request);
+    const adminAuth = await verifyAdminAuth(request);
+    const isOwner = Boolean(userAuth.authenticated && userAuth.userId && isCardOwner(card, userAuth.userId));
+    const isAuthorized = isOwner || adminAuth.authenticated;
 
-      const isOwner = userAuth.authenticated && userAuth.userId && isCardOwner(card, userAuth.userId);
-      if (!isOwner && !adminAuth.authenticated) {
-        return NextResponse.json(
-          { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp. Vui lòng đăng nhập với tài khoản chủ sở hữu để xem." },
-          { status: 403 }
-        );
-      }
+    // Bảo vệ bản nháp (Draft): Chặn hoàn toàn người lạ
+    if (card.status === "draft" && !isAuthorized) {
+      return NextResponse.json(
+        { success: false, message: "Thiệp cưới đang ở trạng thái bản nháp. Vui lòng đăng nhập với tài khoản chủ sở hữu để xem." },
+        { status: 403 }
+      );
     }
+
+    // Nếu là chủ sở hữu hoặc Admin: trả về toàn bộ dữ liệu (PrivateCardDTO)
+    // Nếu là khách / người dùng khác: chỉ trả về PublicCardDTO an toàn
+    const responseCard = isAuthorized ? card : toPublicCardDTO(card);
 
     return NextResponse.json({
       success: true,
-      card,
+      card: responseCard,
+      isOwner,
     });
   } catch (error: any) {
     console.error(`GET /api/cards/${id} error:`, error);
