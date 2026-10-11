@@ -486,33 +486,43 @@ export function classifyTemplateElements(nodes: Record<string, any>): {
 }
 
 /**
+ * Kiểm tra xem một templateId hoặc slug có phải là mẫu Hồng Phong hay không
+ */
+export function isHongPhongTemplate(idOrSlug?: string): boolean {
+  if (!idOrSlug) return false;
+  return (
+    idOrSlug === "8c5055d8-30db-4b38-8831-e11063e3d352" ||
+    idOrSlug === "hong-phong"
+  );
+}
+
+/**
  * Kiểm tra xem một node có phải là họa tiết trang trí của template hay không
  */
-export function isDecorativeNode(nodeId: string, node?: any): boolean {
+export function isDecorativeNode(nodeId: string, node?: any, templateIdOrSlug?: string): boolean {
   if (!nodeId) return false;
-
-  // Nếu là khung ảnh cưới thực sự -> Không phải họa tiết trang trí
-  if (REAL_WEDDING_PHOTO_IDS.has(nodeId)) {
-    return false;
-  }
-
-  // Nếu nằm trong danh sách họa tiết mẫu Hồng Phong
-  if (HONG_PHONG_DECORATIVE_NODE_IDS.has(nodeId)) {
-    return true;
-  }
 
   const props = node?.props || {};
   const type = node?.type?.resolvedName || "";
+
+  // Nếu là khung ảnh cưới thực sự hoặc có cờ isReplaceable: true -> KHÔNG PHẢI họa tiết trang trí
+  if (props.isReplaceable === true || REAL_WEDDING_PHOTO_IDS.has(nodeId)) {
+    return false;
+  }
+
+  // Nếu là mẫu Hồng Phong và nằm trong danh sách họa tiết đặc thù của Hồng Phong
+  if (isHongPhongTemplate(templateIdOrSlug) && HONG_PHONG_DECORATIVE_NODE_IDS.has(nodeId)) {
+    return true;
+  }
 
   // Các GeometricBox và LineBox trang trí
   if (type === "LineBox" || (type === "GeometricBox" && !props.isCustomUserBox)) {
     return true;
   }
 
-  // Kiểm tra đường dẫn ảnh của PhotoBox
+  // Kiểm tra đường dẫn ảnh của PhotoBox (chỉ các file họa tiết trang trí đặc thù, KHÔNG BAO GỒM /templates/)
   const key = (props.imgKey || props.src || "").toLowerCase();
   if (
-    key.includes("/templates/") ||
     key.includes("resources/background") ||
     key.includes("resources/heartelements") ||
     key.includes("envelope-") ||
@@ -520,8 +530,22 @@ export function isDecorativeNode(nodeId: string, node?: any): boolean {
     key.includes("flower2-") ||
     key.includes("wax-seal") ||
     key.includes("decoration") ||
-    props.locked === true
+    props.isDecorative === true
   ) {
+    return true;
+  }
+
+  // Nếu là file minh họa đồ họa PNG của template (không có cờ isReplaceable hay previewKey)
+  if (
+    !props.isReplaceable &&
+    !props.previewKey &&
+    (key.includes("/images/") || key.endsWith(".png") || key.includes(".png?"))
+  ) {
+    return true;
+  }
+
+  // Nếu node bị locked và không có quyền thay thế ảnh
+  if (props.locked === true && !props.isReplaceable) {
     return true;
   }
 
@@ -532,31 +556,34 @@ export function isDecorativeNode(nodeId: string, node?: any): boolean {
  * Lấy danh sách các PhotoBox THỰC SỰ đại diện cho ảnh cưới của cô dâu chú rể
  * (Tách biệt hoàn toàn khỏi các họa tiết trang trí)
  */
-export function getRealWeddingPhotoSlots(nodes: Record<string, any>): Array<{
+export function getRealWeddingPhotoSlots(nodes: Record<string, any>, templateIdOrSlug?: string): Array<{
   id: string;
   type: string;
   props: any;
   zIndex: number;
 }> {
-  const childNodes = Object.entries(nodes)
+  const childNodes = Object.entries(nodes || {})
     .filter(([id]) => id !== "ROOT")
     .map(([id, node]: [string, any]) => ({
       id,
-      type: node.type?.resolvedName || "Widget",
-      props: node.props || {},
-      zIndex: node.props?.zIndex || 1,
+      type: node?.type?.resolvedName || "Widget",
+      props: node?.props || {},
+      zIndex: node?.props?.zIndex || 1,
     }));
 
   const realPhotos = childNodes.filter((n) => {
     if (n.type !== "PhotoBox") return false;
 
-    // Loại bỏ 100% tất cả các họa tiết trang trí
-    if (isDecorativeNode(n.id, nodes[n.id])) {
+    // Nếu có cờ isReplaceable -> Chắc chắn là slot ảnh cưới
+    if (n.props.isReplaceable === true) return true;
+
+    // Loại bỏ các họa tiết trang trí
+    if (isDecorativeNode(n.id, nodes[n.id], templateIdOrSlug)) {
       return false;
     }
 
-    // Luôn chấp nhận các slot ảnh cưới đã định danh
-    if (REAL_WEDDING_PHOTO_IDS.has(n.id)) {
+    // Luôn chấp nhận các slot ảnh cưới đã định danh của Hồng Phong nếu đúng là Hồng Phong
+    if (isHongPhongTemplate(templateIdOrSlug) && REAL_WEDDING_PHOTO_IDS.has(n.id)) {
       return true;
     }
 
@@ -577,15 +604,51 @@ export function getRealWeddingPhotoSlots(nodes: Record<string, any>): Array<{
 /**
  * Khôi phục toàn bộ họa tiết trang trí về ảnh gốc và tọa độ chuẩn xác của template,
  * đồng thời khóa cố định không cho di chuyển (locked: true).
+ * ĐẶC BIỆT: Chỉ áp dụng với template Hồng Phong. Đối với các template khác, tự động
+ * thanh lọc (purge) các node của Hồng Phong nếu lỡ bị dính trước đó.
  */
 export function repairAndLockDecorativeNodes(
-  currentNodes: Record<string, any>
+  currentNodes: Record<string, any>,
+  templateIdOrSlug?: string
 ): {
   repairedNodes: Record<string, any>;
   repairedCount: number;
 } {
-  const templateSource = hongPhongTemplateNodes as Record<string, any>;
   const repairedNodes = { ...currentNodes };
+
+  // NẾU KHÔNG PHẢI MẪU HỒNG PHONG:
+  // Tuyệt đối KHÔNG inject các node của Hồng Phong vào!
+  // Đồng thời dọn dẹp (purge) bất kỳ node ngoại lai nào của Hồng Phong nếu đã lỡ bị inject trước đó.
+  if (!isHongPhongTemplate(templateIdOrSlug)) {
+    let purged = false;
+    HONG_PHONG_DECORATIVE_NODE_IDS.forEach((id) => {
+      if (repairedNodes[id]) {
+        delete repairedNodes[id];
+        purged = true;
+      }
+    });
+
+    // U4ZPPsHPXy là ảnh cưới nghiêng trong phong bì của Hồng Phong
+    if (repairedNodes["U4ZPPsHPXy"]) {
+      delete repairedNodes["U4ZPPsHPXy"];
+      purged = true;
+    }
+
+    // Làm sạch trong ROOT.nodes nếu có
+    if (purged && repairedNodes["ROOT"] && Array.isArray(repairedNodes["ROOT"].nodes)) {
+      repairedNodes["ROOT"] = {
+        ...repairedNodes["ROOT"],
+        nodes: repairedNodes["ROOT"].nodes.filter(
+          (nid: string) => !HONG_PHONG_DECORATIVE_NODE_IDS.has(nid) && nid !== "U4ZPPsHPXy"
+        ),
+      };
+    }
+
+    return { repairedNodes, repairedCount: 0 };
+  }
+
+  // NẾU ĐÚNG LÀ MẪU HỒNG PHONG:
+  const templateSource = hongPhongTemplateNodes as Record<string, any>;
   let repairedCount = 0;
 
   HONG_PHONG_DECORATIVE_NODE_IDS.forEach((id) => {
@@ -619,7 +682,6 @@ export function repairAndLockDecorativeNodes(
       ...originalNode,
       props: {
         ...origProps,
-        // Khóa cố định
         locked: true,
         isDecorative: true,
       },
@@ -645,9 +707,9 @@ export function repairAndLockDecorativeNodes(
           rotation: origU4.props.rotation,
           borderSize: origU4.props.borderSize || 6,
           borderColor: origU4.props.borderColor || "rgba(255, 255, 255, 1.00)",
-          zIndex: 9, // Nằm trên phong bì sau (zIndex 8) và dưới nắp phong bì (zIndex 11)
+          zIndex: 9,
           isReplaceable: true,
-          locked: false, // Ảnh cưới cho phép người dùng thay ảnh
+          locked: false,
         },
       };
     }

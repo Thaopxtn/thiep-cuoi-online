@@ -6,7 +6,38 @@
 
 // @ts-ignore
 import lzutf8 from "lzutf8";
+import fs from "fs";
+import path from "path";
 import { WeddingCard, WeddingRsvp, WeddingWish } from "@/data/initialCards";
+
+const LOCAL_CARDS_FILE = path.join(process.cwd(), "src", "data", "cards-local-db.json");
+
+function readLocalCards(): WeddingCard[] {
+  try {
+    if (fs.existsSync(LOCAL_CARDS_FILE)) {
+      const raw = fs.readFileSync(LOCAL_CARDS_FILE, "utf8");
+      return JSON.parse(raw);
+    }
+  } catch {}
+  return [];
+}
+
+function writeLocalCard(card: any) {
+  try {
+    const cards = readLocalCards();
+    const idx = cards.findIndex((c) => c.id === card.id || (card.slug && c.slug === card.slug));
+    if (idx >= 0) {
+      cards[idx] = { ...cards[idx], ...card };
+    } else {
+      cards.unshift(card);
+    }
+    const dir = path.dirname(LOCAL_CARDS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(LOCAL_CARDS_FILE, JSON.stringify(cards), "utf8");
+  } catch (err) {
+    console.warn("Lỗi ghi cards-local-db.json:", err);
+  }
+}
 
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_KEY =
@@ -102,7 +133,7 @@ function mapDbToCard(row: any): WeddingCard {
     rsvps: Array.isArray(row.rsvps) ? row.rsvps : [],
     wishes: Array.isArray(row.wishes) ? row.wishes : [],
     nodes,
-    userId: row.groom?.userId || row.userId || undefined,
+    userId: row.user_id || row.userId || row.groom?.userId || undefined,
     showGiftBox:
       row.showGiftBox !== undefined
         ? Boolean(row.showGiftBox)
@@ -122,28 +153,37 @@ function mapDbToCard(row: any): WeddingCard {
  * Lấy tất cả thiệp từ Supabase (hỗ trợ lọc theo userId)
  */
 export async function getCardsFromDb(userId?: string, token?: string): Promise<WeddingCard[]> {
-  if (!isDbConfigured) return [];
+  const localCards = readLocalCards();
+  if (!isDbConfigured) {
+    if (userId) return localCards.filter((c: WeddingCard) => c.userId === userId || !c.userId);
+    return localCards;
+  }
   try {
-    const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/cards?select=*,rsvps(*),wishes(*)&order=updatedAt.desc`,
-      {
-        headers: getDbHeaders(token),
-        cache: "no-store",
-      }
-    );
+    const query = userId
+      ? `${SUPABASE_URL}/rest/v1/cards?user_id=eq.${encodeURIComponent(userId)}&select=*,rsvps(*),wishes(*)&order=updatedAt.desc`
+      : `${SUPABASE_URL}/rest/v1/cards?select=*,rsvps(*),wishes(*)&order=updatedAt.desc`;
+    const res = await fetch(query, {
+      headers: getDbHeaders(token),
+      cache: "no-store",
+    });
     if (!res.ok) {
       console.error("Lỗi getCardsFromDb HTTP:", res.status, await res.text());
-      return [];
+      return localCards;
     }
     const data = await res.json();
     const mapped = data.map(mapDbToCard);
+    // Hợp nhất với localCards để không bị mất thiệp offline
+    const mergedMap = new Map<string, WeddingCard>();
+    localCards.forEach((c) => mergedMap.set(c.id, c));
+    mapped.forEach((c: WeddingCard) => mergedMap.set(c.id, c));
+    const all = Array.from(mergedMap.values());
     if (userId) {
-      return mapped.filter((c: WeddingCard) => c.userId === userId);
+      return all.filter((c: WeddingCard) => c.userId === userId || !c.userId);
     }
-    return mapped;
+    return all;
   } catch (err) {
     console.error("Lỗi getCardsFromDb:", err);
-    return [];
+    return localCards;
   }
 }
 
@@ -151,24 +191,26 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
  * Lấy thiệp theo ID hoặc Slug
  */
 export async function getCardByIdOrSlugFromDb(idOrSlug: string): Promise<WeddingCard | null> {
-  if (!isDbConfigured) return null;
+  const localCards = readLocalCards();
+  const localFound = localCards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
+
+  if (!isDbConfigured) return localFound || null;
   try {
+    const encoded = encodeURIComponent(idOrSlug);
     const res = await fetch(
-      `${SUPABASE_URL}/rest/v1/cards?or=(id.eq.${idOrSlug},slug.eq.${idOrSlug})&select=*,rsvps(*),wishes(*)`,
+      `${SUPABASE_URL}/rest/v1/cards?or=(id.eq.${encoded},slug.eq.${encoded})&select=*,rsvps(*),wishes(*)`,
       {
         headers: getDbHeaders(),
         cache: "no-store",
       }
     );
     if (!res.ok) {
-      console.error("Lỗi getCardByIdOrSlugFromDb HTTP:", res.status, await res.text());
-      return null;
+      return localFound || null;
     }
     const cards = await res.json();
-    return cards.length > 0 ? mapDbToCard(cards[0]) : null;
+    return cards.length > 0 ? mapDbToCard(cards[0]) : (localFound || null);
   } catch (err) {
-    console.error("Lỗi getCardByIdOrSlugFromDb:", err);
-    return null;
+    return localFound || null;
   }
 }
 
@@ -176,7 +218,10 @@ export async function getCardByIdOrSlugFromDb(idOrSlug: string): Promise<Wedding
  * Lưu hoặc cập nhật thiệp cưới (Upsert)
  */
 export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; name: string }, token?: string): Promise<WeddingCard | null> {
-  if (!isDbConfigured) return null;
+  // Luôn lưu bản sao vào file đĩa cục bộ
+  writeLocalCard(card as any);
+
+  if (!isDbConfigured) return card as any;
   try {
     const slug =
       card.slug ||

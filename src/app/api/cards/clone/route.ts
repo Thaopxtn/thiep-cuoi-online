@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { upsertCardToDb } from "@/lib/serverDb";
 import { WeddingCard } from "@/data/initialCards";
-import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
+import { recordActivity } from "@/lib/activityService";
+import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
+import { extractWeddingDetailsFromTemplate } from "@/lib/templateExtractor";
 import fs from "fs";
 import path from "path";
 // @ts-ignore
@@ -93,6 +96,17 @@ export async function POST(request: NextRequest) {
     const { templateId, templateSlug, customGroom, customBride, userId: bodyUserId } = body;
     const userId = bodyUserId || request.headers.get("x-user-id") || undefined;
 
+    // Yêu cầu bắt buộc đăng nhập để tạo/clone thiệp mời
+    if (!userId) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Vui lòng đăng nhập để bắt đầu tạo thiệp cưới.",
+        },
+        { status: 401 }
+      );
+    }
+
     if (!templateId && !templateSlug) {
       return NextResponse.json(
         { success: false, message: "Thiếu ID hoặc slug của mẫu" },
@@ -101,9 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     const targetKey = templateSlug || templateId;
-    const meta = ZENLOVE_TEMPLATES.find(
-      (t) => t.id === templateId || t.slug === targetKey || t.id === targetKey
-    );
+    const meta = findZenloveTemplate(targetKey) || findZenloveTemplate(templateId);
 
     let parsedNodes: Record<string, any> | null = null;
     let coverImage = meta?.imageUrl || "";
@@ -185,10 +197,19 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 3. Trích xuất tên và thông tin
-    let { groom, bride } = extractNamesFromNodes(parsedNodes || undefined);
-    if (customGroom) groom = customGroom;
-    if (customBride) bride = customBride;
+    // 3. Trích xuất thông tin thực tế từ template nodes và meta
+    const extracted = extractWeddingDetailsFromTemplate(parsedNodes || undefined, meta);
+
+    let groom = customGroom || extracted.groomName || "Tiến Đạt";
+    let bride = customBride || extracted.brideName || "Ngọc Nhi";
+    const weddingDate = extracted.weddingDate || "2026-11-18";
+    const weddingTime = extracted.weddingTime || "11:00";
+    const lunarDate = extracted.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ";
+    const venueAddress = extracted.venueAddress || "125 Đường Nguyễn Thị Minh Khai, P. Bến Thành, TP HCM";
+    const venueName = extracted.venueName || "Tư gia Nhà Trai";
+    coverImage = meta?.imageUrl || extracted.coverImage || coverImage;
+    musicUrl = extracted.musicUrl || musicUrl;
+    musicTitle = extracted.musicTitle || musicTitle;
 
     // 3.1. Tự động chuyển đổi nếu là mẫu dạng FORM sang cây Craft.js Canvas
     if (parsedNodes && !parsedNodes.ROOT) {
@@ -201,14 +222,19 @@ export async function POST(request: NextRequest) {
     }
 
     const templateName = meta?.name || "Mẫu cưới ZenLove";
-    const baseSlug = (meta?.slug || "thiep-cuoi")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const templateCode = meta?.code || (meta?.orderNumber ? `mau${String(meta.orderNumber).padStart(2, "0")}` : "mau01");
+
+    // Sinh slug chuẩn nhận diện thương hiệu ZenLove: [Tên người dùng/Cặp đôi] + zenlove + [mã mẫu] + [hậu tố ngẫu nhiên]
+    const newSlug = generateBrandedWeddingSlug({
+      userName: body.userName,
+      groomName: groom,
+      brideName: bride,
+      websiteName: "zenlove",
+      templateCode,
+      includeUniqueSuffix: true,
+    });
 
     const newCardId = `card_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-    const newSlug = `${baseSlug}-${randomSuffix}`;
 
     const newCard: WeddingCard = {
       id: newCardId,
@@ -221,16 +247,18 @@ export async function POST(request: NextRequest) {
       views: 1,
       userId,
       coverImage,
-      story: "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
-      weddingDate: "2026-11-18",
-      weddingTime: "11:00",
-      lunarDate: "Ngày 10 tháng 10 năm Bính Ngọ",
+      story:
+        extracted.story ||
+        "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
+      weddingDate,
+      weddingTime,
+      lunarDate,
       groom: {
         userId,
         name: groom,
         title: "Chú Rể",
         phone: "0912.345.678",
-        parents: "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
+        parents: extracted.parentsGroom || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
         bankName: "MB BANK",
         accountNumber: "240220038888",
       },
@@ -238,7 +266,7 @@ export async function POST(request: NextRequest) {
         name: bride,
         title: "Cô Dâu",
         phone: "0987.654.321",
-        parents: "Ông Lê Văn Thành & Bà Vũ Thị Mai",
+        parents: extracted.parentsBride || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
         bankName: "TECHCOMBANK",
         accountNumber: "190365824988",
       },
@@ -246,29 +274,29 @@ export async function POST(request: NextRequest) {
         {
           id: "evt-1",
           title: "Lễ Vu Quy (Nhà Gái)",
-          time: "08:30 • 18/11/2026",
+          time: `08:30 • ${weddingDate.split("-").reverse().join("/")}`,
           venue: "Tư gia Nhà Gái",
-          address: "Số 45 Tràng Tiền, Hoàn Kiếm, Hà Nội",
-          mapUrl: "https://maps.google.com/?q=Trang+Tien+Hanoi",
+          address: venueAddress,
+          mapUrl: `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`,
         },
         {
           id: "evt-2",
           title: "Lễ Thành Hôn (Nhà Trai)",
-          time: "10:00 • 18/11/2026",
-          venue: "Tư gia Nhà Trai",
-          address: "Số 88 Hoàng Hoa Thám, Ba Đình, Hà Nội",
-          mapUrl: "https://maps.google.com/?q=Hoang+Hoa+Tham+Hanoi",
+          time: `${weddingTime} • ${weddingDate.split("-").reverse().join("/")}`,
+          venue: venueName,
+          address: venueAddress,
+          mapUrl: `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`,
         },
         {
           id: "evt-3",
           title: "Tiệc Cưới Chung Vui",
-          time: "11:30 • 18/11/2026",
-          venue: "Trung tâm Tiệc cưới Trống Đồng Palace",
-          address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
-          mapUrl: "https://maps.google.com/?q=Trong+Dong+Palace",
+          time: `17:30 • ${weddingDate.split("-").reverse().join("/")}`,
+          venue: "Trung tâm Tiệc cưới",
+          address: venueAddress,
+          mapUrl: `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`,
         },
       ],
-      album: [coverImage].filter(Boolean),
+      album: extracted.album.length > 0 ? extracted.album : [coverImage].filter(Boolean),
       musicTitle,
       musicUrl,
       rsvps: [],
@@ -282,6 +310,18 @@ export async function POST(request: NextRequest) {
     } catch (dbErr) {
       console.warn("upsertCardToDb error in clone:", dbErr);
     }
+
+    recordActivity({
+      type: "card_create",
+      title: "Khởi tạo thiệp cưới mới",
+      actorName: `${groom} & ${bride}`,
+      actorType: "user",
+      targetName: newCard.name,
+      targetId: newCard.id,
+      targetSlug: newCard.slug,
+      details: `Nhân bản từ mẫu "${templateName}"`,
+      metadata: { userId, templateId },
+    });
 
     return NextResponse.json({
       success: true,

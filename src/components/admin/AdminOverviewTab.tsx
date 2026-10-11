@@ -36,13 +36,15 @@ interface AdminOverviewTabProps {
     topViewedCards: any[];
     recentCards: any[];
   } | null;
+  activities?: any[];
   loading: boolean;
-  onNavigateTab: (tabId: "overview" | "cards" | "rsvps" | "templates" | "settings") => void;
+  onNavigateTab: (tabId: "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "settings") => void;
   onRefresh: () => void;
 }
 
 export default function AdminOverviewTab({
   stats,
+  activities = [],
   loading,
   onNavigateTab,
   onRefresh,
@@ -286,6 +288,97 @@ export default function AdminOverviewTab({
               <span>Làm mới số liệu</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* DÒNG HOẠT ĐỘNG THỜI GIAN THỰC (LIVE ACTIVITY STREAM PREVIEW) */}
+      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-50 text-zen-primary flex items-center justify-center border border-rose-100">
+              <Activity className="w-4 h-4 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-bold text-gray-900">
+                  Dòng Hoạt Động Thời Gian Thực
+                </h3>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-zen-primary text-[10px] font-bold border border-rose-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-zen-primary animate-ping" />
+                  <span>Trực tuyến</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400">
+                Theo dõi tức thì mọi hành động của người dùng và khách mời trên website
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => onNavigateTab("activities")}
+            className="text-xs text-zen-primary font-bold hover:underline flex items-center gap-1 cursor-pointer"
+          >
+            <span>Xem tất cả nhật ký</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+
+        <div className="mt-4">
+          {activities && activities.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {activities.slice(0, 4).map((act: any) => (
+                <div
+                  key={act.id}
+                  className="p-3.5 rounded-2xl bg-gray-50/70 hover:bg-rose-50/40 border border-gray-100 hover:border-rose-100 transition-all flex items-start justify-between gap-3 group"
+                >
+                  <div className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-900 truncate">
+                        {act.title}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.2 rounded-full bg-white text-gray-600 border border-gray-200 shrink-0">
+                        {act.actorType === "guest" ? "Khách mời" : "Thành viên"}
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-gray-600 truncate">
+                      <strong className="text-gray-800">{act.actorName}</strong>
+                      {act.targetName ? ` • ${act.targetName}` : ""}
+                    </p>
+
+                    {act.details && (
+                      <p className="text-[11px] text-gray-400 italic truncate">
+                        {act.details}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-gray-400 font-mono block">
+                      {new Date(act.timestamp).toLocaleTimeString("vi-VN", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+                    {act.targetSlug && (
+                      <Link
+                        href={`/show/${act.targetSlug}`}
+                        target="_blank"
+                        className="text-[10px] font-bold text-zen-primary hover:underline inline-flex items-center gap-0.5 mt-1"
+                      >
+                        <span>Mở</span>
+                        <ExternalLink className="w-2.5 h-2.5" />
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="py-6 text-center text-xs text-gray-400">
+              Chưa có dữ liệu hoạt động mới
+            </div>
+          )}
         </div>
       </div>
 

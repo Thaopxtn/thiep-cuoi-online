@@ -1072,19 +1072,19 @@ export default function EditorLeftDrawer({
                   {uploadedImages.filter((s) => countImageUsageInNodes(s, nodes) === 0).length} chưa dùng (ảnh thừa)
                 </div>
               </div>
-              {uploadedImages.length > 2 && (
+              {uploadedImages.length > 0 && (
                 <button
                   type="button"
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (window.confirm("Khôi phục danh sách ảnh mẫu mặc định? Các ảnh tải lên trước đó sẽ được dọn khỏi bộ nhớ tạm.")) {
+                    if (window.confirm("Bạn có chắc chắn muốn xóa tất cả ảnh đã tải lên khỏi thư viện không?")) {
                       clearUploadedLibrary();
                     }
                   }}
-                  className="text-[10px] text-gray-400 hover:text-rose-600 transition-colors"
-                  title="Đặt lại thư viện ảnh"
+                  className="text-[10px] text-gray-400 hover:text-rose-600 transition-colors font-medium cursor-pointer"
+                  title="Xóa tất cả ảnh đã tải lên"
                 >
-                  Đặt lại
+                  Xóa tất cả
                 </button>
               )}
             </div>

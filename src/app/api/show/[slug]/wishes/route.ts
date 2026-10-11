@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb, createWishInDb, getWishesFromDb, upsertCardToDb } from "@/lib/serverDb";
 import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
+import { recordActivity } from "@/lib/activityService";
 
 export const dynamic = "force-dynamic";
 
@@ -129,6 +130,25 @@ export async function POST(request: NextRequest, { params }: Params) {
         { success: false, message: "Không thể lưu lời chúc vào hệ thống" },
         { status: 500 }
       );
+    }
+
+    // Ghi nhận sự kiện hoạt động của khách gửi lời chúc
+    try {
+      recordActivity({
+        type: "wish_submit",
+        title: "Khách gửi lời chúc phúc",
+        actorName: savedWish.name,
+        actorType: "guest",
+        targetName: card.name,
+        targetId: card.id,
+        targetSlug: card.slug,
+        details: `"${savedWish.content}"`,
+        metadata: {
+          cardId: card.id,
+        },
+      });
+    } catch (e) {
+      console.warn("Không thể ghi log activity Wish:", e);
     }
 
     return NextResponse.json({

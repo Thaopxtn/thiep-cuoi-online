@@ -4,6 +4,7 @@ import {
   upsertCardToDb,
   deleteCardFromDb,
 } from "@/lib/serverDb";
+import { recordActivity } from "@/lib/activityService";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,14 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const configuredPasscode = process.env.ADMIN_PASSCODE || process.env.NEXT_PUBLIC_ADMIN_PASSCODE || "zenlove8888";
     const isAdmin = adminPasscode && adminPasscode.trim() === configuredPasscode.trim();
 
+    // Bắt buộc đăng nhập hoặc quyền Admin khi cập nhật/lưu thiệp
+    if (!requesterUserId && !isAdmin) {
+      return NextResponse.json(
+        { success: false, message: "Vui lòng đăng nhập để cập nhật hoặc lưu thiệp cưới." },
+        { status: 401 }
+      );
+    }
+
     if (existing && existing.userId && !isAdmin) {
       if (!requesterUserId || requesterUserId !== existing.userId) {
         return NextResponse.json(
@@ -76,6 +85,26 @@ export async function PUT(request: NextRequest, { params }: Params) {
         { success: false, message: "Không thể cập nhật thiệp lên cơ sở dữ liệu" },
         { status: 500 }
       );
+    }
+
+    try {
+      recordActivity({
+        type: updated.status === "published" ? "card_publish" : "card_update",
+        title: updated.status === "published" ? "Xuất bản thiệp cưới" : "Cập nhật thiết kế thiệp",
+        actorName: updated.groom?.name || updated.bride?.name || "Người dùng",
+        actorType: "user",
+        targetName: updated.name,
+        targetId: updated.id,
+        targetSlug: updated.slug,
+        details: `Cập nhật nội dung & thiết kế • Trạng thái: ${updated.status}`,
+        metadata: {
+          cardId: updated.id,
+          status: updated.status,
+          userId: updated.userId,
+        },
+      });
+    } catch (e) {
+      console.warn("Không thể ghi log activity Card Update:", e);
     }
 
     return NextResponse.json({
@@ -123,6 +152,21 @@ export async function DELETE(request: NextRequest, { params }: Params) {
         { success: false, message: "Không thể xóa thiệp cưới từ cơ sở dữ liệu" },
         { status: 500 }
       );
+    }
+
+    try {
+      recordActivity({
+        type: "card_delete",
+        title: "Xóa thiệp cưới",
+        actorName: existing?.groom?.name || existing?.bride?.name || "Người dùng",
+        actorType: "user",
+        targetName: existing?.name || `Thiệp ${id}`,
+        targetId: id,
+        targetSlug: existing?.slug,
+        details: `Đã xóa thiệp khỏi hệ thống`,
+      });
+    } catch (e) {
+      console.warn("Không thể ghi log activity Card Delete:", e);
     }
 
     return NextResponse.json({

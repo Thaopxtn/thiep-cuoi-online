@@ -6,20 +6,15 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    let cards = await getCardsFromDb();
-    if (!cards || cards.length === 0) {
-      cards = INITIAL_CARDS;
-    }
+    const [cardsResult, rsvpsResult, wishesResult] = await Promise.all([
+      getCardsFromDb().catch(() => []),
+      getAllRsvpsFromDb().catch(() => []),
+      getAllWishesFromDb().catch(() => []),
+    ]);
 
-    let rsvps = await getAllRsvpsFromDb();
-    if (!rsvps || rsvps.length === 0) {
-      rsvps = cards.flatMap((c) => c.rsvps || []);
-    }
-
-    let wishes = await getAllWishesFromDb();
-    if (!wishes || wishes.length === 0) {
-      wishes = cards.flatMap((c) => c.wishes || []);
-    }
+    const cards = (cardsResult && cardsResult.length > 0) ? cardsResult : INITIAL_CARDS;
+    const rsvps = (rsvpsResult && rsvpsResult.length > 0) ? rsvpsResult : cards.flatMap((c) => c.rsvps || []);
+    const wishes = (wishesResult && wishesResult.length > 0) ? wishesResult : cards.flatMap((c) => c.wishes || []);
 
     const totalCards = cards.length;
     const publishedCards = cards.filter((c) => c.status === "published").length;

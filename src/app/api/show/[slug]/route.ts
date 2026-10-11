@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, getCardsFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
 import { CUSTOMER_INVITATIONS } from "@/data/customerInvitations";
-import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
+import { parseBrandedSlug } from "@/lib/brandedSlug";
 import { getOrCloneCustomerCard } from "@/lib/zenloveCloner";
 // @ts-ignore
 import lzutf8 from "lzutf8";
@@ -194,6 +195,27 @@ export async function GET(request: NextRequest, { params }: Params) {
       });
     }
 
+    // 1.1 Kiểm tra Branded Slug: [Tên người dùng] + [Tên web (zenlove)] + [Mã mẫu] + [Khác]
+    const brandedInfo = parseBrandedSlug(slug);
+    if (brandedInfo.isBranded || brandedInfo.templateOrder || brandedInfo.templateCode) {
+      const allDbCards = await getCardsFromDb();
+      const matched = allDbCards.find((c) => {
+        if (c.slug === slug || c.id === slug) return true;
+        if (brandedInfo.userPart && c.slug && c.slug.includes(brandedInfo.userPart)) return true;
+        return false;
+      });
+      if (matched) {
+        return NextResponse.json({
+          success: true,
+          source: "database_branded_match",
+          card: {
+            ...matched,
+            slug,
+          },
+        });
+      }
+    }
+
     // 2. Kiểm tra nếu là một trong các mẫu mặc định ban đầu (ngoại trừ customer slugs)
     const localFound = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
     if (localFound && (slug === "hong-phong" || slug.startsWith("card_"))) {
@@ -325,8 +347,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       });
     }
 
-    // 4. Nếu là ID hoặc slug của mẫu ZenLove trong catalog (236 mẫu)
-    const template = ZENLOVE_TEMPLATES.find((t) => t.id === slug || t.slug === slug);
+    // 4. Nếu là ID, slug hoặc mã mẫu của mẫu ZenLove trong catalog
+    const template =
+      ZENLOVE_TEMPLATES.find((t) => t.id === slug || t.slug === slug) ||
+      findZenloveTemplate(slug) ||
+      (brandedInfo?.templateOrder ? findZenloveTemplate(brandedInfo.templateOrder) : undefined) ||
+      (brandedInfo?.templateCode ? findZenloveTemplate(brandedInfo.templateCode) : undefined);
     if (template) {
       let parsedNodes: Record<string, any> | undefined = undefined;
       let rawFormData: Record<string, any> | undefined = undefined;
@@ -436,6 +462,16 @@ export async function GET(request: NextRequest, { params }: Params) {
       let lunarDate = "Ngày 10 tháng 10 năm Bính Ngọ";
       let story = "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.";
 
+      if (brandedInfo?.userPart) {
+        const parts = brandedInfo.userPart.split("-").filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+        if (parts.length >= 2) {
+          groom = parts.slice(0, Math.ceil(parts.length / 2)).join(" ");
+          bride = parts.slice(Math.ceil(parts.length / 2)).join(" ");
+        } else if (parts.length === 1) {
+          groom = parts[0];
+        }
+      }
+
       if (rawFormData?.basicInfo) {
         const b = rawFormData.basicInfo;
         if (b.groomFullName || b.groomShortName) groom = b.groomFullName || b.groomShortName;
@@ -444,7 +480,7 @@ export async function GET(request: NextRequest, { params }: Params) {
 
       const templateCard: WeddingCard = {
         id: template.id,
-        slug: template.slug || template.id,
+        slug: slug,
         name: `Thiệp Cưới ${template.name} - ${groom} & ${bride}`,
         templateId: template.id,
         templateName: template.name,
@@ -486,6 +522,10 @@ export async function GET(request: NextRequest, { params }: Params) {
         musicUrl,
         rsvps: [],
         wishes: [],
+        showGiftBox: true,
+        showWishes: true,
+        showRsvp: true,
+        showEvents: true,
         nodes: parsedNodes,
       };
 
@@ -549,6 +589,10 @@ export async function GET(request: NextRequest, { params }: Params) {
           "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
         rsvps: [],
         wishes: [],
+        showGiftBox: true,
+        showWishes: true,
+        showRsvp: true,
+        showEvents: true,
         nodes: parsedNodes,
       };
 

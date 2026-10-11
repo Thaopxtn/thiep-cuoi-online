@@ -3,9 +3,38 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
+
 export default function AuthCallbackPage() {
   const router = useRouter();
   const [status, setStatus] = useState("Đang hoàn tất đăng nhập...");
+
+  const redirectAfterAuth = async (profile: any) => {
+    try {
+      const rawIntent = sessionStorage.getItem("zenlove_pending_intent");
+      if (rawIntent) {
+        const intent = JSON.parse(rawIntent);
+        sessionStorage.removeItem("zenlove_pending_intent");
+        if (intent.type === "clone_template" && intent.templateId) {
+          setStatus("Đang khởi tạo mẫu thiệp cưới của bạn...");
+          try {
+            const card = await cloneTemplateToNewCard(
+              intent.templateId,
+              intent.customGroom,
+              intent.customBride,
+              profile.id
+            );
+            router.push(`/design-template/${card.id}?clonedFrom=${intent.templateId}`);
+            return;
+          } catch {
+            router.push(`/design-template/${intent.templateId}`);
+            return;
+          }
+        }
+      }
+    } catch {}
+    router.push("/dashboard");
+  };
 
   useEffect(() => {
     try {
@@ -25,8 +54,8 @@ export default function AuthCallbackPage() {
         };
         localStorage.setItem("zenlove_auth_user", JSON.stringify(profile));
         setTimeout(() => {
-          router.push("/dashboard");
-        }, 600);
+          redirectAfterAuth(profile);
+        }, 500);
         return;
       }
 
@@ -60,8 +89,8 @@ export default function AuthCallbackPage() {
               localStorage.setItem("zenlove_auth_user", JSON.stringify(profile));
               setStatus("Đăng nhập thành công! Đang chuyển hướng...");
               setTimeout(() => {
-                router.push("/dashboard");
-              }, 600);
+                redirectAfterAuth(profile);
+              }, 400);
               return;
             }
             router.push("/dashboard");

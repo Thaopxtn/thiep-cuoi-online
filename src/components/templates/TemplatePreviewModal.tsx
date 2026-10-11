@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { TemplateItem, generateDefaultModules } from "@/data/templates";
 import { isFavorite, toggleFavorite } from "@/lib/storage/favorites";
+import { useAuth } from "@/context/AuthContext";
 import ModuleRenderer from "../modules/ModuleRenderer";
 
 interface TemplatePreviewModalProps {
@@ -28,6 +29,7 @@ export default function TemplatePreviewModal({
   onClose,
   onUse,
 }: TemplatePreviewModalProps) {
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [fullscreen, setFullscreen] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [copiedColor, setCopiedColor] = useState<string | null>(null);
@@ -249,7 +251,18 @@ export default function TemplatePreviewModal({
 
                 <Link
                   href={`/design-template/${template.id}`}
-                  onClick={onClose}
+                  onClick={(e) => {
+                    if (!isLoggedIn) {
+                      e.preventDefault();
+                      onClose();
+                      openLoginModal("Vui lòng đăng nhập để mở Studio thiết kế", {
+                        type: "clone_template",
+                        templateId: template.id,
+                      });
+                    } else {
+                      onClose();
+                    }
+                  }}
                   className="py-2.5 px-3.5 rounded-full bg-stone-900 hover:bg-stone-800 text-white text-xs font-semibold shadow-xs transition-colors flex items-center justify-center gap-1.5"
                   title="Mở trong Studio Tạo Template"
                 >
@@ -259,7 +272,17 @@ export default function TemplatePreviewModal({
 
                 <button
                   type="button"
-                  onClick={() => onUse(template.id)}
+                  onClick={() => {
+                    if (!isLoggedIn) {
+                      onClose();
+                      openLoginModal("Vui lòng đăng nhập để sử dụng mẫu thiệp này", {
+                        type: "clone_template",
+                        templateId: template.id,
+                      });
+                      return;
+                    }
+                    onUse(template.id);
+                  }}
                   className="flex-1 py-2.5 px-4 rounded-full bg-zen-primary hover:bg-red-600 text-white text-xs sm:text-sm font-semibold shadow-md shadow-zen-primary/30 transition-all hover:scale-[1.02] active:scale-95 text-center flex items-center justify-center gap-1.5"
                 >
                   <Sparkles className="w-4 h-4" />

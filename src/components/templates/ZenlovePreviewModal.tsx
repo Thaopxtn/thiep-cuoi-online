@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import {
   X,
   Heart,
@@ -20,6 +21,8 @@ import {
   Gift,
 } from "lucide-react";
 import { ZenLoveTemplate } from "@/data/zenloveTemplates";
+import { isFavorite, toggleFavorite } from "@/lib/storage/favorites";
+import { useAuth } from "@/context/AuthContext";
 
 interface ZenlovePreviewModalProps {
   template: ZenLoveTemplate | null;
@@ -32,22 +35,33 @@ export default function ZenlovePreviewModal({
   onClose,
   onUse,
 }: ZenlovePreviewModalProps) {
-  const [isPlayingMusic, setIsPlayingMusic] = useState(true);
+  const { isLoggedIn, openLoginModal } = useAuth();
+  const [isPlayingMusic, setIsPlayingMusic] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [likes, setLikes] = useState(0);
   const [previewMode, setPreviewMode] = useState<"image" | "interactive">("interactive");
   const [isCloning, setIsCloning] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (template) {
       setLikes(template.likeCount || 0);
-      setIsLiked(false);
-      setIsPlayingMusic(true);
+      setIsLiked(isFavorite(template.id));
+      setIsPlayingMusic(false);
       setPreviewMode("interactive");
       setIsCloning(false);
     }
   }, [template]);
+
+  // Pause audio on unmount or close
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -60,16 +74,32 @@ export default function ZenlovePreviewModal({
   if (!template) return null;
 
   const handleToggleLike = () => {
-    const next = !isLiked;
+    const next = toggleFavorite(template.id);
     setIsLiked(next);
     setLikes((prev) => (next ? prev + 1 : Math.max(0, prev - 1)));
   };
 
   const handleCopyLink = () => {
-    const url = typeof window !== "undefined" ? window.location.href : "https://zenlove.me";
+    const url =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/templates/${template.slug || template.id}`
+        : "https://zenlove.me";
     navigator.clipboard?.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const toggleMusicPlayback = () => {
+    if (!audioRef.current) return;
+    if (isPlayingMusic) {
+      audioRef.current.pause();
+      setIsPlayingMusic(false);
+    } else {
+      audioRef.current
+        .play()
+        .then(() => setIsPlayingMusic(true))
+        .catch(() => {});
+    }
   };
 
   const isForm = template.targetPageType === "FORM";
@@ -77,16 +107,40 @@ export default function ZenlovePreviewModal({
   return (
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/75 backdrop-blur-md animate-fade-in"
-      onClick={onClose}
+      onClick={() => {
+        if (audioRef.current) audioRef.current.pause();
+        onClose();
+      }}
     >
+      {/* Background Audio Player for Preview */}
+      <audio
+        ref={audioRef}
+        src={
+          template.musicUrl ||
+          "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3"
+        }
+        loop
+        preload="none"
+        onError={() => {
+          if (audioRef.current && !audioRef.current.src.includes("mixkit.co")) {
+            audioRef.current.src =
+              "https://assets.mixkit.co/music/preview/mixkit-wedding-waltz-237.mp3";
+            if (isPlayingMusic) audioRef.current.play().catch(() => {});
+          }
+        }}
+      />
+
       <div
         className="w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col md:flex-row max-h-[92vh] border border-gray-100 relative animate-scale-up"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close Button Top Right */}
         <button
-          onClick={onClose}
-          className="absolute top-4 right-4 z-50 w-9 h-9 rounded-full bg-white/90 hover:bg-gray-100 shadow-md text-gray-500 hover:text-gray-900 flex items-center justify-center transition-all hover:scale-105"
+          onClick={() => {
+            if (audioRef.current) audioRef.current.pause();
+            onClose();
+          }}
+          className="absolute top-4 right-4 z-50 w-9 h-9 rounded-full bg-white/90 hover:bg-gray-100 shadow-md text-gray-500 hover:text-gray-900 flex items-center justify-center transition-all hover:scale-105 cursor-pointer"
           aria-label="Đóng xem trước"
         >
           <X className="w-5 h-5" />
@@ -102,19 +156,25 @@ export default function ZenlovePreviewModal({
           <div className="mb-3 z-10 flex items-center gap-1.5 p-1 bg-white/90 backdrop-blur-md rounded-2xl shadow-xs border border-gray-200/80 text-[11px] font-semibold text-gray-600">
             <button
               type="button"
-              onClick={() => setPreviewMode("image")}
-              className={`px-3 py-1 rounded-xl transition-all ${
+              onClick={() => {
+                setPreviewMode("image");
+              }}
+              className={`px-3 py-1 rounded-xl transition-all cursor-pointer ${
                 previewMode === "image"
                   ? "bg-stone-900 text-white font-bold shadow-2xs"
                   : "hover:text-gray-900 hover:bg-gray-100"
               }`}
             >
-              Ảnh thiết kế
+              Ảnh cuộn dài
             </button>
             <button
               type="button"
-              onClick={() => setPreviewMode("interactive")}
-              className={`px-3 py-1 rounded-xl transition-all flex items-center gap-1 ${
+              onClick={() => {
+                if (audioRef.current) audioRef.current.pause();
+                setIsPlayingMusic(false);
+                setPreviewMode("interactive");
+              }}
+              className={`px-3 py-1 rounded-xl transition-all flex items-center gap-1 cursor-pointer ${
                 previewMode === "interactive"
                   ? "bg-zen-primary text-white font-bold shadow-2xs"
                   : "hover:text-gray-900 hover:bg-gray-100"
@@ -161,27 +221,27 @@ export default function ZenlovePreviewModal({
 
                   {/* Floating Music Widget */}
                   <div className="sticky bottom-3 inset-x-3 mx-auto z-20">
-                    <div className="bg-black/80 backdrop-blur-md text-white rounded-full px-3.5 py-1.5 flex items-center justify-between shadow-lg">
+                    <div className="bg-black/85 backdrop-blur-md text-white rounded-full px-3.5 py-1.5 flex items-center justify-between shadow-lg border border-white/10">
                       <div className="flex items-center gap-2 min-w-0">
                         <div
-                          className={`w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center ${
+                          className={`w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center shrink-0 ${
                             isPlayingMusic ? "animate-spin" : ""
                           }`}
                         >
                           <Music className="w-2.5 h-2.5 text-white" />
                         </div>
                         <span className="text-[11px] font-medium truncate">
-                          Beautiful In White • Nhạc nền
+                          {template.musicName || "Nhạc cưới lãng mạn"}
                         </span>
                       </div>
                       <button
                         type="button"
-                        onClick={() => setIsPlayingMusic(!isPlayingMusic)}
-                        className="p-1 hover:text-rose-400 transition-colors"
+                        onClick={toggleMusicPlayback}
+                        className="p-1 hover:text-rose-400 transition-colors cursor-pointer"
                         title={isPlayingMusic ? "Tắt âm thanh" : "Bật âm thanh"}
                       >
                         {isPlayingMusic ? (
-                          <Volume2 className="w-3.5 h-3.5" />
+                          <Volume2 className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
                         ) : (
                           <VolumeX className="w-3.5 h-3.5 text-gray-400" />
                         )}
@@ -213,17 +273,15 @@ export default function ZenlovePreviewModal({
                 )}
               </div>
 
-              {/* Mở trực tiếp bản gốc ZenLove */}
-              <a
-                href={`https://zenlove.me/templates/${template.slug}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-500 hover:text-zen-primary bg-stone-100 hover:bg-rose-50 px-3 py-1 rounded-full border border-gray-200 transition-colors"
-                title="Mở trực tiếp mẫu này trên website ZenLove.me bản gốc để đối chiếu"
+              {/* Mở trang chi tiết SEO */}
+              <Link
+                href={`/templates/${template.slug || template.id}`}
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-gray-600 hover:text-zen-primary bg-stone-100 hover:bg-rose-50 px-3 py-1 rounded-full border border-gray-200 transition-colors"
+                title="Xem trang chi tiết đầy đủ của mẫu này"
               >
-                <span>Mở bản gốc ZenLove</span>
+                <span>Xem trang chi tiết</span>
                 <ExternalLink className="w-3 h-3" />
-              </a>
+              </Link>
             </div>
 
             {/* Template Title */}
@@ -285,7 +343,7 @@ export default function ZenlovePreviewModal({
               <button
                 type="button"
                 onClick={handleToggleLike}
-                className={`flex-1 py-3 px-4 rounded-full border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 ${
+                className={`flex-1 py-3 px-4 rounded-full border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer ${
                   isLiked
                     ? "border-rose-300 bg-rose-50 text-rose-600 shadow-xs"
                     : "border-gray-200 hover:border-rose-200 bg-white text-gray-700"
@@ -299,7 +357,7 @@ export default function ZenlovePreviewModal({
               <button
                 type="button"
                 onClick={handleCopyLink}
-                className="py-3 px-4 rounded-full border border-gray-200 hover:border-gray-300 bg-white text-xs sm:text-sm font-bold text-gray-700 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+                className="py-3 px-4 rounded-full border border-gray-200 hover:border-gray-300 bg-white text-xs sm:text-sm font-bold text-gray-700 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer"
               >
                 {copiedLink ? (
                   <>
@@ -309,7 +367,7 @@ export default function ZenlovePreviewModal({
                 ) : (
                   <>
                     <Share2 className="w-4 h-4 text-gray-500" />
-                    <span>Chia sẻ</span>
+                    <span>Chia sẻ link</span>
                   </>
                 )}
               </button>
@@ -320,6 +378,15 @@ export default function ZenlovePreviewModal({
               type="button"
               disabled={isCloning}
               onClick={() => {
+                if (audioRef.current) audioRef.current.pause();
+                if (!isLoggedIn) {
+                  onClose();
+                  openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp với mẫu này", {
+                    type: "clone_template",
+                    templateId: template.id,
+                  });
+                  return;
+                }
                 setIsCloning(true);
                 onUse(template.id);
               }}
@@ -328,7 +395,7 @@ export default function ZenlovePreviewModal({
               {isCloning ? (
                 <>
                   <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Đang clone mẫu về Studio của bạn...</span>
+                  <span>Đang nhân bản mẫu về Studio của bạn...</span>
                 </>
               ) : (
                 <>

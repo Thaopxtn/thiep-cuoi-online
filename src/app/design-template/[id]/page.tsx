@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
 import EditorHeader from "@/components/editor/EditorHeader";
 import EditorLeftRail, { EditorToolTab } from "@/components/editor/EditorLeftRail";
 import EditorLeftDrawer from "@/components/editor/EditorLeftDrawer";
@@ -15,13 +16,14 @@ import EditorAutoFillModal from "@/components/editor/EditorAutoFillModal";
 import EditorPublishWarningModal from "@/components/editor/EditorPublishWarningModal";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
-import { getStoredTemplateById, saveCustomTemplate } from "@/lib/templateStorage";
-import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
+import { ZENLOVE_TEMPLATES, ZenLoveTemplate, findZenloveTemplate } from "@/data/zenloveTemplates";
 import { saveCard, saveCardAsync, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
+import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
 import { useAuth } from "@/context/AuthContext";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import { validateTemplateCompletion, ValidationWarning } from "@/lib/templateValidation";
+import { getStoredTemplateById } from "@/lib/templateStorage";
 import {
   addUploadedImagesToLibrary,
   addUploadedImageToLibrary,
@@ -31,15 +33,18 @@ import {
 import {
   repairAndLockDecorativeNodes,
   isDecorativeNode,
+  getRealWeddingPhotoSlots,
 } from "@/lib/decorativeLockService";
+import { extractWeddingDetailsFromTemplate } from "@/lib/templateExtractor";
 import { syncLinkedTextNodes } from "@/lib/textSyncService";
+import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
 
 export default function DesignTemplatePage() {
   const params = useParams();
   const router = useRouter();
   const templateId =
     (params?.id as string) || "8c5055d8-30db-4b38-8831-e11063e3d352";
-  const { user } = useAuth();
+  const { user, isLoggedIn, openLoginModal } = useAuth();
 
   // Template info
   const [templateName, setTemplateName] = useState<string>("Hồng Phong");
@@ -78,6 +83,11 @@ export default function DesignTemplatePage() {
   });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
+  const [isClientMounted, setIsClientMounted] = useState(false);
+
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -108,19 +118,6 @@ export default function DesignTemplatePage() {
       if (existingCard) {
         setCustomCardData(existingCard);
         if (existingCard.templateName) setTemplateName(existingCard.templateName);
-        // Tự động khôi phục ảnh của thiệp cưới vào Thư viện ảnh đã tải lên
-        if (Array.isArray(existingCard.album) && existingCard.album.length > 0) {
-          addUploadedImagesToLibrary(existingCard.album);
-        }
-        if (existingCard.coverImage) {
-          addUploadedImageToLibrary(existingCard.coverImage);
-        }
-        if (existingCard.nodes) {
-          const nodePhotos = extractImagesFromNodes(existingCard.nodes);
-          if (nodePhotos.length > 0) {
-            addUploadedImagesToLibrary(nodePhotos);
-          }
-        }
         if (existingCard.musicUrl) {
           setCurrentMusic({
             title: existingCard.musicTitle || "Bản nhạc cưới",
@@ -133,16 +130,18 @@ export default function DesignTemplatePage() {
           if (!cardNodes.ROOT) {
             cardNodes = convertFormTemplateToCanvasNodes(cardNodes, existingCard);
           }
-          // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template
-          const { repairedNodes: repairedCardNodes } = repairAndLockDecorativeNodes(cardNodes);
+          // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp các node ngoại lai cho mẫu khác)
+          const targetTplId = existingCard.templateId || templateId;
+          const { repairedNodes: repairedCardNodes } = repairAndLockDecorativeNodes(cardNodes, targetTplId);
           cardNodes = repairedCardNodes;
           setNodes(cardNodes);
           setHistory([cardNodes]);
           setHistoryIndex(0);
 
-          // Select initial photo
-          const targetPhotoNode = cardNodes["U4ZPPsHPXy"]
-            ? ["U4ZPPsHPXy", cardNodes["U4ZPPsHPXy"]]
+          // Select initial photo - ưu tiên ảnh cưới đầu tiên từ trên xuống của chính mẫu
+          const realSlots = getRealWeddingPhotoSlots(cardNodes, targetTplId);
+          const targetPhotoNode = realSlots[0]
+            ? [realSlots[0].id, cardNodes[realSlots[0].id]]
             : Object.entries(cardNodes).find(
                 ([, n]: [string, any]) =>
                   n.type?.resolvedName === "PhotoBox" &&
@@ -181,8 +180,8 @@ export default function DesignTemplatePage() {
             if (!fetchedNodes.ROOT) {
               fetchedNodes = convertFormTemplateToCanvasNodes(fetchedNodes, foundMeta || json.data);
             }
-            // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template
-            const { repairedNodes: repairedFetchedNodes } = repairAndLockDecorativeNodes(fetchedNodes);
+            // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp cho mẫu khác)
+            const { repairedNodes: repairedFetchedNodes } = repairAndLockDecorativeNodes(fetchedNodes, templateId);
             fetchedNodes = repairedFetchedNodes;
             setNodes(fetchedNodes);
             setHistory([fetchedNodes]);
@@ -210,9 +209,10 @@ export default function DesignTemplatePage() {
               });
             }
 
-            // Select initial photo element (prioritizes U4ZPPsHPXy matching user's screenshot!)
-            const targetPhotoNode = fetchedNodes["U4ZPPsHPXy"]
-              ? ["U4ZPPsHPXy", fetchedNodes["U4ZPPsHPXy"]]
+            // Select initial photo element - chọn đúng ảnh chân dung đầu tiên từ trên xuống của chính template
+            const realSlots = getRealWeddingPhotoSlots(fetchedNodes, templateId);
+            const targetPhotoNode = realSlots[0]
+              ? [realSlots[0].id, fetchedNodes[realSlots[0].id]]
               : Object.entries(fetchedNodes).find(
                   ([id, n]: [string, any]) =>
                     n.type?.resolvedName === "PhotoBox" &&
@@ -384,10 +384,14 @@ export default function DesignTemplatePage() {
 
   // Khôi phục & Khóa toàn bộ họa tiết trang trí chuẩn của mẫu
   const handleRepairDecorations = () => {
-    const { repairedNodes, repairedCount } = repairAndLockDecorativeNodes(nodes);
+    const { repairedNodes, repairedCount } = repairAndLockDecorativeNodes(nodes, templateId);
     setNodes(repairedNodes);
     pushHistory(repairedNodes);
-    showToast(`🛡️ Đã khôi phục và khóa cố định ${repairedCount} họa tiết trang trí chuẩn của mẫu!`);
+    if (repairedCount > 0) {
+      showToast(`🛡️ Đã khôi phục và khóa cố định ${repairedCount} họa tiết trang trí chuẩn của mẫu!`);
+    } else {
+      showToast(`🛡️ Đã chuẩn hóa và làm sạch cấu trúc họa tiết chuẩn của mẫu!`);
+    }
   };
 
   // Delete element
@@ -776,22 +780,24 @@ export default function DesignTemplatePage() {
     const slug = templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId;
     const existing = getCardByIdOrSlug(templateId) || getCardByIdOrSlug(slug);
 
-    // Extract names if customized in TextBox
-    let groomName = existing?.groom?.name || "Đức Mạnh";
-    let brideName = existing?.bride?.name || "Thùy Dung";
-    Object.values(nodes).forEach((n: any) => {
-      if (n.type?.resolvedName === "TextBox" && typeof n.props?.text === "string") {
-        const text = n.props.text.replace(/<[^>]*>/g, "").trim();
-        if ((text.includes("&") || text.includes("và")) && text.length < 50) {
-          const parts = text.split(/&|và/);
-          if (parts[0]?.trim()) groomName = parts[0].trim();
-          if (parts[1]?.trim()) brideName = parts[1].trim();
-        }
-      }
-    });
+    // Trích xuất thông tin thực tế từ template nodes và metadata
+    const extracted = extractWeddingDetailsFromTemplate(nodes, currentZenloveTemplate);
 
-    // Extract hero cover photo from nodes
-    let coverImage = existing?.coverImage || "";
+    let groomName = existing?.groom?.name || extracted.groomName;
+    let brideName = existing?.bride?.name || extracted.brideName;
+    let weddingDate = existing?.weddingDate || extracted.weddingDate;
+    let weddingTime = existing?.weddingTime || extracted.weddingTime;
+    let lunarDate = existing?.lunarDate || extracted.lunarDate;
+    let venueAddress = existing?.events?.[0]?.address || extracted.venueAddress;
+    let venueName = existing?.events?.[0]?.venue || extracted.venueName;
+
+    // Extract hero cover photo from nodes or template preview image
+    let coverImage =
+      existing?.coverImage ||
+      currentZenloveTemplate?.imageUrl ||
+      extracted.coverImage ||
+      "";
+
     const photoNodes = Object.values(nodes).filter(
       (n: any) => n.type?.resolvedName === "PhotoBox" && n.props?.imgKey
     );
@@ -804,29 +810,48 @@ export default function DesignTemplatePage() {
       }
     }
 
-    // Tự động gom toàn bộ ảnh từ canvas và thư viện ảnh tải lên vào Album thiệp
-    const nodePhotos = extractImagesFromNodes(nodes);
-    const libraryPhotos = getSavedUploadedImages().filter(
-      (url) => !url.includes("images.unsplash.com")
-    );
+    // Album thiệp cưới: Chỉ lưu ảnh bìa và các ảnh do chính người dùng tải lên
+    const userUploadedPhotos = getSavedUploadedImages();
     const mergedAlbum = Array.from(
       new Set(
         [
           coverImage,
           ...(existing?.album || []),
-          ...nodePhotos,
-          ...libraryPhotos,
+          ...userUploadedPhotos,
         ].filter((u) => Boolean(u) && typeof u === "string" && u.trim().length > 0)
       )
     );
 
     const base = customCardData || existing;
-
     const currentUserId = base?.userId || existing?.userId || user?.id;
+
+    // Branded slug chuẩn: [Tên người dùng] + [Tên web (zenlove)] + [Mã mẫu] + [thông tin khác nếu có]
+    const templateMeta = currentZenloveTemplate || findZenloveTemplate(templateId) || (base?.templateId ? findZenloveTemplate(base.templateId) : undefined);
+    const codeSlug = templateMeta?.code
+      ? templateMeta.code.replace(/-/g, "")
+      : (templateMeta?.orderNumber ? `mau${String(templateMeta.orderNumber).padStart(2, "0")}` : "mau01");
+
+    let computedSlug = base?.slug || existing?.slug;
+    if (
+      !computedSlug ||
+      computedSlug === templateId ||
+      computedSlug.length > 35 ||
+      computedSlug.startsWith("card_") ||
+      computedSlug.includes("-01d9-")
+    ) {
+      computedSlug = generateBrandedWeddingSlug({
+        userName: user?.name || (user?.email ? user.email.split("@")[0] : undefined),
+        groomName,
+        brideName,
+        websiteName: "zenlove",
+        templateCode: codeSlug,
+        customSuffix: weddingDate ? new Date(weddingDate).getFullYear().toString() : undefined,
+      });
+    }
 
     const cardToSave: WeddingCard = {
       id: base?.id || existing?.id || templateId,
-      slug: base?.slug || existing?.slug || slug,
+      slug: computedSlug || slug,
       name: base?.name || existing?.name || `Thiệp Cưới ${templateName} - ${groomName} & ${brideName}`,
       templateId: base?.templateId || existing?.templateId || templateId,
       templateName,
@@ -834,14 +859,15 @@ export default function DesignTemplatePage() {
       updatedAt: new Date().toLocaleDateString("vi-VN"),
       views: base?.views || existing?.views || 100,
       userId: currentUserId,
-      coverImage: coverImage || base?.coverImage || existing?.coverImage || currentZenloveTemplate?.imageUrl || "",
+      coverImage: coverImage || currentZenloveTemplate?.imageUrl || extracted.coverImage,
       story:
         base?.story ||
         existing?.story ||
+        extracted.story ||
         "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
-      weddingDate: base?.weddingDate || existing?.weddingDate || "2026-11-18",
-      weddingTime: base?.weddingTime || existing?.weddingTime || "11:00",
-      lunarDate: base?.lunarDate || existing?.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ",
+      weddingDate,
+      weddingTime,
+      lunarDate,
       showGiftBox: base?.showGiftBox !== undefined ? base.showGiftBox : (existing?.showGiftBox !== undefined ? existing.showGiftBox : true),
       showWishes: base?.showWishes !== undefined ? base.showWishes : (existing?.showWishes !== undefined ? existing.showWishes : true),
       showRsvp: base?.showRsvp !== undefined ? base.showRsvp : (existing?.showRsvp !== undefined ? existing.showRsvp : true),
@@ -850,7 +876,7 @@ export default function DesignTemplatePage() {
         name: base?.groom?.name || groomName,
         title: "Chú Rể",
         phone: base?.groom?.phone || existing?.groom?.phone || "0912.345.678",
-        parents: base?.groom?.parents || existing?.groom?.parents || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
+        parents: base?.groom?.parents || existing?.groom?.parents || extracted.parentsGroom || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
         bankName: base?.groom?.bankName || existing?.groom?.bankName || "MB BANK",
         accountNumber: base?.groom?.accountNumber || existing?.groom?.accountNumber || "240220038888",
         accountName: base?.groom?.accountName || existing?.groom?.accountName || base?.groom?.name || groomName,
@@ -860,7 +886,7 @@ export default function DesignTemplatePage() {
         name: base?.bride?.name || brideName,
         title: "Cô Dâu",
         phone: base?.bride?.phone || existing?.bride?.phone || "0987.654.321",
-        parents: base?.bride?.parents || existing?.bride?.parents || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
+        parents: base?.bride?.parents || existing?.bride?.parents || extracted.parentsBride || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
         bankName: base?.bride?.bankName || existing?.bride?.bankName || "TECHCOMBANK",
         accountNumber: base?.bride?.accountNumber || existing?.bride?.accountNumber || "190365824988",
         accountName: base?.bride?.accountName || existing?.bride?.accountName || base?.bride?.name || brideName,
@@ -870,34 +896,36 @@ export default function DesignTemplatePage() {
         {
           id: "evt-1",
           title: "Lễ Vu Quy (Nhà Gái)",
-          time: "08:30 • 18/11/2026",
+          time: `08:30 • ${weddingDate.split("-").reverse().join("/")}`,
           venue: "Tư gia Nhà Gái",
-          address: "Số 45 Tràng Tiền, Hoàn Kiếm, Hà Nội",
+          address: venueAddress || "125 Đường Nguyễn Thị Minh Khai, P. Bến Thành, TP HCM",
         },
         {
           id: "evt-2",
           title: "Lễ Thành Hôn (Nhà Trai)",
-          time: "10:00 • 18/11/2026",
-          venue: "Tư gia Nhà Trai",
-          address: "Số 88 Hoàng Hoa Thám, Ba Đình, Hà Nội",
+          time: `${weddingTime} • ${weddingDate.split("-").reverse().join("/")}`,
+          venue: venueName || "Tư gia Nhà Trai",
+          address: venueAddress || "125 Đường Nguyễn Thị Minh Khai, P. Bến Thành, TP HCM",
         },
         {
           id: "evt-3",
           title: "Tiệc Cưới Chung Vui",
-          time: "11:30 • 18/11/2026",
-          venue: "Trung tâm Tiệc cưới Trống Đồng Palace",
-          address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
+          time: `17:30 • ${weddingDate.split("-").reverse().join("/")}`,
+          venue: "Trung tâm Tiệc cưới",
+          address: venueAddress || "125 Đường Nguyễn Thị Minh Khai, P. Bến Thành, TP HCM",
         },
       ],
       album: mergedAlbum.length > 0 ? mergedAlbum : (existing?.album || []),
       musicTitle:
         currentMusic.title ||
         existing?.musicTitle ||
+        extracted.musicTitle ||
         currentZenloveTemplate?.musicName ||
         "Thiên đường với người thương",
       musicUrl:
         currentMusic.url ||
         existing?.musicUrl ||
+        extracted.musicUrl ||
         currentZenloveTemplate?.musicUrl ||
         "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
       rsvps: existing?.rsvps || [],
@@ -910,6 +938,13 @@ export default function DesignTemplatePage() {
 
   // Manual Save Handler - Saves current state and syncs to Supabase server
   const handleManualSave = async () => {
+    if (!isLoggedIn) {
+      openLoginModal("Vui lòng đăng nhập để lưu bản thiết kế thiệp cưới", {
+        type: "clone_template",
+        templateId,
+      });
+      return;
+    }
     const card = buildCardFromCurrentState();
     setIsSaved(false);
     showToast("⏳ Đang lưu bản thiết kế lên máy chủ...");
@@ -924,7 +959,18 @@ export default function DesignTemplatePage() {
 
   // Settings Handler - Updates bank, couple info & section toggles and syncs to server
   const handleSaveSettings = async (updatedCard: WeddingCard) => {
+    if (!isLoggedIn) {
+      openLoginModal("Vui lòng đăng nhập để lưu cài đặt thiệp cưới", {
+        type: "clone_template",
+        templateId,
+      });
+      return;
+    }
     setCustomCardData(updatedCard);
+    if (updatedCard.nodes && Object.keys(updatedCard.nodes).length > 0) {
+      setNodes(updatedCard.nodes);
+      pushHistory(updatedCard.nodes);
+    }
     setIsSaved(false);
     showToast("⏳ Đang lưu cài đặt lên máy chủ...");
     if (updatedCard.templateName) {
@@ -949,8 +995,14 @@ export default function DesignTemplatePage() {
   };
 
   // Publish Handler - Saves card, syncs to server and opens shareable QR code publish modal
-  // Publish Handler - Saves card, syncs to server and opens shareable QR code publish modal
   const handlePublish = async () => {
+    if (!isLoggedIn) {
+      openLoginModal("Vui lòng đăng nhập để xuất bản và chia sẻ thiệp cưới", {
+        type: "clone_template",
+        templateId,
+      });
+      return;
+    }
     const card = buildCardFromCurrentState();
     const warnings = validateTemplateCompletion(nodes, card);
 
@@ -966,6 +1018,7 @@ export default function DesignTemplatePage() {
 
   const proceedPublish = async (cardToPublish?: WeddingCard) => {
     const card = cardToPublish || buildCardFromCurrentState();
+    setCustomCardData(card);
     setIsSaved(false);
     showToast("⏳ Đang chuẩn bị xuất bản thiệp...");
     setIsPublishModalOpen(true);
@@ -1012,6 +1065,18 @@ export default function DesignTemplatePage() {
     );
   };
 
+  const handleExportCardImage = async () => {
+    try {
+      const currentCard = buildCardFromCurrentState();
+      showToast("📸 Đang kết xuất ảnh thiệp cưới HD (PNG)...");
+      await downloadCardImageAsPng(currentCard, { mode: "story" });
+      showToast("✨ Đã tải ảnh thiệp cưới thành công!");
+    } catch (err) {
+      console.error(err);
+      showToast("Không thể xuất ảnh, vui lòng thử lại sau.");
+    }
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans relative">
       {/* ================= 1. TOP HEADER (Exact match to screenshot!) ================= */}
@@ -1023,6 +1088,7 @@ export default function DesignTemplatePage() {
         onRedo={handleRedo}
         onSave={handleManualSave}
         onRepairDecorations={handleRepairDecorations}
+        onExportImage={handleExportCardImage}
         onPreview={handlePreview}
         onPublish={handlePublish}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
@@ -1121,7 +1187,14 @@ export default function DesignTemplatePage() {
         onClose={() => setIsPublishModalOpen(false)}
         templateName={templateName}
         templateId={templateId}
-        cardSlug={templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId}
+        cardSlug={customCardData?.slug || buildCardFromCurrentState().slug}
+        card={customCardData || buildCardFromCurrentState()}
+        onSlugUpdated={(newSlug) => {
+          setCustomCardData((prev: any) => {
+            const current = prev || buildCardFromCurrentState();
+            return { ...current, slug: newSlug };
+          });
+        }}
       />
 
       <EditorShortcutsModal
@@ -1161,6 +1234,47 @@ export default function DesignTemplatePage() {
         onOpenAutoFill={() => setIsAutoFillModalOpen(true)}
         onProceedPublish={() => proceedPublish()}
       />
+
+      {/* 6. AUTH GUARD OVERLAY FOR STUDIO CANVAS */}
+      {isClientMounted && !isLoggedIn && (
+        <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
+          <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 text-center shadow-2xl border border-gray-100 animate-scale-up">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-50 text-zen-primary flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner font-bold">
+              💌
+            </div>
+            <h2 className="text-xl sm:text-2xl font-heading font-bold text-gray-900 mb-2">
+              Đăng nhập để vào Studio
+            </h2>
+            <p className="text-xs sm:text-sm text-gray-600 mb-6 leading-relaxed">
+              Để bản thiết kế thiệp cưới của bạn được lưu an toàn vào tài khoản cá nhân, bảo toàn dữ liệu chỉnh sửa và xuất bản trực tuyến, vui lòng đăng nhập trước khi tiếp tục.
+            </p>
+
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() =>
+                  openLoginModal("Vui lòng đăng nhập để bắt đầu thiết kế thiệp cưới", {
+                    type: "clone_template",
+                    templateId,
+                  })
+                }
+                className="w-full py-3.5 px-6 rounded-full bg-zen-primary hover:bg-[#d93849] text-white font-bold text-sm shadow-lg shadow-zen-primary/30 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-amber-300" />
+                <span>Đăng nhập hoặc Đăng ký ngay</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => router.push("/templates")}
+                className="w-full py-3 px-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs transition-colors cursor-pointer"
+              >
+                Quay lại kho mẫu thiệp
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -7,9 +7,12 @@ export const dynamic = "force-dynamic";
  * GET /api/cards/export-all
  * Xuất toàn bộ khách mời từ tất cả các thiệp cưới của tài khoản
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cards = await getCardsFromDb();
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get("userId") || request.headers.get("x-user-id") || undefined;
+    const token = request.headers.get("authorization")?.split(" ")[1];
+    const cards = await getCardsFromDb(userId, token);
     const BOM = "\uFEFF";
     const headers = [
       "STT",

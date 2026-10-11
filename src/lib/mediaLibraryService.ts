@@ -7,16 +7,47 @@ export const MEDIA_LIBRARY_EVENT = "zenlove_media_library_updated";
 
 import { getCurrentAuth } from "./weddingCardService";
 
-export const DEFAULT_DEMO_IMAGES: string[] = [
-  "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600",
-  "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=600",
-  "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=600",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=600",
-  "https://images.unsplash.com/photo-1605100804763-247f67b3557e?q=80&w=600",
-  "https://images.unsplash.com/photo-1519225429980-715cb0215aed?q=80&w=600",
-  "https://images.unsplash.com/photo-1532712938310-34cb3982ef74?q=80&w=600",
-  "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=600",
-];
+export const DEFAULT_DEMO_IMAGES: string[] = [];
+
+/**
+ * Kiểm tra xem một URL ảnh có phải là ảnh mẫu / stock / asset có sẵn của template hay không
+ * Trả về true nếu là ảnh có sẵn (không phải do người dùng tự tải lên từ thiết bị)
+ */
+export function isTemplateStockOrPresetImage(url?: string): boolean {
+  if (!url || typeof url !== "string") return true;
+  const clean = url.trim().toLowerCase();
+  if (!clean) return true;
+
+  // Ảnh do người dùng upload trực tiếp: data URL base64, blob URL, hoặc đường dẫn upload cá nhân
+  if (clean.startsWith("data:image/") || clean.startsWith("blob:")) {
+    return false;
+  }
+  if (clean.includes("/wedding-cards/") || clean.includes("/uploads/user/")) {
+    return false;
+  }
+
+  // Toàn bộ ảnh mẫu / asset có sẵn của template ZenLove và kho stock/unsplash:
+  if (
+    clean.includes("/templates/") ||
+    clean.startsWith("templates/") ||
+    clean.includes("cdn-resource.zenlove.me/templates") ||
+    clean.includes("cdn-resource.zenlove.me/uploads/") ||
+    clean.includes("cdn-resource.zenlove.me/mp3/") ||
+    clean.includes("resources/background") ||
+    clean.includes("resources/heartelements") ||
+    clean.includes("envelope-") ||
+    clean.includes("castle-") ||
+    clean.includes("flower2-") ||
+    clean.includes("wax-seal") ||
+    clean.includes("images.unsplash.com") ||
+    clean.includes("vietqr.co") ||
+    clean.includes("img.vietqr.io")
+  ) {
+    return true;
+  }
+
+  return false;
+}
 
 export async function uploadFileToServer(formData: FormData): Promise<Response> {
   const { token } = getCurrentAuth();
@@ -30,35 +61,52 @@ export async function uploadFileToServer(formData: FormData): Promise<Response> 
 }
 
 /**
- * Lấy danh sách ảnh đã tải lên từ localStorage
+ * Lấy danh sách ảnh đã tải lên từ localStorage (CHỈ chứa ảnh người dùng tải lên, loại bỏ 100% ảnh mẫu có sẵn)
  */
 export function getSavedUploadedImages(): string[] {
-  if (typeof window === "undefined") return DEFAULT_DEMO_IMAGES;
+  if (typeof window === "undefined") return [];
   try {
     const raw = localStorage.getItem(MEDIA_LIBRARY_STORAGE_KEY);
-    if (!raw) return DEFAULT_DEMO_IMAGES;
+    if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      const valid = parsed.filter(
-        (url) => typeof url === "string" && url.trim().length > 0
+      // Chỉ giữ lại DUY NHẤT các ảnh do người dùng tải lên
+      const userOnly = parsed.filter(
+        (url) =>
+          typeof url === "string" &&
+          url.trim().length > 0 &&
+          !isTemplateStockOrPresetImage(url)
       );
-      return valid.length > 0 ? valid : DEFAULT_DEMO_IMAGES;
+
+      // Nếu có ảnh mẫu bị dọn sạch, cập nhật lại ngay vào localStorage
+      if (userOnly.length !== parsed.length) {
+        localStorage.setItem(MEDIA_LIBRARY_STORAGE_KEY, JSON.stringify(userOnly));
+      }
+      return userOnly;
     }
   } catch (err) {
     console.warn("Lỗi đọc thư viện ảnh từ localStorage:", err);
   }
-  return DEFAULT_DEMO_IMAGES;
+  return [];
 }
 
 /**
  * Lưu danh sách ảnh vào localStorage với cơ chế chống tràn QuotaExceededError
+ * Chỉ lưu các ảnh do người dùng tải lên
  */
 export function saveUploadedImages(images: string[]): void {
   if (typeof window === "undefined") return;
 
-  // Loại bỏ trùng lặp giữ nguyên thứ tự
+  // Loại bỏ trùng lặp và chỉ lưu các ảnh do người dùng tải lên
   const unique = Array.from(
-    new Set(images.filter((url) => typeof url === "string" && url.trim().length > 0))
+    new Set(
+      images.filter(
+        (url) =>
+          typeof url === "string" &&
+          url.trim().length > 0 &&
+          !isTemplateStockOrPresetImage(url)
+      )
+    )
   );
 
   const attemptSave = (items: string[]) => {
@@ -69,16 +117,14 @@ export function saveUploadedImages(images: string[]): void {
   };
 
   try {
-    // Ưu tiên lưu tối đa 60 ảnh mới nhất
+    // Ưu tiên lưu tối đa 60 ảnh mới nhất của người dùng
     attemptSave(unique.slice(0, 60));
   } catch (quotaErr) {
     console.warn("LocalStorage đầy dung lượng, đang tối ưu hóa media library:", quotaErr);
     try {
-      // Nếu tràn bộ nhớ (do chuỗi data:base64 quá lớn), lọc bỏ các dataURL dung lượng khủng
       const sanitized = unique.filter((u) => !u.startsWith("data:") || u.length < 50000);
       attemptSave(sanitized.slice(0, 30));
     } catch (secondErr) {
-      // Cắt giảm còn 10 ảnh mới nhất
       try {
         attemptSave(unique.slice(0, 10));
       } catch (finalErr) {
@@ -89,10 +135,12 @@ export function saveUploadedImages(images: string[]): void {
 }
 
 /**
- * Thêm 1 ảnh mới vào đầu thư viện
+ * Thêm 1 ảnh mới vào đầu thư viện (chỉ chấp nhận ảnh người dùng tải lên)
  */
 export function addUploadedImageToLibrary(url: string): string[] {
-  if (!url || typeof url !== "string" || !url.trim()) return getSavedUploadedImages();
+  if (!url || typeof url !== "string" || !url.trim() || isTemplateStockOrPresetImage(url)) {
+    return getSavedUploadedImages();
+  }
   const cleanUrl = url.trim();
   const current = getSavedUploadedImages();
   const next = [cleanUrl, ...current.filter((item) => item !== cleanUrl)];
@@ -101,12 +149,17 @@ export function addUploadedImageToLibrary(url: string): string[] {
 }
 
 /**
- * Thêm nhiều ảnh cùng lúc vào thư viện
+ * Thêm nhiều ảnh cùng lúc vào thư viện (tự động loại bỏ mọi ảnh mẫu có sẵn)
  */
 export function addUploadedImagesToLibrary(urls: string[]): string[] {
   if (!urls || urls.length === 0) return getSavedUploadedImages();
   const valid = urls
-    .filter((u) => typeof u === "string" && u.trim().length > 0)
+    .filter(
+      (u) =>
+        typeof u === "string" &&
+        u.trim().length > 0 &&
+        !isTemplateStockOrPresetImage(u)
+    )
     .map((u) => u.trim());
   if (valid.length === 0) return getSavedUploadedImages();
 
@@ -122,11 +175,8 @@ export function addUploadedImagesToLibrary(urls: string[]): string[] {
 export function removeUploadedImageFromLibrary(url: string): string[] {
   const { token } = getCurrentAuth();
   if (token && url.includes('/wedding-cards/')) {
-    // Extract filename from URL (it's the last part)
     const parts = url.split('/');
     const fileName = parts[parts.length - 1];
-    
-    // Call API without waiting to not block UI
     fetch(`/api/upload?fileName=${encodeURIComponent(fileName)}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` }
@@ -135,17 +185,16 @@ export function removeUploadedImageFromLibrary(url: string): string[] {
 
   const current = getSavedUploadedImages();
   const next = current.filter((item) => item !== url);
-  const result = next.length > 0 ? next : DEFAULT_DEMO_IMAGES;
-  saveUploadedImages(result);
-  return result;
+  saveUploadedImages(next);
+  return next;
 }
 
 /**
- * Xóa toàn bộ ảnh người dùng đã tải lên (khôi phục về ảnh mẫu demo)
+ * Xóa toàn bộ ảnh người dùng đã tải lên (làm rỗng thư viện ảnh)
  */
 export function clearUploadedImagesLibrary(): string[] {
-  saveUploadedImages(DEFAULT_DEMO_IMAGES);
-  return DEFAULT_DEMO_IMAGES;
+  saveUploadedImages([]);
+  return [];
 }
 
 /**

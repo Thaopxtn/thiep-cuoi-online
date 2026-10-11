@@ -22,10 +22,16 @@ import {
   Check,
   User,
   Phone,
-  MessageCircle,
+  Download,
+  Settings,
+  Camera,
+  ChevronLeft,
+  ChevronRight,
+  X as CloseIcon,
+  Image as ImageIcon,
   ExternalLink,
   Gift,
-  Download,
+  MessageCircle,
 } from "lucide-react";
 import {
   getCardByIdOrSlug,
@@ -33,12 +39,15 @@ import {
   addRsvp,
   addWish,
   incrementCardViews,
+  parseWeddingTimestamp,
   WeddingCard,
 } from "@/lib/weddingCardService";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
 import FallingPetals from "@/components/FallingPetals";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
-import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
+import { parseBrandedSlug } from "@/lib/brandedSlug";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import { weddingSounds } from "@/lib/soundEffects";
 import AnimatedReveal from "@/components/AnimatedReveal";
@@ -49,6 +58,7 @@ export default function ShowInvitationPage() {
 
   // Card state
   const [card, setCard] = useState<WeddingCard | null>(null);
+  const [isNotFound, setIsNotFound] = useState(false);
 
   // Đảm bảo card.nodes luôn là Canvas Nodes đầy đủ 100% (tự động convert nếu là form 26 keys)
   const activeNodes = React.useMemo(() => {
@@ -76,6 +86,37 @@ export default function ShowInvitationPage() {
   const [activeGiftTab, setActiveGiftTab] = useState<"groom" | "bride">("groom");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Photo Gallery Lightbox state & Image export
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [isExportingImage, setIsExportingImage] = useState(false);
+
+  const galleryPhotos = React.useMemo(() => {
+    if (card?.album && card.album.length > 0) return card.album;
+    return [
+      card?.coverImage || "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop",
+    ];
+  }, [card?.album, card?.coverImage]);
+
+  const handleDownloadCardPng = async () => {
+    if (!card) return;
+    try {
+      setIsExportingImage(true);
+      setToastMessage("📸 Đang kết xuất ảnh thiệp HD sắc nét...");
+      await downloadCardImageAsPng(card, { mode: "story" });
+      setToastMessage("✨ Đã tải ảnh thiệp thành công!");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err) {
+      console.error(err);
+      setToastMessage("Không thể xuất ảnh, vui lòng thử lại sau.");
+      setTimeout(() => setToastMessage(null), 3000);
+    } finally {
+      setIsExportingImage(false);
+    }
+  };
+
   // Audio state
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -90,8 +131,12 @@ export default function ShowInvitationPage() {
 
   const setupCountdown = (found: WeddingCard) => {
     if (found.weddingDate) {
-      const target = new Date(`${found.weddingDate}T${found.weddingTime || "11:00"}:00`).getTime();
-      const now = new Date().getTime();
+      const target = parseWeddingTimestamp(found.weddingDate, found.weddingTime);
+      if (isNaN(target)) {
+        setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      const now = Date.now();
       const diff = Math.max(0, target - now);
       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
       const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
@@ -195,21 +240,54 @@ export default function ShowInvitationPage() {
     let active = true;
 
     // 1. Kiểm tra bộ nhớ cục bộ (nếu người dùng vừa chỉnh sửa trong Editor)
-    const found = getCardByIdOrSlug(slug);
+    let found = getCardByIdOrSlug(slug);
+
+    // Quét bổ sung trong LocalStorage nếu slug vừa được đổi hoặc chưa tìm thấy
+    if (!found && typeof window !== "undefined") {
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith("card_") || k.startsWith("zenlove_cards_"))) {
+            const raw = localStorage.getItem(k);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                const match = parsed.find((c: any) => c.slug === slug || c.id === slug);
+                if (match) {
+                  found = getCardByIdOrSlug(match.id) || match;
+                  break;
+                }
+              } else if (parsed?.slug === slug || parsed?.id === slug) {
+                found = parsed;
+                break;
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
     if (found) {
       setCard(found);
       setupCountdown(found);
       if (found.nodes && Object.keys(found.nodes).length > 2) {
-        // Đã có đầy đủ thiết kế tùy biến
         incrementCardViews(slug);
         return;
       }
     }
 
-    // 2. Tải từ cơ sở dữ liệu Supabase Backend
+    // Thiết lập timeout an toàn: sau 5s nếu không tải được thiệp thì báo lỗi thân thiện thay vì xoay vô tận
+    const notFoundTimer = setTimeout(() => {
+      if (active) {
+        setIsNotFound(true);
+      }
+    }, 5000);
+
+    // 2. Tải từ cơ sở dữ liệu Supabase Backend (API Route /api/show/[slug] đã hỗ trợ Branded Slug)
     fetchCardFromServer(slug).then((serverCard) => {
       if (!active) return;
       if (serverCard) {
+        clearTimeout(notFoundTimer);
         setCard(serverCard);
         setupCountdown(serverCard);
         if (serverCard.nodes && Object.keys(serverCard.nodes).length > 2) {
@@ -217,16 +295,30 @@ export default function ShowInvitationPage() {
         }
       }
 
-      // 3. Nếu chưa có nodes thiết kế: Tải nodes trực tiếp từ API ZenLove Template
-      fetch(`/api/zenlove-template/${slug}`)
+      // 3. Nếu chưa có nodes thiết kế: Thử tải nodes trực tiếp từ API ZenLove Template
+      const branded = parseBrandedSlug(slug);
+      const targetTplKey = branded.templateOrder || branded.templateCode || slug;
+
+      fetch(`/api/zenlove-template/${targetTplKey}`)
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (!active) return;
           if (data?.success && data?.data?.parsedNodes) {
-            const meta = ZENLOVE_TEMPLATES.find((t) => t.id === slug || t.slug === slug);
+            clearTimeout(notFoundTimer);
+            const meta = findZenloveTemplate(targetTplKey) || ZENLOVE_TEMPLATES.find((t) => t.id === slug || t.slug === slug);
             setCard((prev) => {
               const nodes = data.data.parsedNodes;
               let { groom, bride } = extractNamesFromNodes(nodes);
+
+              if (branded.userPart) {
+                const parts = branded.userPart.split("-").filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1));
+                if (parts.length >= 2) {
+                  groom = parts.slice(0, Math.ceil(parts.length / 2)).join(" ");
+                  bride = parts.slice(Math.ceil(parts.length / 2)).join(" ");
+                } else if (parts.length === 1) {
+                  groom = parts[0];
+                }
+              }
 
               // Xử lý mẫu dạng FORM (như Đồng Xanh,...)
               if (nodes?.basicInfo) {
@@ -277,7 +369,7 @@ export default function ShowInvitationPage() {
               const newCard: WeddingCard = {
                 id: slug,
                 slug: slug,
-                name: data.data.name || meta?.name || "Thiệp Cưới",
+                name: data.data.name || meta?.name || `Thiệp Cưới ${groom} & ${bride}`,
                 templateId: meta?.id || slug,
                 templateName: data.data.name || meta?.name || "ZenLove",
                 status: "published",
@@ -310,6 +402,10 @@ export default function ShowInvitationPage() {
                 musicUrl: data.data.musicUrl || meta?.musicUrl || "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
                 rsvps: prev?.rsvps || [],
                 wishes: prev?.wishes || [],
+                showGiftBox: prev?.showGiftBox !== undefined ? prev.showGiftBox : true,
+                showWishes: prev?.showWishes !== undefined ? prev.showWishes : true,
+                showRsvp: prev?.showRsvp !== undefined ? prev.showRsvp : true,
+                showEvents: prev?.showEvents !== undefined ? prev.showEvents : true,
                 nodes,
               };
 
@@ -324,6 +420,7 @@ export default function ShowInvitationPage() {
     incrementCardViews(slug);
     return () => {
       active = false;
+      clearTimeout(notFoundTimer);
     };
   }, [slug]);
 
@@ -430,7 +527,7 @@ export default function ShowInvitationPage() {
       return;
     }
     if (!card || !rsvpName.trim() || !rsvpPhone.trim()) return;
-    addRsvp(card.id, {
+    const newRsvp = addRsvp(card.id, {
       name: rsvpName.trim(),
       phone: rsvpPhone.trim(),
       attending: rsvpAttending === "yes",
@@ -441,8 +538,14 @@ export default function ShowInvitationPage() {
     if (sfxEnabled) {
       weddingSounds.playCelebration();
     }
-    // Refresh card
-    setCard(getCardByIdOrSlug(card.id) || card);
+    // Refresh card with instant optimistic update
+    setCard((prev) => {
+      const refreshed = getCardByIdOrSlug(card.id) || prev || card;
+      return {
+        ...refreshed,
+        rsvps: [newRsvp, ...(refreshed.rsvps?.filter((r) => r.id !== newRsvp.id) || [])],
+      };
+    });
   };
 
   const handleSendWish = (e: React.FormEvent) => {
@@ -454,15 +557,21 @@ export default function ShowInvitationPage() {
       return;
     }
     if (!card || !guestName.trim() || !guestWish.trim()) return;
-    addWish(card.id, guestName.trim(), guestWish.trim());
+    const newWish = addWish(card.id, guestName.trim(), guestWish.trim());
     if (sfxEnabled) {
       weddingSounds.playCelebration();
       weddingSounds.playHeartPop();
     }
     setGuestName("");
     setGuestWish("");
-    // Refresh card
-    setCard(getCardByIdOrSlug(card.id) || card);
+    // Refresh card with instant optimistic update
+    setCard((prev) => {
+      const refreshed = getCardByIdOrSlug(card.id) || prev || card;
+      return {
+        ...refreshed,
+        wishes: [newWish, ...(refreshed.wishes?.filter((w) => w.id !== newWish.id) || [])],
+      };
+    });
   };
 
   const copyToClipboard = (text: string, type: string) => {
@@ -496,6 +605,35 @@ export default function ShowInvitationPage() {
   };
 
   if (!card) {
+    if (isNotFound) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-[#511419] text-amber-100 p-6">
+          <div className="text-center max-w-md space-y-4 bg-black/40 backdrop-blur-md p-8 rounded-3xl border border-amber-300/20 shadow-2xl">
+            <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-400/30 flex items-center justify-center mx-auto text-amber-300 text-2xl">
+              💌
+            </div>
+            <h1 className="text-xl font-bold font-serif text-amber-200">Không tìm thấy thiệp cưới</h1>
+            <p className="text-xs text-amber-100/70 leading-relaxed">
+              Đường dẫn thiệp cưới này không tồn tại hoặc vừa được cập nhật. Bạn có thể kiểm tra lại liên kết hoặc khám phá các mẫu thiệp cưới phong cách tại ZenLove.
+            </p>
+            <div className="flex gap-3 justify-center pt-2">
+              <Link
+                href="/templates"
+                className="px-4 py-2 bg-zen-primary hover:bg-[#d93849] text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-zen-primary/20"
+              >
+                Xem các mẫu thiệp
+              </Link>
+              <Link
+                href="/"
+                className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-xl transition-all border border-white/20"
+              >
+                Trang chủ
+              </Link>
+            </div>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#511419] text-amber-100">
         <div className="text-center space-y-3">
@@ -658,6 +796,15 @@ export default function ShowInvitationPage() {
           <Share2 className="w-3.5 h-3.5" />
           <span className="hidden sm:inline">Mời khách riêng</span>
         </button>
+        {/* Nút Chỉnh sửa thiệp cho chủ sở hữu / người dùng */}
+        <Link
+          href={`/design-template/${card.id}`}
+          className="px-3 py-1.5 rounded-full bg-stone-900/85 hover:bg-black text-amber-200 border border-amber-400/40 backdrop-blur-md shadow-md flex items-center gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+          title="Chỉnh sửa nội dung thiệp & thông tin sơ đồ tại Studio"
+        >
+          <Settings className="w-3.5 h-3.5 text-amber-300" />
+          <span className="hidden sm:inline">Sửa thiệp</span>
+        </Link>
       </div>
 
       {/* ================= 3D ENVELOPE MODAL (IF CLOSED) ================= */}
@@ -808,16 +955,22 @@ export default function ShowInvitationPage() {
               onOpenGiftQr={() => setIsGiftModalOpen(true)}
               onRsvpSuccess={(data) => {
                 if (!card) return;
-                addRsvp(card.id, {
+                const newRsvp = addRsvp(card.id, {
                   name: data.name,
                   phone: data.phone || "---",
                   attending: data.attending ?? true,
-                  guests: 1,
+                  guests: data.guests || 1,
                   note: data.note || "",
                 });
                 setToastMessage("🎉 Đã gửi xác nhận tham dự thành công!");
                 setTimeout(() => setToastMessage(null), 3500);
-                setCard(getCardByIdOrSlug(card.id) || card);
+                setCard((prev) => {
+                  const refreshed = getCardByIdOrSlug(card.id) || prev || card;
+                  return {
+                    ...refreshed,
+                    rsvps: [newRsvp, ...(refreshed.rsvps?.filter((r) => r.id !== newRsvp.id) || [])],
+                  };
+                });
               }}
             />
           </div>
@@ -919,53 +1072,117 @@ export default function ShowInvitationPage() {
               </section>
             </AnimatedReveal>
 
-            {/* Event Schedule */}
-            <AnimatedReveal animation="fade-up" delay={150}>
-              <section className="px-6 py-8 relative z-10 space-y-6">
-                <div className="text-center">
-                  <h2 className="text-xl sm:text-2xl font-cinzel font-bold text-[#511419] tracking-wider">
-                    Chương Trình Hôn Lễ
-                  </h2>
-                  <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
-                </div>
-
-                <div className="space-y-4">
-                  {card.events.map((evt) => (
-                    <div
-                      key={evt.id}
-                      className="bg-white rounded-2xl border border-gray-100 p-5 shadow-xs relative overflow-hidden"
-                    >
-                      <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
-                        <Clock className="w-4 h-4" />
-                        <span>{evt.time}</span>
-                      </div>
-                      <h4 className="font-bold text-gray-900 text-base">
-                        {evt.title}
-                      </h4>
-                      <div className="mt-2 flex items-start gap-2 text-xs text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                        <span>{evt.address || evt.venue}</span>
-                      </div>
-                      {evt.mapUrl && (
-                        <a
-                          href={evt.mapUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => {
-                            if (sfxEnabled) weddingSounds.playSoftClick();
-                          }}
-                          className="mt-3.5 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 text-zen-primary text-xs font-bold hover:bg-rose-100 transition-colors"
-                        >
-                          <Navigation className="w-3.5 h-3.5" />
-                          <span>Chỉ đường Google Maps</span>
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-            </AnimatedReveal>
           </>
+        )}
+
+        {/* ================= EVENT SCHEDULE & MAP (Chương trình hôn lễ & Sơ đồ chỉ đường) ================= */}
+        {card.showEvents !== false && card.events && card.events.length > 0 && (
+          <AnimatedReveal animation="fade-up" delay={120}>
+            <section id="events-section" className="px-6 py-8 relative z-10 space-y-6 bg-white border-t border-amber-900/10">
+              <div className="text-center">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                  Thông Tin Hôn Lễ & Sơ Đồ
+                </span>
+                <h2 className="text-2xl font-cinzel font-bold text-[#511419] tracking-wider mt-1">
+                  Chương Trình Hôn Lễ
+                </h2>
+                <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
+              </div>
+
+              <div className="space-y-4">
+                {card.events.map((evt, idx) => (
+                  <div
+                    key={evt.id || `evt-${idx}`}
+                    className="bg-[#fbf9f5] rounded-2xl border border-amber-900/15 p-5 shadow-xs relative overflow-hidden"
+                  >
+                    <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
+                      <Clock className="w-4 h-4" />
+                      <span>{evt.time}</span>
+                    </div>
+                    <h4 className="font-bold text-gray-900 text-base">
+                      {evt.title}
+                    </h4>
+                    <div className="mt-1 text-xs font-semibold text-amber-900">
+                      {evt.venue}
+                    </div>
+                    {evt.address && (
+                      <div className="mt-1 flex items-start gap-2 text-xs text-gray-600">
+                        <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                        <span>{evt.address}</span>
+                      </div>
+                    )}
+                    {evt.mapUrl && (
+                      <a
+                        href={evt.mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => {
+                          if (sfxEnabled) weddingSounds.playSoftClick();
+                        }}
+                        className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-50 text-zen-primary hover:bg-rose-100 border border-rose-200/60 text-xs font-bold transition-all shadow-2xs hover:scale-105 active:scale-95"
+                      >
+                        <Navigation className="w-3.5 h-3.5" />
+                        <span>Chỉ đường Google Maps ↗</span>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </AnimatedReveal>
+        )}
+
+        {/* ================= WEDDING PHOTO GALLERY (Album ảnh cưới) ================= */}
+        {galleryPhotos.length > 0 && (
+          <AnimatedReveal animation="fade-up" delay={100}>
+            <section id="album-section" className="px-6 py-8 relative z-10 bg-white border-t border-amber-900/10">
+              <div className="text-center mb-6">
+                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                  Khoảnh Khắc Ngọt Ngào
+                </span>
+                <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                  Album Ảnh Cưới
+                </h2>
+                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                  Chạm vào bất kỳ ảnh nào để phóng to và cùng chúng mình ngắm nhìn những khoảnh khắc hạnh phúc nhất.
+                </p>
+              </div>
+
+              {/* Photo Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {galleryPhotos.map((photoUrl, idx) => (
+                  <div
+                    key={idx}
+                    onClick={() => {
+                      if (sfxEnabled) weddingSounds.playSoftClick();
+                      setLightboxIndex(idx);
+                    }}
+                    className={`group relative overflow-hidden rounded-2xl cursor-pointer shadow-2xs border border-gray-100 hover:shadow-lg transition-all duration-300 ${
+                      idx === 0 ? "col-span-2 aspect-[16/9]" : "aspect-[4/5]"
+                    }`}
+                  >
+                    <img
+                      src={photoUrl}
+                      alt={`Ảnh cưới ${idx + 1}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        (e.target as HTMLElement).setAttribute(
+                          "src",
+                          "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop"
+                        );
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                      <span className="text-[11px] font-medium text-white flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                        <span>Xem ảnh lớn #{idx + 1}</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </AnimatedReveal>
         )}
 
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
@@ -1325,11 +1542,29 @@ export default function ShowInvitationPage() {
                 <ExternalLink className="w-3 h-3" />
               </Link>
               <Link
+                href={`/design-template/${card.id}`}
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-900 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-200/80 shadow-2xs"
+                title="Vào studio để sửa nội dung, dâu rể, VietQR và bản đồ sơ đồ"
+              >
+                <Settings className="w-3 h-3 text-amber-700" />
+                <span>Chỉnh sửa thiệp & Sơ đồ</span>
+              </Link>
+              <Link
                 href="/doi-tac-cuoi"
                 className="inline-flex items-center gap-1 text-xs font-bold text-rose-700 hover:text-zen-primary px-3.5 py-1.5 rounded-full bg-rose-50 border border-rose-200 shadow-2xs"
               >
                 <span>🎁 Ưu đãi đối tác cưới</span>
               </Link>
+              <button
+                type="button"
+                onClick={handleDownloadCardPng}
+                disabled={isExportingImage}
+                className="inline-flex items-center gap-1 text-xs font-bold text-purple-700 hover:text-purple-900 px-3.5 py-1.5 rounded-full bg-purple-50 border border-purple-200 shadow-2xs hover:scale-105 active:scale-95 transition-all cursor-pointer"
+                title="Tải ảnh thiệp cưới độ phân giải cao PNG (1080x1920) để lưu niệm hoặc gửi qua Zalo"
+              >
+                <Camera className="w-3.5 h-3.5 text-purple-600" />
+                <span>{isExportingImage ? "Đang tạo ảnh..." : "📸 Tải ảnh thiệp (HD PNG)"}</span>
+              </button>
             </div>
           </div>
         </AnimatedReveal>
@@ -1392,6 +1627,20 @@ export default function ShowInvitationPage() {
             <Navigation className="w-4 h-4 text-blue-600" />
             <span className="text-[10px] font-bold mt-0.5">Chỉ đường</span>
           </a>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (sfxEnabled) weddingSounds.playSoftClick();
+              handleDownloadCardPng();
+            }}
+            disabled={isExportingImage}
+            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-purple-700 hover:bg-purple-50/60 transition-colors cursor-pointer"
+            title="Tải ảnh thiệp cưới HD gửi Zalo"
+          >
+            <Camera className="w-4 h-4 text-purple-600" />
+            <span className="text-[10px] font-bold mt-0.5">{isExportingImage ? "Đang tải" : "Tải ảnh"}</span>
+          </button>
 
           <button
             type="button"
@@ -1647,6 +1896,74 @@ export default function ShowInvitationPage() {
                 <span>Tải QR in thiệp (HD)</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= PHOTO GALLERY LIGHTBOX MODAL ================= */}
+      {lightboxIndex !== null && (
+        <div
+          className="fixed inset-0 z-[99999] bg-black/90 backdrop-blur-md flex items-center justify-center p-3 animate-fade-in"
+          onClick={() => setLightboxIndex(null)}
+        >
+          <div
+            className="relative max-w-2xl w-full max-h-[90vh] flex flex-col items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              onClick={() => setLightboxIndex(null)}
+              className="absolute -top-12 right-0 w-9 h-9 rounded-full bg-white/20 hover:bg-white/40 text-white flex items-center justify-center transition-colors cursor-pointer"
+              title="Đóng xem ảnh"
+            >
+              <CloseIcon className="w-5 h-5" />
+            </button>
+
+            {/* Photo Counter */}
+            <div className="absolute -top-10 left-0 text-xs font-semibold text-white/80 bg-black/40 px-3 py-1 rounded-full border border-white/20">
+              {lightboxIndex + 1} / {galleryPhotos.length}
+            </div>
+
+            {/* Main Lightbox Image */}
+            <img
+              src={galleryPhotos[lightboxIndex]}
+              alt={`Ảnh cưới phóng to ${lightboxIndex + 1}`}
+              className="max-h-[80vh] w-auto max-w-full rounded-2xl object-contain shadow-2xl border border-white/10 select-none animate-scale-up"
+            />
+
+            {/* Prev / Next navigation buttons */}
+            {galleryPhotos.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (sfxEnabled) weddingSounds.playSoftClick();
+                    setLightboxIndex((prev) =>
+                      prev === null || prev === 0 ? galleryPhotos.length - 1 : prev - 1
+                    );
+                  }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-xs transition-colors cursor-pointer border border-white/20 shadow-lg"
+                  title="Ảnh trước"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (sfxEnabled) weddingSounds.playSoftClick();
+                    setLightboxIndex((prev) =>
+                      prev === null || prev === galleryPhotos.length - 1 ? 0 : prev + 1
+                    );
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 hover:bg-black/70 text-white flex items-center justify-center backdrop-blur-xs transition-colors cursor-pointer border border-white/20 shadow-lg"
+                  title="Ảnh kế tiếp"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

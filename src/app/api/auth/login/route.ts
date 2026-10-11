@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordActivity } from "@/lib/activityService";
 
 export const dynamic = "force-dynamic";
 
@@ -53,6 +54,16 @@ export async function POST(request: NextRequest) {
       accessToken: data.access_token,
       createdAt: user.created_at || new Date().toISOString(),
     };
+
+    recordActivity({
+      type: "user_login",
+      title: "Người dùng đăng nhập",
+      actorName: userProfile.name,
+      actorEmail: userProfile.email,
+      actorType: "user",
+      details: "Đăng nhập thành công bằng Email/Mật khẩu",
+      metadata: { userId: userProfile.id, provider: "email" },
+    });
 
     return NextResponse.json({
       success: true,

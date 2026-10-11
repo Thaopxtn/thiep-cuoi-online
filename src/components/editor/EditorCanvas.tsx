@@ -1303,7 +1303,7 @@ export default function EditorCanvas({
       </div>
 
       {/* ================= FIXED BOTTOM-LEFT: THAY ẢNH NHANH TOÀN BỘ TEMPLATE ================= */}
-      {!isQuickPanelCollapsed ? (
+      {photoSlots.length > 0 && !isQuickPanelCollapsed ? (
         <div
           className={`fixed bottom-5 z-40 max-w-[calc(100vw-120px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
             isLeftDrawerOpen ? "left-4 sm:left-[395px]" : "left-16 sm:left-24"
@@ -1552,7 +1552,7 @@ export default function EditorCanvas({
             onChange={handleBatchFileChange}
           />
         </div>
-      ) : (
+      ) : photoSlots.length > 0 ? (
         /* Trạng thái thu nhỏ gọn gàng */
         <div
           className={`fixed bottom-5 z-40 pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
@@ -1579,7 +1579,7 @@ export default function EditorCanvas({
             <ChevronUp className="w-3.5 h-3.5 text-gray-400" />
           </button>
         </div>
-      )}
+      ) : null}
 
       {/* ================= FLOATING BOTTOM-RIGHT: AI COLOR (Fixed on screen) ================= */}
       <div className="fixed bottom-5 right-6 z-40 pointer-events-auto">

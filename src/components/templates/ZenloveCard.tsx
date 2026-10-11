@@ -1,9 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import Image from "next/image";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Heart, Eye, Sparkles } from "lucide-react";
+import { Heart, Eye, Sparkles, ExternalLink } from "lucide-react";
 import { ZenLoveTemplate } from "@/data/zenloveTemplates";
 
 interface ZenloveCardProps {
@@ -23,7 +22,10 @@ export default function ZenloveCard({
 }: ZenloveCardProps) {
   const [likes, setLikes] = useState(template.likeCount || 0);
   const [liked, setLiked] = useState(isLiked);
-  const [imageLoaded, setImageLoaded] = useState(false);
+
+  useEffect(() => {
+    setLiked(isLiked);
+  }, [isLiked]);
 
   const handleLike = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -46,8 +48,13 @@ export default function ZenloveCard({
       >
         {/* Aspect Ratio 1000/1470 container */}
         <div className="relative w-full overflow-hidden bg-gray-50 [aspect-ratio:1000/1470]">
-          {/* Top-left Badges */}
+          {/* Top-left Badges: Mã mẫu số thứ tự & Phân loại */}
           <div className="absolute top-2 left-2 z-10 flex flex-col gap-1 transition-all duration-200 group-hover/template-item-v3:-translate-y-8 group-hover/template-item-v3:opacity-0 pointer-events-none">
+            {template.displayCode && (
+              <span className="rounded-lg px-2 py-0.5 text-[10px] font-extrabold tracking-wider shadow-sm backdrop-blur-md bg-stone-900/85 text-amber-300 border border-amber-300/30 flex items-center gap-1">
+                {template.displayCode}
+              </span>
+            )}
             {isForm && (
               <span className="rounded-lg px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm backdrop-blur-md bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
                 Biểu mẫu
@@ -83,19 +90,28 @@ export default function ZenloveCard({
           </div>
 
           {/* Hover Overlay with Action Buttons */}
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent opacity-0 transition-opacity duration-300 group-hover/template-item-v3:opacity-100">
-            {/* Center-bottom 'Xem mẫu' button */}
-            <div className="absolute inset-x-0 bottom-4 flex justify-center pointer-events-auto px-3">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 transition-opacity duration-300 group-hover/template-item-v3:opacity-100">
+            {/* Center-bottom Action Buttons */}
+            <div className="absolute inset-x-0 bottom-3.5 flex flex-col items-center gap-1.5 pointer-events-auto px-2.5">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onPreview(template);
                 }}
-                className="w-full max-w-[130px] rounded-full bg-zen-primary hover:bg-[#d93849] py-2 text-xs font-bold text-white shadow-lg shadow-zen-primary/40 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5"
+                className="w-full rounded-full bg-zen-primary hover:bg-[#d93849] py-2 text-xs font-bold text-white shadow-lg shadow-zen-primary/40 transition-all duration-200 hover:scale-105 flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>Xem mẫu</span>
               </button>
+
+              <Link
+                href={`/templates/${template.slug || template.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full rounded-full bg-white/90 hover:bg-white py-1.5 text-[11px] font-bold text-gray-800 transition-all hover:scale-105 flex items-center justify-center gap-1 shadow-sm"
+              >
+                <span>Chi tiết</span>
+                <ExternalLink className="w-3 h-3 text-gray-500" />
+              </Link>
             </div>
 
             {/* Top-Right Badges: Likes & Views */}
@@ -103,7 +119,7 @@ export default function ZenloveCard({
               <button
                 type="button"
                 onClick={handleLike}
-                className={`rounded-full text-[11px] font-semibold flex items-center gap-1 px-2 py-0.5 shadow-sm transition-all hover:scale-110 ${
+                className={`rounded-full text-[11px] font-semibold flex items-center gap-1 px-2 py-0.5 shadow-sm transition-all hover:scale-110 cursor-pointer ${
                   liked
                     ? "bg-rose-600 text-white"
                     : "bg-[#ff4d6d]/90 text-white hover:bg-rose-600"
@@ -128,9 +144,16 @@ export default function ZenloveCard({
         {/* Card Footer: Title & Category */}
         <div className="w-full px-2.5 py-2.5 text-left bg-white border-t border-gray-50 flex items-center justify-between gap-1">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-gray-900 text-xs sm:text-[13px] truncate group-hover/template-item-v3:text-zen-primary transition-colors">
-              {template.name}
-            </h3>
+            <div className="flex items-center gap-1.5 truncate">
+              {template.displayCode && (
+                <span className="text-[10px] font-bold text-zen-primary bg-rose-50 border border-rose-200/60 rounded px-1.5 py-0.5 shrink-0">
+                  {template.displayCode}
+                </span>
+              )}
+              <h3 className="font-semibold text-gray-900 text-xs sm:text-[13px] truncate group-hover/template-item-v3:text-zen-primary transition-colors">
+                {template.name}
+              </h3>
+            </div>
             <p className="text-[11px] text-gray-400 truncate mt-0.5">
               {template.categoryName || "Thiệp cưới"}
             </p>

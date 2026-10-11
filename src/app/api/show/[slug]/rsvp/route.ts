@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardByIdOrSlugFromDb, createRsvpInDb, getRsvpsFromDb, upsertCardToDb } from "@/lib/serverDb";
 import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
+import { recordActivity } from "@/lib/activityService";
 
 export const dynamic = "force-dynamic";
 
@@ -132,6 +133,30 @@ export async function POST(request: NextRequest, { params }: Params) {
         { success: false, message: "Không thể lưu phản hồi RSVP vào hệ thống" },
         { status: 500 }
       );
+    }
+
+    // Ghi nhận sự kiện hoạt động của khách mời
+    try {
+      recordActivity({
+        type: "rsvp_submit",
+        title: savedRsvp.attending !== false ? "Khách gửi xác nhận tham dự" : "Khách thông báo vắng mặt",
+        actorName: savedRsvp.name,
+        actorType: "guest",
+        targetName: card.name,
+        targetId: card.id,
+        targetSlug: card.slug,
+        details: savedRsvp.attending !== false
+          ? `Số lượng: ${savedRsvp.guests || 1} người • SĐT: ${savedRsvp.phone}${savedRsvp.note ? ` • Ghi chú: "${savedRsvp.note}"` : ""}`
+          : `Không thể tham gia • SĐT: ${savedRsvp.phone}${savedRsvp.note ? ` • Lý do: "${savedRsvp.note}"` : ""}`,
+        metadata: {
+          phone: savedRsvp.phone,
+          attending: savedRsvp.attending,
+          guests: savedRsvp.guests,
+          cardId: card.id,
+        },
+      });
+    } catch (e) {
+      console.warn("Không thể ghi log activity RSVP:", e);
     }
 
     return NextResponse.json({

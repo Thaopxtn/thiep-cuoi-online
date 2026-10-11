@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
 // @ts-ignore
 import lzutf8 from "lzutf8";
 
@@ -16,7 +16,7 @@ interface Params {
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = params;
   try {
-    const template = ZENLOVE_TEMPLATES.find((t) => t.id === id || t.slug === id);
+    const template = findZenloveTemplate(id);
     if (!template) {
       return NextResponse.json(
         { success: false, message: "Không tìm thấy mẫu thiệp" },

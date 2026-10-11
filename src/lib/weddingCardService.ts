@@ -2,6 +2,9 @@
 
 import hongPhongNodes from "@/data/templates/hong-phong-nodes.json";
 import { convertFormTemplateToCanvasNodes } from "./templateFormAdapter";
+import { findZenloveTemplate } from "@/data/zenloveTemplates";
+import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
+import { extractWeddingDetailsFromTemplate } from "./templateExtractor";
 
 import {
   type WeddingEvent,
@@ -303,6 +306,56 @@ export function addRsvp(cardId: string, rsvp: Omit<WeddingRsvp, "id" | "cardId" 
   return newRsvp;
 }
 
+export function deleteRsvp(cardId: string, rsvpId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const storageKey = getCardsStorageKey();
+    const cards = getAllCards();
+    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
+    if (card && card.rsvps) {
+      card.rsvps = card.rsvps.filter((r) => r.id !== rsvpId);
+      const existingIndex = cards.findIndex((c) => c.id === card.id);
+      cards[existingIndex] = card;
+      localStorage.setItem(storageKey, JSON.stringify(cards));
+      saveCard(card);
+    }
+  } catch (e) {
+    console.error("deleteRsvp error:", e);
+  }
+}
+
+export function updateRsvpStatus(
+  cardId: string,
+  rsvpId: string,
+  attending: boolean,
+  guests?: number
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    const storageKey = getCardsStorageKey();
+    const cards = getAllCards();
+    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
+    if (card && card.rsvps) {
+      card.rsvps = card.rsvps.map((r) => {
+        if (r.id === rsvpId) {
+          return {
+            ...r,
+            attending,
+            guests: attending ? (guests ?? r.guests ?? 1) : 0,
+          };
+        }
+        return r;
+      });
+      const existingIndex = cards.findIndex((c) => c.id === card.id);
+      cards[existingIndex] = card;
+      localStorage.setItem(storageKey, JSON.stringify(cards));
+      saveCard(card);
+    }
+  } catch (e) {
+    console.error("updateRsvpStatus error:", e);
+  }
+}
+
 export function addWish(cardId: string, name: string, content: string): WeddingWish {
   const newWish: WeddingWish = {
     id: `wish_${Date.now()}`,
@@ -345,6 +398,10 @@ export async function cloneTemplateToNewCard(
   userId?: string
 ): Promise<WeddingCard> {
   const currentUid = userId || getCurrentUserId();
+  if (!currentUid) {
+    throw new Error("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới mới.");
+  }
+
   // 1. Thử gọi API server clone
   try {
     const res = await fetch("/api/cards/clone", {
@@ -394,40 +451,62 @@ export async function cloneTemplateToNewCard(
     }
   } catch {}
 
-  const cleanSlug = templateIdOrSlug
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
+  const meta = findZenloveTemplate(templateIdOrSlug);
+  const templateCode = meta?.code || (meta?.orderNumber ? `mau${String(meta.orderNumber).padStart(2, "0")}` : "mau01");
+
+  // Trích xuất thông tin thực tế từ template nodes và metadata
+  const extracted = extractWeddingDetailsFromTemplate(parsedNodes, meta);
+
+  const groomName = customGroom || extracted.groomName || "Tiến Đạt";
+  const brideName = customBride || extracted.brideName || "Ngọc Nhi";
+  const weddingDate = extracted.weddingDate || "2026-11-18";
+  const weddingTime = extracted.weddingTime || "11:00";
+  const lunarDate = extracted.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ";
+  const venueAddress = extracted.venueAddress || "125 Đường Nguyễn Thị Minh Khai, P. Bến Thành, TP HCM";
+  const venueName = extracted.venueName || "Tư gia Nhà Trai";
+  coverImage = meta?.imageUrl || extracted.coverImage || coverImage || "https://cdn-resource.zenlove.me/uploads/862861ad-96f7-4738-b17f-56ad4f5c1e28/QkFhLVRoQW4tVGlhbl8xNzg5OTE0NzgyOTM4X3hodWtzYWpiZzE.jpg";
+  const musicTitle = extracted.musicTitle || "Beautiful In White";
+  const musicUrl = extracted.musicUrl || "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3";
+
+  const newSlug = generateBrandedWeddingSlug({
+    userName: (getCurrentAuth() as any).user?.name,
+    groomName,
+    brideName,
+    websiteName: "zenlove",
+    templateCode,
+    includeUniqueSuffix: true,
+  });
   const newCardId = `card_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-  const newSlug = `${cleanSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
 
   const newCard: WeddingCard = {
     id: newCardId,
     slug: newSlug,
-    name: `Thiệp Cưới ${templateName} - ${customGroom || "Đức Mạnh"} & ${customBride || "Thùy Dung"}`,
+    name: `Thiệp Cưới ${templateName} - ${groomName} & ${brideName}`,
     templateId: templateIdOrSlug,
     templateName,
     status: "published",
     updatedAt: new Date().toLocaleDateString("vi-VN"),
     views: 1,
-    coverImage: coverImage || "https://cdn-resource.zenlove.me/uploads/862861ad-96f7-4738-b17f-56ad4f5c1e28/QkFhLVRoQW4tVGlhbl8xNzg5OTE0NzgyOTM4X3hodWtzYWpiZzE.jpg",
-    story: "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
-    weddingDate: "2026-11-18",
-    weddingTime: "11:00",
-    lunarDate: "Ngày 10 tháng 10 năm Bính Ngọ",
+    coverImage,
+    story:
+      extracted.story ||
+      "Hẹn nhau trong ngày hạnh phúc. Một ngày đặc biệt, một lời hẹn trăm năm và thật nhiều yêu thương.",
+    weddingDate,
+    weddingTime,
+    lunarDate,
     groom: {
-      name: customGroom || "Đức Mạnh",
+      name: groomName,
       title: "Chú Rể",
       phone: "0912.345.678",
-      parents: "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
+      parents: extracted.parentsGroom || "Ông Nguyễn Văn Hùng & Bà Trần Thị Lan",
       bankName: "MB BANK",
       accountNumber: "240220038888",
     },
     bride: {
-      name: customBride || "Thùy Dung",
+      name: brideName,
       title: "Cô Dâu",
       phone: "0987.654.321",
-      parents: "Ông Lê Văn Thành & Bà Vũ Thị Mai",
+      parents: extracted.parentsBride || "Ông Lê Văn Thành & Bà Vũ Thị Mai",
       bankName: "TECHCOMBANK",
       accountNumber: "190365824988",
     },
@@ -435,31 +514,31 @@ export async function cloneTemplateToNewCard(
       {
         id: "evt-1",
         title: "Lễ Vu Quy (Nhà Gái)",
-        time: "08:30 • 18/11/2026",
+        time: `08:30 • ${weddingDate.split("-").reverse().join("/")}`,
         venue: "Tư gia Nhà Gái",
-        address: "Số 45 Tràng Tiền, Hoàn Kiếm, Hà Nội",
-        mapUrl: "https://maps.google.com/?q=Trang+Tien+Hanoi",
+        address: venueAddress,
+        mapUrl: `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`,
       },
       {
         id: "evt-2",
         title: "Lễ Thành Hôn (Nhà Trai)",
-        time: "10:00 • 18/11/2026",
-        venue: "Tư gia Nhà Trai",
-        address: "Số 88 Hoàng Hoa Thám, Ba Đình, Hà Nội",
-        mapUrl: "https://maps.google.com/?q=Hoang+Hoa+Tham+Hanoi",
+        time: `${weddingTime} • ${weddingDate.split("-").reverse().join("/")}`,
+        venue: venueName,
+        address: venueAddress,
+        mapUrl: `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`,
       },
       {
         id: "evt-3",
         title: "Tiệc Cưới Chung Vui",
-        time: "11:30 • 18/11/2026",
-        venue: "Trung tâm Tiệc cưới Trống Đồng Palace",
-        address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
-        mapUrl: "https://maps.google.com/?q=Trong+Dong+Palace",
+        time: `17:30 • ${weddingDate.split("-").reverse().join("/")}`,
+        venue: "Trung tâm Tiệc cưới",
+        address: venueAddress,
+        mapUrl: `https://maps.google.com/?q=${encodeURIComponent(venueAddress)}`,
       },
     ],
-    album: [coverImage].filter(Boolean),
-    musicTitle: "Beautiful In White",
-    musicUrl: "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+    album: extracted.album.length > 0 ? extracted.album : [coverImage].filter(Boolean),
+    musicTitle,
+    musicUrl,
     rsvps: [],
     wishes: [],
     nodes: parsedNodes,
@@ -467,6 +546,33 @@ export async function cloneTemplateToNewCard(
 
   saveCard(newCard);
   return newCard;
+}
+
+/**
+ * Chuẩn hóa và phân giải timestamp từ các định dạng ngày cưới (ISO YYYY-MM-DD, Việt Nam DD/MM/YYYY, v.v.)
+ * Trả về milliseconds hoặc NaN nếu không thể parse
+ */
+export function parseWeddingTimestamp(dateStr?: string, timeStr?: string): number {
+  if (!dateStr) return NaN;
+  const cleanDate = dateStr.trim();
+  const cleanTime = (timeStr || "11:00").trim().substring(0, 5);
+
+  // 1. Nếu là định dạng Việt Nam DD/MM/YYYY hoặc DD-MM-YYYY
+  const vnMatch = cleanDate.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (vnMatch) {
+    const [, d, m, y] = vnMatch;
+    const isoStr = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${cleanTime}:00`;
+    const parsed = new Date(isoStr).getTime();
+    if (!isNaN(parsed)) return parsed;
+  }
+
+  // 2. Định dạng chuẩn ISO YYYY-MM-DD
+  const direct = new Date(`${cleanDate}T${cleanTime}:00`).getTime();
+  if (!isNaN(direct)) return direct;
+
+  // 3. Fallback parse trực tiếp dateStr
+  const fallback = new Date(cleanDate).getTime();
+  return isNaN(fallback) ? NaN : fallback;
 }
 
 

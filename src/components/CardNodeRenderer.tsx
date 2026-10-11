@@ -35,6 +35,8 @@ export default function CardNodeRenderer({
   const [scale, setScale] = useState(1);
   const [rsvpSent, setRsvpSent] = useState(false);
   const [rsvpName, setRsvpName] = useState("");
+  const [rsvpPhone, setRsvpPhone] = useState("");
+  const [rsvpGuests, setRsvpGuests] = useState(1);
   const [rsvpAttending, setRsvpAttending] = useState(true);
 
   const rootNode = nodes["ROOT"] || {};
@@ -97,7 +99,7 @@ export default function CardNodeRenderer({
   return (
     <div
       ref={containerRef}
-      className="w-full flex justify-center overflow-hidden pb-12"
+      className="w-full flex justify-center overflow-hidden"
       style={{
         height: `${effectiveBaseHeight * scale}px`,
       }}
@@ -414,10 +416,15 @@ export default function CardNodeRenderer({
                         weddingSounds.playCelebration();
                         setRsvpSent(true);
                         if (onRsvpSuccess) {
-                          onRsvpSuccess({ name: rsvpName, attending: rsvpAttending });
+                          onRsvpSuccess({
+                            name: rsvpName.trim(),
+                            phone: rsvpPhone.trim() || "0900.000.000",
+                            attending: rsvpAttending,
+                            guests: rsvpAttending ? rsvpGuests : 0,
+                          });
                         }
                       }}
-                      className="space-y-2.5"
+                      className="space-y-2"
                     >
                       <h4 className="font-bold text-sm text-[#511419] font-serif">
                         {props.titleText || "Xác nhận tham dự"}
@@ -430,6 +437,25 @@ export default function CardNodeRenderer({
                         onChange={(e) => setRsvpName(e.target.value)}
                         className="w-full p-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-zen-primary"
                       />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          type="tel"
+                          placeholder="Số điện thoại..."
+                          value={rsvpPhone}
+                          onChange={(e) => setRsvpPhone(e.target.value)}
+                          className="w-full p-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-zen-primary"
+                        />
+                        <select
+                          value={rsvpGuests}
+                          onChange={(e) => setRsvpGuests(Number(e.target.value))}
+                          className="w-full p-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-zen-primary bg-white text-gray-700"
+                        >
+                          <option value={1}>1 người tham dự</option>
+                          <option value={2}>2 người (+1 người thân)</option>
+                          <option value={3}>3 người (+2 người thân)</option>
+                          <option value={4}>4 người (Gia đình)</option>
+                        </select>
+                      </div>
                       <div className="flex gap-2">
                         <button
                           type="button"

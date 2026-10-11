@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 // @ts-ignore
 import lzutf8 from "lzutf8";
-import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
 import hongPhongNodes from "@/data/templates/hong-phong-nodes.json";
 
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
@@ -14,12 +14,10 @@ export async function GET(
 ) {
   const { id } = params;
 
-  // 1. Kiểm tra trong bộ nhớ cache cục bộ (cloned-cache) đã tải sẵn từ trước (tra cứu theo cả ID và Slug)
+  // 1. Kiểm tra trong bộ nhớ cache cục bộ (cloned-cache) đã tải sẵn từ trước (tra cứu theo cả ID, Slug, hoặc mã mẫu)
   try {
     const cacheDir = path.join(process.cwd(), "src", "data", "templates", "cloned-cache");
-    const localTemplateMeta = ZENLOVE_TEMPLATES.find(
-      (t) => t.id === id || t.slug === id
-    );
+    const localTemplateMeta = findZenloveTemplate(id);
     const candidateFiles = [
       path.join(cacheDir, `${id}.json`),
       localTemplateMeta ? path.join(cacheDir, `${localTemplateMeta.id}.json`) : null,
@@ -138,9 +136,7 @@ export async function GET(
   }
 
   // 2. Chế độ Độc Lập (Self-Hosted Fallback): Tự phục vụ từ kho 207+ templates nội bộ
-  const localTemplate = ZENLOVE_TEMPLATES.find(
-    (t) => t.id === id || t.slug === id
-  );
+  const localTemplate = findZenloveTemplate(id);
 
   // Nếu là mẫu Hồng Phong (flagship của ZenLove): sử dụng ngay blueprint gốc 65 nodes
   if (id === "8c5055d8-30db-4b38-8831-e11063e3d352" || id === "hong-phong" || localTemplate?.slug === "hong-phong") {

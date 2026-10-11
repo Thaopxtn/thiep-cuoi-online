@@ -43,6 +43,7 @@ import {
 } from "@/lib/templateStorage";
 import { isFavorite, toggleFavorite, FAVORITES_EVENT_CHANGE } from "@/lib/storage/favorites";
 import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
+import { useAuth } from "@/context/AuthContext";
 
 interface TemplateDetailClientProps {
   initialTemplate?: TemplateItem;
@@ -54,6 +55,7 @@ export default function TemplateDetailClient({
   slug,
 }: TemplateDetailClientProps) {
   const router = useRouter();
+  const { isLoggedIn, openLoginModal } = useAuth();
 
   const [template, setTemplate] = useState<TemplateItem | null>(
     initialTemplate || null
@@ -116,6 +118,13 @@ export default function TemplateDetailClient({
 
   const handleUseAndDesign = async () => {
     if (!template) return;
+    if (!isLoggedIn) {
+      openLoginModal("Vui lòng đăng nhập để bắt đầu tạo và thiết kế thiệp cưới", {
+        type: "clone_template",
+        templateId: template.slug || template.id,
+      });
+      return;
+    }
     setIsCloning(true);
     try {
       const card = await cloneTemplateToNewCard(template.slug || template.id);
@@ -125,8 +134,25 @@ export default function TemplateDetailClient({
     }
   };
 
+  const handleOpenStudio = (e: React.MouseEvent) => {
+    if (!isLoggedIn) {
+      e.preventDefault();
+      openLoginModal("Vui lòng đăng nhập để mở Studio thiết kế", {
+        type: "clone_template",
+        templateId: template?.slug || template?.id || "",
+      });
+    }
+  };
+
   const handleDuplicateToWarehouse = () => {
     if (!template) return;
+    if (!isLoggedIn) {
+      openLoginModal("Vui lòng đăng nhập để nhân bản mẫu thiệp vào kho của bạn", {
+        type: "clone_template",
+        templateId: template.slug || template.id,
+      });
+      return;
+    }
     const cloned = duplicateTemplate(template);
     alert(`Đã nhân bản mẫu "${template.title}" vào kho của bạn! 🎉`);
     router.push(`/templates`);
@@ -473,6 +499,7 @@ export default function TemplateDetailClient({
 
                 <Link
                   href={`/design-template/${template.id}`}
+                  onClick={handleOpenStudio}
                   className="py-3 px-5 rounded-full bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs sm:text-sm transition-all hover:scale-[1.02] active:scale-95 flex items-center gap-2"
                   title="Mở trong Studio tạo mẫu để tùy biến kéo thả Canvas"
                 >

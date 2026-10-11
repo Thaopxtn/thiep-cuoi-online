@@ -23,6 +23,7 @@ import FloatingSupport from "@/components/FloatingSupport";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
+import { useAuth } from "@/context/AuthContext";
 
 interface StepItem {
   number: number;
@@ -128,16 +129,25 @@ const FAQ_ITEMS = [
 
 export default function TaoThiepCuoiOnlinePage() {
   const router = useRouter();
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [videoOpen, setVideoOpen] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<ZenLoveTemplate | null>(null);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
   const handleUseTemplate = async (templateId: string) => {
+    if (!isLoggedIn) {
+      setPreviewTemplate(null);
+      openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp với mẫu này", {
+        type: "clone_template",
+        templateId,
+      });
+      return;
+    }
     try {
       const card = await cloneTemplateToNewCard(templateId);
-      router.push(`/dashboard/cards/${card.id}/edit`);
+      router.push(`/design-template/${card.id}?clonedFrom=${templateId}`);
     } catch {
-      router.push(`/dashboard/cards/new?template=${templateId}`);
+      router.push(`/design-template/${templateId}`);
     }
   };
 

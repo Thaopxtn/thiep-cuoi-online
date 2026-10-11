@@ -12,18 +12,29 @@ export interface UserProfile {
   createdAt: string;
 }
 
+export interface PendingIntent {
+  type: "clone_template" | "open_editor";
+  templateId: string;
+  customGroom?: string;
+  customBride?: string;
+  targetUrl?: string;
+}
+
 interface AuthContextType {
   user: UserProfile | null;
   isLoggedIn: boolean;
   loginWithGoogle: () => void;
-  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; message?: string }>;
-  registerWithEmail: (name: string, email: string, password: string) => Promise<{ success: boolean; message?: string }>;
+  loginWithEmail: (email: string, password: string) => Promise<{ success: boolean; message?: string; user?: UserProfile }>;
+  registerWithEmail: (name: string, email: string, password: string) => Promise<{ success: boolean; message?: string; user?: UserProfile }>;
   updatePassword: (newPassword: string) => Promise<{ success: boolean; message?: string }>;
   updateProfile: (name: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   isLoginModalOpen: boolean;
-  openLoginModal: () => void;
+  loginModalMessage: string | null;
+  pendingIntent: PendingIntent | null;
+  openLoginModal: (message?: string | unknown, intent?: PendingIntent) => void;
   closeLoginModal: () => void;
+  clearPendingIntent: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -36,15 +47,21 @@ const AuthContext = createContext<AuthContextType>({
   updateProfile: async () => ({ success: false }),
   logout: () => {},
   isLoginModalOpen: false,
+  loginModalMessage: null,
+  pendingIntent: null,
   openLoginModal: () => {},
   closeLoginModal: () => {},
+  clearPendingIntent: () => {},
 });
 
 const STORAGE_KEY = "zenlove_auth_user";
+const PENDING_INTENT_KEY = "zenlove_pending_intent";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginModalMessage, setLoginModalMessage] = useState<string | null>(null);
+  const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -53,6 +70,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         setUser(JSON.parse(stored));
+      }
+      const storedIntent = sessionStorage.getItem(PENDING_INTENT_KEY);
+      if (storedIntent) {
+        setPendingIntent(JSON.parse(storedIntent));
       }
     } catch (e) {
       console.error("Failed to restore user session:", e);
@@ -77,7 +98,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
         setIsLoginModalOpen(false);
-        return { success: true, message: data.message };
+        setLoginModalMessage(null);
+        return { success: true, message: data.message, user: data.user };
       }
       return { success: false, message: data.message || "Đăng nhập thất bại" };
     } catch (err: any) {
@@ -97,7 +119,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(data.user);
         localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
         setIsLoginModalOpen(false);
-        return { success: true, message: data.message };
+        setLoginModalMessage(null);
+        return { success: true, message: data.message, user: data.user };
       }
       return { success: false, message: data.message || "Đăng ký thất bại" };
     } catch (err: any) {
@@ -147,9 +170,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const openLoginModal = (message?: string | unknown, intent?: PendingIntent) => {
+    if (typeof message === "string") {
+      setLoginModalMessage(message);
+    } else {
+      setLoginModalMessage(null);
+    }
+    if (intent) {
+      setPendingIntent(intent);
+      try {
+        sessionStorage.setItem(PENDING_INTENT_KEY, JSON.stringify(intent));
+      } catch (e) {}
+    }
+    setIsLoginModalOpen(true);
+  };
+
+  const closeLoginModal = () => {
+    setIsLoginModalOpen(false);
+    setLoginModalMessage(null);
+  };
+
+  const clearPendingIntent = () => {
+    setPendingIntent(null);
+    try {
+      sessionStorage.removeItem(PENDING_INTENT_KEY);
+    } catch (e) {}
+  };
+
   const logout = () => {
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    clearPendingIntent();
     if (typeof window !== "undefined") {
       window.location.href = "/";
     }
@@ -167,8 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateProfile,
         logout,
         isLoginModalOpen,
-        openLoginModal: () => setIsLoginModalOpen(true),
-        closeLoginModal: () => setIsLoginModalOpen(false),
+        loginModalMessage,
+        pendingIntent,
+        openLoginModal,
+        closeLoginModal,
+        clearPendingIntent,
       }}
     >
       {children}

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -13,6 +13,8 @@ import {
   ChevronDown,
   ArrowUpDown,
   Filter,
+  Heart,
+  Palette,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -26,11 +28,23 @@ import {
   ZenLoveTemplate,
 } from "@/data/zenloveTemplates";
 import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
+import { useAuth } from "@/context/AuthContext";
+import {
+  getFavoriteIds,
+  toggleFavorite,
+  FAVORITES_EVENT_CHANGE,
+} from "@/lib/storage/favorites";
+import {
+  COLOR_TONE_OPTIONS,
+  ColorTone,
+  detectColorTone,
+} from "@/lib/templateUnifiedService";
 
 const ITEMS_PER_PAGE = 24;
 
 function TemplatesPageContent() {
   const router = useRouter();
+  const { isLoggedIn, openLoginModal } = useAuth();
 
   // State
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -39,12 +53,27 @@ function TemplatesPageContent() {
   const [sortBy, setSortBy] = useState<"latest" | "views" | "likes">("latest");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [visibleCount, setVisibleCount] = useState<number>(ITEMS_PER_PAGE);
+  const [colorToneFilter, setColorToneFilter] = useState<ColorTone>("all");
+  const [showFavoritesOnly, setShowFavoritesOnly] = useState<boolean>(false);
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
   // Modals
   const [previewTemplate, setPreviewTemplate] = useState<ZenLoveTemplate | null>(null);
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+
+  // Sync favorites on mount and on storage events
+  useEffect(() => {
+    setFavoriteIds(getFavoriteIds());
+
+    const handleFavChange = () => {
+      setFavoriteIds(getFavoriteIds());
+    };
+
+    window.addEventListener(FAVORITES_EVENT_CHANGE, handleFavChange);
+    return () => window.removeEventListener(FAVORITES_EVENT_CHANGE, handleFavChange);
+  }, []);
 
   // Compute category item counts
   const categoryCounts = useMemo(() => {
@@ -58,9 +87,22 @@ function TemplatesPageContent() {
   // Filter and sort templates
   const filteredTemplates = useMemo(() => {
     return ZENLOVE_TEMPLATES.filter((tpl) => {
+      // Favorites filter
+      if (showFavoritesOnly && !favoriteIds.includes(tpl.id)) {
+        return false;
+      }
+
       // Category filter
       if (selectedCategory !== "all" && tpl.categorySlug !== selectedCategory) {
         return false;
+      }
+
+      // Color tone filter
+      if (colorToneFilter !== "all") {
+        const tone = detectColorTone(tpl.name, tpl.description, tpl.categoryName);
+        if (tone !== colorToneFilter) {
+          return false;
+        }
       }
 
       // Page type filter (CANVAS vs FORM)
@@ -73,14 +115,32 @@ function TemplatesPageContent() {
       if (tagFilter === "hot" && tpl.templateType !== "hot" && tpl.viewCount < 2000) return false;
       if (tagFilter === "new" && tpl.templateType !== "new") return false;
 
-      // Search query
+      // Search query (Hỗ trợ tìm kiếm theo Tên, Thể loại, Mô tả, và Mã số thứ tự Mẫu 01..Mẫu 207)
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const matchName = tpl.name.toLowerCase().includes(query);
         const matchCategory = tpl.categoryName.toLowerCase().includes(query);
         const matchSlug = tpl.slug.toLowerCase().includes(query);
         const matchDesc = tpl.description?.toLowerCase().includes(query);
-        if (!matchName && !matchCategory && !matchSlug && !matchDesc) {
+        const matchCode = tpl.code?.toLowerCase().includes(query);
+        const matchDisplayCode = tpl.displayCode?.toLowerCase().includes(query);
+        const matchOrderNumber =
+          tpl.orderNumber !== undefined &&
+          (String(tpl.orderNumber) === query ||
+            `0${tpl.orderNumber}` === query ||
+            `mẫu ${tpl.orderNumber}` === query ||
+            `mau ${tpl.orderNumber}` === query ||
+            `mau-${tpl.orderNumber}` === query);
+
+        if (
+          !matchName &&
+          !matchCategory &&
+          !matchSlug &&
+          !matchDesc &&
+          !matchCode &&
+          !matchDisplayCode &&
+          !matchOrderNumber
+        ) {
           return false;
         }
       }
@@ -96,7 +156,16 @@ function TemplatesPageContent() {
       // Latest: sort by createdAt or original order
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
-  }, [selectedCategory, pageTypeFilter, tagFilter, sortBy, searchQuery]);
+  }, [
+    selectedCategory,
+    pageTypeFilter,
+    tagFilter,
+    sortBy,
+    searchQuery,
+    colorToneFilter,
+    showFavoritesOnly,
+    favoriteIds,
+  ]);
 
   // Sliced templates for display
   const displayedTemplates = useMemo(() => {
@@ -104,6 +173,14 @@ function TemplatesPageContent() {
   }, [filteredTemplates, visibleCount]);
 
   const handleUseTemplate = async (templateId: string) => {
+    if (!isLoggedIn) {
+      setPreviewTemplate(null);
+      openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới với mẫu này", {
+        type: "clone_template",
+        templateId,
+      });
+      return;
+    }
     try {
       const newCard = await cloneTemplateToNewCard(templateId);
       setPreviewTemplate(null);
@@ -146,7 +223,6 @@ function TemplatesPageContent() {
 
         {/* Section Header with Decorative SVGs matching ZenLove */}
         <div className="relative text-center max-w-3xl mx-auto mb-8 sm:mb-10 px-4">
-          {/* Top-left wavy decoration SVG (#7569BB) */}
           <div className="absolute top-0 left-0 opacity-60 hidden md:block pointer-events-none">
             <svg width="68" height="12" fill="none" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -160,16 +236,6 @@ function TemplatesPageContent() {
             </svg>
           </div>
 
-          {/* Bottom-right sparkle decoration SVG (#FFAD4C) */}
-          <div className="absolute bottom-0 right-0 opacity-60 hidden md:block pointer-events-none">
-            <svg width="29" height="30" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path
-                d="M14.543 30c-1.131.029-2.054-.658-2.173-1.523-.09-.687-.09-1.388-.075-2.075.09-3-1.414-5.328-3.14-7.537-.76-.97-1.906-1.418-3.156-1.448-1.087-.03-2.188-.015-3.275-.03-.49-.015-.997-.015-1.473-.119-.64-.134-1.236-.88-1.25-1.508-.015-.656.327-1.194.893-1.417 1.473-.568 2.947-1.18 4.48-1.523 3.185-.716 4.837-2.925 5.865-5.76.223-.598.089-1.344.074-2.016-.03-1.283-.149-2.567-.104-3.85.015-.627.476-1.09 1.146-1.18.67-.089 1.19.24 1.429.821.387 1 .803 2.03.997 3.09.997 5.268 5.79 9.03 11.149 8.686.49-.03.982-.149 1.473-.119.61.03 1.176.298 1.43.91.297.702.208 1.418-.343 1.926a3.738 3.738 0 0 1-1.518.85c-4.079 1.075-6.803 3.94-9.318 7.03-.64.791-.79 2-1.131 3.03-.298.94-.447 1.94-.864 2.82-.193.448-.833.717-1.116.941Zm5.7-14.434c-1.339-.88-2.53-1.552-3.601-2.373-1.057-.82-2.01-1.79-3.052-2.746L9.81 14.85c1.89 1.18 2.962 2.836 3.989 4.537.283.463.7.836 1.146 1.358.967-1 1.786-1.85 2.634-2.686.849-.82 1.712-1.597 2.665-2.493Z"
-                fill="#FFAD4C"
-              />
-            </svg>
-          </div>
-
           <h1 className="page-title text-3xl sm:text-4xl md:text-5xl font-heading text-gray-900 tracking-tight leading-relaxed">
             <span>Mẫu thiệp</span>{" "}
             <span className="font-signature leading-relaxed text-gradient-mm text-4xl sm:text-5xl md:text-6xl inline-block px-1">
@@ -178,7 +244,7 @@ function TemplatesPageContent() {
           </h1>
 
           <p className="text-sm sm:text-base md:text-lg text-gray-600 leading-relaxed mt-3">
-            Khám phá bộ sưu tập mẫu thiệp điện tử đa dạng: cưới, sinh nhật, sự kiện, kỷ niệm từ ZenLove{" "}
+            Khám phá hơn 200+ mẫu thiệp điện tử đa dạng: cưới, sinh nhật, sự kiện, kỷ niệm từ ZenLove{" "}
             <span className="inline-block animate-bounce">✨</span>
           </p>
 
@@ -215,7 +281,7 @@ function TemplatesPageContent() {
               <button
                 type="button"
                 onClick={() => handleSelectCategory("all")}
-                className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all ${
+                className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                   selectedCategory === "all"
                     ? "border-zen-primary bg-zen-primary/10 text-zen-primary shadow-xs"
                     : "border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60"
@@ -232,7 +298,7 @@ function TemplatesPageContent() {
                     key={cat.id}
                     type="button"
                     onClick={() => handleSelectCategory(cat.idCat)}
-                    className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all ${
+                    className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
                       isSelected
                         ? "border-zen-primary bg-zen-primary/10 text-zen-primary shadow-xs"
                         : "border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60"
@@ -245,16 +311,34 @@ function TemplatesPageContent() {
               })}
             </div>
 
-            {/* Right Controls: Gợi ý + Segmented (Tất cả/Tự do/Biểu mẫu) + Phân loại + Sắp xếp */}
+            {/* Right Controls: Gợi ý + Favorites + Segmented + Phân loại + Sắp xếp */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
               {/* 'Gợi ý' Button */}
               <button
                 type="button"
                 onClick={() => setIsSuggestModalOpen(true)}
-                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-zen-primary bg-zen-primary px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white transition-all hover:bg-[#d93849] shadow-xs active:scale-95"
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-zen-primary bg-zen-primary px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white transition-all hover:bg-[#d93849] shadow-xs active:scale-95 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-amber-300" />
                 <span>Gợi ý</span>
+              </button>
+
+              {/* Favorites Tab Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFavoritesOnly(!showFavoritesOnly);
+                  setVisibleCount(ITEMS_PER_PAGE);
+                }}
+                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                  showFavoritesOnly
+                    ? "border-rose-500 bg-rose-50 text-rose-600 shadow-xs"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-rose-300 hover:text-rose-600"
+                }`}
+                title="Xem danh sách mẫu bạn đã bấm tim yêu thích"
+              >
+                <Heart className={`w-3.5 h-3.5 ${showFavoritesOnly ? "fill-current" : ""}`} />
+                <span>Đã thích ({favoriteIds.length})</span>
               </button>
 
               {/* Segmented Control: Tất cả | Tự do | Biểu mẫu */}
@@ -275,7 +359,7 @@ function TemplatesPageContent() {
                       setPageTypeFilter(item.id as any);
                       setVisibleCount(ITEMS_PER_PAGE);
                     }}
-                    className={`px-3 py-1 rounded-full transition-all ${
+                    className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
                       pageTypeFilter === item.id
                         ? "bg-white text-gray-900 shadow-xs font-bold"
                         : "text-gray-500 hover:text-gray-900"
@@ -294,7 +378,7 @@ function TemplatesPageContent() {
                     setIsTagDropdownOpen(!isTagDropdownOpen);
                     setIsSortDropdownOpen(false);
                   }}
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-medium border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60 transition-colors"
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-medium border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60 transition-colors cursor-pointer"
                 >
                   <Filter className="w-3.5 h-3.5" />
                   <span>
@@ -327,7 +411,7 @@ function TemplatesPageContent() {
                           setTagFilter(item.id);
                           setVisibleCount(ITEMS_PER_PAGE);
                         }}
-                        className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors ${
+                        className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors cursor-pointer ${
                           tagFilter === item.id
                             ? "bg-rose-50 text-zen-primary font-bold"
                             : "text-gray-700 hover:bg-gray-50"
@@ -348,7 +432,7 @@ function TemplatesPageContent() {
                     setIsSortDropdownOpen(!isSortDropdownOpen);
                     setIsTagDropdownOpen(false);
                   }}
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-medium border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60 transition-colors"
+                  className="flex items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-medium border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60 transition-colors cursor-pointer"
                 >
                   <ArrowUpDown className="w-3.5 h-3.5" />
                   <span>
@@ -378,7 +462,7 @@ function TemplatesPageContent() {
                           setSortBy(item.id as any);
                           setVisibleCount(ITEMS_PER_PAGE);
                         }}
-                        className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors ${
+                        className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors cursor-pointer ${
                           sortBy === item.id
                             ? "bg-rose-50 text-zen-primary font-bold"
                             : "text-gray-700 hover:bg-gray-50"
@@ -391,6 +475,40 @@ function TemplatesPageContent() {
                 )}
               </div>
             </div>
+          </div>
+
+          {/* Color Tone Palette Filter Bar */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-y border-gray-100">
+            <div className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase tracking-wider pr-2 shrink-0">
+              <Palette className="w-3.5 h-3.5 text-rose-500" />
+              <span>Tone màu:</span>
+            </div>
+            {COLOR_TONE_OPTIONS.map((c) => {
+              const active = colorToneFilter === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setColorToneFilter(c.id);
+                    setVisibleCount(ITEMS_PER_PAGE);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all border cursor-pointer ${
+                    active
+                      ? "border-zen-primary bg-zen-primary text-white shadow-xs font-bold scale-105"
+                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  {c.id !== "all" && (
+                    <span
+                      className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
+                      style={{ backgroundColor: c.colorHex }}
+                    />
+                  )}
+                  <span>{c.label}</span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Search bar & active filter chips */}
@@ -434,6 +552,10 @@ function TemplatesPageContent() {
                 <ZenloveCard
                   key={template.id}
                   template={template}
+                  isLiked={favoriteIds.includes(template.id)}
+                  onToggleLike={(id) => {
+                    toggleFavorite(id);
+                  }}
                   onPreview={(tpl) => setPreviewTemplate(tpl)}
                   onUse={handleUseTemplate}
                 />
@@ -448,7 +570,7 @@ function TemplatesPageContent() {
                 Không tìm thấy mẫu thiệp phù hợp
               </h3>
               <p className="text-xs sm:text-sm text-gray-500 mt-1 max-w-md mx-auto">
-                Hãy thử thay đổi từ khóa tìm kiếm hoặc chọn danh mục khác để khám phá các mẫu thiệp có sẵn.
+                Hãy thử thay đổi từ khóa tìm kiếm, bỏ bộ lọc màu sắc hoặc bấm đặt lại bộ lọc.
               </p>
               <button
                 type="button"
@@ -456,23 +578,25 @@ function TemplatesPageContent() {
                   setSelectedCategory("all");
                   setPageTypeFilter("ALL");
                   setTagFilter("all");
+                  setColorToneFilter("all");
+                  setShowFavoritesOnly(false);
                   setSearchQuery("");
                 }}
-                className="mt-4 px-5 py-2 rounded-full bg-zen-primary text-white text-xs font-bold hover:bg-[#d93849] transition-colors shadow-xs"
+                className="mt-4 px-5 py-2 rounded-full bg-zen-primary text-white text-xs font-bold hover:bg-[#d93849] transition-colors shadow-xs cursor-pointer"
               >
                 Đặt lại bộ lọc
               </button>
             </div>
           )}
 
-          {/* Load More Pagination ("Tải thêm mẫu") matching ZenLove */}
+          {/* Load More Pagination */}
           {visibleCount < filteredTemplates.length && (
             <div className="mt-10 flex flex-col items-center gap-3">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
                   onClick={handleLoadMore}
-                  className="rounded-full bg-zen-primary hover:bg-[#d93849] px-7 py-3 text-sm font-bold text-white shadow-md shadow-zen-primary/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2"
+                  className="rounded-full bg-zen-primary hover:bg-[#d93849] px-7 py-3 text-sm font-bold text-white shadow-md shadow-zen-primary/25 transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
                   <span>Tải thêm mẫu</span>
                   <ChevronDown className="w-4 h-4" />
@@ -481,7 +605,7 @@ function TemplatesPageContent() {
                 <button
                   type="button"
                   onClick={handleShowAll}
-                  className="rounded-full bg-white hover:bg-gray-50 border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 shadow-2xs transition-all hover:scale-105"
+                  className="rounded-full bg-white hover:bg-gray-50 border border-gray-200 px-5 py-3 text-sm font-semibold text-gray-700 shadow-2xs transition-all hover:scale-105 cursor-pointer"
                 >
                   Xem tất cả ({filteredTemplates.length})
                 </button>

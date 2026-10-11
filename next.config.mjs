@@ -67,6 +67,15 @@ const nextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/kho-template',
+        destination: '/templates',
+        permanent: true,
+      },
+    ];
+  },
   experimental: {
     cpus: 1,
     workerThreads: false,

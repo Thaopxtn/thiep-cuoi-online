@@ -8,6 +8,7 @@ import ArcCarousel from "./ArcCarousel";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
+import { useAuth } from "@/context/AuthContext";
 
 interface TemplateCarouselItem {
   id: string;
@@ -161,6 +162,7 @@ const TEMPLATE_ITEMS: TemplateCarouselItem[] = [
 
 export default function TemplatesSection() {
   const router = useRouter();
+  const { isLoggedIn, openLoginModal } = useAuth();
   const [previewTemplate, setPreviewTemplate] = useState<ZenLoveTemplate | null>(null);
 
   const handleCardClick = (item: TemplateCarouselItem) => {
@@ -191,6 +193,13 @@ export default function TemplatesSection() {
   };
 
   const handleUseTemplate = async (templateId: string) => {
+    if (!isLoggedIn) {
+      openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới với mẫu này", {
+        type: "clone_template",
+        templateId,
+      });
+      return;
+    }
     try {
       const card = await cloneTemplateToNewCard(templateId);
       router.push(`/design-template/${card.id}?clonedFrom=${templateId}`);

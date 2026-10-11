@@ -22,9 +22,11 @@ import {
   CheckCircle2,
   Sparkles,
   UserCheck,
+  Activity,
 } from "lucide-react";
 
 import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
+import AdminActivityTab from "@/components/admin/AdminActivityTab";
 import AdminCardsTab from "@/components/admin/AdminCardsTab";
 import AdminRsvpTab from "@/components/admin/AdminRsvpTab";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
@@ -43,12 +45,13 @@ export default function AdminPage() {
 
   // Tab đang hoạt động
   const [activeTab, setActiveTab] = useState<
-    "overview" | "cards" | "rsvps" | "users" | "templates" | "settings"
+    "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "settings"
   >("overview");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   // Dữ liệu toàn sàn
   const [statsData, setStatsData] = useState<any>(null);
+  const [activitiesData, setActivitiesData] = useState<any[]>([]);
   const [cardsData, setCardsData] = useState<any[]>([]);
   const [rsvpsData, setRsvpsData] = useState<any[]>([]);
   const [wishesData, setWishesData] = useState<any[]>([]);
@@ -94,16 +97,18 @@ export default function AdminPage() {
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, cardsRes, rsvpsRes, wishesRes, usersRes] = await Promise.all([
+      const [statsRes, activitiesRes, cardsRes, rsvpsRes, wishesRes, usersRes] = await Promise.all([
         fetch("/api/admin/stats"),
+        fetch("/api/admin/activities?limit=100"),
         fetch("/api/admin/cards"),
         fetch("/api/admin/rsvps"),
         fetch("/api/admin/wishes"),
         fetch("/api/admin/users"),
       ]);
 
-      const [statsJson, cardsJson, rsvpsJson, wishesJson, usersJson] = await Promise.all([
+      const [statsJson, activitiesJson, cardsJson, rsvpsJson, wishesJson, usersJson] = await Promise.all([
         statsRes.json(),
+        activitiesRes.json(),
         cardsRes.json(),
         rsvpsRes.json(),
         wishesRes.json(),
@@ -111,6 +116,9 @@ export default function AdminPage() {
       ]);
 
       if (statsJson.success) setStatsData(statsJson.stats);
+      if (activitiesJson.success && Array.isArray(activitiesJson.activities)) {
+        setActivitiesData(activitiesJson.activities);
+      }
       if (cardsJson.success) setCardsData(cardsJson.cards);
       if (rsvpsJson.success) setRsvpsData(rsvpsJson.rsvps);
       if (wishesJson.success) setWishesData(wishesJson.wishes);
@@ -342,7 +350,7 @@ export default function AdminPage() {
   }
 
   // ================= 2. GIAO DIỆN QUẢN TRỊ ADMIN PORTAL CHÍNH THỨC =================
-  type TabId = "overview" | "cards" | "rsvps" | "users" | "templates" | "settings";
+  type TabId = "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "settings";
 
   interface NavTabItem {
     id: TabId;
@@ -353,6 +361,12 @@ export default function AdminPage() {
 
   const navTabs: NavTabItem[] = [
     { id: "overview", label: "Tổng quan & Thống kê", icon: LayoutDashboard },
+    {
+      id: "activities",
+      label: "Theo dõi Hoạt động",
+      icon: Activity,
+      badge: activitiesData.length,
+    },
     {
       id: "cards",
       label: "Quản lý Thiệp cưới",
@@ -596,9 +610,17 @@ export default function AdminPage() {
           {activeTab === "overview" && (
             <AdminOverviewTab
               stats={statsData}
+              activities={activitiesData}
               loading={loading}
               onNavigateTab={(tab) => setActiveTab(tab)}
               onRefresh={fetchAllData}
+            />
+          )}
+
+          {activeTab === "activities" && (
+            <AdminActivityTab
+              initialActivities={activitiesData}
+              onRefreshParent={fetchAllData}
             />
           )}
 

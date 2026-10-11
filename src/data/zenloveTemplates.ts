@@ -23,6 +23,9 @@ export interface ZenLoveTemplate {
   updatedAt: string;
   musicName?: string;
   musicUrl?: string;
+  orderNumber?: number;
+  code?: string;
+  displayCode?: string;
 }
 
 export const ZENLOVE_CATEGORIES: ZenLoveCategory[] = [
@@ -3613,11 +3616,51 @@ export const HOMEPAGE_CLONED_SLUGS: string[] = [
   "net-chu-tinh-nhan",
 ];
 
-// Chỉ giữ lại đúng các mẫu thiệp cưới clone từ trang chủ ZenLove (20 mẫu trang chủ)
-export const ZENLOVE_TEMPLATES: ZenLoveTemplate[] = ALL_ZENLOVE_TEMPLATES.filter(
-  (t) => HOMEPAGE_CLONED_SLUGS.includes(t.slug) || HOMEPAGE_CLONED_SLUGS.includes(t.id)
-).sort((a, b) => {
-  const indexA = HOMEPAGE_CLONED_SLUGS.indexOf(a.slug);
-  const indexB = HOMEPAGE_CLONED_SLUGS.indexOf(b.slug);
-  return (indexA === -1 ? 999 : indexA) - (indexB === -1 ? 999 : indexB);
-});
+// Toàn bộ 207+ mẫu thiệp cưới ZenLove, ưu tiên các mẫu trang chủ tiêu biểu lên đầu
+// Đã đánh số thứ tự tuần tự từ Mẫu 01 đến Mẫu 207 (mau-01 -> mau-207)
+export const ZENLOVE_TEMPLATES: ZenLoveTemplate[] = ALL_ZENLOVE_TEMPLATES.slice()
+  .sort((a, b) => {
+    const indexA = HOMEPAGE_CLONED_SLUGS.indexOf(a.slug);
+    const indexB = HOMEPAGE_CLONED_SLUGS.indexOf(b.slug);
+    const rankA = indexA === -1 ? 999 : indexA;
+    const rankB = indexB === -1 ? 999 : indexB;
+    return rankA - rankB;
+  })
+  .map((t, index) => {
+    const orderNumber = index + 1;
+    const numStr = String(orderNumber).padStart(2, "0");
+    return {
+      ...t,
+      orderNumber,
+      code: `mau-${numStr}`,
+      displayCode: `Mẫu ${numStr}`,
+    };
+  });
+
+/**
+ * Tra cứu mẫu thiệp theo ID (UUID), slug, mã thứ tự (e.g. "mau-01", "mau-1"), hoặc số thứ tự (1, 2, ...)
+ */
+export function findZenloveTemplate(
+  idOrCode: string | number | undefined | null
+): ZenLoveTemplate | undefined {
+  if (!idOrCode) return undefined;
+  const str = String(idOrCode).trim().toLowerCase();
+  return ZENLOVE_TEMPLATES.find((t) => {
+    if (t.id.toLowerCase() === str) return true;
+    if (t.slug.toLowerCase() === str) return true;
+    if (t.code && t.code.toLowerCase() === str) return true;
+    if (t.displayCode && t.displayCode.toLowerCase() === str) return true;
+    if (t.orderNumber !== undefined) {
+      if (String(t.orderNumber) === str) return true;
+      if (!isNaN(Number(str)) && Number(str) === t.orderNumber) return true;
+      const padded = String(t.orderNumber).padStart(2, "0");
+      if (padded === str) return true;
+      if (`mau-${t.orderNumber}` === str || `mau-${padded}` === str) return true;
+      if (`mau${t.orderNumber}` === str || `mau${padded}` === str) return true;
+      if (`mẫu ${t.orderNumber}` === str || `mẫu ${padded}` === str) return true;
+      if (`mau ${t.orderNumber}` === str || `mau ${padded}` === str) return true;
+    }
+    return false;
+  });
+}
+

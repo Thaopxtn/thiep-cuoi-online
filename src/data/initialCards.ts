@@ -74,6 +74,7 @@ export interface WeddingCard {
   showGiftBox?: boolean;
   showWishes?: boolean;
   showRsvp?: boolean;
+  showEvents?: boolean;
 }
 
 // Key operational templates

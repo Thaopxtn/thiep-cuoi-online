@@ -15,6 +15,7 @@ import {
   Settings,
   Save,
   ShieldCheck,
+  Camera,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -26,6 +27,7 @@ interface EditorHeaderProps {
   onRedo?: () => void;
   onSave?: () => void;
   onRepairDecorations?: () => void;
+  onExportImage?: () => void;
   onPreview: () => void;
   onPublish: () => void;
   onOpenShortcuts: () => void;
@@ -42,6 +44,7 @@ export default function EditorHeader({
   onRedo,
   onSave,
   onRepairDecorations,
+  onExportImage,
   onPreview,
   onPublish,
   onOpenShortcuts,
@@ -185,6 +188,19 @@ export default function EditorHeader({
           </button>
         )}
 
+        {/* Nút Tải ảnh thiệp HD */}
+        {onExportImage && (
+          <button
+            type="button"
+            onClick={onExportImage}
+            className="px-3 py-1.5 rounded-full border border-purple-500/40 hover:border-purple-400 bg-purple-950/40 hover:bg-purple-900/50 text-xs font-semibold text-purple-200 flex items-center gap-1.5 transition-all shadow-xs"
+            title="Tải ảnh thiệp cưới độ phân giải cao PNG (1080x1920) để gửi Zalo hoặc in ấn"
+          >
+            <Camera className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">Tải ảnh HD</span>
+          </button>
+        )}
+
         {/* Preview Button */}
         <button
           type="button"
@@ -218,7 +234,7 @@ export default function EditorHeader({
         ) : (
           <button
             type="button"
-            onClick={openLoginModal}
+            onClick={() => openLoginModal()}
             className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 flex items-center justify-center text-xs text-zinc-300 ml-1 transition-colors"
             title="Đăng nhập tài khoản"
           >

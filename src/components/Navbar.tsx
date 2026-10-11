@@ -144,11 +144,11 @@ export default function Navbar() {
                       </Link>
 
                       <Link
-                        href="/design-template/8c5055d8-30db-4b38-8831-e11063e3d352"
+                        href="/templates"
                         className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-zen-primary transition-colors"
                       >
                         <Sparkles className="w-4 h-4 text-amber-500" />
-                        <span>Chỉnh sửa mẫu Hồng Phong</span>
+                        <span>Tạo thiệp cưới mới</span>
                       </Link>
 
                       <Link
@@ -175,7 +175,7 @@ export default function Navbar() {
               ) : (
                 <button
                   type="button"
-                  onClick={openLoginModal}
+                  onClick={() => openLoginModal()}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 hover:border-zen-primary/60 bg-white text-xs font-semibold text-gray-700 shadow-2xs hover:shadow-xs transition-all hover:scale-105"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
@@ -257,7 +257,7 @@ export default function Navbar() {
                 </button>
               ) : (
                 <button
-                  onClick={openLoginModal}
+                  onClick={() => openLoginModal()}
                   className="p-1 rounded-full text-gray-700 hover:text-zen-primary hover:bg-gray-100 transition-colors"
                   aria-label="Đăng nhập"
                   title="Đăng nhập"
