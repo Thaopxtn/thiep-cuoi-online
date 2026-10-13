@@ -91,10 +91,29 @@ export default function DesignTemplatePage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
+  const [hasLocalSession, setHasLocalSession] = useState(false);
 
   useEffect(() => {
     setIsClientMounted(true);
-  }, []);
+    if (typeof window !== "undefined") {
+      try {
+        const stored = localStorage.getItem("zenlove_auth_user");
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed && (parsed.id || parsed.email)) {
+            setHasLocalSession(true);
+            if (!isLoggedIn) {
+              window.dispatchEvent(new CustomEvent("zenlove:auth-changed", { detail: parsed }));
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Lỗi đọc session dự phòng:", e);
+      }
+    }
+  }, [isLoggedIn]);
+
+  const isAuthenticated = isLoggedIn || hasLocalSession;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -1026,7 +1045,7 @@ export default function DesignTemplatePage() {
 
   // Manual Save Handler - Saves current state and syncs to Supabase server
   const handleManualSave = async () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       openLoginModal("Vui lòng đăng nhập để lưu bản thiết kế thiệp cưới", {
         type: "clone_template",
         templateId,
@@ -1047,7 +1066,7 @@ export default function DesignTemplatePage() {
 
   // Settings Handler - Updates bank, couple info & section toggles and syncs to server
   const handleSaveSettings = async (updatedCard: WeddingCard) => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       openLoginModal("Vui lòng đăng nhập để lưu cài đặt thiệp cưới", {
         type: "clone_template",
         templateId,
@@ -1084,7 +1103,7 @@ export default function DesignTemplatePage() {
 
   // Publish Handler - Saves card, syncs to server and opens shareable QR code publish modal
   const handlePublish = async () => {
-    if (!isLoggedIn) {
+    if (!isAuthenticated) {
       openLoginModal("Vui lòng đăng nhập để xuất bản và chia sẻ thiệp cưới", {
         type: "clone_template",
         templateId,
@@ -1324,7 +1343,7 @@ export default function DesignTemplatePage() {
       />
 
       {/* 6. AUTH GUARD OVERLAY FOR STUDIO CANVAS */}
-      {isClientMounted && !isLoggedIn && (
+      {isClientMounted && !isAuthenticated && (
         <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 text-center shadow-2xl border border-gray-100 animate-scale-up">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-50 text-zen-primary flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner font-bold">

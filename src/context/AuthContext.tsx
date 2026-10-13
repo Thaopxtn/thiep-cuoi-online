@@ -36,6 +36,8 @@ interface AuthContextType {
   openLoginModal: (message?: string | unknown, intent?: PendingIntent) => void;
   closeLoginModal: () => void;
   clearPendingIntent: () => void;
+  syncSession: () => void;
+  setAuthUser: (user: UserProfile | null) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -53,6 +55,8 @@ const AuthContext = createContext<AuthContextType>({
   openLoginModal: () => {},
   closeLoginModal: () => {},
   clearPendingIntent: () => {},
+  syncSession: () => {},
+  setAuthUser: () => {},
 });
 
 const STORAGE_KEY = "zenlove_auth_user";
@@ -65,30 +69,70 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pendingIntent, setPendingIntent] = useState<PendingIntent | null>(null);
   const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
+  const syncSession = React.useCallback(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
-        setUser(JSON.parse(stored));
+        const parsed = JSON.parse(stored);
+        setUser(parsed);
+        return parsed;
+      } else {
+        setUser(null);
+        return null;
       }
+    } catch (e) {
+      console.error("Failed to sync user session:", e);
+      return null;
+    }
+  }, []);
+
+  const setAuthUser = React.useCallback((profile: UserProfile | null) => {
+    setUser(profile);
+    if (typeof window !== "undefined") {
+      if (profile) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      window.dispatchEvent(new CustomEvent("zenlove:auth-changed", { detail: profile }));
+    }
+  }, []);
+
+  useEffect(() => {
+    setIsMounted(true);
+    syncSession();
+
+    try {
       const storedIntent = sessionStorage.getItem(PENDING_INTENT_KEY);
       if (storedIntent) {
         setPendingIntent(JSON.parse(storedIntent));
       }
     } catch (e) {
-      console.error("Failed to restore user session:", e);
+      console.error("Failed to restore pending intent:", e);
     }
 
     const handleSessionExpired = (e: any) => {
       openLoginModal("Phiên đăng nhập của bạn đã hết hạn. Vui lòng đăng nhập lại để tiếp tục lưu và xuất bản.");
     };
 
+    const handleAuthChanged = (e: any) => {
+      if (e?.detail) {
+        setUser(e.detail);
+      } else {
+        syncSession();
+      }
+    };
+
     window.addEventListener("zenlove:session-expired", handleSessionExpired);
+    window.addEventListener("zenlove:auth-changed", handleAuthChanged);
+    window.addEventListener("storage", syncSession);
+
     return () => {
       window.removeEventListener("zenlove:session-expired", handleSessionExpired);
+      window.removeEventListener("zenlove:auth-changed", handleAuthChanged);
+      window.removeEventListener("storage", syncSession);
     };
-  }, []);
+  }, [syncSession]);
 
   const loginWithGoogle = () => {
     if (typeof window !== "undefined") {
@@ -250,6 +294,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         openLoginModal,
         closeLoginModal,
         clearPendingIntent,
+        syncSession,
+        setAuthUser,
       }}
     >
       {children}

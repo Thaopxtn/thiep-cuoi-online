@@ -24,16 +24,16 @@ export default function AuthCallbackPage() {
               intent.customBride,
               profile.id
             );
-            router.push(`/design-template/${card.id}?clonedFrom=${intent.templateId}`);
+            window.location.replace(`/design-template/${card.id}?clonedFrom=${intent.templateId}`);
             return;
           } catch {
-            router.push(`/design-template/${intent.templateId}`);
+            window.location.replace(`/design-template/${intent.templateId}`);
             return;
           }
         }
       }
     } catch {}
-    router.push("/dashboard");
+    window.location.replace("/dashboard");
   };
 
   useEffect(() => {
@@ -47,7 +47,7 @@ export default function AuthCallbackPage() {
         setIsError(true);
         setStatus("Phương thức Google OAuth chưa được kích hoạt trên hệ thống. Vui lòng đăng nhập bằng Email.");
         setTimeout(() => {
-          router.push("/?openLogin=true&mode=email");
+          window.location.replace("/?openLogin=true&mode=email");
         }, 2000);
         return;
       }
@@ -88,24 +88,25 @@ export default function AuthCallbackPage() {
               };
 
               localStorage.setItem("zenlove_auth_user", JSON.stringify(profile));
+              window.dispatchEvent(new CustomEvent("zenlove:auth-changed", { detail: profile }));
               setStatus("Đăng nhập thành công! Đang chuyển hướng...");
               setTimeout(() => {
                 redirectAfterAuth(profile);
               }, 400);
               return;
             }
-            router.push("/dashboard");
+            window.location.replace("/dashboard");
           })
           .catch(() => {
             setIsError(true);
             setStatus("Không thể lấy thông tin tài khoản. Vui lòng thử lại.");
-            setTimeout(() => router.push("/"), 1500);
+            setTimeout(() => window.location.replace("/"), 1500);
           });
       } else {
-        router.push("/dashboard");
+        window.location.replace("/dashboard");
       }
     } catch {
-      router.push("/dashboard");
+      window.location.replace("/dashboard");
     }
   }, [router]);
 
