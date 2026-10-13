@@ -15,7 +15,7 @@ export default function AnimatedReveal({
   animation = "fade-up",
   delay = 0,
   className = "",
-  threshold = 0.12,
+  threshold = 0.02,
 }: AnimatedRevealProps) {
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -40,7 +40,7 @@ export default function AnimatedReveal({
       },
       {
         threshold,
-        rootMargin: "0px 0px -40px 0px", // Kích hoạt sớm hơn một chút khi chuẩn bị cuộn tới
+        rootMargin: "0px 0px 80px 0px", // Kích hoạt sớm 80px để tạo cảm giác chuyển động mượt mà
       }
     );
 

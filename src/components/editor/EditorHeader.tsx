@@ -149,73 +149,73 @@ export default function EditorHeader({
           <Keyboard className="w-4 h-4" />
         </button>
 
-        {/* Nút Lưu lên máy chủ */}
+        {/* Nút Lưu */}
         {onSave && (
           <button
             type="button"
             onClick={onSave}
-            className="px-3 py-1.5 rounded-full border border-emerald-500/40 hover:border-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/50 text-xs font-semibold text-emerald-200 flex items-center gap-1.5 transition-all shadow-xs"
-            title="Lưu bản thiết kế & đồng bộ lên máy chủ (Ctrl+S)"
+            className="px-2.5 py-1.5 rounded-full border border-emerald-500/40 hover:border-emerald-400 bg-emerald-950/40 hover:bg-emerald-900/50 text-xs font-semibold text-emerald-200 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            title="Lưu bản thiết kế (Ctrl+S)"
           >
             <Save className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="hidden sm:inline">Lưu máy chủ</span>
+            <span className="hidden sm:inline">Lưu</span>
           </button>
         )}
 
-        {/* Cài đặt thiệp & các mục cố định */}
+        {/* Cài đặt thiệp */}
         {onOpenSettings && (
           <button
             type="button"
             onClick={onOpenSettings}
-            className="px-3 py-1.5 rounded-full border border-amber-500/40 hover:border-amber-400 bg-amber-950/40 hover:bg-amber-900/50 text-xs font-semibold text-amber-200 flex items-center gap-1.5 transition-all shadow-xs"
-            title="Cài đặt Hộp mừng cưới (VietQR), Sổ lưu bút, RSVP, Thông tin hôn lễ"
+            className="px-2.5 py-1.5 rounded-full border border-amber-500/40 hover:border-amber-400 bg-amber-950/40 hover:bg-amber-900/50 text-xs font-semibold text-amber-200 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            title="Cài đặt Hộp mừng VietQR, Sổ lưu bút, RSVP"
           >
             <Settings className="w-3.5 h-3.5 text-amber-400" />
-            <span className="hidden sm:inline">Cài đặt thiệp</span>
+            <span className="hidden md:inline">Cài đặt</span>
           </button>
         )}
 
-        {/* Khôi phục & Khóa họa tiết chuẩn */}
+        {/* Khóa họa tiết chuẩn */}
         {onRepairDecorations && (
           <button
             type="button"
             onClick={onRepairDecorations}
-            className="px-3 py-1.5 rounded-full border border-sky-500/40 hover:border-sky-400 bg-sky-950/40 hover:bg-sky-900/50 text-xs font-semibold text-sky-200 flex items-center gap-1.5 transition-all shadow-xs"
-            title="Khôi phục lại phong bì, hoa văn, lâu đài và khóa cố định họa tiết chuẩn gốc của mẫu"
+            className="p-1.5 rounded-full border border-sky-500/40 hover:border-sky-400 bg-sky-950/40 hover:bg-sky-900/50 text-xs font-semibold text-sky-200 flex items-center justify-center transition-all shadow-xs cursor-pointer"
+            title="Khóa cố định họa tiết chuẩn của mẫu"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-sky-400" />
-            <span className="hidden lg:inline">Khóa họa tiết chuẩn</span>
           </button>
         )}
 
-        {/* Nút Tải ảnh thiệp HD */}
+        {/* Tải ảnh HD */}
         {onExportImage && (
           <button
             type="button"
             onClick={onExportImage}
-            className="px-3 py-1.5 rounded-full border border-purple-500/40 hover:border-purple-400 bg-purple-950/40 hover:bg-purple-900/50 text-xs font-semibold text-purple-200 flex items-center gap-1.5 transition-all shadow-xs"
-            title="Tải ảnh thiệp cưới độ phân giải cao PNG (1080x1920) để gửi Zalo hoặc in ấn"
+            className="px-2.5 py-1.5 rounded-full border border-purple-500/40 hover:border-purple-400 bg-purple-950/40 hover:bg-purple-900/50 text-xs font-semibold text-purple-200 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+            title="Tải ảnh thiệp PNG độ nét cao"
           >
             <Camera className="w-3.5 h-3.5 text-purple-400" />
-            <span className="hidden sm:inline">Tải ảnh HD</span>
+            <span className="hidden md:inline">Tải ảnh</span>
           </button>
         )}
 
-        {/* Preview Button */}
+        {/* Xem thử */}
         <button
           type="button"
           onClick={onPreview}
-          className="px-3 py-1.5 rounded-full border border-zinc-700 hover:border-zinc-500 bg-zinc-900/60 hover:bg-zinc-800 text-xs font-semibold text-zinc-200 flex items-center gap-1.5 transition-all shadow-xs"
+          className="px-2.5 py-1.5 rounded-full border border-zinc-700 hover:border-zinc-500 bg-zinc-900/60 hover:bg-zinc-800 text-xs font-semibold text-zinc-200 flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+          title="Xem thử giao diện thiệp"
         >
           <Eye className="w-3.5 h-3.5" />
-          <span>Xem trước</span>
+          <span className="hidden sm:inline">Xem thử</span>
         </button>
 
-        {/* Publish Button */}
+        {/* Xuất bản */}
         <button
           type="button"
           onClick={onPublish}
-          className="px-4 py-1.5 rounded-full bg-zen-primary hover:bg-[#d93849] text-xs font-bold text-white shadow-md shadow-zen-primary/30 flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95"
+          className="px-3.5 py-1.5 rounded-full bg-zen-primary hover:bg-[#d93849] text-xs font-bold text-white shadow-md shadow-zen-primary/30 flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 cursor-pointer"
         >
           <Upload className="w-3.5 h-3.5" />
           <span>Xuất bản</span>

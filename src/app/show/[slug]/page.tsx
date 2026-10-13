@@ -38,13 +38,20 @@ import {
   fetchCardFromServer,
   addRsvp,
   addWish,
+  toggleWishLike,
   incrementCardViews,
   parseWeddingTimestamp,
   WeddingCard,
 } from "@/lib/weddingCardService";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
-import FallingPetals from "@/components/FallingPetals";
+import FallingPetals, { type AmbientEffectType } from "@/components/FallingPetals";
+import {
+  WeddingCalendarCard,
+  LoveStoryTimeline,
+  PolaroidGallery,
+} from "@/components/show/InteractiveSections";
+import LuxuryEnvelopeModal from "@/components/show/LuxuryEnvelopeModal";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
 import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
 import { parseBrandedSlug } from "@/lib/brandedSlug";
@@ -79,12 +86,64 @@ export default function ShowInvitationPage() {
   const [isEnvelopeOpen, setIsEnvelopeOpen] = useState(false);
   const [isEnvelopeOpening, setIsEnvelopeOpening] = useState(false);
   const [petalsEnabled, setPetalsEnabled] = useState(true);
+  const [ambientEffect, setAmbientEffect] = useState<AmbientEffectType>("petals");
   const [sfxEnabled, setSfxEnabled] = useState(true);
+
+  // Synchronize initial ambient effect from card
+  useEffect(() => {
+    if (card?.ambientEffect) {
+      setAmbientEffect(card.ambientEffect as AmbientEffectType);
+    }
+  }, [card?.ambientEffect]);
 
   // Gift QR Modal & Toast state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
   const [activeGiftTab, setActiveGiftTab] = useState<"groom" | "bride">("groom");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const cycleAmbientEffect = () => {
+    const modes: AmbientEffectType[] = ["petals", "sparkles", "hearts", "confetti"];
+    const currentIdx = modes.indexOf(ambientEffect);
+    if (!petalsEnabled) {
+      setPetalsEnabled(true);
+      setAmbientEffect("petals");
+      setToastMessage("🌸 Đã bật: Cánh hoa hồng rơi");
+    } else if (currentIdx === modes.length - 1) {
+      setPetalsEnabled(false);
+      setToastMessage("✨ Đã tạm dừng hiệu ứng hạt rơi");
+    } else {
+      const nextMode = modes[currentIdx + 1];
+      setAmbientEffect(nextMode);
+      const names: Record<AmbientEffectType, string> = {
+        petals: "🌸 Cánh hoa hồng rơi",
+        sparkles: "✨ Kim tuyến bụi vàng hoàng gia",
+        hearts: "💖 Trái tim tình yêu bay bổng",
+        confetti: "🎉 Pháo hoa chúc mừng",
+      };
+      setToastMessage(`Đã đổi: ${names[nextMode]}`);
+    }
+    setTimeout(() => setToastMessage(null), 2500);
+    if (sfxEnabled) {
+      weddingSounds.playSoftClick();
+    }
+  };
+
+  const handleLikeWish = (wishId: string) => {
+    if (!card) return;
+    const newLikes = toggleWishLike(card.id, wishId);
+    if (sfxEnabled) {
+      weddingSounds.playHeartPop();
+    }
+    setCard((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        wishes: prev.wishes?.map((w) =>
+          w.id === wishId ? { ...w, likes: newLikes } : w
+        ) || [],
+      };
+    });
+  };
 
   // Photo Gallery Lightbox state & Image export
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
@@ -381,20 +440,30 @@ export default function ShowInvitationPage() {
                 weddingTime,
                 lunarDate: "Ngày 10 tháng 10 năm Bính Ngọ",
                 groom: {
+                  ...prev?.groom,
                   name: prev?.groom?.name && prev.groom.name !== "Chú Rể" ? prev.groom.name : groom,
                   title: "Chú Rể",
                   phone: prev?.groom?.phone || "0912.345.678",
                   parents: nodes?.basicInfo?.groomParentTitle
                     ? `${nodes.basicInfo.groomParentTitle} ${nodes.basicInfo.groomFatherName || ""} & ${nodes.basicInfo.groomMatherName || ""}`
-                    : undefined,
+                    : prev?.groom?.parents,
+                  bankName: prev?.groom?.bankName || nodes?.accountInfo?.groomBankName,
+                  accountNumber: prev?.groom?.accountNumber || nodes?.accountInfo?.groomAccountNumber,
+                  accountName: prev?.groom?.accountName || nodes?.accountInfo?.groomAccountName,
+                  qrCode: prev?.groom?.qrCode,
                 },
                 bride: {
+                  ...prev?.bride,
                   name: prev?.bride?.name && prev.bride.name !== "Cô Dâu" ? prev.bride.name : bride,
                   title: "Cô Dâu",
                   phone: prev?.bride?.phone || "0987.654.321",
                   parents: nodes?.basicInfo?.brideParentTitle
                     ? `${nodes.basicInfo.brideParentTitle} ${nodes.basicInfo.brideFatherName || ""} & ${nodes.basicInfo.brideMatherName || ""}`
-                    : undefined,
+                    : prev?.bride?.parents,
+                  bankName: prev?.bride?.bankName || nodes?.accountInfo?.brideBankName,
+                  accountNumber: prev?.bride?.accountNumber || nodes?.accountInfo?.brideAccountNumber,
+                  accountName: prev?.bride?.accountName || nodes?.accountInfo?.brideAccountName,
+                  qrCode: prev?.bride?.qrCode,
                 },
                 events: events.length > 0 ? events : prev?.events || [],
                 album: prev?.album || [],
@@ -406,6 +475,11 @@ export default function ShowInvitationPage() {
                 showWishes: prev?.showWishes !== undefined ? prev.showWishes : true,
                 showRsvp: prev?.showRsvp !== undefined ? prev.showRsvp : true,
                 showEvents: prev?.showEvents !== undefined ? prev.showEvents : true,
+                envelopeTheme: prev?.envelopeTheme,
+                ambientEffect: prev?.ambientEffect,
+                loveStory: prev?.loveStory,
+                showCalendar: prev?.showCalendar,
+                showLoveStory: prev?.showLoveStory,
                 nodes,
               };
 
@@ -688,8 +762,8 @@ export default function ShowInvitationPage() {
         }}
       />
 
-      {/* Falling Rose Petals HTML5 Canvas Engine */}
-      <FallingPetals density={26} active={petalsEnabled} />
+      {/* Universal Ambient Canvas Engine (Petals / Sparkles / Hearts / Confetti) */}
+      <FallingPetals density={28} active={petalsEnabled} effectType={ambientEffect} />
 
       {/* Floating Vinyl Record Audio Player + SFX & Petals Toggle */}
       <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
@@ -707,16 +781,34 @@ export default function ShowInvitationPage() {
           {sfxEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
         </button>
 
-        {/* Falling Petals Toggle Button */}
+        {/* Universal Ambient Particle Switcher Button */}
         <button
           type="button"
-          onClick={() => setPetalsEnabled(!petalsEnabled)}
+          onClick={cycleAmbientEffect}
           className={`p-2 rounded-full backdrop-blur-md border shadow-lg transition-all ${
             petalsEnabled
-              ? "bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100"
+              ? ambientEffect === "sparkles"
+                ? "bg-amber-50 text-amber-600 border-amber-300 hover:bg-amber-100"
+                : ambientEffect === "hearts"
+                ? "bg-pink-50 text-pink-600 border-pink-300 hover:bg-pink-100"
+                : ambientEffect === "confetti"
+                ? "bg-purple-50 text-purple-600 border-purple-300 hover:bg-purple-100"
+                : "bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100"
               : "bg-white/80 text-gray-400 border-gray-200 hover:bg-white"
           }`}
-          title={petalsEnabled ? "Tắt hiệu ứng hoa rơi" : "Bật hiệu ứng hoa rơi"}
+          title={
+            petalsEnabled
+              ? `Hiệu ứng: ${
+                  ambientEffect === "sparkles"
+                    ? "Kim tuyến bụi vàng"
+                    : ambientEffect === "hearts"
+                    ? "Trái tim bay"
+                    : ambientEffect === "confetti"
+                    ? "Pháo hoa chúc mừng"
+                    : "Cánh hoa hồng rơi"
+                } (Chạm để đổi kiểu)`
+              : "Bật hiệu ứng hạt rơi"
+          }
         >
           <Sparkles className={`w-4 h-4 ${petalsEnabled ? "animate-spin" : ""}`} />
         </button>
@@ -807,129 +899,19 @@ export default function ShowInvitationPage() {
         </Link>
       </div>
 
-      {/* ================= 3D ENVELOPE MODAL (IF CLOSED) ================= */}
-      {!isEnvelopeOpen && (
-        <div
-          className={`fixed inset-0 z-50 bg-[#25080c]/90 backdrop-blur-md flex flex-col items-center justify-center p-4 transition-all duration-700 ${
-            isEnvelopeOpening ? "opacity-0 scale-105 pointer-events-none" : "opacity-100 scale-100"
-          }`}
-        >
-          {/* Architectural Sketch Background */}
-          <div
-            className="absolute inset-0 opacity-15 pointer-events-none bg-cover bg-center"
-            style={{
-              backgroundImage:
-                "url('https://cdn-resource.zenlove.me/resources/background/mldw1mdn28infjta.png')",
-            }}
-          />
-
-          {/* The 3D Envelope Physics Wrapper */}
-          <div className="w-full max-w-[360px] perspective-envelope relative animate-scale-in">
-            <div className="relative w-full h-[250px] transform-style-3d">
-              {/* Envelope Back Paper / Lining */}
-              <div className="absolute inset-0 bg-[#3d0d12] rounded-2xl border border-amber-500/30 shadow-2xl overflow-hidden" />
-
-              {/* Sliding Invitation Letter inside the envelope */}
-              <div
-                className={`envelope-letter-slide absolute inset-x-4 top-3 bottom-3 bg-[#fffefb] rounded-xl border border-amber-900/15 shadow-xl p-5 text-center flex flex-col justify-between z-10 ${
-                  isEnvelopeOpening ? "envelope-letter-up" : ""
-                }`}
-              >
-                <div className="border border-amber-700/20 rounded-lg p-3 h-full flex flex-col justify-between shimmer-gold-overlay">
-                  <span className="text-[10px] uppercase font-bold tracking-widest text-amber-800">
-                    Thiệp Mời Thành Hôn
-                  </span>
-                  <div className="my-auto py-2">
-                    {guestNameParam && (
-                      <div className="inline-block bg-amber-100/80 border border-amber-300 rounded-full px-2.5 py-0.5 mb-1.5 text-[11px] font-semibold text-[#511419] shadow-2xs">
-                        Kính mời: <strong className="font-serif text-xs">{guestNameParam}</strong>
-                      </div>
-                    )}
-                    <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
-                      {groomName}
-                    </h2>
-                    <span className="text-xs text-amber-800 font-serif italic">&</span>
-                    <h2 className="text-3xl font-great-vibes text-[#511419] font-normal leading-tight">
-                      {brideName}
-                    </h2>
-                  </div>
-                  <div className="text-[10px] text-gray-600 font-medium border-t border-amber-700/10 pt-2">
-                    <p className="font-bold text-[#511419]">{card.weddingDate}</p>
-                    <p className="truncate text-gray-500">{card.events?.[0]?.venue || "Trung tâm tiệc cưới"}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Envelope Front Pocket (Burgundy folded flaps) */}
-              <div className="absolute inset-0 pointer-events-none z-20 flex flex-col justify-end">
-                <div
-                  className="w-full h-[180px] bg-gradient-to-t from-[#480f14] via-[#511419] to-[#5d161d] rounded-b-2xl border-b border-x border-amber-500/30 shadow-[0_-8px_20px_rgba(0,0,0,0.35)] relative overflow-hidden"
-                  style={{
-                    clipPath: "polygon(0 0, 50% 35%, 100% 0, 100% 100%, 0 100%)",
-                  }}
-                >
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 text-center w-full px-4">
-                    {guestNameParam ? (
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400/30 via-amber-300/40 to-amber-400/30 border border-amber-300/60 shadow-md backdrop-blur-xs">
-                        <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
-                        <span className="text-[11px] font-bold tracking-wide font-serif text-amber-200">
-                          Kính mời: {guestNameParam}
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-[10px] tracking-widest uppercase font-serif text-amber-300/80 font-semibold">
-                        ZenLove Wedding
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 3D Top Flap with Wax Seal Stamp */}
-              <div
-                className={`envelope-flap-3d envelope-flap-3d-smooth absolute top-0 inset-x-0 h-[150px] z-30 origin-top cursor-pointer ${
-                  isEnvelopeOpening ? "envelope-flap-3d-open envelope-flap-open" : ""
-                }`}
-                onClick={handleOpenEnvelope}
-              >
-                {/* Flap triangle */}
-                <div
-                  className="w-full h-full bg-gradient-to-b from-[#6b1b22] via-[#561318] to-[#450e12] rounded-t-2xl shadow-lg border-t border-x border-amber-400/40 relative flex items-end justify-center pb-2"
-                  style={{
-                    clipPath: "polygon(0 0, 100% 0, 50% 100%)",
-                  }}
-                >
-                  <div className="absolute inset-0 bg-black/10" />
-                </div>
-
-                {/* 3D Wax Seal Stamp (Con dấu sáp đỏ viền vàng phát sáng lấp lánh) */}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenEnvelope();
-                  }}
-                  className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 w-14 h-14 rounded-full bg-gradient-to-br from-amber-400 via-amber-600 to-amber-900 border-2 border-amber-200/80 shadow-[0_10px_25px_rgba(0,0,0,0.6),inset_0_2px_4px_rgba(255,255,255,0.4)] flex items-center justify-center hover:scale-110 active:scale-95 transition-all cursor-pointer group z-40 animate-wax-seal-glow"
-                  title="Chạm để mở thiệp cưới"
-                >
-                  <div className="w-10 h-10 rounded-full border border-amber-200/60 bg-gradient-to-br from-[#7a1c24] to-[#4a0d12] flex items-center justify-center shadow-inner">
-                    <Heart className="w-5 h-5 text-amber-300 fill-amber-300 group-hover:scale-110 transition-transform drop-shadow" />
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            {/* Guide text */}
-            <div className="mt-14 text-center">
-              <p className="text-xs text-amber-200/90 font-medium animate-bounce flex items-center justify-center gap-1.5">
-                <span>💌</span>
-                <span>Chạm vào con dấu để mở thiệp cưới</span>
-                <span>💌</span>
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ================= LUXURY 3D ENVELOPE MODAL ================= */}
+      <LuxuryEnvelopeModal
+        isOpen={isEnvelopeOpen}
+        isOpening={isEnvelopeOpening}
+        onOpen={handleOpenEnvelope}
+        guestName={guestNameParam}
+        groomName={groomName}
+        brideName={brideName}
+        weddingDate={card.weddingDate}
+        venue={card.events?.[0]?.venue || "Trung tâm tiệc cưới"}
+        coverImage={card.coverImage}
+        theme={card.envelopeTheme || "cream"}
+      />
 
       {/* ================= MAIN MOBILE INVITATION CONTAINER ================= */}
       <main className="w-full max-w-[480px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-32">
@@ -952,6 +934,8 @@ export default function ShowInvitationPage() {
           <div className="w-full relative z-10">
             <CardNodeRenderer
               nodes={activeNodes}
+              groom={card.groom}
+              bride={card.bride}
               onOpenGiftQr={() => setIsGiftModalOpen(true)}
               onRsvpSuccess={(data) => {
                 if (!card) return;
@@ -1072,6 +1056,20 @@ export default function ShowInvitationPage() {
               </section>
             </AnimatedReveal>
 
+            {/* Save The Date Calendar with Add-to-Calendar */}
+            {card.showCalendar !== false && (
+              <AnimatedReveal animation="fade-up" delay={120}>
+                <section className="px-4 py-1">
+                  <WeddingCalendarCard
+                    weddingDate={card.weddingDate}
+                    weddingTime={card.weddingTime}
+                    title={card.name}
+                    venue={card.events?.[0]?.venue || "Trung tâm tiệc cưới"}
+                  />
+                </section>
+              </AnimatedReveal>
+            )}
+
           </>
         )}
 
@@ -1132,6 +1130,15 @@ export default function ShowInvitationPage() {
           </AnimatedReveal>
         )}
 
+        {/* ================= LOVE STORY TIMELINE ================= */}
+        {card.showLoveStory !== false && (
+          <AnimatedReveal animation="fade-up" delay={130}>
+            <section id="love-story-section" className="bg-[#fcfaf7] border-t border-amber-900/10 py-6">
+              <LoveStoryTimeline items={card.loveStory} />
+            </section>
+          </AnimatedReveal>
+        )}
+
         {/* ================= WEDDING PHOTO GALLERY (Album ảnh cưới) ================= */}
         {galleryPhotos.length > 0 && (
           <AnimatedReveal animation="fade-up" delay={100}>
@@ -1180,6 +1187,17 @@ export default function ShowInvitationPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Polaroid Memories Scrapbook Showcase */}
+              <div className="mt-8 border-t border-amber-900/10 pt-6">
+                <PolaroidGallery
+                  photos={galleryPhotos}
+                  onPhotoClick={(idx) => {
+                    if (sfxEnabled) weddingSounds.playSoftClick();
+                    setLightboxIndex(idx);
+                  }}
+                />
               </div>
             </section>
           </AnimatedReveal>
@@ -1505,13 +1523,24 @@ export default function ShowInvitationPage() {
                   card.wishes.map((w) => (
                     <div
                       key={w.id}
-                      className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1"
+                      className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1.5"
                     >
                       <div className="flex items-center justify-between text-[11px]">
                         <span className="font-bold text-gray-900">{w.name}</span>
                         <span className="text-gray-400">{w.createdAt}</span>
                       </div>
-                      <p className="text-xs text-gray-600 leading-relaxed">{w.content}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-xs text-gray-600 leading-relaxed flex-1">{w.content}</p>
+                        <button
+                          type="button"
+                          onClick={() => handleLikeWish(w.id)}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-bold border border-rose-200/70 transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                          title="Thả tim lời chúc này"
+                        >
+                          <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
+                          <span>{w.likes || 0}</span>
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (

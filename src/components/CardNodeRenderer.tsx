@@ -19,18 +19,211 @@ import {
 } from "@/lib/imageUtils";
 import { weddingSounds } from "@/lib/soundEffects";
 import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getSafeMapUrl, getGiftQrUrl } from "@/lib/moduleHelpers";
+import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
 
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
   onRsvpSuccess?: (rsvpData: any) => void;
   onOpenGiftQr?: () => void;
+  groom?: { name?: string; bankName?: string; accountNumber?: string; accountName?: string; qrCode?: string };
+  bride?: { name?: string; bankName?: string; accountNumber?: string; accountName?: string; qrCode?: string };
 }
 
+
+interface CardScrollAnimatedNodeProps {
+  id: string;
+  top: number;
+  left: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  zIndex: number;
+  transition?: {
+    effectEnabled?: boolean;
+    effectType?: string;
+    exitEffectType?: string;
+    effectDuration?: number;
+    effectDelay?: number;
+    effectEasing?: string;
+    hoverEffect?: string;
+  };
+  hoverClass?: string;
+  children: React.ReactNode;
+}
+
+function CardScrollAnimatedNode({
+  id,
+  top,
+  left,
+  width,
+  height,
+  rotation,
+  opacity,
+  zIndex,
+  transition,
+  hoverClass = "",
+  children,
+}: CardScrollAnimatedNodeProps) {
+  const domRef = useRef<HTMLDivElement>(null);
+  const [isInView, setIsInView] = useState(false);
+  const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
+  const [runCount, setRunCount] = useState(0);
+
+  const hasEntrance = Boolean(
+    transition?.effectEnabled !== false &&
+    transition?.effectType &&
+    transition.effectType !== "none"
+  );
+
+  const exitEffect =
+    transition?.exitEffectType && transition.exitEffectType !== "none"
+      ? transition.exitEffectType
+      : null;
+
+  const hasMotion = hasEntrance || Boolean(exitEffect);
+
+  useEffect(() => {
+    if (!hasMotion) {
+      setIsInView(true);
+      return;
+    }
+
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      setIsInView(true);
+      setHasEnteredOnce(true);
+      return;
+    }
+
+    const currentDom = domRef.current;
+    if (!currentDom) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setIsInView(true);
+            setHasEnteredOnce(true);
+            setRunCount((prev) => prev + 1);
+          } else {
+            setIsInView(false);
+          }
+        });
+      },
+      {
+        threshold: 0.05,
+        rootMargin: "0px 0px -20px 0px",
+      }
+    );
+
+    observer.observe(currentDom);
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasMotion]);
+
+  if (!hasMotion) {
+    return (
+      <div
+        ref={domRef}
+        className={`absolute pointer-events-auto ${hoverClass}`}
+        style={{
+          top: `${top}px`,
+          left: `${left}px`,
+          width: `${width}px`,
+          height: `${height}px`,
+          transform: `rotate(${rotation}deg)`,
+          opacity: opacity,
+          zIndex: zIndex,
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  // Motion styling calculation
+  let innerStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+  };
+
+  if (isInView) {
+    // Entrance running when scrolled into view
+    const animName = hasEntrance
+      ? ANIMATION_KEYFRAME_MAP[transition!.effectType!] || transition!.effectType
+      : undefined;
+
+    innerStyle = {
+      ...innerStyle,
+      opacity: opacity,
+      animationName: animName,
+      animationDuration: `${transition?.effectDuration ?? 1.2}s`,
+      animationDelay: `${transition?.effectDelay ?? 0}s`,
+      animationTimingFunction:
+        transition?.effectEasing || "cubic-bezier(0.16, 1, 0.3, 1)",
+      animationFillMode: "both",
+    };
+  } else if (!hasEnteredOnce) {
+    // Waiting for initial scroll to viewport
+    innerStyle = {
+      ...innerStyle,
+      opacity: 0,
+      pointerEvents: "none",
+    };
+  } else {
+    // Scrolled past: trigger exit animation or fade out
+    if (exitEffect) {
+      const exitAnimName =
+        ANIMATION_KEYFRAME_MAP[exitEffect] || exitEffect;
+      innerStyle = {
+        ...innerStyle,
+        animationName: exitAnimName,
+        animationDuration: "0.55s",
+        animationTimingFunction: "ease-in",
+        animationFillMode: "both",
+        pointerEvents: "none",
+      };
+    } else {
+      innerStyle = {
+        ...innerStyle,
+        opacity: 0,
+        transition: "opacity 0.4s ease-out",
+        pointerEvents: "none",
+      };
+    }
+  }
+
+  return (
+    <div
+      ref={domRef}
+      className={`absolute pointer-events-auto ${hoverClass}`}
+      style={{
+        top: `${top}px`,
+        left: `${left}px`,
+        width: `${width}px`,
+        height: `${height}px`,
+        transform: `rotate(${rotation}deg)`,
+        zIndex: zIndex,
+      }}
+    >
+      <div
+        key={isInView ? `enter-${runCount}` : `exit-${runCount}`}
+        style={innerStyle}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function CardNodeRenderer({
   nodes,
   onRsvpSuccess,
   onOpenGiftQr,
+  groom,
+  bride,
 }: CardNodeRendererProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(1);
@@ -94,11 +287,11 @@ export default function CardNodeRenderer({
     return Math.max(max, top + height);
   }, 0);
 
-  const effectiveBaseHeight = Math.max(
-    Number(rootProps.height || 0),
-    maxChildBottom + 160,
-    1400
-  );
+  // Tự động tính toán chiều cao an toàn vừa khít với nội dung thực tế
+  const effectiveBaseHeight =
+    maxChildBottom > 0
+      ? maxChildBottom + 40
+      : Math.max(Number(rootProps.height || 0), 1200);
 
   const getImageUrl = (key?: string) => {
     return getSafeImageUrl(key, "");
@@ -145,21 +338,39 @@ export default function CardNodeRenderer({
             animClass = "animate-zen-wobble";
           } else if (props.continuousAnimation?.type === "pulse") {
             animClass = "animate-zen-pulse";
+          } else if (props.continuousAnimation?.type === "wiggle") {
+            animClass = "animate-zen-wiggle";
+          } else if (props.continuousAnimation?.type === "shake") {
+            animClass = "animate-zen-shake";
           }
 
+          // Entrance / Exit transition effect
+          const transition = props.transition;
+
+          const hoverClass =
+            transition?.hoverEffect === "scale-up-gentle"
+              ? "hover-effect-scale-up-gentle"
+              : transition?.hoverEffect === "glow-soft"
+              ? "hover-effect-glow-soft"
+              : transition?.hoverEffect === "bounce-tap"
+              ? "hover-effect-bounce-tap"
+              : transition?.hoverEffect === "tilt-3d"
+              ? "hover-effect-tilt-3d"
+              : "";
+
           return (
-            <div
+            <CardScrollAnimatedNode
               key={id}
-              className="absolute pointer-events-auto"
-              style={{
-                top: `${top}px`,
-                left: `${left}px`,
-                width: `${width}px`,
-                height: `${height}px`,
-                transform: `rotate(${rotation}deg)`,
-                opacity: opacity,
-                zIndex: zIndex,
-              }}
+              id={id}
+              top={top}
+              left={left}
+              width={width}
+              height={height}
+              rotation={rotation}
+              opacity={opacity}
+              zIndex={zIndex}
+              transition={transition}
+              hoverClass={hoverClass}
             >
               {/* Photo Box */}
               {type === "PhotoBox" && props.imgKey && (
@@ -383,7 +594,21 @@ export default function CardNodeRenderer({
 
               {/* Gift QR Box - Hiển thị mã VietQR thật 100% */}
               {type === "GiftQrBox" && (() => {
-                const qrUrl = getGiftQrUrl(props);
+                let qrUrl = getGiftQrUrl(props);
+                let bankName = props.bankName;
+                let accountNumber = props.accountNumber;
+                let accountName = props.accountName;
+
+                // Tự động fallback từ Groom/Bride của thiệp nếu node chưa được cấu hình tài khoản riêng
+                if (!qrUrl && (groom?.accountNumber || bride?.accountNumber)) {
+                  const targetBank = groom?.accountNumber ? groom : bride;
+                  if (targetBank) {
+                    bankName = targetBank.bankName || "MB BANK";
+                    accountNumber = targetBank.accountNumber || "";
+                    accountName = targetBank.accountName || targetBank.name || "CHỦ TÀI KHOẢN";
+                    qrUrl = generateVietQrUrl(bankName, accountNumber, accountName, targetBank.qrCode, "Mung cuoi hai ban");
+                  }
+                }
 
                 return (
                   <div
@@ -401,20 +626,24 @@ export default function CardNodeRenderer({
 
                     {/* Khung Mã QR Chuẩn Napas 24/7 Thật */}
                     <div className="w-28 h-28 sm:w-32 sm:h-32 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
-                      {qrUrl ? <img
-                        src={qrUrl}
-                        alt="Mã VietQR Mừng Cưới"
-                        onError={(e) => handleImageFallback(e, undefined, false)}
-                        className="w-full h-full object-contain"
-                      /> : <span className="text-xs text-gray-500">Chưa có thông tin tài khoản</span>}
+                      {qrUrl ? (
+                        <img
+                          src={qrUrl}
+                          alt="Mã VietQR Mừng Cưới"
+                          onError={(e) => handleImageFallback(e, undefined, false)}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-500">Chưa có thông tin tài khoản</span>
+                      )}
                     </div>
 
                     <div className="space-y-0.5">
                       <p className="text-[11px] font-bold text-gray-800">
-                        {props.bankName || ""} {props.accountNumber ? `• ${props.accountNumber}` : ""}
+                        {bankName || ""} {accountNumber ? `• ${accountNumber}` : ""}
                       </p>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold truncate max-w-[190px]">
-                        {props.accountName || ""}
+                        {accountName || ""}
                       </p>
                     </div>
 
@@ -550,7 +779,7 @@ export default function CardNodeRenderer({
                   </a>
                 );
               })()}
-            </div>
+            </CardScrollAnimatedNode>
           );
         })}
       </div>

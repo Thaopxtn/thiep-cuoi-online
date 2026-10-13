@@ -241,9 +241,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       }
     }
 
-    // 2. Kiểm tra nếu là một trong các mẫu mặc định ban đầu (ngoại trừ customer slugs)
+    // 2. Kiểm tra nếu là một trong các mẫu mặc định ban đầu
     const localFound = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
-    if (localFound && (slug === "hong-phong" || slug.startsWith("card_"))) {
+    if (localFound) {
       return NextResponse.json({
         success: true,
         source: "initial_cards",

@@ -48,25 +48,30 @@ export default function EditorLeftRail({
   const railItems: Array<{ id: EditorToolTab; label: string; icon: React.ReactNode; isSpecial?: boolean }> = [
     {
       id: "autofill",
-      label: "Tự động điền",
+      label: "Tự điền",
       icon: <Wand2 className="w-4 h-4" />,
       isSpecial: true,
     },
     {
+      id: "widgets",
+      label: "Khối mẫu",
+      icon: <LayoutGrid className="w-4 h-4" />,
+      isSpecial: true,
+    },
+    {
       id: "layers",
-      label: "Thành phần",
+      label: "Lớp",
       icon: <Layers className="w-4 h-4" />,
     },
-    { id: "text", label: "Văn bản", icon: <Type className="w-4 h-4" /> },
-    { id: "image", label: "Hình ảnh", icon: <ImageIcon className="w-4 h-4" /> },
+    { id: "text", label: "Chữ", icon: <Type className="w-4 h-4" /> },
+    { id: "image", label: "Ảnh", icon: <ImageIcon className="w-4 h-4" /> },
     { id: "background", label: "Nền", icon: <Palette className="w-4 h-4" /> },
-    { id: "stock", label: "Stock", icon: <Camera className="w-4 h-4" /> },
+    { id: "stock", label: "Sticker", icon: <Camera className="w-4 h-4" /> },
     { id: "tools", label: "Công cụ", icon: <Wrench className="w-4 h-4" /> },
-    { id: "music", label: "Nhạc nền", icon: <Music className="w-4 h-4" /> },
-    { id: "widgets", label: "Tiện ích", icon: <LayoutGrid className="w-4 h-4" /> },
-    { id: "templates", label: "Mẫu", icon: <FileText className="w-4 h-4" /> },
+    { id: "music", label: "Nhạc", icon: <Music className="w-4 h-4" /> },
+    { id: "templates", label: "Mẫu thiệp", icon: <FileText className="w-4 h-4" /> },
     { id: "effects", label: "Hiệu ứng", icon: <Sparkles className="w-4 h-4" /> },
-    { id: "presets", label: "Bộ màu", icon: <SlidersHorizontal className="w-4 h-4" /> },
+    { id: "presets", label: "Màu sắc", icon: <SlidersHorizontal className="w-4 h-4" /> },
   ];
 
   const handleClick = (id: EditorToolTab) => {

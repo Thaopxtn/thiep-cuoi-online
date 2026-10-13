@@ -38,6 +38,7 @@ import {
   Trash2,
   Settings,
   Lock,
+  Eraser,
   Type,
   LayoutGrid,
   Clock,
@@ -59,6 +60,12 @@ import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { SelectedElementData } from "./EditorRightInspector";
 import { WeddingCard } from "@/data/initialCards";
 import { AutoFillFormData, applyAutoFillToNodes } from "@/lib/templateValidation";
+import {
+  MODULE_CATEGORIES,
+  MODULE_PRESETS,
+  ModulePresetItem,
+  getPresetsByCategory,
+} from "@/lib/modulePresetsCatalog";
 
 interface EditorLeftDrawerProps {
   activeTab: EditorToolTab;
@@ -91,12 +98,14 @@ interface EditorLeftDrawerProps {
   onAddStock?: (stockUrl: string, name: string) => void;
   // Tools
   onRemoveBackground?: () => void;
+  onOpenManualCutout?: () => void;
   isRemovingBackground?: boolean;
   // Music
   currentMusic?: { title: string; url: string };
   onChangeMusic: (title: string, url: string) => void;
-  // Widgets
+  // Widgets / Module Presets
   onAddWidget?: (widgetType: string, customProps?: Record<string, any>) => void;
+  onAddModulePreset?: (preset: ModulePresetItem) => void;
   // Templates
   onSelectTemplate: (template: ZenLoveTemplate) => void;
   // Effects
@@ -132,16 +141,21 @@ export default function EditorLeftDrawer({
   onChangeBackground,
   onAddStock,
   onRemoveBackground,
+  onOpenManualCutout,
   isRemovingBackground = false,
   currentMusic,
   onChangeMusic,
   onAddWidget,
+  onAddModulePreset,
   onSelectTemplate,
   onToggleEffect,
   activeEffects = [],
   onApplyThemePreset,
   onOpenSettings,
 }: EditorLeftDrawerProps) {
+  // Module Category Filter
+  const [selectedModuleCategory, setSelectedModuleCategory] = useState<string>("all");
+
   // Layers State
   const [layersFilter, setLayersFilter] = useState<"all" | "decorative" | "photos" | "texts" | "widgets">("all");
   const [layersSearch, setLayersSearch] = useState("");
@@ -644,19 +658,19 @@ export default function EditorLeftDrawer({
       {/* Drawer Header */}
       <div className="p-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
-          {activeTab === "autofill" && "⚡ Tự động điền"}
-          {activeTab === "layers" && "Thành phần thiệp"}
+          {activeTab === "autofill" && "Điền thông tin"}
+          {activeTab === "layers" && "Lớp & Phần tử"}
           {activeTab === "image" && "Hình ảnh"}
           {activeTab === "text" && "Văn bản"}
           {activeTab === "background" && "Nền thiệp"}
-          {activeTab === "stock" && "Kho ảnh & Sticker"}
+          {activeTab === "stock" && "Sticker & Họa tiết"}
           {activeTab === "tools" && "Công cụ & AI"}
-          {activeTab === "music" && "Nhạc nền đám cưới"}
-          {activeTab === "widgets" && "Tiện ích tương tác"}
-          {activeTab === "templates" && "Đổi mẫu thiệp"}
-          {activeTab === "effects" && "Hiệu ứng chuyển động"}
-          {activeTab === "presets" && "Bộ phối màu & Font"}
-          {activeTab === "support" && "Hỗ trợ khách hàng"}
+          {activeTab === "music" && "Nhạc nền"}
+          {activeTab === "widgets" && "Khối mẫu"}
+          {activeTab === "templates" && "Mẫu thiệp"}
+          {activeTab === "effects" && "Hiệu ứng"}
+          {activeTab === "presets" && "Màu sắc & Font"}
+          {activeTab === "support" && "Hỗ trợ"}
         </h3>
         <span className="text-[11px] font-medium text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
           ZenLove Studio
@@ -1536,21 +1550,33 @@ export default function EditorLeftDrawer({
                   <p className="text-[10px] text-gray-500">Tách nền ảnh cưới chỉ trong 1 giây</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={onRemoveBackground}
-                disabled={isRemovingBackground}
-                className="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
-              >
-                {isRemovingBackground ? (
-                  <>
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                    <span>Đang AI tách nền...</span>
-                  </>
-                ) : (
-                  <span>Xóa phông ảnh đang chọn</span>
-                )}
-              </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={onRemoveBackground}
+                  disabled={isRemovingBackground}
+                  className="w-full py-2 px-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                  title="Tự động nhận diện và xóa nền bảo vệ nhân vật"
+                >
+                  {isRemovingBackground ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Đang xử lý...</span>
+                    </>
+                  ) : (
+                    <span>Tự động AI</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={onOpenManualCutout}
+                  className="w-full py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                  title="Chỉnh sửa cọ tẩy và khôi phục nhân vật thủ công"
+                >
+                  <Eraser className="w-3.5 h-3.5" />
+                  <span>Chỉnh tay</span>
+                </button>
+              </div>
             </div>
 
             {/* 2. VietQR Generator */}
@@ -1790,124 +1816,97 @@ export default function EditorLeftDrawer({
           </div>
         )}
 
-        {/* ================= 7. TAB: TIỆN ÍCH ================= */}
+        {/* ================= 7. TAB: KHỐI MẪU (MODULE PRESETS) ================= */}
         {activeTab === "widgets" && (
-          <div className="space-y-2.5">
-            {/* Quick settings banner for fixed footer items */}
-            {onOpenSettings && (
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-50 via-amber-50 to-orange-50 border border-rose-200/90 shadow-2xs space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">⚙️</span>
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900">Mục cố định chân trang</h4>
-                    <p className="text-[10px] text-gray-600">Hộp mừng cưới VietQR, Sổ lưu bút, RSVP</p>
+          <div className="space-y-3">
+            {/* Category Filter Horizontal Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar select-none">
+              <button
+                type="button"
+                onClick={() => setSelectedModuleCategory("all")}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                  selectedModuleCategory === "all"
+                    ? "bg-rose-600 text-white shadow-2xs"
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                Tất cả
+              </button>
+              {MODULE_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setSelectedModuleCategory(cat.id)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${
+                    selectedModuleCategory === cat.id
+                      ? "bg-rose-600 text-white shadow-2xs"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  <span>{cat.icon}</span>
+                  <span>{cat.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Presets List */}
+            <div className="space-y-2">
+              {MODULE_PRESETS.filter(
+                (p) => selectedModuleCategory === "all" || p.category === selectedModuleCategory
+              ).map((preset) => (
+                <div
+                  key={preset.id}
+                  onClick={() => {
+                    if (onAddModulePreset) {
+                      onAddModulePreset(preset);
+                    } else if (onAddWidget) {
+                      onAddWidget(preset.type, preset.defaultProps);
+                    }
+                  }}
+                  className="p-2.5 rounded-2xl border border-gray-200 hover:border-rose-400 bg-white flex items-center justify-between gap-2.5 cursor-pointer shadow-2xs hover:shadow-xs hover:bg-rose-50/20 transition-all group"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-gray-50 group-hover:bg-rose-100/60 border border-gray-100 flex items-center justify-center text-lg shrink-0 transition-colors">
+                      {preset.previewIcon}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-gray-900 group-hover:text-rose-600 truncate transition-colors">
+                          {preset.name}
+                        </h4>
+                        <span className="px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 text-[9px] font-semibold border border-rose-200/60 shrink-0">
+                          {preset.badge}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 font-medium truncate mt-0.5">
+                        {preset.styleName}
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    className="px-2.5 py-1 rounded-lg bg-gray-100 group-hover:bg-rose-600 text-gray-700 group-hover:text-white text-[10px] font-bold shrink-0 transition-all pointer-events-none"
+                  >
+                    + Chọn
+                  </button>
                 </div>
-                <p className="text-[11px] text-gray-600 leading-snug">
-                  Đổi số tài khoản ngân hàng, tên cô dâu chú rể hoặc bật/tắt hiển thị các mục này ở cuối thiệp:
-                </p>
+              ))}
+            </div>
+
+            {/* Bottom Quick Setting Link */}
+            {onOpenSettings && (
+              <div className="pt-2 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={onOpenSettings}
-                  className="w-full py-2 px-3 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+                  className="w-full py-2 px-3 rounded-xl bg-gray-50 hover:bg-rose-50 text-gray-600 hover:text-rose-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-200/70 transition-colors cursor-pointer"
                 >
                   <Settings className="w-3.5 h-3.5" />
-                  <span>Cài đặt Hộp mừng & RSVP</span>
+                  <span>Cài đặt STK & RSVP cố định</span>
                 </button>
               </div>
             )}
-
-            <div className="pt-1">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block mb-1">
-                Chèn Widget vào trang:
-              </span>
-            </div>
-
-            {[
-              {
-                id: "TimelineBox",
-                title: "Lịch trình ngày cưới",
-                desc: "Dòng thời gian các hoạt động đón khách, làm lễ, khai tiệc",
-                icon: <Clock className="w-5 h-5 text-purple-500" />,
-              },
-              {
-                id: "DressCodeBox",
-                title: "Quy định trang phục (Dress Code)",
-                desc: "Gợi ý bảng màu trang phục dự tiệc cho quan khách",
-                icon: <Palette className="w-5 h-5 text-amber-500" />,
-              },
-              {
-                id: "CeremonyBox",
-                title: "Chương trình hôn lễ",
-                desc: "Lễ Thành Hôn / Vu Quy kèm ngày giờ, địa điểm",
-                icon: <Heart className="w-5 h-5 text-rose-500" />,
-              },
-              {
-                id: "FamilyInfoBox",
-                title: "Thông tin hai họ",
-                desc: "Tên phụ mẫu hai họ và cô dâu chú rể trang trọng",
-                icon: <Users className="w-5 h-5 text-indigo-500" />,
-              },
-              {
-                id: "BankCardBox",
-                title: "Hộp mừng cưới 2 họ (VietQR)",
-                desc: "2 mã VietQR Napas 24/7 của Chú Rể và Cô Dâu",
-                icon: <CreditCard className="w-5 h-5 text-emerald-500" />,
-              },
-              {
-                id: "CountdownBoxV2",
-                title: "Đếm ngược ngày cưới",
-                desc: "Hiển thị đồng hồ đếm ngược Ngày - Giờ - Phút - Giây",
-                icon: <Calendar className="w-5 h-5 text-blue-500" />,
-              },
-              {
-                id: "CalendarBoxV2",
-                title: "Lịch cưới tháng",
-                desc: "Tờ lịch tháng với ngày cưới khoanh tròn",
-                icon: <Calendar className="w-5 h-5 text-teal-500" />,
-              },
-              {
-                id: "MapBox",
-                title: "Bản đồ chỉ đường (Maps)",
-                desc: "Tích hợp Google Maps dẫn đường khách đến tiệc cưới",
-                icon: <MapPin className="w-5 h-5 text-red-500" />,
-              },
-              {
-                id: "GiftQrBox",
-                title: "Hộp mừng cưới đơn (1 VietQR)",
-                desc: "Quét mã QR chuyển khoản tiền mừng cưới tiện lợi",
-                icon: <Gift className="w-5 h-5 text-amber-500" />,
-              },
-              {
-                id: "RsvpBoxV2",
-                title: "Xác nhận tham dự (RSVP)",
-                desc: "Form khách xác nhận tham dự và số lượng người đi cùng",
-                icon: <Heart className="w-5 h-5 text-pink-500" />,
-              },
-            ].map((widget) => (
-              <div
-                key={widget.id}
-                onClick={() => onAddWidget?.(widget.id)}
-                className="p-3 rounded-xl border border-gray-200 hover:border-[#e54153] bg-white flex items-start gap-3 cursor-pointer shadow-2xs hover:shadow-xs transition-all group"
-              >
-                <div className="p-2 rounded-xl bg-gray-50 group-hover:bg-rose-50 shrink-0 transition-colors">
-                  {widget.icon}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-gray-900 group-hover:text-[#e54153] transition-colors">
-                      {widget.title}
-                    </h4>
-                    <span className="text-[10px] font-bold text-gray-400 group-hover:text-[#e54153]">
-                      + Chèn
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500 leading-snug mt-0.5">
-                    {widget.desc}
-                  </p>
-                </div>
-              </div>
-            ))}
           </div>
         )}
 

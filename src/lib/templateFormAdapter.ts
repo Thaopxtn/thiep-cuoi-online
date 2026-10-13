@@ -775,7 +775,7 @@ export function convertFormTemplateToCanvasNodes(
       isWebview: false,
       editorViewportWidth: 500,
       width: 500,
-      height: Math.max(5400, currentTop + 160),
+      height: currentTop + 60,
       musicTitle: formData.backgroundMusic?.name || "Bản nhạc cưới",
       musicUrl: formData.backgroundMusic?.fileKey
         ? resolveUrl(formData.backgroundMusic.fileKey)

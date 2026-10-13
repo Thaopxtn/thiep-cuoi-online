@@ -382,6 +382,29 @@ export function addWish(cardId: string, name: string, content: string): WeddingW
   return newWish;
 }
 
+export function toggleWishLike(cardId: string, wishId: string): number {
+  if (typeof window === "undefined") return 1;
+  try {
+    const storageKey = getCardsStorageKey();
+    const cards = getAllCards();
+    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
+    if (card && card.wishes) {
+      const wish = card.wishes.find((w) => w.id === wishId);
+      if (wish) {
+        wish.likes = (wish.likes || 0) + 1;
+        const existingIndex = cards.findIndex((c) => c.id === card.id);
+        cards[existingIndex] = card;
+        localStorage.setItem(storageKey, JSON.stringify(cards));
+        return wish.likes;
+      }
+    }
+  } catch (e) {
+    console.error("toggleWishLike error:", e);
+  }
+  return 1;
+}
+
+
 /**
  * Clone trực tiếp bất kỳ mẫu nào từ ZenLove về thành thiệp cưới mới của người dùng
  */

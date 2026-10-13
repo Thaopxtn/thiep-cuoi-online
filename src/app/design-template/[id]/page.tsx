@@ -14,6 +14,7 @@ import EditorLivePreviewModal from "@/components/editor/EditorLivePreviewModal";
 import EditorWeddingSettingsModal from "@/components/editor/EditorWeddingSettingsModal";
 import EditorAutoFillModal from "@/components/editor/EditorAutoFillModal";
 import EditorPublishWarningModal from "@/components/editor/EditorPublishWarningModal";
+import EditorBackgroundCutoutModal from "@/components/editor/EditorBackgroundCutoutModal";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate, findZenloveTemplate } from "@/data/zenloveTemplates";
@@ -21,6 +22,7 @@ import { saveCard, saveCardAsync, getCardByIdOrSlug, WeddingCard } from "@/lib/w
 import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
 import { useAuth } from "@/context/AuthContext";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
+import { getSafeImageUrl } from "@/lib/imageUtils";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import { validateTemplateCompletion, ValidationWarning } from "@/lib/templateValidation";
 import { getStoredTemplateById } from "@/lib/templateStorage";
@@ -45,6 +47,8 @@ import {
   generateFamilyInfoHtml,
   generateBankCardHtml,
 } from "@/lib/moduleHelpers";
+import { ModulePresetItem } from "@/lib/modulePresetsCatalog";
+import { applyComboToNodes, applyStaggerToNodes, AnimationCombo } from "@/lib/animationCatalog";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -80,6 +84,11 @@ export default function DesignTemplatePage() {
   const [isAutoFillModalOpen, setIsAutoFillModalOpen] = useState(false);
   const [isWarningModalOpen, setIsWarningModalOpen] = useState(false);
   const [publishWarnings, setPublishWarnings] = useState<ValidationWarning[]>([]);
+  // Manual Cutout Modal state
+  const [isCutoutModalOpen, setIsCutoutModalOpen] = useState(false);
+  const [cutoutTargetId, setCutoutTargetId] = useState<string | null>(null);
+  const [cutoutTargetUrl, setCutoutTargetUrl] = useState<string | null>(null);
+  const [cutoutInitialResult, setCutoutInitialResult] = useState<string | null>(null);
   const [customCardData, setCustomCardData] = useState<WeddingCard | null>(null);
   const [isSaved, setIsSaved] = useState(true);
 
@@ -611,15 +620,12 @@ export default function DesignTemplatePage() {
     let targetId = selectedElement?.id;
     let targetUrl = selectedElement?.props?.imgKey || selectedElement?.props?.src;
 
-    if (!targetUrl) {
-      const firstPhoto = Object.entries(nodes).find(
-        ([, n]: [string, any]) =>
-          n.type?.resolvedName === "PhotoBox" && (n.props?.imgKey || n.props?.src)
-      );
-      if (firstPhoto) {
-        targetId = firstPhoto[0];
-        targetUrl = firstPhoto[1].props?.imgKey || firstPhoto[1].props?.src;
-        setSelectedElement({ id: targetId, type: "PhotoBox", props: firstPhoto[1].props });
+    if (!targetUrl || !targetId || selectedElement?.type !== "PhotoBox") {
+      const realSlots = getRealWeddingPhotoSlots(nodes, templateId);
+      if (realSlots.length > 0) {
+        targetId = realSlots[0].id;
+        targetUrl = realSlots[0].props?.imgKey || realSlots[0].props?.src;
+        setSelectedElement({ id: targetId, type: "PhotoBox", props: realSlots[0].props });
       }
     }
 
@@ -628,10 +634,12 @@ export default function DesignTemplatePage() {
       return;
     }
 
+    const safeUrl = getSafeImageUrl(targetUrl);
+
     try {
       setIsRemovingBg(true);
       showToast("✨ Đang dùng AI tách phông nền ảnh cưới...");
-      const transparentPng = await smartRemoveBackground(targetUrl);
+      const transparentPng = await smartRemoveBackground(safeUrl);
 
       handleUpdateProps(targetId, {
         imgKey: transparentPng,
@@ -639,13 +647,57 @@ export default function DesignTemplatePage() {
         hasBoxShadow: true,
         boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
       });
-      showToast("✨ Đã tách phông nền thành công (0đ chi phí)!");
+      setCutoutTargetId(targetId);
+      setCutoutTargetUrl(safeUrl);
+      setCutoutInitialResult(transparentPng);
+      showToast("✨ Đã tách nền nhân vật! Bấm 'Chỉnh sửa bằng tay' nếu muốn vẽ lại.");
     } catch (err) {
       console.error("Lỗi xóa nền:", err);
       showToast("Không thể xóa nền ảnh này, vui lòng thử lại");
     } finally {
       setIsRemovingBg(false);
     }
+  };
+
+  // Open manual cutout refinement modal
+  const handleOpenManualCutout = () => {
+    let targetId = selectedElement?.type === "PhotoBox" ? selectedElement.id : null;
+    let targetUrl = selectedElement?.props?.imgKey || selectedElement?.props?.src;
+
+    if (!targetId || !targetUrl) {
+      const realSlots = getRealWeddingPhotoSlots(nodes, templateId);
+      if (realSlots.length > 0) {
+        targetId = realSlots[0].id;
+        targetUrl = realSlots[0].props?.imgKey || realSlots[0].props?.src;
+        setSelectedElement({ id: targetId, type: "PhotoBox", props: realSlots[0].props });
+      }
+    }
+
+    if (!targetUrl || !targetId) {
+      showToast("Vui lòng chọn một ảnh trên thiệp để chỉnh sửa xóa nền");
+      return;
+    }
+
+    const safeUrl = getSafeImageUrl(targetUrl);
+    setCutoutTargetId(targetId);
+    setCutoutTargetUrl(safeUrl);
+    setCutoutInitialResult(safeUrl.startsWith("data:image/png") ? safeUrl : null);
+    setIsCutoutModalOpen(true);
+  };
+
+  // Apply final refined cutout from modal to the PhotoBox
+  const handleApplyCutout = (finalCutoutDataUrl: string) => {
+    if (!cutoutTargetId) return;
+
+    handleUpdateProps(cutoutTargetId, {
+      imgKey: finalCutoutDataUrl,
+      src: finalCutoutDataUrl,
+      hasBoxShadow: true,
+      boxShadow: { blur: 15, color: "rgba(229,65,83,0.3)" },
+    });
+
+    addUploadedImageToLibrary(finalCutoutDataUrl);
+    showToast("✨ Đã cập nhật ảnh nhân vật vào thiệp!");
   };
 
   // Change background styling (Color, texture, image)
@@ -825,6 +877,54 @@ export default function DesignTemplatePage() {
       setSelectedElement({ id: newId, type: widgetType, props: newNode.props });
       return newNodes;
     });
+  };
+
+  // Add styled module preset with smart magnetic alignment
+  const handleAddModulePreset = (preset: ModulePresetItem) => {
+    const newId = `preset_${Date.now()}`;
+    const width = preset.defaultWidth || 440;
+    const height = preset.defaultHeight || 180;
+
+    // Smart magnetic alignment: center horizontally (x = (500 - width) / 2)
+    const targetLeft = Math.max(0, Math.round((500 - width) / 2));
+
+    // Smart magnetic alignment: snap right below lowest non-decorative element (+24px)
+    const nonDecorativeNodes = Object.entries(nodes).filter(
+      ([id]) => id !== "ROOT" && !isDecorativeNode(id, nodes[id])
+    );
+    const maxBottom = nonDecorativeNodes.reduce((max, [, node]: [string, any]) => {
+      const top = Number(node?.props?.top ?? 0);
+      const h = Number(node?.props?.height ?? 100);
+      return Math.max(max, top + h);
+    }, 450);
+
+    const targetTop = maxBottom + 24;
+
+    const newNode = {
+      type: { resolvedName: preset.type },
+      props: {
+        ...preset.defaultProps,
+        left: targetLeft,
+        top: targetTop,
+        width,
+        height,
+        zIndex: 50,
+      },
+    };
+
+    setNodes((prev) => {
+      const newNodes = { ...prev, [newId]: newNode };
+      pushHistory(newNodes);
+      setSelectedElement({ id: newId, type: preset.type, props: newNode.props });
+      return newNodes;
+    });
+
+    setTimeout(() => {
+      const element = document.getElementById(`canvas-node-${newId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
   };
 
   // 1-Click theme preset applicator
@@ -1239,10 +1339,12 @@ export default function DesignTemplatePage() {
           onChangeBackground={handleChangeBackground}
           onAddStock={handleAddStock}
           onRemoveBackground={handleRemoveBackground}
+          onOpenManualCutout={handleOpenManualCutout}
           isRemovingBackground={isRemovingBg}
           currentMusic={currentMusic}
           onChangeMusic={handleChangeMusic}
           onAddWidget={handleAddWidget}
+          onAddModulePreset={handleAddModulePreset}
           onSelectTemplate={handleSelectTemplate}
           onApplyThemePreset={handleApplyThemePreset}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
@@ -1277,7 +1379,24 @@ export default function DesignTemplatePage() {
             setIsLeftDrawerOpen(true);
           }}
           onRemoveBackground={handleRemoveBackground}
+          onOpenManualCutout={handleOpenManualCutout}
           isRemovingBackground={isRemovingBg}
+          onApplyComboToAll={(combo) => {
+            setNodes((prev) => {
+              const next = applyComboToNodes(prev, combo, true);
+              pushHistory(next);
+              return next;
+            });
+            showToast(`✨ Đã áp dụng Combo "${combo.name}" cho toàn bộ thiệp!`);
+          }}
+          onApplyStaggerAll={(stepDelay) => {
+            setNodes((prev) => {
+              const next = applyStaggerToNodes(prev, stepDelay);
+              pushHistory(next);
+              return next;
+            });
+            showToast(`🌊 Đã tạo hiệu ứng so le (${stepDelay}s) cho toàn bộ thiệp!`);
+          }}
         />
       </div>
 
@@ -1340,6 +1459,15 @@ export default function DesignTemplatePage() {
         warnings={publishWarnings}
         onOpenAutoFill={() => setIsAutoFillModalOpen(true)}
         onProceedPublish={() => proceedPublish()}
+      />
+
+      {/* 6. MANUAL BACKGROUND CUTOUT & REFINEMENT MODAL */}
+      <EditorBackgroundCutoutModal
+        isOpen={isCutoutModalOpen}
+        onClose={() => setIsCutoutModalOpen(false)}
+        imageUrl={cutoutTargetUrl || ""}
+        initialCutoutUrl={cutoutInitialResult || undefined}
+        onApply={handleApplyCutout}
       />
 
       {/* 6. AUTH GUARD OVERLAY FOR STUDIO CANVAS */}

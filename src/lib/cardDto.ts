@@ -56,6 +56,9 @@ export interface PublicCardDTO {
   rsvps: PublicRsvpDTO[];
   wishes: WeddingWish[];
   nodes?: Record<string, any>;
+  envelopeTheme?: "cream" | "traditional" | "burgundy";
+  ambientEffect?: string;
+  loveStory?: any[];
   showGiftBox?: boolean;
   showWishes?: boolean;
   showRsvp?: boolean;
@@ -128,6 +131,9 @@ export function toPublicCardDTO(card: WeddingCard): PublicCardDTO {
     rsvps: sanitizeRsvpsForPublic(card.rsvps),
     wishes: Array.isArray(card.wishes) ? card.wishes : [],
     nodes: card.nodes,
+    envelopeTheme: card.envelopeTheme,
+    ambientEffect: card.ambientEffect,
+    loveStory: card.loveStory,
     showGiftBox: card.showGiftBox,
     showWishes: card.showWishes,
     showRsvp: card.showRsvp,

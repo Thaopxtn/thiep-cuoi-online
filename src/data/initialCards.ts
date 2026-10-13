@@ -26,6 +26,7 @@ export interface WeddingWish {
   name: string;
   content: string;
   createdAt: string;
+  likes?: number;
 }
 
 export interface WeddingCard {
@@ -75,6 +76,17 @@ export interface WeddingCard {
   showWishes?: boolean;
   showRsvp?: boolean;
   showEvents?: boolean;
+  envelopeTheme?: "burgundy" | "cream" | "traditional";
+  ambientEffect?: "petals" | "sparkles" | "hearts" | "confetti";
+  loveStory?: Array<{
+    id?: string;
+    date: string;
+    title: string;
+    description: string;
+    imageUrl?: string;
+  }>;
+  showCalendar?: boolean;
+  showLoveStory?: boolean;
 }
 
 // Key operational templates
@@ -249,5 +261,270 @@ export const INITIAL_CARDS: WeddingCard[] = [
       "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
     rsvps: [],
     wishes: [],
+  },
+  {
+    id: "aurora-luxury-001",
+    slug: "aurora-luxury",
+    name: "Aurora Luxury - Hoàng Khang & Ánh Tuyết",
+    templateId: "aurora-luxury-001",
+    templateName: "Aurora Luxury",
+    status: "published",
+    updatedAt: "13/10/2026",
+    views: 890,
+    envelopeTheme: "cream",
+    ambientEffect: "sparkles",
+    coverImage:
+      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=1200&auto=format&fit=crop",
+    story:
+      "Giữa hàng triệu người trên thế giới, thật kỳ diệu khi chúng ta tìm thấy nhau và cùng thêu dệt nên giấc mơ hạnh phúc trăm năm ngọt ngào này.",
+    weddingDate: "2026-11-28",
+    weddingTime: "18:00",
+    lunarDate: "Ngày 20 tháng 10 năm Bính Ngọ",
+    groom: {
+      name: "Hoàng Khang",
+      title: "Chú Rể",
+      phone: "0908.112.233",
+      parents: "Ông Hoàng Văn Thái & Bà Đỗ Thị Cúc",
+      bankName: "MB BANK",
+      accountNumber: "999988886666",
+      accountName: "HOANG KHANG",
+    },
+    bride: {
+      name: "Ánh Tuyết",
+      title: "Cô Dâu",
+      phone: "0918.445.566",
+      parents: "Ông Trần Đình Long & Bà Phạm Thị Lan",
+      bankName: "TECHCOMBANK",
+      accountNumber: "190388887777",
+      accountName: "TRAN ANH TUYET",
+    },
+    events: [
+      {
+        id: "evt-al-1",
+        title: "Lễ Hôn Phối Thánh Đường",
+        time: "14:00 • 28/11/2026",
+        venue: "Thánh Đường Cổ Kính",
+        address: "Số 01 Công Xã Paris, Phường Bến Nghé, Quận 1, TP. HCM",
+        mapUrl: "https://maps.google.com/?q=Notre+Dame+Cathedral+Saigon",
+      },
+      {
+        id: "evt-al-2",
+        title: "Dạ Tiệc Champagne Hoàng Gia",
+        time: "18:00 • 28/11/2026",
+        venue: "Park Hyatt Saigon Grand Ballroom",
+        address: "Số 2 Lam Sơn, Bến Nghé, Quận 1, TP. Hồ Chí Minh",
+        mapUrl: "https://maps.google.com/?q=Park+Hyatt+Saigon",
+      },
+    ],
+    album: [
+      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop",
+    ],
+    loveStory: [
+      {
+        id: "ls-1",
+        date: "14 / 02 / 2021",
+        title: "Định Mệnh Chạm Nhau",
+        description: "Buổi chiều Paris tuyết trắng phủ, ánh mắt giao nhau qua tách cafe ấm nồng.",
+        imageUrl: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=600&auto=format&fit=crop",
+      },
+      {
+        id: "ls-2",
+        date: "20 / 10 / 2022",
+        title: "Cái Nắm Tay Đầu Tiên",
+        description: "Dưới tháp Eiffel rực rỡ ánh đèn, ta nhận ra nửa kia thuộc về mình trọn vẹn.",
+        imageUrl: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=600&auto=format&fit=crop",
+      },
+      {
+        id: "ls-3",
+        date: "24 / 12 / 2024",
+        title: "Lời Hẹn Ước Vĩnh Cửu",
+        description: "Chiếc nhẫn kim cương lấp lánh và lời thì thầm: 'Hãy cùng anh già đi nhé em!'.",
+        imageUrl: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=600&auto=format&fit=crop",
+      },
+    ],
+    musicTitle: "Until I Found You - Acoustic",
+    musicUrl:
+      "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+    rsvps: [],
+    wishes: [
+      {
+        id: "w-al-1",
+        cardId: "aurora-luxury-001",
+        name: "Hội bạn thân Doanh Nhân",
+        content: "Chúc Khang và Tuyết một hôn lễ tuyệt mỹ, hạnh phúc thăng hoa và mãi giữ trọn nụ cười rạng rỡ này nhé!",
+        createdAt: "Hôm nay 10:20",
+        likes: 12,
+      },
+    ],
+  },
+  {
+    id: "chung-doi-son-sat-002",
+    slug: "chung-doi-son-sat",
+    name: "Chung Đôi Son Sắt - Quốc Bảo & Thanh Trúc",
+    templateId: "chung-doi-son-sat-002",
+    templateName: "Chung Đôi Son Sắt",
+    status: "published",
+    updatedAt: "13/10/2026",
+    views: 1240,
+    envelopeTheme: "traditional",
+    ambientEffect: "petals",
+    coverImage:
+      "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=1200&auto=format&fit=crop",
+    story:
+      "Trăm năm kết tóc se duyên, sắc son tình nghĩa vẹn tròn trăm năm. Nguyện cùng người vượt qua bão giông, cùng xây tổ ấm an lành vững bền.",
+    weddingDate: "2026-12-12",
+    weddingTime: "11:00",
+    lunarDate: "Ngày 04 tháng 11 năm Bính Ngọ",
+    groom: {
+      name: "Quốc Bảo",
+      title: "Chú Rể",
+      phone: "0903.667.889",
+      parents: "Ông Nguyễn Quốc Dũng & Bà Lê Thị Kim",
+      bankName: "VIETCOMBANK",
+      accountNumber: "0071008899776",
+      accountName: "NGUYEN QUOC BAO",
+    },
+    bride: {
+      name: "Thanh Trúc",
+      title: "Cô Dâu",
+      phone: "0909.112.334",
+      parents: "Ông Đặng Văn Minh & Bà Huỳnh Thị Nga",
+      bankName: "ACB",
+      accountNumber: "2233445566",
+      accountName: "DANG THANH TRUC",
+    },
+    events: [
+      {
+        id: "evt-cd-1",
+        title: "Lễ Vu Quy Nhà Gái",
+        time: "08:00 • 12/12/2026",
+        venue: "Tư gia Nhà Gái",
+        address: "128 Nguyễn Đình Chiểu, Phường Võ Thị Sáu, Quận 3, TP. HCM",
+      },
+      {
+        id: "evt-cd-2",
+        title: "Lễ Thành Hôn & Tiệc Hỷ",
+        time: "11:00 • 12/12/2026",
+        venue: "Trung tâm Hội nghị The Adora Grand View",
+        address: "421 Ngô Gia Tự, Phường 9, Quận 5, TP. Hồ Chí Minh",
+        mapUrl: "https://maps.google.com/?q=The+Adora+Grand+View",
+      },
+    ],
+    album: [
+      "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
+    ],
+    loveStory: [
+      {
+        id: "ls-cd-1",
+        date: "01 / 01 / 2020",
+        title: "Hội Ngộ Đầu Xuân",
+        description: "Gặp gỡ trong hội hoa xuân, duyên lành đưa lối tình nồng thắm duyên.",
+      },
+      {
+        id: "ls-cd-2",
+        date: "08 / 08 / 2023",
+        title: "Lễ Đính Ước",
+        description: "Hai bên nội ngoại đồng lòng, trầu cau dạm hỏi ước định chung đôi.",
+      },
+    ],
+    musicTitle: "Ánh Nắng Của Anh - Violin Hòa Tấu",
+    musicUrl:
+      "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+    rsvps: [],
+    wishes: [
+      {
+        id: "w-cd-1",
+        cardId: "chung-doi-son-sat-002",
+        name: "Gia đình Cậu Mợ Ba",
+        content: "Chúc hai cháu sắt son nghĩa vợ tình chồng, con đàn cháu đống, hạnh phúc trường cửu!",
+        createdAt: "Hôm qua 18:30",
+        likes: 18,
+      },
+    ],
+  },
+  {
+    id: "pure-romance-003",
+    slug: "pure-romance",
+    name: "Pure Romance - Minh Triết & Ngọc Diệp",
+    templateId: "pure-romance-003",
+    templateName: "Pure Romance",
+    status: "published",
+    updatedAt: "13/10/2026",
+    views: 650,
+    envelopeTheme: "cream",
+    ambientEffect: "hearts",
+    coverImage:
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=1200&auto=format&fit=crop",
+    story:
+      "Tình yêu đơn giản là khi ở bên cạnh em, anh thấy lòng mình bình yên nhất. Hôm nay và mãi về sau, tay trong tay bước chung một con đường tràn ngập nắng mai.",
+    weddingDate: "2026-12-20",
+    weddingTime: "17:30",
+    lunarDate: "Ngày 12 tháng 11 năm Bính Ngọ",
+    groom: {
+      name: "Minh Triết",
+      title: "Chú Rể",
+      phone: "0915.223.344",
+      parents: "Ông Trần Minh Trí & Bà Nguyễn Thị Hạnh",
+      bankName: "VPBANK",
+      accountNumber: "8899001122",
+      accountName: "TRAN MINH TRIET",
+    },
+    bride: {
+      name: "Ngọc Diệp",
+      title: "Cô Dâu",
+      phone: "0938.556.677",
+      parents: "Ông Vũ Ngọc Sơn & Bà Hoàng Bích Thủy",
+      bankName: "MB BANK",
+      accountNumber: "5566778899",
+      accountName: "VU NGOC DIEP",
+    },
+    events: [
+      {
+        id: "evt-pr-1",
+        title: "Lễ Thành Hôn Lãng Mạn",
+        time: "17:30 • 20/12/2026",
+        venue: "Chloe Gallery Living Dining Event",
+        address: "02 - 06 Phan Văn Chương, Hồ Bán Nguyệt, Phú Mỹ Hưng, Quận 7, TP. HCM",
+        mapUrl: "https://maps.google.com/?q=Chloe+Gallery+Saigon",
+      },
+    ],
+    album: [
+      "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1465495976277-4387d4b0b4c6?q=80&w=800&auto=format&fit=crop",
+    ],
+    loveStory: [
+      {
+        id: "ls-pr-1",
+        date: "20 / 05 / 2022",
+        title: "Tình Cờ Hội Ngộ",
+        description: "Gặp nhau trong một buổi triển lãm tranh nghệ thuật, câu chuyện bắt đầu từ bức hoạ đồng xanh.",
+      },
+      {
+        id: "ls-pr-2",
+        date: "14 / 02 / 2024",
+        title: "Nguyện Ước Chung Đôi",
+        description: "Bên bờ Hồ Bán Nguyệt, ta hứa cùng nhau đi qua mọi tháng năm bình yên.",
+      },
+    ],
+    musicTitle: "I Do - 911 Band",
+    musicUrl:
+      "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+    rsvps: [],
+    wishes: [
+      {
+        id: "w-pr-1",
+        cardId: "pure-romance-003",
+        name: "Nhóm Bạn Đại Học Kiến Trúc",
+        content: "Chúc Triết và Diệp trăm năm viên mãn, lúc nào cũng ngọt ngào và đáng yêu như thuở mới quen!",
+        createdAt: "Hôm nay 08:45",
+        likes: 9,
+      },
+    ],
   },
 ];

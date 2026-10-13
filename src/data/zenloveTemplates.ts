@@ -73,6 +73,57 @@ export const ZENLOVE_CATEGORIES: ZenLoveCategory[] = [
 
 export const ALL_ZENLOVE_TEMPLATES: ZenLoveTemplate[] = [
   {
+    "id": "aurora-luxury-001",
+    "name": "Aurora Luxury",
+    "slug": "aurora-luxury",
+    "description": "Mẫu thiệp phong cách Tạp chí Hôn lễ Châu Âu sang trọng với gam màu Champagne, đĩa than xoay phát nhạc và album ảnh Polaroid.",
+    "categoryId": "e5a1eb86-bbde-4d17-b9f3-22a55ef0bcf2",
+    "categoryName": "Thiệp cưới",
+    "categorySlug": "thiep-cuoi",
+    "imageUrl": "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop",
+    "templateType": "hot",
+    "targetPageType": "CANVAS",
+    "likeCount": 1820,
+    "viewCount": 24500,
+    "usageCount": 940,
+    "createdAt": "2026-10-13T00:00:00.000Z",
+    "updatedAt": "2026-10-13T00:00:00.000Z"
+  },
+  {
+    "id": "chung-doi-son-sat-002",
+    "name": "Chung Đôi Son Sắt",
+    "slug": "chung-doi-son-sat",
+    "description": "Tuyệt tác thiệp cưới Á Đông tân thời với phong bì sáp Song Hỷ, hoa văn lọng vàng hoàng gia và Love Story timeline ý nghĩa.",
+    "categoryId": "e5a1eb86-bbde-4d17-b9f3-22a55ef0bcf2",
+    "categoryName": "Thiệp cưới",
+    "categorySlug": "thiep-cuoi",
+    "imageUrl": "https://images.unsplash.com/photo-1583939003579-730e3918a45a?q=80&w=800&auto=format&fit=crop",
+    "templateType": "premium",
+    "targetPageType": "CANVAS",
+    "likeCount": 2340,
+    "viewCount": 31200,
+    "usageCount": 1420,
+    "createdAt": "2026-10-13T00:00:00.000Z",
+    "updatedAt": "2026-10-13T00:00:00.000Z"
+  },
+  {
+    "id": "pure-romance-003",
+    "name": "Pure Romance",
+    "slug": "pure-romance",
+    "description": "Thiệp cưới tối giản phong cách Hàn Quốc pastel thanh lịch, lịch Save-the-Date khoanh tròn trái tim và sổ lưu bút tương tác.",
+    "categoryId": "e5a1eb86-bbde-4d17-b9f3-22a55ef0bcf2",
+    "categoryName": "Thiệp cưới",
+    "categorySlug": "thiep-cuoi",
+    "imageUrl": "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?q=80&w=800&auto=format&fit=crop",
+    "templateType": "new",
+    "targetPageType": "CANVAS",
+    "likeCount": 1280,
+    "viewCount": 16900,
+    "usageCount": 750,
+    "createdAt": "2026-10-13T00:00:00.000Z",
+    "updatedAt": "2026-10-13T00:00:00.000Z"
+  },
+  {
     "id": "4e91a4ea-9e62-43d8-bf37-34e2eef30e2e",
     "name": "Son Duyên",
     "slug": "son-duyen",
@@ -3594,6 +3645,9 @@ export const ALL_ZENLOVE_TEMPLATES: ZenLoveTemplate[] = [
 ];
  
 export const HOMEPAGE_CLONED_SLUGS: string[] = [
+  "aurora-luxury",
+  "chung-doi-son-sat",
+  "pure-romance",
   "son-duyen",
   "green-love",
   "sen-ngay-hy",

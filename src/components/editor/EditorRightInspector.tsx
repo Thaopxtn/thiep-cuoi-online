@@ -20,6 +20,7 @@ import {
   Bold,
   Italic,
   Loader2,
+  Eraser,
   Calendar as CalendarIcon,
   MapPin,
   Gift,
@@ -36,7 +37,34 @@ import {
   QrCode,
   Building2,
   Copy as CopyIcon,
+  Play,
+  RefreshCw,
+  SlidersHorizontal,
+  Eye,
+  Zap,
+  CheckCircle2,
+  Volume2,
+  VolumeX,
+  Waves,
 } from "lucide-react";
+import {
+  ENTRANCE_EFFECTS,
+  EXIT_EFFECTS,
+  CONTINUOUS_EFFECTS,
+  ANIMATION_CATEGORIES,
+  DURATION_PRESETS,
+  DELAY_PRESETS,
+  EASING_OPTIONS,
+  ANIMATION_COMBOS,
+  HOVER_EFFECTS,
+  AnimationMode,
+  AnimationGroup,
+  AnimationCategory,
+  AnimationCombo,
+  ContinuousEffectItem,
+  ANIMATION_KEYFRAME_MAP,
+} from "@/lib/animationCatalog";
+import { weddingSounds } from "@/lib/soundEffects";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import { getSafeImageUrl } from "@/lib/imageUtils";
@@ -73,7 +101,10 @@ interface EditorRightInspectorProps {
   onUpdateProps: (elementId: string, updatedProps: Record<string, any>) => void;
   onReplaceImage?: () => void;
   onRemoveBackground?: () => void;
+  onOpenManualCutout?: () => void;
   isRemovingBackground?: boolean;
+  onApplyComboToAll?: (combo: AnimationCombo) => void;
+  onApplyStaggerAll?: (stepDelay: number) => void;
 }
 
 export default function EditorRightInspector({
@@ -81,9 +112,21 @@ export default function EditorRightInspector({
   onUpdateProps,
   onReplaceImage,
   onRemoveBackground,
+  onOpenManualCutout,
   isRemovingBackground = false,
+  onApplyComboToAll,
+  onApplyStaggerAll,
 }: EditorRightInspectorProps) {
   const [activeTab, setActiveTab] = useState<"settings" | "effects">("settings");
+  const [effectGroup, setEffectGroup] = useState<AnimationGroup>("entrance");
+  const [animMode, setAnimMode] = useState<AnimationMode>("entrance");
+  const [animCategory, setAnimCategory] = useState<AnimationCategory>("all");
+  const [isPlayingPreview, setIsPlayingPreview] = useState(false);
+  const [showAdvancedTiming, setShowAdvancedTiming] = useState(false);
+  const [isSoundMuted, setIsSoundMuted] = useState(false);
+  const [selectedComboId, setSelectedComboId] = useState<string | null>(null);
+  const [staggerStep, setStaggerStep] = useState<number>(0.15);
+  const [miniPreviewKey, setMiniPreviewKey] = useState<number>(0);
   const [openAccordions, setOpenAccordions] = useState<Record<string, boolean>>({
     image: true,
     filters: true,
@@ -555,6 +598,16 @@ export default function EditorRightInspector({
                             <Wand2 className="w-3.5 h-3.5 text-purple-600" />
                           )}
                           <span>{isRemovingBackground ? "Đang tách nền..." : "Xóa phông AI"}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={onOpenManualCutout}
+                          className="w-full py-1.5 px-3 border border-indigo-200 bg-indigo-50/60 hover:bg-indigo-100/60 text-indigo-700 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                          title="Tẩy nền thủ công & khôi phục nhân vật bằng cọ vẽ"
+                        >
+                          <Eraser className="w-3.5 h-3.5 text-indigo-600" />
+                          <span>Chỉnh sửa bằng tay</span>
                         </button>
                       </div>
                     )}
@@ -2082,108 +2135,797 @@ export default function EditorRightInspector({
         {/* ================= TAB: HIỆU ỨNG (ANIMATIONS & TRANSITIONS) ================= */}
         {activeTab === "effects" && (
           <div className="space-y-4">
-            <div className="border-b border-gray-100 pb-2">
-              <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Hiệu ứng chuyển động</span>
-              </h4>
-              <p className="text-[11px] text-gray-500 mt-0.5">
-                Cài đặt hiệu ứng liên tục và xuất hiện khi cuộn trang.
-              </p>
+            {/* Header: Title & Micro-sound toggle */}
+            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+              <div>
+                <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Hiệu ứng chuyển động</span>
+                </h4>
+                <p className="text-[11px] text-gray-500 mt-0.5">
+                  Phân nhóm Xuất hiện, Biến mất, Liên tục và Combo 1-chạm.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextMuted = !isSoundMuted;
+                  setIsSoundMuted(nextMuted);
+                  if (!nextMuted) weddingSounds.playSoftClick();
+                }}
+                title={isSoundMuted ? "Bật âm thanh vi mô tương tác" : "Tắt âm thanh vi mô tương tác"}
+                className={`p-1.5 rounded-lg border transition-all ${
+                  !isSoundMuted
+                    ? "bg-rose-50 border-rose-200 text-[#e54153]"
+                    : "bg-gray-50 border-gray-200 text-gray-400"
+                }`}
+              >
+                {!isSoundMuted ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
+              </button>
             </div>
 
-            {/* Continuous Animation Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-gray-800 block">
-                Hiệu ứng liên tục (Loop):
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "none", label: "Không có" },
-                  { id: "float", label: "Bay lơ lửng 🕊️" },
-                  { id: "bounce", label: "Nhún nhảy 🤾" },
-                  { id: "wobble", label: "Rung rinh 🎈" },
-                  { id: "pulse", label: "Nhịp tim 💓" },
-                  { id: "wiggle", label: "Lắc lư 💃" },
-                  { id: "shake", label: "Rung lắc 🔔" },
-                ].map((item) => {
-                  const currentType = props.continuousAnimation?.type || "none";
-                  const isActive = currentType === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() =>
+            {/* 1. Mini Live Preview Box (Khung xem trước mô phỏng theo nhóm đang chọn) */}
+            <div className="relative overflow-hidden rounded-2xl border border-rose-200 bg-gradient-to-b from-rose-50/70 to-pink-50/40 p-3 shadow-2xs">
+              <div className="flex items-center justify-between text-[11px] text-gray-600 mb-2">
+                <span className="font-bold flex items-center gap-1 text-gray-800">
+                  <Eye className="w-3.5 h-3.5 text-[#e54153]" />
+                  <span>
+                    Mô phỏng:{" "}
+                    <strong className="text-[#e54153]">
+                      {effectGroup === "entrance"
+                        ? "Xuất hiện"
+                        : effectGroup === "exit"
+                        ? "Biến mất"
+                        : "Liên tục"}
+                    </strong>
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!isSoundMuted) weddingSounds.playEnvelopeOpen();
+                    setMiniPreviewKey(Date.now());
+                    if (selectedElement) {
+                      onUpdateProps(selectedElement.id, { _previewKey: Date.now() });
+                    }
+                    setIsPlayingPreview(true);
+                    setTimeout(() => setIsPlayingPreview(false), 900);
+                  }}
+                  className="px-2 py-0.5 rounded-md bg-white border border-rose-200 text-[#e54153] text-[10px] font-bold hover:bg-rose-50 flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Play className={`w-2.5 h-2.5 fill-current ${isPlayingPreview ? "animate-spin" : ""}`} />
+                  <span>{isPlayingPreview ? "Đang chạy..." : "Phát lại"}</span>
+                </button>
+              </div>
+
+              {/* Demo wedding card element */}
+              <div className="h-16 rounded-xl bg-white/95 border border-rose-100 flex flex-col items-center justify-center p-2 text-center shadow-xs overflow-hidden relative">
+                <div
+                  key={miniPreviewKey}
+                  style={
+                    effectGroup === "exit"
+                      ? {
+                          animationName:
+                            ANIMATION_KEYFRAME_MAP[props.transition?.exitEffectType || "fadeOut"] ||
+                            "fadeOut",
+                          animationDuration: "0.8s",
+                          animationTimingFunction: "ease-in",
+                          animationFillMode: "both",
+                        }
+                      : effectGroup === "entrance"
+                      ? {
+                          animationName:
+                            ANIMATION_KEYFRAME_MAP[props.transition?.effectType || "fadeIn"] ||
+                            "fadeIn",
+                          animationDuration: `${props.transition?.effectDuration ?? 1.2}s`,
+                          animationTimingFunction:
+                            props.transition?.effectEasing || "cubic-bezier(0.16, 1, 0.3, 1)",
+                          animationFillMode: "both",
+                        }
+                      : {}
+                  }
+                  className={`flex flex-col items-center ${
+                    effectGroup === "continuous" || (!isPlayingPreview && props.continuousAnimation?.type)
+                      ? props.continuousAnimation?.type === "float"
+                        ? "animate-zen-float"
+                        : props.continuousAnimation?.type === "pulse"
+                        ? "animate-zen-pulse"
+                        : props.continuousAnimation?.type === "bounce"
+                        ? "animate-zen-bounce"
+                        : props.continuousAnimation?.type === "wobble"
+                        ? "animate-zen-wobble"
+                        : props.continuousAnimation?.type === "wiggle"
+                        ? "animate-zen-wiggle"
+                        : props.continuousAnimation?.type === "shake"
+                        ? "animate-zen-shake"
+                        : ""
+                      : ""
+                  }`}
+                >
+                  <span className="text-[11px] font-serif font-bold text-gray-800">
+                    Minh Quân & Phương Anh
+                  </span>
+                  <span className="text-[9px] text-[#e54153] font-medium mt-0.5">
+                    {effectGroup === "entrance"
+                      ? `${props.transition?.effectType || "fadeIn"} • Xuất hiện (${props.transition?.effectDuration ?? 1.2}s)`
+                      : effectGroup === "exit"
+                      ? `${props.transition?.exitEffectType || "none"} • Biến mất`
+                      : `${props.continuousAnimation?.type || "none"} • Vòng lặp (${props.continuousAnimation?.duration || 3}s)`}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Top Segmented Selector: 3 NHÓM HIỆU ỨNG (Xuất hiện, Biến mất, Liên tục) */}
+            <div className="grid grid-cols-3 p-1 bg-gray-100 rounded-xl gap-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setEffectGroup("entrance");
+                  setAnimCategory("all");
+                  if (!isSoundMuted) weddingSounds.playSoftClick();
+                }}
+                className={`py-1.5 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  effectGroup === "entrance"
+                    ? "bg-white text-[#e54153] shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <span>✨ Xuất hiện</span>
+                {props.transition?.effectType && props.transition?.effectType !== "none" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e54153]" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEffectGroup("exit");
+                  setAnimCategory("all");
+                  if (!isSoundMuted) weddingSounds.playSoftClick();
+                }}
+                className={`py-1.5 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  effectGroup === "exit"
+                    ? "bg-white text-[#e54153] shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <span>💨 Biến mất</span>
+                {props.transition?.exitEffectType && props.transition?.exitEffectType !== "none" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e54153]" />
+                )}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setEffectGroup("continuous");
+                  if (!isSoundMuted) weddingSounds.playSoftClick();
+                }}
+                className={`py-1.5 px-1 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                  effectGroup === "continuous"
+                    ? "bg-white text-[#e54153] shadow-xs"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <span>🔄 Liên tục</span>
+                {props.continuousAnimation?.type && props.continuousAnimation?.type !== "none" && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#e54153]" />
+                )}
+              </button>
+            </div>
+
+            {/* ================= PHẦN NỘI DUNG NHÓM: 1. XUẤT HIỆN (ENTRANCE) ================= */}
+            {effectGroup === "entrance" && (
+              <div className="space-y-2.5 pt-0.5">
+                {/* Category Pills */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[11px]">
+                  {ANIMATION_CATEGORIES.map((cat) => {
+                    const isCatActive = animCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          setAnimCategory(cat.id);
+                          if (!isSoundMuted) weddingSounds.playSoftClick();
+                        }}
+                        className={`px-2 py-0.5 rounded-lg shrink-0 font-medium transition-all cursor-pointer ${
+                          isCatActive
+                            ? "bg-[#e54153] text-white font-bold shadow-2xs"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                        }`}
+                      >
+                        <span>{cat.icon}</span> <span className="ml-0.5">{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Grid of tiles (Ô chọn hiệu ứng Xuất hiện - Gọn gàng 3 cột) */}
+                <div className="grid grid-cols-3 gap-1.5 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-thin">
+                  {(() => {
+                    const filteredList = ENTRANCE_EFFECTS.filter(
+                      (eff) => animCategory === "all" || eff.category === animCategory || eff.id === "none"
+                    );
+                    const activeEffectId = props.transition?.effectType || "fadeIn";
+
+                    return filteredList.map((eff) => {
+                      const isSelected = activeEffectId === eff.id;
+                      return (
+                        <button
+                          key={eff.id}
+                          type="button"
+                          title={`${eff.name} (${eff.nameEn})${eff.desc ? ` - ${eff.desc}` : ""}`}
+                          onClick={() => {
+                            if (!isSoundMuted) weddingSounds.playSoftClick();
+                            const currentTransition = props.transition || {};
+                            const updated = {
+                              ...currentTransition,
+                              effectEnabled: true,
+                              effectType: eff.id,
+                              effectDuration: currentTransition.effectDuration ?? 1.2,
+                              effectDelay: currentTransition.effectDelay ?? 0,
+                              effectEasing: currentTransition.effectEasing || "cubic-bezier(0.16, 1, 0.3, 1)",
+                              hoverEffect: currentTransition.hoverEffect || "none",
+                            };
+
+                            if (selectedElement) {
+                              onUpdateProps(selectedElement.id, {
+                                transition: updated,
+                                _previewKey: Date.now(),
+                              });
+                            }
+                            setMiniPreviewKey(Date.now());
+                            setIsPlayingPreview(true);
+                            setTimeout(() => setIsPlayingPreview(false), 900);
+                          }}
+                          className={`relative p-2 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all group cursor-pointer ${
+                            isSelected
+                              ? "border-[#e54153] bg-rose-50 text-[#e54153] shadow-xs ring-1 ring-[#e54153]/30 font-bold"
+                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
+                          }`}
+                        >
+                          <span className="text-base group-hover:scale-115 transition-transform duration-150 inline-block leading-none">
+                            {eff.icon}
+                          </span>
+                          <span className="text-[11px] leading-tight truncate w-full">
+                            {eff.name}
+                          </span>
+                          {isSelected && (
+                            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#e54153]" />
+                          )}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Timing controls for Entrance */}
+                <div className="space-y-2 pt-1 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setShowAdvancedTiming(!showAdvancedTiming)}
+                    className="w-full flex items-center justify-between text-xs font-bold text-gray-700 hover:text-gray-900 cursor-pointer"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <SlidersHorizontal className="w-3.5 h-3.5 text-gray-500" />
+                      <span>Tốc độ & độ trễ</span>
+                    </span>
+                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${showAdvancedTiming ? "rotate-180" : ""}`} />
+                  </button>
+
+                  {showAdvancedTiming && (
+                    <div className="space-y-3 p-2.5 bg-gray-50/80 rounded-xl border border-gray-100">
+                      {/* Duration */}
+                      <div className="space-y-1.5">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-gray-700">Thời gian (Duration):</span>
+                          <span className="font-mono font-bold text-[#e54153]">
+                            {props.transition?.effectDuration ?? 1.2}s
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.3"
+                          max="3.5"
+                          step="0.1"
+                          value={props.transition?.effectDuration ?? 1.2}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            const cur = props.transition || {};
+                            if (selectedElement) {
+                              onUpdateProps(selectedElement.id, {
+                                transition: { ...cur, effectEnabled: true, effectDuration: val },
+                                _previewKey: Date.now(),
+                              });
+                            }
+                            setMiniPreviewKey(Date.now());
+                          }}
+                          className="w-full accent-[#e54153]"
+                        />
+                        <div className="grid grid-cols-4 gap-1">
+                          {DURATION_PRESETS.map((preset) => (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => {
+                                const cur = props.transition || {};
+                                if (selectedElement) {
+                                  onUpdateProps(selectedElement.id, {
+                                    transition: { ...cur, effectEnabled: true, effectDuration: preset.value },
+                                    _previewKey: Date.now(),
+                                  });
+                                }
+                                setMiniPreviewKey(Date.now());
+                              }}
+                              className={`py-1 text-[10px] rounded-md border font-medium cursor-pointer ${
+                                (props.transition?.effectDuration ?? 1.2) === preset.value
+                                  ? "bg-rose-50 border-[#e54153] text-[#e54153] font-bold"
+                                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
+                              }`}
+                            >
+                              {preset.label.split(" ")[0]}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Delay */}
+                      <div className="space-y-1.5 pt-2 border-t border-gray-200/60">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="font-semibold text-gray-700">Độ trễ (Delay):</span>
+                          <span className="font-mono font-bold text-[#e54153]">
+                            {props.transition?.effectDelay ?? 0}s
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={props.transition?.effectDelay ?? 0}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value);
+                            const cur = props.transition || {};
+                            if (selectedElement) {
+                              onUpdateProps(selectedElement.id, {
+                                transition: { ...cur, effectEnabled: true, effectDelay: val },
+                                _previewKey: Date.now(),
+                              });
+                            }
+                            setMiniPreviewKey(Date.now());
+                          }}
+                          className="w-full accent-[#e54153]"
+                        />
+                        <div className="grid grid-cols-4 gap-1">
+                          {DELAY_PRESETS.map((preset) => (
+                            <button
+                              key={preset.value}
+                              type="button"
+                              onClick={() => {
+                                const cur = props.transition || {};
+                                if (selectedElement) {
+                                  onUpdateProps(selectedElement.id, {
+                                    transition: { ...cur, effectEnabled: true, effectDelay: preset.value },
+                                    _previewKey: Date.now(),
+                                  });
+                                }
+                                setMiniPreviewKey(Date.now());
+                              }}
+                              className={`py-1 text-[10px] rounded-md border font-medium cursor-pointer ${
+                                (props.transition?.effectDelay ?? 0) === preset.value
+                                  ? "bg-rose-50 border-[#e54153] text-[#e54153] font-bold"
+                                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
+                              }`}
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Easing */}
+                      <div className="space-y-1.5 pt-2 border-t border-gray-200/60">
+                        <span className="font-semibold text-gray-700 text-[11px] block">
+                          Gia tốc chuyển động:
+                        </span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {EASING_OPTIONS.map((opt) => {
+                            const isCurrentEasing = (props.transition?.effectEasing || "cubic-bezier(0.16, 1, 0.3, 1)") === opt.id;
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const cur = props.transition || {};
+                                  if (selectedElement) {
+                                    onUpdateProps(selectedElement.id, {
+                                      transition: { ...cur, effectEnabled: true, effectEasing: opt.id },
+                                      _previewKey: Date.now(),
+                                    });
+                                  }
+                                  setMiniPreviewKey(Date.now());
+                                }}
+                                className={`p-1.5 text-left rounded-lg border text-[10px] transition-all cursor-pointer ${
+                                  isCurrentEasing
+                                    ? "bg-rose-50 border-[#e54153] text-[#e54153] font-bold"
+                                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-100"
+                                }`}
+                              >
+                                <p className="font-semibold">{opt.label.split(" ")[0]}</p>
+                                <p className="text-[9px] text-gray-400 truncate">{opt.desc}</p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Stagger Cascade */}
+                <div className="space-y-1.5 pt-1.5 border-t border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                      <Waves className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Hiệu ứng so le (Stagger):</span>
+                    </label>
+                    <span className="text-[10px] font-mono font-bold text-blue-600">{staggerStep}s</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {[
+                      { label: "0.1s", val: 0.1 },
+                      { label: "0.15s", val: 0.15 },
+                      { label: "0.2s", val: 0.2 },
+                    ].map((step) => (
+                      <button
+                        key={step.val}
+                        type="button"
+                        onClick={() => {
+                          setStaggerStep(step.val);
+                          if (!isSoundMuted) weddingSounds.playSoftClick();
+                        }}
+                        className={`flex-1 py-1 text-[10px] rounded-lg border font-medium transition-all cursor-pointer ${
+                          staggerStep === step.val
+                            ? "bg-blue-50 border-blue-400 text-blue-600 font-bold"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
+                        }`}
+                      >
+                        {step.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!isSoundMuted) weddingSounds.playEnvelopeOpen();
+                      if (onApplyStaggerAll) {
+                        onApplyStaggerAll(staggerStep);
+                      } else if (selectedElement) {
+                        const curTransition = props.transition || {};
+                        onUpdateProps(selectedElement.id, {
+                          transition: { ...curTransition, effectEnabled: true, effectDelay: staggerStep },
+                          _previewKey: Date.now(),
+                        });
+                      }
+                      setMiniPreviewKey(Date.now());
+                      setIsPlayingPreview(true);
+                      setTimeout(() => setIsPlayingPreview(false), 1000);
+                    }}
+                    className="w-full py-1.5 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-2xs cursor-pointer"
+                  >
+                    <Waves className="w-3.5 h-3.5" />
+                    <span>Áp dụng so le toàn bộ thiệp</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= PHẦN NỘI DUNG NHÓM: 2. BIẾN MẤT (EXIT) ================= */}
+            {effectGroup === "exit" && (
+              <div className="space-y-2.5 pt-0.5">
+                {/* Category Pills for Exit */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-0.5 scrollbar-none text-[11px]">
+                  {ANIMATION_CATEGORIES.map((cat) => {
+                    const isCatActive = animCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => {
+                          setAnimCategory(cat.id);
+                          if (!isSoundMuted) weddingSounds.playSoftClick();
+                        }}
+                        className={`px-2 py-0.5 rounded-lg shrink-0 font-medium transition-all cursor-pointer ${
+                          isCatActive
+                            ? "bg-amber-600 text-white font-bold shadow-2xs"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                        }`}
+                      >
+                        <span>{cat.icon}</span> <span className="ml-0.5">{cat.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Grid of tiles (Ô chọn hiệu ứng Biến mất - Gọn gàng 3 cột) */}
+                <div className="grid grid-cols-3 gap-1.5 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-thin">
+                  {(() => {
+                    const filteredList = EXIT_EFFECTS.filter(
+                      (eff) => animCategory === "all" || eff.category === animCategory || eff.id === "none"
+                    );
+                    const activeEffectId = props.transition?.exitEffectType || "none";
+
+                    return filteredList.map((eff) => {
+                      const isSelected = activeEffectId === eff.id;
+                      return (
+                        <button
+                          key={eff.id}
+                          type="button"
+                          title={`${eff.name} (${eff.nameEn})${eff.desc ? ` - ${eff.desc}` : ""}`}
+                          onClick={() => {
+                            if (!isSoundMuted) weddingSounds.playSoftClick();
+                            const currentTransition = props.transition || {};
+                            const updated = {
+                              ...currentTransition,
+                              effectEnabled: true,
+                              exitEffectType: eff.id,
+                            };
+
+                            if (selectedElement) {
+                              onUpdateProps(selectedElement.id, {
+                                transition: updated,
+                                _previewKey: Date.now(),
+                              });
+                            }
+                            setMiniPreviewKey(Date.now());
+                            setIsPlayingPreview(true);
+                            setTimeout(() => setIsPlayingPreview(false), 900);
+                          }}
+                          className={`relative p-2 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all group cursor-pointer ${
+                            isSelected
+                              ? "border-amber-500 bg-amber-50 text-amber-800 shadow-xs ring-1 ring-amber-500/30 font-bold"
+                              : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
+                          }`}
+                        >
+                          <span className="text-base group-hover:scale-115 transition-transform duration-150 inline-block leading-none">
+                            {eff.icon}
+                          </span>
+                          <span className="text-[11px] leading-tight truncate w-full">
+                            {eff.name}
+                          </span>
+                          {isSelected && (
+                            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-600" />
+                          )}
+                        </button>
+                      );
+                    });
+                  })()}
+                </div>
+
+                {/* Quick button to clear exit effect */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentTransition = props.transition || {};
+                    if (selectedElement) {
+                      onUpdateProps(selectedElement.id, {
+                        transition: { ...currentTransition, exitEffectType: "none" },
+                        _previewKey: Date.now(),
+                      });
+                    }
+                    if (!isSoundMuted) weddingSounds.playSoftClick();
+                  }}
+                  className="w-full py-1.5 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span>🚫 Đặt về mặc định (Mờ dần khi cuộn qua)</span>
+                </button>
+              </div>
+            )}
+
+            {/* ================= PHẦN NỘI DUNG NHÓM: 3. LIÊN TỤC (CONTINUOUS / LOOP) ================= */}
+            {effectGroup === "continuous" && (
+              <div className="space-y-2.5 pt-0.5">
+                {/* Grid of tiles (Ô chọn hiệu ứng Liên tục - Gọn gàng 3 cột) */}
+                <div className="grid grid-cols-3 gap-1.5 max-h-[220px] overflow-y-auto pr-0.5 scrollbar-thin">
+                  {CONTINUOUS_EFFECTS.map((item) => {
+                    const currentType = props.continuousAnimation?.type || "none";
+                    const isSelected = currentType === item.id;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        title={`${item.name} (${item.nameEn})${item.desc ? ` - ${item.desc}` : ""}`}
+                        onClick={() => {
+                          if (!isSoundMuted) weddingSounds.playSoftClick();
+                          handlePropChange("continuousAnimation", {
+                            type: item.id,
+                            duration: item.defaultDuration || props.continuousAnimation?.duration || 3,
+                            delay: 0,
+                          });
+                          setMiniPreviewKey(Date.now());
+                          setIsPlayingPreview(true);
+                          setTimeout(() => setIsPlayingPreview(false), 900);
+                        }}
+                        className={`relative p-2 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all group cursor-pointer ${
+                          isSelected
+                            ? "border-purple-500 bg-purple-50 text-purple-800 shadow-xs ring-1 ring-purple-500/30 font-bold"
+                            : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
+                        }`}
+                      >
+                        <span className="text-base group-hover:scale-115 transition-transform duration-150 inline-block leading-none">
+                          {item.icon}
+                        </span>
+                        <span className="text-[11px] leading-tight truncate w-full">
+                          {item.name}
+                        </span>
+                        {isSelected && (
+                          <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-purple-600" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Speed / Duration slider for Loop */}
+                {props.continuousAnimation?.type && props.continuousAnimation.type !== "none" && (
+                  <div className="space-y-1.5 p-2 bg-purple-50/50 rounded-xl border border-purple-100">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-gray-700">Tốc độ lặp:</span>
+                      <span className="font-mono font-bold text-purple-700">
+                        {props.continuousAnimation.duration || 3}s / vòng
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1"
+                      max="8"
+                      step="0.2"
+                      value={props.continuousAnimation.duration || 3}
+                      onChange={(e) =>
                         handlePropChange("continuousAnimation", {
-                          type: item.id,
-                          duration: props.continuousAnimation?.duration || 3,
-                          delay: 0,
+                          ...props.continuousAnimation,
+                          duration: parseFloat(e.target.value),
                         })
                       }
-                      className={`p-2 rounded-xl border text-xs font-medium text-left transition-all ${
-                        isActive
-                          ? "border-[#e54153] bg-rose-50 text-[#e54153] font-bold shadow-2xs"
-                          : "border-gray-200 bg-white hover:bg-gray-50 text-gray-700"
+                      className="w-full accent-purple-600"
+                    />
+                  </div>
+                )}
+
+                {/* Quick button to clear continuous effect */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    handlePropChange("continuousAnimation", { type: "none", duration: 3, delay: 0 });
+                    if (!isSoundMuted) weddingSounds.playSoftClick();
+                  }}
+                  className="w-full py-1.5 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-600 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span>🚫 Đặt về đứng yên (Không lặp chuyển động)</span>
+                </button>
+              </div>
+            )}
+
+            {/* ================= PHẦN DÙNG CHUNG: 4. COMBO CHUYỂN ĐỘNG 1-CHẠM ================= */}
+            <div className="space-y-2 pt-2 border-t border-gray-100">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                  <Zap className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Combo 1-chạm:</span>
+                </label>
+                {onApplyComboToAll && (
+                  <span className="text-[10px] text-gray-400">Đồng bộ cả thiệp</span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {ANIMATION_COMBOS.map((combo) => {
+                  const isSelected = selectedComboId === combo.id;
+                  return (
+                    <button
+                      key={combo.id}
+                      type="button"
+                      title={`${combo.name}: ${combo.desc}`}
+                      onClick={() => {
+                        setSelectedComboId(combo.id);
+                        if (!isSoundMuted) weddingSounds.playChime();
+                        if (selectedElement) {
+                          onUpdateProps(selectedElement.id, {
+                            transition: {
+                              effectEnabled: true,
+                              effectType: combo.entranceEffect,
+                              effectDuration: combo.duration,
+                              effectDelay: 0,
+                              effectEasing: combo.easing,
+                              hoverEffect: combo.hoverEffect,
+                            },
+                            continuousAnimation: {
+                              type: combo.loopEffect,
+                              duration: combo.loopEffect === "pulse" ? 2 : combo.loopEffect === "bounce" ? 4.7 : 3.1,
+                              delay: 0,
+                            },
+                            _previewKey: Date.now(),
+                          });
+                          setMiniPreviewKey(Date.now());
+                          setIsPlayingPreview(true);
+                          setTimeout(() => setIsPlayingPreview(false), 1000);
+                        }
+                      }}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all relative cursor-pointer ${
+                        isSelected
+                          ? "border-[#e54153] bg-rose-50/90 text-[#e54153] shadow-xs font-bold ring-1 ring-[#e54153]/30"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
                       }`}
                     >
-                      {item.label}
+                      <span className="text-base leading-none">{combo.icon}</span>
+                      <span className="text-[11px] leading-tight truncate w-full">{combo.name}</span>
+                      {isSelected && (
+                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#e54153]" />
+                      )}
                     </button>
                   );
                 })}
               </div>
+
+              {onApplyComboToAll && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentCombo = ANIMATION_COMBOS.find((c) => c.id === selectedComboId) || ANIMATION_COMBOS[0];
+                    if (!isSoundMuted) weddingSounds.playCelebration();
+                    onApplyComboToAll(currentCombo);
+                    setMiniPreviewKey(Date.now());
+                    setIsPlayingPreview(true);
+                    setTimeout(() => setIsPlayingPreview(false), 1200);
+                  }}
+                  className="w-full py-1.5 px-3 rounded-xl border border-rose-300 bg-gradient-to-r from-rose-50 to-pink-50 hover:from-rose-100 hover:to-pink-100 text-[#e54153] text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Áp dụng Combo cho toàn bộ thiệp</span>
+                </button>
+              )}
             </div>
 
-            {/* Speed / Duration slider */}
-            {props.continuousAnimation?.type && props.continuousAnimation.type !== "none" && (
-              <div className="space-y-1.5 pt-2 border-t border-gray-100">
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-semibold text-gray-700">Tốc độ chuyển động:</span>
-                  <span className="font-mono text-gray-600">
-                    {props.continuousAnimation.duration || 3}s
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min="1"
-                  max="8"
-                  step="0.2"
-                  value={props.continuousAnimation.duration || 3}
-                  onChange={(e) =>
-                    handlePropChange("continuousAnimation", {
-                      ...props.continuousAnimation,
-                      duration: parseFloat(e.target.value),
-                    })
-                  }
-                  className="w-full accent-[#e54153]"
-                />
-              </div>
-            )}
-
-            {/* Transition on view */}
-            <div className="space-y-2 pt-3 border-t border-gray-100">
-              <label className="text-xs font-bold text-gray-800 block">
-                Hiệu ứng khi cuộn tới (Xuất hiện):
+            {/* ================= PHẦN DÙNG CHUNG: 5. HIỆU ỨNG TƯƠNG TÁC KHI CHẠM (HOVER & TAP) ================= */}
+            <div className="space-y-2 pt-2 border-t border-gray-100">
+              <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                <span>Hiệu ứng chạm / rê chuột (Hover):</span>
               </label>
-              <select
-                value={props.transition?.effectType || "fadeIn"}
-                onChange={(e) =>
-                  handlePropChange("transition", {
-                    effectEnabled: true,
-                    effectType: e.target.value,
-                    effectDuration: 1.5,
-                    effectDelay: 0,
-                    effectEasing: "ease",
-                  })
-                }
-                className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium text-gray-800"
-              >
-                <option value="none">Không có hiệu ứng</option>
-                <option value="fadeIn">Mờ dần vào (Fade In)</option>
-                <option value="fadeInUp">Bay từ dưới lên (Fade In Up)</option>
-                <option value="zoomIn">Phóng to dần (Zoom In)</option>
-                <option value="bounceIn">Nảy bật vui nhộn (Bounce In)</option>
-                <option value="flipInX">Lật thẻ 3D (Flip In)</option>
-              </select>
+              <div className="grid grid-cols-3 gap-1.5">
+                {HOVER_EFFECTS.map((hov) => {
+                  const currentHover = props.transition?.hoverEffect || "none";
+                  const isActive = currentHover === hov.id;
+                  return (
+                    <button
+                      key={hov.id}
+                      type="button"
+                      title={`${hov.name}: ${hov.desc}`}
+                      onClick={() => {
+                        if (!isSoundMuted) weddingSounds.playSoftClick();
+                        const cur = props.transition || {};
+                        handlePropChange("transition", {
+                          ...cur,
+                          effectEnabled: true,
+                          hoverEffect: hov.id,
+                        });
+                      }}
+                      className={`p-2 rounded-xl border flex flex-col items-center justify-center text-center gap-1 transition-all cursor-pointer ${
+                        isActive
+                          ? "border-[#e54153] bg-rose-50 text-[#e54153] font-bold shadow-2xs ring-1 ring-[#e54153]/30"
+                          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 text-gray-700 font-medium"
+                      }`}
+                    >
+                      <span className="text-base leading-none">{hov.icon}</span>
+                      <span className="text-[11px] leading-tight truncate w-full">{hov.name}</span>
+                      {isActive && (
+                        <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-[#e54153]" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}

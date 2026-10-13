@@ -24,6 +24,7 @@ import {
   Upload,
   UploadCloud,
   Lock,
+  Magnet,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
 import { compressImageToWebP } from "@/lib/imageCompression";
@@ -37,6 +38,7 @@ import {
 } from "@/lib/imageUtils";
 import { isDecorativeNode, getRealWeddingPhotoSlots } from "@/lib/decorativeLockService";
 import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getGiftQrUrl, getSafeMapUrl } from "@/lib/moduleHelpers";
+import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
 
 interface EditorCanvasProps {
   nodes: Record<string, any>;
@@ -189,6 +191,15 @@ export default function EditorCanvas({
   // Drag-to-move and drag-to-rotate states
   const [isDragging, setIsDragging] = useState(false);
   const [isRotating, setIsRotating] = useState(false);
+  // Magnetic Smart Snapping states
+  const [isSnappingEnabled, setIsSnappingEnabled] = useState(true);
+  const [activeSnapGuides, setActiveSnapGuides] = useState<{
+    vertical?: number;
+    horizontal?: number;
+    labelV?: string;
+    labelH?: string;
+  } | null>(null);
+
   const dragStartRef = useRef<{
     startX: number;
     startY: number;
@@ -220,8 +231,72 @@ export default function EditorCanvas({
       if (!dragStartRef.current) return;
       const dx = (moveEvent.clientX - dragStartRef.current.startX) / zoomLevel;
       const dy = (moveEvent.clientY - dragStartRef.current.startY) / zoomLevel;
-      const newLeft = Math.round(dragStartRef.current.initialLeft + dx);
-      const newTop = Math.round(dragStartRef.current.initialTop + dy);
+      let newLeft = Math.round(dragStartRef.current.initialLeft + dx);
+      let newTop = Math.round(dragStartRef.current.initialTop + dy);
+
+      let guideV: number | undefined = undefined;
+      let guideH: number | undefined = undefined;
+      let guideLabelV: string | undefined = undefined;
+      let guideLabelH: string | undefined = undefined;
+
+      if (isSnappingEnabled) {
+        const elemW = Number(props.width ?? 100);
+        const elemH = Number(props.height ?? 100);
+        const elemCenterX = newLeft + elemW / 2;
+
+        // 1. Snap Trục X (Tâm canvas = 250px & Lề chuẩn)
+        if (Math.abs(elemCenterX - 250) <= 8) {
+          newLeft = Math.round(250 - elemW / 2);
+          guideV = 250;
+          guideLabelV = "Căn giữa (250px)";
+        } else if (Math.abs(newLeft - 30) <= 6) {
+          newLeft = 30;
+          guideV = 30;
+          guideLabelV = "Lề trái (30px)";
+        } else if (Math.abs(newLeft + elemW - 470) <= 6) {
+          newLeft = 470 - elemW;
+          guideV = 470;
+          guideLabelV = "Lề phải (470px)";
+        }
+
+        // 2. Snap Trục Y (Dính đáy khối phía trên hoặc ngang hàng)
+        const otherNodes = childNodes.filter((c) => c.id !== id && !isDecorativeNode(c.id, nodes[c.id]));
+        for (const other of otherNodes) {
+          const oTop = Number(other.props.top ?? 0);
+          const oH = Number(other.props.height ?? 100);
+          const oBottom = oTop + oH;
+
+          // Dính vào đáy khối trước với khoảng cách chuẩn 20px hoặc 12px
+          if (Math.abs(newTop - (oBottom + 20)) <= 8) {
+            newTop = oBottom + 20;
+            guideH = newTop;
+            guideLabelH = "Dính cách 20px";
+            break;
+          } else if (Math.abs(newTop - (oBottom + 12)) <= 6) {
+            newTop = oBottom + 12;
+            guideH = newTop;
+            guideLabelH = "Dính cách 12px";
+            break;
+          } else if (Math.abs(newTop - oTop) <= 6) {
+            newTop = oTop;
+            guideH = oTop;
+            guideLabelH = "Ngang đỉnh";
+            break;
+          } else if (Math.abs(newTop + elemH - oBottom) <= 6) {
+            newTop = oBottom - elemH;
+            guideH = oBottom;
+            guideLabelH = "Ngang đáy";
+            break;
+          }
+        }
+      }
+
+      setActiveSnapGuides(
+        guideV !== undefined || guideH !== undefined
+          ? { vertical: guideV, horizontal: guideH, labelV: guideLabelV, labelH: guideLabelH }
+          : null
+      );
+
       onUpdateElementProps(dragStartRef.current.elementId, {
         left: newLeft,
         top: newTop,
@@ -231,6 +306,7 @@ export default function EditorCanvas({
     const handleMouseUp = () => {
       setIsDragging(false);
       dragStartRef.current = null;
+      setActiveSnapGuides(null);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
@@ -750,6 +826,36 @@ export default function EditorCanvas({
           aria-hidden="true"
         />
 
+        {/* Magnetic Snap Guides Overlay */}
+        {activeSnapGuides && (
+          <div className="absolute inset-0 pointer-events-none z-[999]" aria-hidden="true">
+            {activeSnapGuides.vertical !== undefined && (
+              <div
+                className="absolute top-0 bottom-0 w-0 border-l-2 border-dashed border-[#e54153] z-[999]"
+                style={{ left: `${activeSnapGuides.vertical}px` }}
+              >
+                {activeSnapGuides.labelV && (
+                  <div className="bg-[#e54153] text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap mt-2 -translate-x-1/2 inline-block">
+                    {activeSnapGuides.labelV}
+                  </div>
+                )}
+              </div>
+            )}
+            {activeSnapGuides.horizontal !== undefined && (
+              <div
+                className="absolute left-0 right-0 h-0 border-t-2 border-dashed border-indigo-500 z-[999]"
+                style={{ top: `${activeSnapGuides.horizontal}px` }}
+              >
+                {activeSnapGuides.labelH && (
+                  <div className="bg-indigo-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded shadow-sm whitespace-nowrap mr-2 -translate-y-1/2 float-right inline-block">
+                    {activeSnapGuides.labelH}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Render child elements */}
         {childNodes.map((child) => {
           const { id, type, props } = child;
@@ -780,9 +886,42 @@ export default function EditorCanvas({
 
           const isDecorative = isDecorativeNode(id, nodes[id]) || Boolean(props.locked);
 
+          // Entrance / Exit transition effect
+          const transition = props.transition;
+          const hasTransition =
+            transition?.effectEnabled !== false &&
+            transition?.effectType &&
+            transition.effectType !== "none";
+
+          const animName = hasTransition
+            ? ANIMATION_KEYFRAME_MAP[transition.effectType] || transition.effectType
+            : undefined;
+
+          const transitionStyle: React.CSSProperties = animName
+            ? {
+                animationName: animName,
+                animationDuration: `${transition.effectDuration ?? 1.2}s`,
+                animationDelay: `${transition.effectDelay ?? 0}s`,
+                animationTimingFunction:
+                  transition.effectEasing || "cubic-bezier(0.16, 1, 0.3, 1)",
+                animationFillMode: "both",
+              }
+            : {};
+
+          const hoverClass =
+            transition?.hoverEffect === "scale-up-gentle"
+              ? "hover-effect-scale-up-gentle"
+              : transition?.hoverEffect === "glow-soft"
+              ? "hover-effect-glow-soft"
+              : transition?.hoverEffect === "bounce-tap"
+              ? "hover-effect-bounce-tap"
+              : transition?.hoverEffect === "tilt-3d"
+              ? "hover-effect-tilt-3d"
+              : "";
+
           return (
             <div
-              key={id}
+              key={`${id}-${props._previewKey || ""}`}
               id={`canvas-node-${id}`}
               onMouseDown={(e) => {
                 if (isDecorative) return;
@@ -793,7 +932,7 @@ export default function EditorCanvas({
                 e.stopPropagation();
                 onSelectElement({ id, type, props });
               }}
-              className={`absolute group select-none ${
+              className={`absolute group select-none ${hoverClass} ${
                 isDecorative
                   ? "pointer-events-none"
                   : selectedElement?.id === id
@@ -808,6 +947,7 @@ export default function EditorCanvas({
                 transform: `rotate(${rotation}deg)`,
                 opacity: opacity,
                 zIndex: zIndex,
+                ...transitionStyle,
               }}
             >
               {/* Element Content by Type */}
@@ -1335,6 +1475,19 @@ export default function EditorCanvas({
         >
           <span className="font-bold text-xs block leading-none text-center">−</span>
         </button>
+        <div className="h-px bg-gray-200 my-0.5 mx-1.5" />
+        <button
+          type="button"
+          onClick={() => setIsSnappingEnabled((prev) => !prev)}
+          className={`p-2 transition-colors flex items-center justify-center cursor-pointer ${
+            isSnappingEnabled
+              ? "bg-rose-50 text-[#e54153]"
+              : "hover:bg-gray-50 text-gray-400 hover:text-gray-600"
+          }`}
+          title={isSnappingEnabled ? "Tự dính thông minh: Đang BẬT" : "Tự dính thông minh: Đang TẮT"}
+        >
+          <Magnet className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* ================= FIXED BOTTOM-LEFT: THAY ẢNH NHANH TOÀN BỘ TEMPLATE ================= */}
@@ -1465,21 +1618,6 @@ export default function EditorCanvas({
                   <ChevronDown className="w-3.5 h-3.5" />
                 </button>
               </div>
-            </div>
-
-            {/* Hướng dẫn thao tác rõ ràng */}
-            <div className="flex items-center justify-between text-[10px] text-gray-500 px-0.5">
-              <span className="flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#e54153] inline-block animate-pulse"></span>
-                <span>
-                  <strong>Bấm lần 1:</strong> Chọn ảnh &amp; xem ảnh sẵn có •{" "}
-                  <strong>Bấm lần 2:</strong> Chọn ảnh từ máy •{" "}
-                  <strong>Thay hàng loạt:</strong> Tự động gán {photoSlots.length} ảnh, ảnh thừa lưu vào Thư viện
-                </span>
-              </span>
-              {photoSlots.length > 5 && (
-                <span className="text-gray-400 hidden md:inline">← Cuộn ngang →</span>
-              )}
             </div>
 
             {/* Thumbnails Row - Mở rộng theo tỉ lệ ảnh và số lượng ảnh */}

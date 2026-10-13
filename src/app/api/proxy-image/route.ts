@@ -8,6 +8,7 @@ const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024; // Giới hạn 10MB để chốn
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get("url");
+  const strict = searchParams.get("strict") === "1";
 
   if (!imageUrl) {
     return new NextResponse("Missing url parameter", { status: 400 });
@@ -34,6 +35,7 @@ export async function GET(request: NextRequest) {
     });
 
     if (!res.ok) {
+      if (strict) return new NextResponse("Unable to load image", { status: 502 });
       return createSvgFallbackResponse(imageUrl);
     }
 
@@ -63,6 +65,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (err) {
+    if (strict) return new NextResponse("Unable to load image", { status: 502 });
     console.warn("Proxy image failed, returning elegant fallback:", imageUrl);
     return createSvgFallbackResponse(imageUrl);
   }

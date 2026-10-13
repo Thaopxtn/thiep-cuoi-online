@@ -2,6 +2,8 @@
 
 import React, { useRef, useState, useEffect } from "react";
 
+import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
+
 export type TransitionEffect =
   | "scale-in"
   | "slide-up"
@@ -12,14 +14,16 @@ export type TransitionEffect =
   | "bounce-in"
   | "flip-in"
   | "zoom-in"
-  | "rotate-in";
+  | "rotate-in"
+  | string;
 
 const ANIMATION_MAP: Record<string, string> = {
+  ...ANIMATION_KEYFRAME_MAP,
   "fade-in": "fadeIn",
   "slide-up": "slideInUp",
   "slide-down": "slideInDown",
-  "slide-left": "slideInRight",
-  "slide-right": "slideInLeft",
+  "slide-left": "fadeInLeft",
+  "slide-right": "fadeInRight",
   "scale-in": "zoomIn",
   "scale-out": "zoomIn",
   "rotate-in": "rotateIn",
@@ -32,6 +36,7 @@ const ANIMATION_MAP: Record<string, string> = {
 interface ScrollAnimationWrapperProps {
   children: React.ReactNode;
   effectType?: TransitionEffect;
+  exitEffectType?: string;
   effectDuration?: number;
   effectDelay?: number;
   effectEasing?: string;
@@ -42,6 +47,7 @@ interface ScrollAnimationWrapperProps {
 export default function ScrollAnimationWrapper({
   children,
   effectType = "scale-in",
+  exitEffectType,
   effectDuration = 1.2,
   effectDelay = 0,
   effectEasing = "cubic-bezier(0.16, 1, 0.3, 1)",
@@ -49,36 +55,47 @@ export default function ScrollAnimationWrapper({
   className = "",
 }: ScrollAnimationWrapperProps) {
   const domRef = useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = useState(false);
+  const [isInView, setIsInView] = useState(false);
+  const [hasEnteredOnce, setHasEnteredOnce] = useState(false);
+  const [runCount, setRunCount] = useState(0);
 
   useEffect(() => {
     if (!effectEnabled) {
-      setIsVisible(true);
+      setIsInView(true);
       return;
     }
+
+    if (typeof window === "undefined" || !("IntersectionObserver" in window)) {
+      setIsInView(true);
+      setHasEnteredOnce(true);
+      return;
+    }
+
+    const currentDom = domRef.current;
+    if (!currentDom) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            setIsVisible(true);
-            observer.unobserve(entry.target);
+            setIsInView(true);
+            setHasEnteredOnce(true);
+            setRunCount((c) => c + 1);
+          } else {
+            setIsInView(false);
           }
         });
       },
       {
-        threshold: 0.1,
-        rootMargin: "0px 0px -30px 0px",
+        threshold: 0.08,
+        rootMargin: "0px 0px -20px 0px",
       }
     );
 
-    const currentDom = domRef.current;
-    if (currentDom) {
-      observer.observe(currentDom);
-    }
+    observer.observe(currentDom);
 
     return () => {
-      if (currentDom) observer.unobserve(currentDom);
+      observer.disconnect();
     };
   }, [effectEnabled]);
 
@@ -87,24 +104,55 @@ export default function ScrollAnimationWrapper({
   }
 
   const animName = ANIMATION_MAP[effectType] || "zoomIn";
+  const exitAnimName = exitEffectType ? ANIMATION_MAP[exitEffectType] || exitEffectType : undefined;
 
-  const style: React.CSSProperties = isVisible
-    ? {
-        animationName: animName,
-        animationDuration: `${effectDuration}s`,
-        animationDelay: `${effectDelay}s`,
-        animationTimingFunction: effectEasing,
+  let style: React.CSSProperties = {
+    width: "100%",
+  };
+
+  if (isInView) {
+    style = {
+      ...style,
+      animationName: animName,
+      animationDuration: `${effectDuration}s`,
+      animationDelay: `${effectDelay}s`,
+      animationTimingFunction: effectEasing,
+      animationFillMode: "both",
+    };
+  } else if (!hasEnteredOnce) {
+    style = {
+      ...style,
+      opacity: 0,
+      pointerEvents: "none",
+    };
+  } else {
+    // Scrolled past: exit animation or fade out
+    if (exitAnimName && exitAnimName !== "none") {
+      style = {
+        ...style,
+        animationName: exitAnimName,
+        animationDuration: "0.55s",
+        animationTimingFunction: "ease-in",
         animationFillMode: "both",
-        animationIterationCount: 1,
-        width: "100%",
-      }
-    : {
-        opacity: 0,
-        width: "100%",
+        pointerEvents: "none",
       };
+    } else {
+      style = {
+        ...style,
+        opacity: 0,
+        transition: "opacity 0.4s ease-out",
+        pointerEvents: "none",
+      };
+    }
+  }
 
   return (
-    <div ref={domRef} style={style} className={className}>
+    <div
+      ref={domRef}
+      key={isInView ? `enter-${runCount}` : `exit-${runCount}`}
+      style={style}
+      className={className}
+    >
       {children}
     </div>
   );

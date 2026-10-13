@@ -973,3 +973,458 @@
 
 
 
+
+
+/* ==========================================================================
+   ZENLOVE RICH ENTRANCE & EXIT ANIMATIONS (Đa dạng phong cách)
+   ========================================================================== */
+
+/* --- ENTRANCE KEYFRAMES --- */
+@keyframes fadeInUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 35px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeInDown {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -35px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeInLeft {
+  0% {
+    opacity: 0;
+    transform: translate3d(-35px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes fadeInRight {
+  0% {
+    opacity: 0;
+    transform: translate3d(35px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes floatIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 25px, 0) scale(0.96);
+  }
+  60% {
+    transform: translate3d(0, -6px, 0) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes petalDrop {
+  0% {
+    opacity: 0;
+    transform: translate3d(-15px, -35px, 0) rotate(-12deg);
+  }
+  50% {
+    opacity: 0.8;
+    transform: translate3d(10px, -10px, 0) rotate(8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+}
+
+@keyframes swirlIn {
+  0% {
+    opacity: 0;
+    transform: rotate(-180deg) scale(0.3);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+}
+
+@keyframes heartPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.18);
+  }
+  75% {
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes shimmerIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.92);
+    filter: brightness(1.8) contrast(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+    filter: brightness(1) contrast(1);
+  }
+}
+
+@keyframes zoomInUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 60px, 0) scale(0.4);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes zoomInDown {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -60px, 0) scale(0.4);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes elasticIn {
+  0% {
+    opacity: 0;
+    transform: scale3d(0.3, 0.3, 0.3);
+  }
+  40% {
+    opacity: 1;
+    transform: scale3d(1.15, 1.15, 1.15);
+  }
+  65% {
+    transform: scale3d(0.92, 0.92, 0.92);
+  }
+  85% {
+    transform: scale3d(1.03, 1.03, 1.03);
+  }
+  100% {
+    opacity: 1;
+    transform: scale3d(1, 1, 1);
+  }
+}
+
+@keyframes bounceInUp {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 80px, 0) scaleY(0.7);
+  }
+  60% {
+    opacity: 1;
+    transform: translate3d(0, -15px, 0) scaleY(1.1);
+  }
+  80% {
+    transform: translate3d(0, 5px, 0) scaleY(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleY(1);
+  }
+}
+
+@keyframes wobbleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5) rotate(-15deg);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.08) rotate(10deg);
+  }
+  70% {
+    transform: scale(0.96) rotate(-5deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+@keyframes flipInX {
+  0% {
+    opacity: 0;
+    transform: perspective(400px) rotateX(90deg);
+  }
+  40% {
+    transform: perspective(400px) rotateX(-20deg);
+  }
+  70% {
+    opacity: 1;
+    transform: perspective(400px) rotateX(10deg);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(400px) rotateX(0deg);
+  }
+}
+
+@keyframes doorOpen {
+  0% {
+    opacity: 0;
+    transform-origin: left center;
+    transform: perspective(800px) rotateY(-90deg);
+  }
+  100% {
+    opacity: 1;
+    transform-origin: left center;
+    transform: perspective(800px) rotateY(0deg);
+  }
+}
+
+@keyframes rotate3dIn {
+  0% {
+    opacity: 0;
+    transform: perspective(600px) rotateX(25deg) rotateY(-25deg) scale(0.75);
+  }
+  100% {
+    opacity: 1;
+    transform: perspective(600px) rotateX(0) rotateY(0) scale(1);
+  }
+}
+
+@keyframes blurReveal {
+  0% {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+}
+
+@keyframes curtainUnveil {
+  0% {
+    opacity: 0;
+    clip-path: inset(0 50% 0 50%);
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    clip-path: inset(0 0 0 0);
+    transform: scale(1);
+  }
+}
+
+@keyframes flashIn {
+  0% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+    filter: brightness(2.2);
+  }
+  50% {
+    opacity: 0.7;
+    filter: brightness(1.4);
+  }
+  100% {
+    opacity: 1;
+    filter: brightness(1);
+  }
+}
+
+/* --- EXIT KEYFRAMES --- */
+@keyframes fadeOut {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes fadeOutUp {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, -35px, 0);
+  }
+}
+
+@keyframes fadeOutDown {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 35px, 0);
+  }
+}
+
+@keyframes fadeOutLeft {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(-35px, 0, 0);
+  }
+}
+
+@keyframes fadeOutRight {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(35px, 0, 0);
+  }
+}
+
+@keyframes zoomOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+
+@keyframes bounceOut {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+}
+
+@keyframes flipOutX {
+  0% {
+    opacity: 1;
+    transform: perspective(400px) rotateX(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(400px) rotateX(90deg);
+  }
+}
+
+@keyframes flipOutY {
+  0% {
+    opacity: 1;
+    transform: perspective(400px) rotateY(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: perspective(400px) rotateY(90deg);
+  }
+}
+
+@keyframes rotateOut {
+  0% {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(200deg) scale(0.2);
+  }
+}
+
+@keyframes blurOut {
+  0% {
+    opacity: 1;
+    filter: blur(0px);
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(0.92);
+  }
+}
+
+@keyframes shrinkSink {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(0, 40px, 0) scale(0.7);
+  }
+}
+
+
+/* ==========================================================================
+   MICRO-INTERACTION HOVER & TAP CLASSES
+   ========================================================================== */
+.hover-effect-scale-up-gentle {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
+}
+.hover-effect-scale-up-gentle:hover {
+  transform: scale(1.04);
+}
+
+.hover-effect-glow-soft {
+  transition: box-shadow 0.35s ease, transform 0.3s ease;
+}
+.hover-effect-glow-soft:hover {
+  box-shadow: 0 0 22px rgba(229, 65, 83, 0.38);
+  transform: translateY(-2px);
+}
+
+.hover-effect-bounce-tap {
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.hover-effect-bounce-tap:hover {
+  transform: translateY(-5px);
+}
+
+.hover-effect-tilt-3d {
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hover-effect-tilt-3d:hover {
+  transform: perspective(600px) rotateX(4deg) rotateY(4deg) scale(1.02);
+}
