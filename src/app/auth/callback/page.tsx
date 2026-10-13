@@ -52,15 +52,18 @@ export default function AuthCallbackPage() {
         return;
       }
 
-      // 2. Phân tích access_token và refresh_token từ URL hash (#access_token=...&refresh_token=...)
+      // 2. Phân tích access_token và refresh_token từ URL hash (#access_token=...) hoặc search params (?access_token=...)
       const hash = window.location.hash.substring(1);
-      const params = new URLSearchParams(hash);
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
+      const hashParams = new URLSearchParams(hash);
+      const accessToken = hashParams.get("access_token") || searchParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token") || searchParams.get("refresh_token");
 
       if (accessToken) {
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://yeqosgjxjeiitevaquoz.supabase.co";
-        const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+        const anonKey =
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+          process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+          "sb_publishable_bbEV96r7bgrnpQpHg9B_0A_9Xiloc0j";
 
         fetch(`${supabaseUrl}/auth/v1/user`, {
           headers: {

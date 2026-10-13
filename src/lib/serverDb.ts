@@ -155,7 +155,7 @@ function mapDbToCard(row: any): WeddingCard {
 export async function getCardsFromDb(userId?: string, token?: string): Promise<WeddingCard[]> {
   const localCards = readLocalCards();
   if (!isDbConfigured) {
-    if (userId) return localCards.filter((c: WeddingCard) => c.userId === userId || !c.userId);
+    if (userId) return localCards.filter((c: WeddingCard) => c.userId === userId);
     return localCards;
   }
   try {
@@ -168,7 +168,8 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
     });
     if (!res.ok) {
       console.error("Lỗi getCardsFromDb HTTP:", res.status, await res.text());
-      return userId ? localCards.filter((c) => c.userId === userId) : localCards;
+      // Khi DB đã cấu hình nhưng tạm thời lỗi, không trả dữ liệu local như dữ liệu thật.
+      return [];
     }
     const data = await res.json();
     const mapped = data.map(mapDbToCard);
@@ -180,7 +181,7 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
     return mapped;
   } catch (err) {
     console.error("Lỗi getCardsFromDb:", err);
-    return userId ? localCards.filter((c) => c.userId === userId) : localCards;
+    return [];
   }
 }
 
@@ -201,13 +202,11 @@ export async function getCardByIdOrSlugFromDb(idOrSlug: string): Promise<Wedding
         cache: "no-store",
       }
     );
-    if (!res.ok) {
-      return localFound || null;
-    }
+    if (!res.ok) return null;
     const cards = await res.json();
-    return cards.length > 0 ? mapDbToCard(cards[0]) : (localFound || null);
+    return cards.length > 0 ? mapDbToCard(cards[0]) : null;
   } catch (err) {
-    return localFound || null;
+    return null;
   }
 }
 
@@ -346,16 +345,15 @@ export async function deleteCardFromDb(id: string, token?: string): Promise<bool
 export async function incrementCardViewsInDb(idOrSlug: string): Promise<boolean> {
   if (!isDbConfigured) return false;
   try {
-    const card = await getCardByIdOrSlugFromDb(idOrSlug);
-    if (!card) return false;
-
-    const nextViews = (card.views || 0) + 1;
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/cards?id=eq.${card.id}`, {
-      method: "PATCH",
+    // Tăng trực tiếp trong DB để tránh mất lượt xem khi có nhiều request đồng thời.
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_card_views`, {
+      method: "POST",
       headers: getDbHeaders(),
-      body: JSON.stringify({ views: nextViews }),
+      body: JSON.stringify({ card_key: idOrSlug }),
     });
-    return res.ok;
+    if (!res.ok) return false;
+    const updatedCount = await res.json().catch(() => 0);
+    return Number(updatedCount) > 0;
   } catch (err) {
     console.error("Lỗi incrementCardViewsInDb:", err);
     return false;

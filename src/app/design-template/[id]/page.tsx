@@ -38,6 +38,13 @@ import {
 import { extractWeddingDetailsFromTemplate } from "@/lib/templateExtractor";
 import { syncLinkedTextNodes } from "@/lib/textSyncService";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
+import {
+  generateTimelineHtml,
+  generateDressCodeHtml,
+  generateCeremonyHtml,
+  generateFamilyInfoHtml,
+  generateBankCardHtml,
+} from "@/lib/moduleHelpers";
 
 export default function DesignTemplatePage() {
   const params = useParams();
@@ -706,6 +713,87 @@ export default function DesignTemplatePage() {
         venueName: "Trung tâm Tiệc cưới Trống Đồng Palace",
         address: "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
         mapUrl: "https://maps.google.com/?q=21.0254,105.8458",
+      };
+    } else if (widgetType === "TimelineBox") {
+      const defaultItems = [
+        { id: "1", time: "10:00", title: "Đón khách" },
+        { id: "2", time: "10:30", title: "Photo Booth" },
+        { id: "3", time: "11:00", title: "Làm lễ thành hôn" },
+        { id: "4", time: "11:30", title: "Cắt bánh & Rót rượu" },
+        { id: "5", time: "12:00", title: "Khai tiệc mừng" },
+        { id: "6", time: "13:30", title: "Tiễn khách" },
+      ];
+      defaultProps = {
+        ...defaultProps,
+        height: 290,
+        title: "LỊCH TRÌNH NGÀY CƯỚI",
+        items: defaultItems,
+        text: generateTimelineHtml(defaultItems),
+      };
+    } else if (widgetType === "DressCodeBox") {
+      const defaultColors = [
+        { color: "#D7CCB8", label: "Be" },
+        { color: "#FFFFFF", label: "Trắng" },
+        { color: "#7BA7D9", label: "Xanh pastel" },
+      ];
+      const desc = "Để bức hình kỷ niệm thêm trọn vẹn, quý khách vui lòng lựa chọn trang phục theo tông màu:";
+      defaultProps = {
+        ...defaultProps,
+        height: 150,
+        title: "QUY ĐỊNH TRANG PHỤC",
+        colors: defaultColors,
+        description: desc,
+        text: generateDressCodeHtml(defaultColors, desc),
+      };
+    } else if (widgetType === "CeremonyBox") {
+      const ceremonyData = {
+        ceremonyName: "Lễ Thành Hôn",
+        time: "11:30",
+        date: "2027-09-15",
+        lunarDate: "(Tức ngày 15 tháng 8 năm Đinh Mùi)",
+        location: "Trung Tâm Tiệc Cưới Trống Đồng",
+      };
+      defaultProps = {
+        ...defaultProps,
+        height: 160,
+        ...ceremonyData,
+        text: generateCeremonyHtml(ceremonyData),
+      };
+    } else if (widgetType === "FamilyInfoBox") {
+      const familyData = {
+        groomFather: "Ông Ngô Hữu Việt",
+        groomMother: "Bà Lê Ngọc Linh",
+        groomName: "Ngô Gia Dũng",
+        brideFather: "Ông Đặng Đức Quân",
+        brideMother: "Bà Hồ Mỹ Anh",
+        brideName: "Đặng Thanh Nhung",
+      };
+      defaultProps = {
+        ...defaultProps,
+        height: 140,
+        ...familyData,
+        text: generateFamilyInfoHtml(familyData),
+      };
+    } else if (widgetType === "BankCardBox") {
+      const bankData = {
+        title: "HỘP MỪNG CƯỚI",
+        description: "Sự hiện diện của quý vị là món quà quý giá nhất. Quý vị cũng có thể gửi lời chúc và quà mừng qua số tài khoản:",
+        groomBank: {
+          bankName: "MB BANK",
+          accountNumber: "240220038888",
+          accountHolder: "ĐỨC MẠNH",
+        },
+        brideBank: {
+          bankName: "TECHCOMBANK",
+          accountNumber: "190365824988",
+          accountHolder: "THÙY DUNG",
+        },
+      };
+      defaultProps = {
+        ...defaultProps,
+        height: 340,
+        ...bankData,
+        text: generateBankCardHtml(bankData),
       };
     }
     const newNode = {

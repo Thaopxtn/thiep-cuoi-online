@@ -15,6 +15,15 @@
  */
 
 import { resolveBankCode, generateVietQrUrl } from "./vietQrBankCodes";
+import {
+  generateTimelineHtml,
+  generateDressCodeHtml,
+  generateCeremonyHtml,
+  generateFamilyInfoHtml,
+  generateBankCardHtml,
+  TimelineItem,
+  DressCodeColor,
+} from "./moduleHelpers";
 
 function resolveUrl(url?: string): string {
   if (!url || typeof url !== "string") return "";
@@ -48,12 +57,14 @@ export function convertFormTemplateToCanvasNodes(
   // Ngày cưới
   const weddingDateData = formData.weddingDate || {};
   const dateStr = weddingDateData.date || "2027-09-12T11:30:00.000Z";
+  // Preserve the calendar date from the form instead of letting local timezone shift it.
+  const dateParts = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})/);
   const dateObj = new Date(dateStr);
-  const day = dateObj.getDate() || 12;
-  const month = dateObj.getMonth() + 1 || 9;
-  const year = dateObj.getFullYear() || 2027;
-  const hour = weddingDateData.hour || 11;
-  const minute = weddingDateData.minute || 30;
+  const day = dateParts ? Number(dateParts[3]) : dateObj.getDate() || 12;
+  const month = dateParts ? Number(dateParts[2]) : dateObj.getMonth() + 1 || 9;
+  const year = dateParts ? Number(dateParts[1]) : dateObj.getFullYear() || 2027;
+  const hour = weddingDateData.hour ?? 11;
+  const minute = weddingDateData.minute ?? 30;
   const formattedTime = `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 
   // Ảnh bìa chính (Hero Photo)
@@ -224,16 +235,26 @@ export function convertFormTemplateToCanvasNodes(
   const motherB = basicInfo.brideMatherName ? `Bà ${basicInfo.brideMatherName}` : "Bà Lê Thị Mai";
 
   nodes[idFamily] = {
-    type: { resolvedName: "TextBox" },
+    type: { resolvedName: "FamilyInfoBox" },
     props: {
       top: currentTop,
       left: 30,
       width: 440,
       height: 120,
-      text: `<div style="display:flex; justify-content:space-around; font-size:13px; line-height:1.7;">
-        <div><b>NHÀ TRAI</b><br/>${fatherG}<br/>${motherG}<br/><span style="color:${primaryColor}; font-weight:bold;">${groom}</span></div>
-        <div><b>NHÀ GÁI</b><br/>${fatherB}<br/>${motherB}<br/><span style="color:${primaryColor}; font-weight:bold;">${bride}</span></div>
-      </div>`,
+      groomFather: fatherG,
+      groomMother: motherG,
+      groomName: groom,
+      brideFather: fatherB,
+      brideMother: motherB,
+      brideName: bride,
+      text: generateFamilyInfoHtml({
+        groomFather: fatherG,
+        groomMother: motherG,
+        groomName: groom,
+        brideFather: fatherB,
+        brideMother: motherB,
+        brideName: bride,
+      }, primaryColor, textColor),
       fontSize: 14,
       color: textColor,
       textAlign: "center",
@@ -274,19 +295,24 @@ export function convertFormTemplateToCanvasNodes(
       const cLunar = c.lunarDate ? `<div style="font-size:11px; color:#888; margin-top:2px; font-style:italic;">${c.lunarDate}</div>` : "";
       const cLoc = c.location ? `<div style="font-size:12px; color:#555; margin-top:4px;">📍 ${c.location}</div>` : "";
 
+      const ceremonyData = {
+        ceremonyName: cName,
+        time: cTime,
+        date: cDate,
+        lunarDate: c.lunarDate || "",
+        location: c.location || "",
+      };
+
       nodes[idCeremonyCard] = {
-        type: { resolvedName: "TextBox" },
+        type: { resolvedName: "CeremonyBox" },
         props: {
           top: currentTop,
           left: 40,
           width: 420,
           height: 105,
-          text: `<div style="padding:14px 18px; background:rgba(255,255,255,0.75); border:1px solid rgba(212,175,55,0.3); border-radius:18px; text-align:center; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
-            <div style="font-size:14px; font-weight:bold; color:${primaryColor}; letter-spacing:1px; text-transform:uppercase;">${cName}</div>
-            <div style="font-size:15px; font-weight:bold; color:${textColor}; margin-top:4px;">⏰ ${cTime} • ${cDate}</div>
-            ${cLunar}
-            ${cLoc}
-          </div>`,
+          eventIndex: cIdx,
+          ...ceremonyData,
+          text: generateCeremonyHtml(ceremonyData, primaryColor, textColor),
           fontSize: 13,
           color: textColor,
           textAlign: "center",
@@ -327,6 +353,7 @@ export function convertFormTemplateToCanvasNodes(
       day,
       month,
       year,
+      time: formattedTime,
       zIndex: 20,
     },
   };
@@ -356,26 +383,25 @@ export function convertFormTemplateToCanvasNodes(
     childNodeIds.push(idTimelineTitle);
     currentTop += 45;
 
-    const timelineHtml = timelineItems.map((item: any) => `
-      <div style="display:flex; align-items:center; gap:16px; padding:10px 0; border-bottom:1px dashed rgba(0,0,0,0.08);">
-        <div style="min-width:65px; font-weight:bold; font-size:13px; color:${primaryColor}; text-align:right;">${item.time || "10:00"}</div>
-        <div style="width:10px; height:10px; border-radius:50%; background:${primaryColor}; flex-shrink:0;"></div>
-        <div style="font-weight:600; font-size:14px; color:${textColor};">${item.title || "Sự kiện cưới"}</div>
-      </div>
-    `).join("");
+    const formattedTimelineItems: TimelineItem[] = timelineItems.map((item: any, idx: number) => ({
+      id: item.id || `t_${idx + 1}`,
+      time: item.time || "10:00",
+      title: item.title || "Sự kiện cưới",
+    }));
+    const timelineTitle = formData.weddingTimeline?.title || formData.timeline?.title || "LỊCH TRÌNH NGÀY CƯỚI";
+    const timelineHeight = Math.max(160, formattedTimelineItems.length * 52 + 35);
 
     const idTimelineCard = "node_timeline_card";
-    const timelineHeight = Math.max(160, timelineItems.length * 52 + 35);
     nodes[idTimelineCard] = {
-      type: { resolvedName: "TextBox" },
+      type: { resolvedName: "TimelineBox" },
       props: {
         top: currentTop,
         left: 40,
         width: 420,
         height: timelineHeight,
-        text: `<div style="padding:16px 20px; background:rgba(255,255,255,0.8); border:1px solid rgba(0,0,0,0.06); border-radius:20px; box-shadow:0 6px 20px rgba(0,0,0,0.03);">
-          ${timelineHtml}
-        </div>`,
+        title: timelineTitle,
+        items: formattedTimelineItems,
+        text: generateTimelineHtml(formattedTimelineItems, primaryColor, textColor),
         fontSize: 13,
         color: textColor,
         zIndex: 21,
@@ -408,27 +434,27 @@ export function convertFormTemplateToCanvasNodes(
     childNodeIds.push(idDressTitle);
     currentTop += 40;
 
-    const colorsHtml = (dressCode.colors || []).map((c: any) => `
-      <div style="display:flex; flex-direction:column; align-items:center; gap:6px;">
-        <div style="width:36px; height:36px; border-radius:50%; background:${c.color || '#fff'}; border:2px solid rgba(0,0,0,0.12); box-shadow:0 3px 8px rgba(0,0,0,0.1);"></div>
-        <span style="font-size:11px; font-weight:600; color:#555;">${c.label || ""}</span>
-      </div>
-    `).join("");
+    const formattedColors: DressCodeColor[] = (dressCode.colors || []).map((c: any) => ({
+      color: c.color || "#FFFFFF",
+      label: c.label || "Màu trang phục",
+    }));
+    const dressTitle = dressCode.title || "DRESS CODE TRANG PHỤC";
+    const dressDesc =
+      dressCode.description ||
+      "Để bức hình kỷ niệm thêm trọn vẹn, quý khách vui lòng lựa chọn trang phục theo tông màu:";
 
     const idDressCard = "node_dress_card";
     nodes[idDressCard] = {
-      type: { resolvedName: "TextBox" },
+      type: { resolvedName: "DressCodeBox" },
       props: {
         top: currentTop,
         left: 40,
         width: 420,
         height: 125,
-        text: `<div style="padding:16px; background:rgba(255,255,255,0.75); border:1px solid rgba(0,0,0,0.06); border-radius:20px; text-align:center;">
-          <p style="font-size:12px; color:#666; margin-bottom:12px; line-height:1.4;">${dressCode.description || "Để bức hình kỷ niệm thêm trọn vẹn, quý khách vui lòng lựa chọn trang phục theo tông màu:"}</p>
-          <div style="display:flex; justify-content:center; gap:22px;">
-            ${colorsHtml}
-          </div>
-        </div>`,
+        title: dressTitle,
+        description: dressDesc,
+        colors: formattedColors,
+        text: generateDressCodeHtml(formattedColors, dressDesc, textColor),
         fontSize: 12,
         color: textColor,
         textAlign: "center",
@@ -600,19 +626,41 @@ export function convertFormTemplateToCanvasNodes(
       `;
     }).join("");
 
+    const gGroup = accountGroups[0] || {};
+    const bGroup = accountGroups[1] || {};
+    const gAcc = gGroup.accountList?.[0] || {};
+    const bAcc = bGroup.accountList?.[0] || {};
+    const gNum = String(gAcc.number || "").replace(/[^0-9]/g, "");
+    const bNum = String(bAcc.number || "").replace(/[^0-9]/g, "");
+
+    const bankData = {
+      title: formData.account?.title || "HỘP MỪNG CƯỚI",
+      description:
+        formData.account?.description?.replace(/\r?\n/g, " ") ||
+        "Sự hiện diện của quý vị là món quà quý giá nhất. Quý vị cũng có thể gửi lời chúc và quà mừng qua số tài khoản:",
+      groomBank: {
+        bankName: gAcc.bank && gNum && gNum !== "0000000000" ? gAcc.bank : "MB BANK",
+        accountNumber: gNum && gNum !== "0000000000" ? gNum : "240220038888",
+        accountHolder: gAcc.name || "ĐỨC MẠNH",
+      },
+      brideBank: {
+        bankName: bAcc.bank && bNum && bNum !== "0000000000" ? bAcc.bank : "TECHCOMBANK",
+        accountNumber: bNum && bNum !== "0000000000" ? bNum : "190365824988",
+        accountHolder: bAcc.name || "THÙY DUNG",
+      },
+    };
+
     const idBankCard = "node_bank_card";
     const bankCardHeight = Math.max(260, accountGroups.length * 215);
     nodes[idBankCard] = {
-      type: { resolvedName: "TextBox" },
+      type: { resolvedName: "BankCardBox" },
       props: {
         top: currentTop,
         left: 40,
         width: 420,
         height: bankCardHeight,
-        text: `<div style="padding:18px; background:rgba(255,255,255,0.85); border:1px solid rgba(212,175,55,0.3); border-radius:24px; box-shadow:0 8px 25px rgba(0,0,0,0.04);">
-          <p style="font-size:12px; color:#666; text-align:center; margin-bottom:14px; line-height:1.5;">${formData.account?.description?.replace(/\r?\n/g, '<br/>') || "Sự hiện diện của quý vị là món quà quý giá nhất. Quý vị cũng có thể gửi lời chúc và quà mừng qua số tài khoản:"}</p>
-          ${accountsHtml}
-        </div>`,
+        ...bankData,
+        text: generateBankCardHtml(bankData, primaryColor, textColor),
         fontSize: 12,
         color: textColor,
         zIndex: 28,

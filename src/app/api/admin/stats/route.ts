@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCardsFromDb, getAllRsvpsFromDb, getAllWishesFromDb } from "@/lib/serverDb";
-import { INITIAL_CARDS } from "@/data/initialCards";
 import { verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
@@ -25,9 +24,10 @@ export async function GET(request: NextRequest) {
       getAllWishesFromDb().catch(() => []),
     ]);
 
-    const cards = (cardsResult && cardsResult.length > 0) ? cardsResult : INITIAL_CARDS;
-    const rsvps = (rsvpsResult && rsvpsResult.length > 0) ? rsvpsResult : cards.flatMap((c) => c.rsvps || []);
-    const wishes = (wishesResult && wishesResult.length > 0) ? wishesResult : cards.flatMap((c) => c.wishes || []);
+    // Mảng rỗng trong production là dữ liệu hợp lệ, không được thay bằng dữ liệu demo.
+    const cards = cardsResult || [];
+    const rsvps = rsvpsResult || [];
+    const wishes = wishesResult || [];
 
     const totalCards = cards.length;
     const publishedCards = cards.filter((c) => c.status === "published").length;

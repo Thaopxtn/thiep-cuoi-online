@@ -223,26 +223,120 @@ export function sanitizeCsvField(value: any): string {
   return `"${escaped}"`;
 }
 
+export interface OAuthRedirectOriginOptions {
+  requestHost?: string | null;
+  requestProto?: string | null;
+  originParam?: string | null;
+  configuredSiteUrl?: string | null;
+}
+
+/**
+ * Phân giải Origin an toàn cho OAuth Redirect (Google Login)
+ * - Ngăn chặn triệt để tình trạng redirect nhầm về localhost khi chạy trên tên miền thật
+ * - Chống Open Redirect: chỉ chấp nhận originParam nếu khớp với hostname máy chủ đang phục vụ
+ * - Linh hoạt hỗ trợ cả local dev, custom domain và cloud hosting (Vercel/Cloudflare/VPS)
+ */
+export function resolveOAuthRedirectOrigin(options: OAuthRedirectOriginOptions): string {
+  const { requestHost, requestProto, originParam, configuredSiteUrl } = options;
+
+  const isLocalHost = (host: string) => {
+    const clean = host.split(":")[0].toLowerCase();
+    return clean === "localhost" || clean === "127.0.0.1";
+  };
+
+  const cleanHost = requestHost?.split(",")[0]?.trim() || "";
+  const hostname = cleanHost.split(":")[0].toLowerCase();
+  const isServerLocal = cleanHost ? isLocalHost(cleanHost) : false;
+
+  const configured = (configuredSiteUrl || "").trim().replace(/\/$/, "");
+  const isConfiguredLocal = configured ? isLocalHost(configured.replace(/^https?:\/\//, "")) : false;
+
+  // 1. Kiểm tra originParam do client gửi lên (từ window.location.origin)
+  if (originParam) {
+    try {
+      const parsed = new URL(originParam);
+      const parsedHostname = parsed.hostname.toLowerCase();
+      const isClientLocal = isLocalHost(parsedHostname);
+
+      // Nếu cả client và server đều là localhost (môi trường dev)
+      if (isServerLocal && isClientLocal) {
+        return parsed.origin;
+      }
+
+      // Nếu client gửi tên miền khớp với host request của server (chống Open Redirect)
+      if (cleanHost && parsedHostname === hostname) {
+        return parsed.origin;
+      }
+
+      // Nếu client gửi domain công khai hợp lệ và khớp với configuredSiteUrl
+      if (!isClientLocal && configured && parsed.origin.toLowerCase() === configured.toLowerCase()) {
+        return parsed.origin;
+      }
+
+      // Nếu server không có hostHeader nhưng originParam là public domain hợp lệ
+      if (!cleanHost && !isClientLocal && /^[a-zA-Z0-9.-]+$/.test(parsedHostname)) {
+        return parsed.origin;
+      }
+    } catch {
+      // Bỏ qua originParam nếu URL không hợp lệ
+    }
+  }
+
+  // 2. Nếu server đang chạy ở localhost
+  if (isServerLocal && cleanHost) {
+    return `http://${cleanHost}`;
+  }
+
+  // 3. Nếu request đến từ tên miền thật (production/staging/preview domain)
+  // Ưu tiên tuyệt đối domain mà người dùng đang truy cập thực tế
+  if (cleanHost && !isServerLocal && /^[a-zA-Z0-9.-]+(:\d+)?$/.test(cleanHost)) {
+    const proto = requestProto?.toLowerCase() === "http" ? "http" : "https";
+    return `${proto}://${cleanHost}`;
+  }
+
+  // 4. Fallback về configuredSiteUrl NẾU nó là domain công khai (không phải localhost)
+  if (configured && !isConfiguredLocal && !configured.includes("your-domain")) {
+    return configured;
+  }
+
+  // 5. Fallback an toàn mặc định
+  return "https://thiep-cuoi-online.vercel.app";
+}
+
 /**
  * Lấy URL hệ thống an toàn (chống Host Header Poisoning)
  */
 export function getSafeSiteUrl(requestHost?: string | null): string {
-  // Ưu tiên biến môi trường cấu hình chính thức
-  if (process.env.NEXT_PUBLIC_SITE_URL && !process.env.NEXT_PUBLIC_SITE_URL.includes("your-domain")) {
-    return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, "");
-  }
-  if (process.env.NEXT_PUBLIC_APP_URL) {
-    return process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
-  }
+  const isLocalHost = (host: string) => {
+    const clean = host.split(":")[0].toLowerCase();
+    return clean === "localhost" || clean === "127.0.0.1";
+  };
+
+  const configuredSiteUrl = (process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL || "")
+    .trim()
+    .replace(/\/$/, "");
+  const isConfiguredLocal = configuredSiteUrl ? isLocalHost(configuredSiteUrl.replace(/^https?:\/\//, "")) : false;
 
   if (requestHost) {
     // Chỉ chấp nhận các host hợp lệ (không chứa ký tự lạ)
-    const cleanHost = requestHost.split(":")[0];
-    if (/^[a-zA-Z0-9.-]+$/.test(cleanHost)) {
-      const isLocal = cleanHost === "localhost" || cleanHost === "127.0.0.1";
-      const protocol = isLocal ? "http" : "https";
-      return `${protocol}://${requestHost}`;
+    const cleanHost = requestHost.split(",")[0].trim();
+    const hostname = cleanHost.split(":")[0].toLowerCase();
+    if (/^[a-zA-Z0-9.-]+$/.test(hostname)) {
+      const isLocal = hostname === "localhost" || hostname === "127.0.0.1";
+      if (isLocal) {
+        return `http://${cleanHost}`;
+      }
+      // Nếu là host công khai, nhưng configuredSiteUrl bị dính localhost thì tuyệt đối bỏ qua configuredSiteUrl
+      if (configuredSiteUrl && !isConfiguredLocal && !configuredSiteUrl.includes("your-domain")) {
+        return configuredSiteUrl;
+      }
+      return `https://${cleanHost}`;
     }
+  }
+
+  // Ưu tiên biến môi trường cấu hình chính thức (nếu không phải localhost và không phải mẫu placeholder)
+  if (configuredSiteUrl && !configuredSiteUrl.includes("your-domain") && !isConfiguredLocal) {
+    return configuredSiteUrl;
   }
 
   return "http://localhost:3005";

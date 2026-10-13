@@ -35,8 +35,8 @@ import {
   DEFAULT_WEDDING_BACKGROUND,
   isDecorativeAsset,
 } from "@/lib/imageUtils";
-import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { isDecorativeNode, getRealWeddingPhotoSlots } from "@/lib/decorativeLockService";
+import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getGiftQrUrl, getSafeMapUrl } from "@/lib/moduleHelpers";
 
 interface EditorCanvasProps {
   nodes: Record<string, any>;
@@ -113,6 +113,13 @@ export default function EditorCanvas({
   const [isQuickPanelCollapsed, setIsQuickPanelCollapsed] = useState(false);
   const quickScrollRef = useRef<HTMLDivElement>(null);
   const initialSlotImagesRef = useRef<Record<string, string>>({});
+
+  // 1-second live ticker for real-time countdown
+  const [, setLiveTick] = useState(0);
+  React.useEffect(() => {
+    const timer = setInterval(() => setLiveTick((t) => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Danh sách các khung ảnh cưới THỰC SỰ trong template (loại trừ 100% họa tiết trang trí)
   const photoSlots = React.useMemo(() => {
@@ -841,7 +848,12 @@ export default function EditorCanvas({
                 </div>
               )}
 
-              {type === "TextBox" && (
+              {(type === "TextBox" ||
+                type === "TimelineBox" ||
+                type === "DressCodeBox" ||
+                type === "CeremonyBox" ||
+                type === "FamilyInfoBox" ||
+                type === "BankCardBox") && (
                 <div
                   className={`w-full h-full select-none ${animClass} ${
                     props.fontFamily && props.fontFamily.startsWith("font-")
@@ -866,7 +878,7 @@ export default function EditorCanvas({
                       ? `${props.textShadow.offsetX || 0}px ${props.textShadow.offsetY || 1}px ${props.textShadow.blur || 4}px ${props.textShadow.color || "rgba(0,0,0,0.5)"}`
                       : undefined,
                   }}
-                  dangerouslySetInnerHTML={{ __html: props.text || "" }}
+                  dangerouslySetInnerHTML={{ __html: getModuleRenderHtml(type, props) }}
                 />
               )}
 
@@ -942,37 +954,56 @@ export default function EditorCanvas({
                 />
               )}
 
-              {type === "CountdownBoxV2" && (
-                <div className="w-full h-full flex items-center justify-around p-3 bg-white/20 backdrop-blur-xs rounded-xl border border-stone-200/50 text-center">
-                  {[
-                    { val: "28", label: "Ngày" },
-                    { val: "14", label: "Giờ" },
-                    { val: "36", label: "Phút" },
-                    { val: "50", label: "Giây" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex flex-col items-center">
-                      <span className="text-xl font-black font-serif text-[#590310]">
-                        {item.val}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold text-gray-600">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {type === "CalendarBoxV2" && (
-                <div className="w-full h-full p-4 rounded-3xl bg-amber-50/40 border border-amber-200/40 flex flex-col justify-center items-center text-center">
-                  <span className="text-xs uppercase font-bold text-[#590310] tracking-widest">
-                    Tháng 12 • 2026
-                  </span>
-                  <div className="text-4xl font-serif font-black text-[#590310] my-2">
-                    29
+              {type === "CountdownBoxV2" && (() => {
+                const cd = calculateCountdown(props.targetDate, props.targetTime);
+                const textColor = props.textColor || "#590310";
+                return (
+                  <div className="w-full h-full flex items-center justify-around p-3 bg-white/20 backdrop-blur-xs rounded-xl border border-stone-200/50 text-center">
+                    {[
+                      { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
+                      { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
+                      { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
+                      { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
+                    ].map((item, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <span
+                          className="text-xl font-black font-serif"
+                          style={{ color: textColor }}
+                        >
+                          {item.val}
+                        </span>
+                        <span className="text-[10px] uppercase font-bold text-gray-600">
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                  <span className="text-xs text-gray-700">Thứ Ba • 16:30</span>
-                </div>
-              )}
+                );
+              })()}
+
+              {type === "CalendarBoxV2" && (() => {
+                const cal = formatCalendarData(props);
+                const themeColor = props.themeColor || "#590310";
+                return (
+                  <div className="w-full h-full p-4 rounded-3xl bg-amber-50/40 border border-amber-200/40 flex flex-col justify-center items-center text-center">
+                    <span
+                      className="text-xs uppercase font-bold tracking-widest"
+                      style={{ color: themeColor }}
+                    >
+                      {cal.formattedTitle}
+                    </span>
+                    <div
+                      className="text-4xl font-serif font-black my-2"
+                      style={{ color: themeColor }}
+                    >
+                      {cal.day}
+                    </div>
+                    <span className="text-xs text-gray-700">
+                      {cal.dayOfWeek} • {cal.time}
+                    </span>
+                  </div>
+                );
+              })()}
 
               {type === "ReminderBox" && (
                 <div className="w-full h-full rounded-full bg-[#ece4d8] text-[#590310] flex items-center justify-center font-bold text-sm shadow-sm gap-2">
@@ -982,19 +1013,7 @@ export default function EditorCanvas({
               )}
 
               {type === "GiftQrBox" && (() => {
-                const isRealQrKey =
-                  props.imgKey &&
-                  (props.imgKey.includes("vietqr.io") || props.imgKey.includes("vietqr"));
-
-                const qrUrl = isRealQrKey
-                  ? props.imgKey
-                  : generateVietQrUrl(
-                      props.bankName || "MB BANK",
-                      props.accountNumber || "240220038888",
-                      props.accountName || "NGUYEN VAN HUNG",
-                      undefined,
-                      "Mung cuoi hai ban"
-                    );
+                const qrUrl = getGiftQrUrl(props);
 
                 return (
                   <div className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200 shadow-md flex flex-col items-center justify-between text-center select-none">
@@ -1005,20 +1024,20 @@ export default function EditorCanvas({
 
                     {/* Mã QR chuẩn Napas 24/7 Thật */}
                     <div className="w-28 h-28 sm:w-32 sm:h-32 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 overflow-hidden">
-                      <img
+                      {qrUrl ? <img
                         src={qrUrl}
                         alt="Mã VietQR Mừng Cưới"
                         onError={(e) => handleImageFallback(e, undefined, false)}
                         className="w-full h-full object-contain"
-                      />
+                      /> : <span className="text-xs text-gray-500">Chưa có thông tin tài khoản</span>}
                     </div>
 
                     <div className="space-y-0.5">
                       <p className="text-[11px] font-bold text-gray-800">
-                        {props.bankName || "MB BANK"} • {props.accountNumber || "240220038888"}
+                        {props.bankName || ""} {props.accountNumber ? `• ${props.accountNumber}` : ""}
                       </p>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold truncate max-w-[190px]">
-                        {props.accountName || "NGUYEN VAN HUNG"}
+                        {props.accountName || ""}
                       </p>
                     </div>
 
@@ -1055,19 +1074,35 @@ export default function EditorCanvas({
                 </div>
               )}
 
-              {type === "MapBox" && (
-                <div className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center text-center p-4 relative">
-                  <div className="flex flex-col items-center gap-1 text-gray-600">
-                    <MapPin className="w-6 h-6 text-red-500 animate-pulse" />
-                    <span className="text-xs font-bold text-gray-800">
-                      Bản đồ chỉ đường
-                    </span>
-                    <span className="text-[10px] text-gray-500">
-                      {props.address || "ZenLove Wedding Palace"}
-                    </span>
+              {type === "MapBox" && (() => {
+                const venueName = props.venueName || props.title || "Trung tâm Tiệc cưới Trống Đồng";
+                const address = props.address || "Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội";
+                const generatedMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueName} ${address}`)}`;
+                const mapUrl = getSafeMapUrl(props.mapUrl, generatedMapUrl);
+                return (
+                  <div className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-white/95 flex flex-col items-center justify-between text-center p-3 relative shadow-xs">
+                    <div className="flex flex-col items-center gap-1 text-gray-700">
+                      <MapPin className="w-6 h-6 text-red-500 animate-pulse" />
+                      <span className="text-xs font-bold text-gray-900 font-serif">
+                        {venueName}
+                      </span>
+                      <span className="text-[11px] text-gray-600 line-clamp-2 max-w-[280px]">
+                        {address}
+                      </span>
+                    </div>
+                    <a
+                      href={mapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-bold shadow-xs transition-colors pointer-events-auto"
+                    >
+                      <span>Chỉ đường Google Maps</span>
+                      <span>↗</span>
+                    </a>
                   </div>
-                </div>
-              )}
+                );
+              })()}
             </div>
           );
         })}

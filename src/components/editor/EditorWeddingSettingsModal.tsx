@@ -226,20 +226,6 @@ export default function EditorWeddingSettingsModal({
       }
     }
 
-    // Tự động đồng bộ tên dâu rể và ngày cưới vào tất cả các node văn bản trên canvas
-    if (updatedNodes) {
-      const { syncedNodes } = syncCardDataToCanvasNodes(
-        {
-          groom: { name: groomName || card.groom.name } as any,
-          bride: { name: brideName || card.bride.name } as any,
-          weddingDate,
-          lunarDate,
-        },
-        updatedNodes
-      );
-      updatedNodes = syncedNodes;
-    }
-
     // Chuẩn hóa danh sách sự kiện và link sơ đồ bản đồ
     const normalizedEvents: WeddingEvent[] = events.map((e, idx) => ({
       ...e,
@@ -254,6 +240,36 @@ export default function EditorWeddingSettingsModal({
           ? `https://maps.google.com/?q=${encodeURIComponent(e.address || e.venue)}`
           : undefined),
     }));
+
+    // Tự động đồng bộ tên dâu rể, ngày cưới, ngân hàng, địa điểm vào tất cả các node và module trên canvas
+    if (updatedNodes) {
+      const { syncedNodes } = syncCardDataToCanvasNodes(
+        {
+          groom: {
+            name: groomName || card.groom.name,
+            phone: groomPhone,
+            parents: groomParents,
+            bankName: groomBank,
+            accountNumber: cleanGroomAcc,
+            accountName: groomAccountName || groomName,
+          } as any,
+          bride: {
+            name: brideName || card.bride.name,
+            phone: bridePhone,
+            parents: brideParents,
+            bankName: brideBank,
+            accountNumber: cleanBrideAcc,
+            accountName: brideAccountName || brideName,
+          } as any,
+          weddingDate,
+          weddingTime,
+          lunarDate,
+          events: normalizedEvents,
+        },
+        updatedNodes
+      );
+      updatedNodes = syncedNodes;
+    }
 
     const updatedCard: WeddingCard = {
       ...card,

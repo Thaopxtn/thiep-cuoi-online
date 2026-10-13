@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
       avatar: user.user_metadata?.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=256&auto=format&fit=crop",
       provider: "email",
       accessToken: data.access_token,
+      refreshToken: data.refresh_token,
       createdAt: user.created_at || new Date().toISOString(),
     };
 

@@ -5,6 +5,7 @@ import {
   isSafeExternalUrlAsync,
   sanitizeCsvField,
   getSafeSiteUrl,
+  resolveOAuthRedirectOrigin,
 } from "../securityUtils";
 import {
   generateAdminSessionToken,
@@ -84,6 +85,53 @@ describe("Security Utilities - SSRF Protection & URL Sanitization", () => {
     expect(getSafeSiteUrl("localhost:3005")).toBe("http://localhost:3005");
     expect(getSafeSiteUrl("thiepcuoi.zenlove.me")).toBe("https://thiepcuoi.zenlove.me");
     expect(getSafeSiteUrl("evil.com<script>")).toBe("http://localhost:3005");
+
+    // Ngay cả khi biến môi trường NEXT_PUBLIC_SITE_URL là localhost, tên miền thật không bị kéo về localhost
+    const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    try {
+      process.env.NEXT_PUBLIC_SITE_URL = "http://localhost:3005";
+      expect(getSafeSiteUrl("thiepcuoi.zenlove.me")).toBe("https://thiepcuoi.zenlove.me");
+    } finally {
+      process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+    }
+  });
+
+  it("resolveOAuthRedirectOrigin xác định chính xác domain redirect OAuth, ngăn chặn nhảy về localhost", () => {
+    // 1. Khi chạy trên domain thật, bất kể configuredSiteUrl là localhost: trả về đúng tên miền thật
+    const prodResult = resolveOAuthRedirectOrigin({
+      requestHost: "thiepcuoidep.vn",
+      requestProto: "https",
+      originParam: "https://thiepcuoidep.vn",
+      configuredSiteUrl: "http://localhost:3005",
+    });
+    expect(prodResult).toBe("https://thiepcuoidep.vn");
+
+    // 2. Khi chạy local dev: trả về localhost
+    const localResult = resolveOAuthRedirectOrigin({
+      requestHost: "localhost:3005",
+      requestProto: "http",
+      originParam: "http://localhost:3005",
+      configuredSiteUrl: "http://localhost:3005",
+    });
+    expect(localResult).toBe("http://localhost:3005");
+
+    // 3. Khi kẻ tấn công gửi originParam giả mạo (Open Redirect Attack): bị chặn và trả về domain của server
+    const attackResult = resolveOAuthRedirectOrigin({
+      requestHost: "thiepcuoidep.vn",
+      requestProto: "https",
+      originParam: "https://evil-phishing.com",
+      configuredSiteUrl: "https://thiepcuoidep.vn",
+    });
+    expect(attackResult).toBe("https://thiepcuoidep.vn");
+
+    // 4. Khi đi qua Reverse Proxy với header x-forwarded-host và x-forwarded-proto
+    const proxyResult = resolveOAuthRedirectOrigin({
+      requestHost: "zenlove-wedding.vercel.app",
+      requestProto: "https",
+      originParam: null,
+      configuredSiteUrl: "http://localhost:3005",
+    });
+    expect(proxyResult).toBe("https://zenlove-wedding.vercel.app");
   });
 });
 

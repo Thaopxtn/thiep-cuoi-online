@@ -9,6 +9,7 @@ export interface UserProfile {
   avatar: string;
   provider: "google" | "email";
   accessToken?: string;
+  refreshToken?: string;
   createdAt: string;
 }
 
@@ -91,7 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = () => {
     if (typeof window !== "undefined") {
-      window.location.href = "/api/auth/google";
+      const origin = encodeURIComponent(window.location.origin);
+      window.location.href = `/api/auth/google?origin=${origin}`;
     }
   };
 
@@ -103,12 +105,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
-      if (data.success && data.user) {
-        setUser(data.user);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+      if (data.success && data.user && data.session?.access_token) {
+        const sessionUser = {
+          ...data.user,
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+        };
+        setUser(sessionUser);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
         setIsLoginModalOpen(false);
         setLoginModalMessage(null);
-        return { success: true, message: data.message, user: data.user };
+        return { success: true, message: data.message, user: sessionUser };
+      }
+      if (data.success && data.user && !data.session?.access_token) {
+        return { success: false, message: "Tài khoản đã được tạo. Vui lòng xác minh email trước khi đăng nhập." };
       }
       return { success: false, message: data.message || "Đăng nhập thất bại" };
     } catch (err: any) {
@@ -124,12 +134,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ name, email, password }),
       });
       const data = await res.json();
-      if (data.success && data.user) {
-        setUser(data.user);
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(data.user));
+      if (data.success && data.user && data.session?.access_token) {
+        const sessionUser = {
+          ...data.user,
+          accessToken: data.session.access_token,
+          refreshToken: data.session.refresh_token,
+        };
+        setUser(sessionUser);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(sessionUser));
         setIsLoginModalOpen(false);
         setLoginModalMessage(null);
-        return { success: true, message: data.message, user: data.user };
+        return { success: true, message: data.message, user: sessionUser };
+      }
+      if (data.success && data.user && !data.session?.access_token) {
+        return { success: false, message: "Đăng ký thành công. Vui lòng xác minh email trước khi đăng nhập." };
       }
       return { success: false, message: data.message || "Đăng ký thất bại" };
     } catch (err: any) {

@@ -30,6 +30,9 @@ ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 -- Xóa các policy cũ mở toang
 DROP POLICY IF EXISTS "Public Read Cards" ON public.cards;
 DROP POLICY IF EXISTS "Public Read Published Cards" ON public.cards;
+DROP POLICY IF EXISTS "Public Insert Cards" ON public.cards;
+DROP POLICY IF EXISTS "Public Update Cards" ON public.cards;
+DROP POLICY IF EXISTS "Public Delete Cards" ON public.cards;
 DROP POLICY IF EXISTS "Auth Insert Cards" ON public.cards;
 DROP POLICY IF EXISTS "Auth Update Cards" ON public.cards;
 DROP POLICY IF EXISTS "Auth Delete Cards" ON public.cards;
@@ -66,13 +69,17 @@ USING (
 -- 3. THIẾT LẬP ROW LEVEL SECURITY CHO BẢNG RSVPS (BẢO VỆ THÔNG TIN KHÁCH MỜI)
 ALTER TABLE public.rsvps ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public Read RSVPs" ON public.rsvps;
+DROP POLICY IF EXISTS "Public Insert RSVPs" ON public.rsvps;
 DROP POLICY IF EXISTS "Public Read Rsvps" ON public.rsvps;
 DROP POLICY IF EXISTS "Public Insert Rsvps" ON public.rsvps;
+DROP POLICY IF EXISTS "Owner Read RSVPs" ON public.rsvps;
+DROP POLICY IF EXISTS "Owner Delete RSVPs" ON public.rsvps;
 DROP POLICY IF EXISTS "Owner Read Rsvps" ON public.rsvps;
 DROP POLICY IF EXISTS "Owner Delete Rsvps" ON public.rsvps;
 
 -- Khách gửi RSVP vào thiệp đã xuất bản
-CREATE POLICY "Public Insert Rsvps" 
+CREATE POLICY "Public Insert RSVPs"
 ON public.rsvps FOR INSERT 
 WITH CHECK (
     EXISTS (
@@ -82,7 +89,7 @@ WITH CHECK (
 );
 
 -- CHỈ CHỦ THIỆP mới có quyền đọc toàn bộ danh sách RSVP (kèm SĐT và lời nhắn)
-CREATE POLICY "Owner Read Rsvps" 
+CREATE POLICY "Owner Read RSVPs"
 ON public.rsvps FOR SELECT 
 USING (
     EXISTS (
@@ -92,7 +99,7 @@ USING (
 );
 
 -- Chủ thiệp có quyền xóa phản hồi
-CREATE POLICY "Owner Delete Rsvps" 
+CREATE POLICY "Owner Delete RSVPs"
 ON public.rsvps FOR DELETE 
 USING (
     EXISTS (
@@ -107,6 +114,33 @@ ALTER TABLE public.wishes ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Public Read Wishes" ON public.wishes;
 DROP POLICY IF EXISTS "Public Insert Wishes" ON public.wishes;
 DROP POLICY IF EXISTS "Owner Delete Wishes" ON public.wishes;
+
+-- Bảng lưu transaction thanh toán để chống xử lý trùng sau cold start/serverless restart
+CREATE TABLE IF NOT EXISTS public.payment_transactions (
+    reference_code TEXT PRIMARY KEY,
+    amount NUMERIC NOT NULL,
+    card_id TEXT,
+    content TEXT,
+    processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
+
+-- Hàm atomic increment lượt xem, tránh lost update khi nhiều khách mở cùng lúc
+CREATE OR REPLACE FUNCTION public.increment_card_views(card_key TEXT)
+RETURNS INTEGER
+LANGUAGE SQL
+SECURITY DEFINER
+SET search_path = public
+AS $$
+    UPDATE public.cards
+    SET views = COALESCE(views, 0) + 1
+    WHERE id = card_key OR slug = card_key;
+    SELECT COUNT(*)::INTEGER FROM public.cards WHERE id = card_key OR slug = card_key;
+$$;
+
+REVOKE ALL ON FUNCTION public.increment_card_views(TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.increment_card_views(TEXT) TO service_role;
 
 -- Mọi người đều có thể đọc lời chúc của thiệp đã xuất bản
 CREATE POLICY "Public Read Wishes" 

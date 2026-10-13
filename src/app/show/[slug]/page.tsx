@@ -601,7 +601,7 @@ export default function ShowInvitationPage() {
     if (accountNumber) {
       return generateVietQrUrl(bankName, accountNumber, name, undefined, `Mung cuoi ${name || ""}`);
     }
-    return generateVietQrUrl(bankName || "MB", "240220038888", name || "MUNG CUOI", undefined, `Mung cuoi ${name || ""}`);
+    return "";
   };
 
   if (!card) {
@@ -1721,18 +1721,20 @@ export default function ShowInvitationPage() {
             {activeGiftTab === "groom" && (
               <div className="space-y-3 text-center">
                 <div className="w-44 h-44 mx-auto bg-white rounded-2xl p-2 border-2 border-dashed border-amber-300 shadow-inner flex items-center justify-center">
-                  <img
-                    src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
-                    alt={`VietQR ${groomBankOwner}`}
-                    className="w-full h-full object-contain"
-                  />
+                  {getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode) ? (
+                    <img
+                      src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
+                      alt={`VietQR ${groomBankOwner}`}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : <span className="text-xs text-gray-500 text-center">Chưa cập nhật QR</span>}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs font-bold text-gray-800">
-                    {card.groom.bankName || "MB BANK"}
+                    {card.groom.bankName || "Chưa cập nhật ngân hàng"}
                   </p>
                   <p className="text-sm font-mono font-bold text-[#511419]">
-                    {card.groom.accountNumber || "240220038888"}
+                    {card.groom.accountNumber || "Chưa cập nhật số tài khoản"}
                   </p>
                   <p className="text-[11px] text-gray-500 uppercase font-semibold">
                     Chủ TK: {groomBankOwner}
@@ -1741,7 +1743,8 @@ export default function ShowInvitationPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    copyToClipboard(card.groom.accountNumber || "240220038888", "groom");
+                    if (!card.groom.accountNumber) return;
+                    copyToClipboard(card.groom.accountNumber, "groom");
                     setToastMessage("Đã sao chép STK Chú Rể!");
                     setTimeout(() => setToastMessage(null), 2500);
                   }}
@@ -1757,18 +1760,20 @@ export default function ShowInvitationPage() {
             {activeGiftTab === "bride" && (
               <div className="space-y-3 text-center">
                 <div className="w-44 h-44 mx-auto bg-white rounded-2xl p-2 border-2 border-dashed border-rose-300 shadow-inner flex items-center justify-center">
-                  <img
-                    src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
-                    alt={`VietQR ${brideBankOwner}`}
-                    className="w-full h-full object-contain"
-                  />
+                  {getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode) ? (
+                    <img
+                      src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
+                      alt={`VietQR ${brideBankOwner}`}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : <span className="text-xs text-gray-500 text-center">Chưa cập nhật QR</span>}
                 </div>
                 <div className="space-y-0.5">
                   <p className="text-xs font-bold text-gray-800">
-                    {card.bride.bankName || "TECHCOMBANK"}
+                    {card.bride.bankName || "Chưa cập nhật ngân hàng"}
                   </p>
                   <p className="text-sm font-mono font-bold text-[#511419]">
-                    {card.bride.accountNumber || "190365824988"}
+                    {card.bride.accountNumber || "Chưa cập nhật số tài khoản"}
                   </p>
                   <p className="text-[11px] text-gray-500 uppercase font-semibold">
                     Chủ TK: {brideBankOwner}
@@ -1777,7 +1782,8 @@ export default function ShowInvitationPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    copyToClipboard(card.bride.accountNumber || "190365824988", "bride");
+                    if (!card.bride.accountNumber) return;
+                    copyToClipboard(card.bride.accountNumber, "bride");
                     setToastMessage("Đã sao chép STK Cô Dâu!");
                     setTimeout(() => setToastMessage(null), 2500);
                   }}

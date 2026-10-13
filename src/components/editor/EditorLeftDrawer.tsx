@@ -40,6 +40,9 @@ import {
   Lock,
   Type,
   LayoutGrid,
+  Clock,
+  Users,
+  CreditCard,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
@@ -1822,20 +1825,56 @@ export default function EditorLeftDrawer({
 
             {[
               {
+                id: "TimelineBox",
+                title: "Lịch trình ngày cưới",
+                desc: "Dòng thời gian các hoạt động đón khách, làm lễ, khai tiệc",
+                icon: <Clock className="w-5 h-5 text-purple-500" />,
+              },
+              {
+                id: "DressCodeBox",
+                title: "Quy định trang phục (Dress Code)",
+                desc: "Gợi ý bảng màu trang phục dự tiệc cho quan khách",
+                icon: <Palette className="w-5 h-5 text-amber-500" />,
+              },
+              {
+                id: "CeremonyBox",
+                title: "Chương trình hôn lễ",
+                desc: "Lễ Thành Hôn / Vu Quy kèm ngày giờ, địa điểm",
+                icon: <Heart className="w-5 h-5 text-rose-500" />,
+              },
+              {
+                id: "FamilyInfoBox",
+                title: "Thông tin hai họ",
+                desc: "Tên phụ mẫu hai họ và cô dâu chú rể trang trọng",
+                icon: <Users className="w-5 h-5 text-indigo-500" />,
+              },
+              {
+                id: "BankCardBox",
+                title: "Hộp mừng cưới 2 họ (VietQR)",
+                desc: "2 mã VietQR Napas 24/7 của Chú Rể và Cô Dâu",
+                icon: <CreditCard className="w-5 h-5 text-emerald-500" />,
+              },
+              {
                 id: "CountdownBoxV2",
                 title: "Đếm ngược ngày cưới",
-                desc: "Hiển thị đồng hồ đếm ngược Ngày - Giờ - Phút đến ngày cưới",
-                icon: <Calendar className="w-5 h-5 text-indigo-500" />,
+                desc: "Hiển thị đồng hồ đếm ngược Ngày - Giờ - Phút - Giây",
+                icon: <Calendar className="w-5 h-5 text-blue-500" />,
+              },
+              {
+                id: "CalendarBoxV2",
+                title: "Lịch cưới tháng",
+                desc: "Tờ lịch tháng với ngày cưới khoanh tròn",
+                icon: <Calendar className="w-5 h-5 text-teal-500" />,
               },
               {
                 id: "MapBox",
                 title: "Bản đồ chỉ đường (Maps)",
                 desc: "Tích hợp Google Maps dẫn đường khách đến tiệc cưới",
-                icon: <MapPin className="w-5 h-5 text-blue-500" />,
+                icon: <MapPin className="w-5 h-5 text-red-500" />,
               },
               {
                 id: "GiftQrBox",
-                title: "Hộp mừng cưới (QR Ngân hàng)",
+                title: "Hộp mừng cưới đơn (1 VietQR)",
                 desc: "Quét mã QR chuyển khoản tiền mừng cưới tiện lợi",
                 icon: <Gift className="w-5 h-5 text-amber-500" />,
               },
@@ -1843,13 +1882,7 @@ export default function EditorLeftDrawer({
                 id: "RsvpBoxV2",
                 title: "Xác nhận tham dự (RSVP)",
                 desc: "Form khách xác nhận tham dự và số lượng người đi cùng",
-                icon: <Heart className="w-5 h-5 text-rose-500" />,
-              },
-              {
-                id: "CalendarBoxV2",
-                title: "Lịch cưới tháng",
-                desc: "Tờ lịch tháng với ngày cưới khoanh tròn trái tim",
-                icon: <Calendar className="w-5 h-5 text-emerald-500" />,
+                icon: <Heart className="w-5 h-5 text-pink-500" />,
               },
             ].map((widget) => (
               <div

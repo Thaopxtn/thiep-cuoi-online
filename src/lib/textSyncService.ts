@@ -3,6 +3,11 @@
  */
 
 import { WeddingCard } from "@/data/initialCards";
+import {
+  generateBankCardHtml,
+  generateCeremonyHtml,
+  generateFamilyInfoHtml,
+} from "./moduleHelpers";
 
 // Định nghĩa các nhóm node liên quan lặp lại trong mẫu thiệp cưới Hồng Phong
 export interface TextSyncGroup {
@@ -217,6 +222,123 @@ export function syncCardDataToCanvasNodes(
       }
     });
   }
+
+  // 3. Tự động đồng bộ các Widget và Module cấu trúc trên Canvas
+  Object.entries(syncedNodes).forEach(([id, node]: [string, any]) => {
+    const typeName = node.type?.resolvedName || "";
+    const p = node.props || {};
+
+    // 3.1 CountdownBoxV2
+    if (typeName === "CountdownBoxV2" && dateStr) {
+      const targetDate = `${dateStr}T${card.weddingTime || "11:00"}:00`;
+      if (p.targetDate !== targetDate) {
+        syncedNodes[id] = {
+          ...node,
+          props: { ...p, targetDate, targetTime: card.weddingTime || "11:00" },
+        };
+        hasChanges = true;
+      }
+    }
+
+    // 3.2 CalendarBoxV2
+    if (typeName === "CalendarBoxV2") {
+      const numDay = day ? parseInt(day, 10) : p.day || 29;
+      const numMonth = month ? parseInt(month, 10) : p.month || 12;
+      const numYear = year ? parseInt(year, 10) : p.year || 2026;
+      const timeStr = card.weddingTime || p.time || "11:00";
+      if (p.day !== numDay || p.month !== numMonth || p.year !== numYear || p.time !== timeStr) {
+        syncedNodes[id] = {
+          ...node,
+          props: { ...p, day: numDay, month: numMonth, year: numYear, time: timeStr, targetTime: timeStr },
+        };
+        hasChanges = true;
+      }
+    }
+
+    // 3.3 MapBox
+    if (typeName === "MapBox" && card.events && card.events.length > 0) {
+      const firstEvent = card.events[0];
+      const venueName = firstEvent.venue || p.venueName || "Địa điểm tiệc cưới";
+      const address = firstEvent.address || p.address || "";
+      const mapUrl = firstEvent.mapUrl || (address ? `https://maps.google.com/?q=${encodeURIComponent(`${venueName} ${address}`)}` : p.mapUrl);
+      if (p.venueName !== venueName || p.address !== address || p.mapUrl !== mapUrl) {
+        syncedNodes[id] = {
+          ...node,
+          props: { ...p, venueName, address, mapUrl },
+        };
+        hasChanges = true;
+      }
+    }
+
+    // 3.4 BankCardBox
+    if (typeName === "BankCardBox" && (card.groom?.accountNumber || card.bride?.accountNumber)) {
+      const gBank = card.groom?.bankName || p.groomBank?.bankName || "MB BANK";
+      const gAcc = card.groom?.accountNumber || p.groomBank?.accountNumber || "";
+      const gHolder = card.groom?.accountName || card.groom?.name || p.groomBank?.accountHolder || "CHÚ RỂ";
+      const bBank = card.bride?.bankName || p.brideBank?.bankName || "TECHCOMBANK";
+      const bAcc = card.bride?.accountNumber || p.brideBank?.accountNumber || "";
+      const bHolder = card.bride?.accountName || card.bride?.name || p.brideBank?.accountHolder || "CÔ DÂU";
+
+      const bankData = {
+        title: p.title || "HỘP MỪNG CƯỚI",
+        description: p.description || "Sự hiện diện của quý vị là món quà quý giá nhất.",
+        groomBank: { bankName: gBank, accountNumber: gAcc, accountHolder: gHolder },
+        brideBank: { bankName: bBank, accountNumber: bAcc, accountHolder: bHolder },
+      };
+      const newHtml = generateBankCardHtml(bankData);
+      const bankPatch = { ...bankData, text: newHtml };
+      const bankChanged = JSON.stringify({
+        title: p.title,
+        description: p.description,
+        groomBank: p.groomBank,
+        brideBank: p.brideBank,
+        text: p.text,
+      }) !== JSON.stringify(bankPatch);
+      if (bankChanged) {
+        syncedNodes[id] = { ...node, props: { ...p, ...bankPatch } };
+        hasChanges = true;
+      }
+    }
+
+    // 3.5 FamilyInfoBox
+    if (typeName === "FamilyInfoBox" && (groom || bride || card.groom?.parents || card.bride?.parents)) {
+      const familyData = {
+        groomFather: card.groom?.parents ? card.groom.parents.split("&")[0]?.trim() || "Ông Bố Chú Rể" : p.groomFather || "Ông Bố Chú Rể",
+        groomMother: card.groom?.parents ? card.groom.parents.split("&")[1]?.trim() || "Bà Mẹ Chú Rể" : p.groomMother || "Bà Mẹ Chú Rể",
+        groomName: groom || p.groomName || "Chú Rể",
+        brideFather: card.bride?.parents ? card.bride.parents.split("&")[0]?.trim() || "Ông Bố Cô Dâu" : p.brideFather || "Ông Bố Cô Dâu",
+        brideMother: card.bride?.parents ? card.bride.parents.split("&")[1]?.trim() || "Bà Mẹ Cô Dâu" : p.brideMother || "Bà Mẹ Cô Dâu",
+        brideName: bride || p.brideName || "Cô Dâu",
+      };
+      const newHtml = generateFamilyInfoHtml(familyData);
+      const familyPatch = { ...familyData, text: newHtml };
+      const familyChanged = Object.entries(familyPatch).some(([key, value]) => p[key] !== value);
+      if (familyChanged) {
+        syncedNodes[id] = { ...node, props: { ...p, ...familyPatch } };
+        hasChanges = true;
+      }
+    }
+
+    // 3.6 CeremonyBox
+    if (typeName === "CeremonyBox") {
+      const eventIndex = Number.isInteger(p.eventIndex) ? p.eventIndex : 0;
+      const evt = card.events && card.events.length > eventIndex ? card.events[eventIndex] : null;
+      const ceremonyData = {
+        ceremonyName: evt?.title || p.ceremonyName || "Lễ Thành Hôn",
+        time: card.weddingTime || p.time || "11:30",
+        date: dateStr || p.date || "2027-09-15",
+        lunarDate: lunar ? `(${lunar})` : p.lunarDate || "",
+        location: evt?.venue || p.location || "Trung Tâm Tiệc Cưới",
+      };
+      const newHtml = generateCeremonyHtml(ceremonyData);
+      const ceremonyPatch = { ...ceremonyData, text: newHtml };
+      const ceremonyChanged = Object.entries(ceremonyPatch).some(([key, value]) => p[key] !== value);
+      if (ceremonyChanged) {
+        syncedNodes[id] = { ...node, props: { ...p, ...ceremonyPatch } };
+        hasChanges = true;
+      }
+    }
+  });
 
   return { syncedNodes, hasChanges };
 }

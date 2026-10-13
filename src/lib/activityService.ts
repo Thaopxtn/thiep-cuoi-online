@@ -1,5 +1,4 @@
 import { getCardsFromDb, getAllRsvpsFromDb, getAllWishesFromDb, getUsersWithStatsFromDb } from "./serverDb";
-import { INITIAL_CARDS } from "@/data/initialCards";
 
 export type ActivityType =
   | "user_register"   // Đăng ký tài khoản mới
@@ -88,7 +87,8 @@ export async function getAggregatedActivities(options?: {
       getUsersWithStatsFromDb().catch(() => []),
     ]);
 
-    const cards = (rawCards && rawCards.length > 0) ? rawCards : INITIAL_CARDS;
+    // Không hiển thị dữ liệu mẫu như hoạt động thật khi database đang rỗng.
+    const cards = rawCards || [];
 
     // 1. Thu thập từ thiệp cưới thực tế
     cards.forEach((card) => {

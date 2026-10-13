@@ -8,11 +8,24 @@ export const dynamic = "force-dynamic";
 // Bộ nhớ đệm Idempotency runtime (24h)
 const runtimeProcessedTransactions = new Map<string, number>();
 
+type PaymentClaimResult = "claimed" | "already_processed" | "unavailable";
+
+function getPaymentDbConfig() {
+  return {
+    url: process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    serviceKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || "",
+  };
+}
+
 /**
- * Kiểm tra xem giao dịch đã được xử lý thành công trước đó hay chưa (Durable Idempotency)
- * Kiểm tra cả runtime memory và persistent database activities
+ * Claim giao dịch bằng unique key trong database.
+ * INSERT ... ON CONFLICT là atomic nên hai webhook đồng thời chỉ một request được xử lý.
  */
-async function isPaymentAlreadyProcessed(txId: string): Promise<boolean> {
+async function claimPaymentTransaction(
+  txId: string,
+  amount: number,
+  content: string
+): Promise<PaymentClaimResult> {
   const now = Date.now();
   // Dọn dẹp cache cũ > 24 giờ
   runtimeProcessedTransactions.forEach((ts, id) => {
@@ -22,37 +35,73 @@ async function isPaymentAlreadyProcessed(txId: string): Promise<boolean> {
   });
 
   if (runtimeProcessedTransactions.has(txId)) {
-    return true;
+    return "already_processed";
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url: supabaseUrl, serviceKey } = getPaymentDbConfig();
 
-  if (supabaseUrl && serviceKey) {
-    try {
-      const res = await fetch(
-        `${supabaseUrl}/rest/v1/activities?targetId=eq.${encodeURIComponent(txId)}&type=eq.payment_webhook&select=id`,
-        {
-          headers: {
-            apikey: serviceKey,
-            Authorization: `Bearer ${serviceKey}`,
-          },
-          cache: "no-store",
-        }
-      );
-      if (res.ok) {
-        const rows = await res.json();
-        if (Array.isArray(rows) && rows.length > 0) {
-          runtimeProcessedTransactions.set(txId, now);
-          return true;
-        }
-      }
-    } catch (err) {
-      console.warn("Lỗi kiểm tra persistent idempotency:", err);
+  if (!supabaseUrl || !serviceKey) {
+    if (process.env.NODE_ENV === "production") return "unavailable";
+    runtimeProcessedTransactions.set(txId, now);
+    return "claimed";
+  }
+
+  try {
+    const res = await fetch(`${supabaseUrl}/rest/v1/payment_transactions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        Prefer: "resolution=ignore-duplicates,return=representation",
+      },
+      body: JSON.stringify({
+        reference_code: txId,
+        amount,
+        content: content.slice(0, 500),
+      }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      console.error("Không thể claim payment transaction:", res.status, await res.text());
+      return "unavailable";
     }
-  }
 
-  return false;
+    const rows = await res.json().catch(() => []);
+    if (Array.isArray(rows) && rows.length > 0) {
+      return "claimed";
+    }
+
+    runtimeProcessedTransactions.set(txId, now);
+    return "already_processed";
+  } catch (err) {
+    console.error("Lỗi claim persistent idempotency:", err);
+    return "unavailable";
+  }
+}
+
+/** Xóa claim nếu nghiệp vụ phía sau thất bại để webhook có thể retry an toàn. */
+async function releasePaymentClaim(txId: string): Promise<void> {
+  runtimeProcessedTransactions.delete(txId);
+  const { url: supabaseUrl, serviceKey } = getPaymentDbConfig();
+  if (!supabaseUrl || !serviceKey) return;
+
+  try {
+    await fetch(
+      `${supabaseUrl}/rest/v1/payment_transactions?reference_code=eq.${encodeURIComponent(txId)}`,
+      {
+        method: "DELETE",
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+        },
+        cache: "no-store",
+      }
+    );
+  } catch (err) {
+    console.error("Lỗi release payment claim:", err);
+  }
 }
 
 /**
@@ -153,14 +202,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 3. Chống Replay Attack: Kiểm tra Durable Idempotency
-    const alreadyDone = await isPaymentAlreadyProcessed(referenceCode);
-    if (alreadyDone) {
+    // 3. Chống Replay Attack: claim atomically trong database
+    const claimResult = await claimPaymentTransaction(referenceCode, amount, content);
+    if (claimResult === "already_processed") {
       return NextResponse.json({
         success: true,
         message: "Giao dịch đã được ghi nhận trước đó (Idempotent)",
         alreadyProcessed: true,
       });
+    }
+    if (claimResult === "unavailable") {
+      return NextResponse.json(
+        { success: false, message: "Không thể xác nhận giao dịch an toàn, vui lòng thử lại" },
+        { status: 503 }
+      );
     }
 
     // 4. Phân tích nội dung chuyển khoản để nhận diện thiệp cưới
@@ -181,11 +236,18 @@ export async function POST(request: NextRequest) {
         const senderName = String(payload.senderName || payload.accountName || "Khách mừng cưới Online").trim();
 
         // Ghi nhận vào Sổ lưu bút thiệp cưới
-        await createWishInDb({
+        const savedWish = await createWishInDb({
           cardId: card.id,
           name: senderName.slice(0, 100),
           content: `${content.slice(0, 200)} (Mừng cưới: ${formattedAmount})`,
         });
+        if (!savedWish) {
+          await releasePaymentClaim(referenceCode);
+          return NextResponse.json(
+            { success: false, message: "Không thể ghi nhận lời chúc, vui lòng thử lại" },
+            { status: 503 }
+          );
+        }
       }
     }
 

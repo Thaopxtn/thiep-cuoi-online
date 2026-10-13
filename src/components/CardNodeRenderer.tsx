@@ -17,14 +17,15 @@ import {
   FALLBACK_WEDDING_IMG,
   DEFAULT_WEDDING_BACKGROUND,
 } from "@/lib/imageUtils";
-import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { weddingSounds } from "@/lib/soundEffects";
+import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getSafeMapUrl, getGiftQrUrl } from "@/lib/moduleHelpers";
 
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
   onRsvpSuccess?: (rsvpData: any) => void;
   onOpenGiftQr?: () => void;
 }
+
 
 export default function CardNodeRenderer({
   nodes,
@@ -38,6 +39,13 @@ export default function CardNodeRenderer({
   const [rsvpPhone, setRsvpPhone] = useState("");
   const [rsvpGuests, setRsvpGuests] = useState(1);
   const [rsvpAttending, setRsvpAttending] = useState(true);
+
+  // Live countdown ticker
+  const [, setLiveTick] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => setLiveTick((t) => t + 1), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
@@ -191,8 +199,13 @@ export default function CardNodeRenderer({
                 </div>
               )}
 
-              {/* Text Box */}
-              {type === "TextBox" && (
+              {/* Text Box & Specialized Modules */}
+              {(type === "TextBox" ||
+                type === "TimelineBox" ||
+                type === "DressCodeBox" ||
+                type === "CeremonyBox" ||
+                type === "FamilyInfoBox" ||
+                type === "BankCardBox") && (
                 <div
                   className={`w-full h-full select-none ${animClass} ${
                     props.fontFamily && props.fontFamily.startsWith("font-")
@@ -217,7 +230,7 @@ export default function CardNodeRenderer({
                       ? `${props.textShadow.offsetX || 0}px ${props.textShadow.offsetY || 1}px ${props.textShadow.blur || 4}px ${props.textShadow.color || "rgba(0,0,0,0.5)"}`
                       : undefined,
                   }}
-                  dangerouslySetInnerHTML={{ __html: props.text || "" }}
+                  dangerouslySetInnerHTML={{ __html: getModuleRenderHtml(type, props) }}
                 />
               )}
 
@@ -294,70 +307,83 @@ export default function CardNodeRenderer({
               )}
 
               {/* Countdown Box */}
-              {type === "CountdownBoxV2" && (
-                <div className="w-full h-full flex items-center justify-around p-3 bg-white/30 backdrop-blur-xs rounded-2xl border border-stone-200/50 text-center shadow-xs">
-                  {[
-                    { val: "28", label: "Ngày" },
-                    { val: "14", label: "Giờ" },
-                    { val: "36", label: "Phút" },
-                    { val: "50", label: "Giây" },
-                  ].map((item, i) => (
-                    <div key={i} className="flex flex-col items-center">
-                      <span className="text-xl sm:text-2xl font-black font-serif text-[#590310]">
-                        {item.val}
-                      </span>
-                      <span className="text-[10px] uppercase font-bold text-gray-600">
-                        {item.label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {type === "CountdownBoxV2" && (() => {
+                const cd = calculateCountdown(props.targetDate, props.targetTime);
+                const textColor = props.textColor || "#590310";
+                return (
+                  <div className="w-full h-full flex items-center justify-around p-3 bg-white/30 backdrop-blur-xs rounded-2xl border border-stone-200/50 text-center shadow-xs">
+                    {[
+                      { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
+                      { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
+                      { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
+                      { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
+                    ].map((item, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <span
+                          className="text-xl sm:text-2xl font-black font-serif"
+                          style={{ color: textColor }}
+                        >
+                          {item.val}
+                        </span>
+                        <span className="text-[10px] uppercase font-bold text-gray-600">
+                          {item.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
 
               {/* Calendar Box */}
-              {type === "CalendarBoxV2" && (
-                <div className="w-full h-full p-4 rounded-3xl bg-amber-50/50 border border-amber-200/50 flex flex-col justify-center items-center text-center shadow-xs">
-                  <span className="text-xs uppercase font-bold text-[#590310] tracking-widest">
-                    Tháng 12 • 2026
-                  </span>
-                  <div className="text-4xl font-serif font-black text-[#590310] my-2">
-                    29
+              {type === "CalendarBoxV2" && (() => {
+                const cal = formatCalendarData(props);
+                const themeColor = props.themeColor || "#590310";
+                return (
+                  <div className="w-full h-full p-4 rounded-3xl bg-amber-50/50 border border-amber-200/50 flex flex-col justify-center items-center text-center shadow-xs">
+                    <span
+                      className="text-xs uppercase font-bold tracking-widest"
+                      style={{ color: themeColor }}
+                    >
+                      {cal.formattedTitle}
+                    </span>
+                    <div
+                      className="text-4xl font-serif font-black my-2"
+                      style={{ color: themeColor }}
+                    >
+                      {cal.day}
+                    </div>
+                    <span className="text-xs text-gray-700">
+                      {cal.dayOfWeek} • {cal.time}
+                    </span>
                   </div>
-                  <span className="text-xs text-gray-700">Thứ Ba • 16:30</span>
-                </div>
-              )}
+                );
+              })()}
 
               {/* Reminder Box */}
-              {type === "ReminderBox" && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    weddingSounds.playSoftClick();
-                    const title = encodeURIComponent("Đám cưới hạnh phúc");
-                    window.open(`https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}`, "_blank");
-                  }}
-                  className="w-full h-full rounded-full bg-[#ece4d8] hover:bg-[#dfd4c4] text-[#590310] flex items-center justify-center font-bold text-xs sm:text-sm shadow-xs gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer"
-                >
-                  <CalendarIcon className="w-4 h-4 text-[#590310]" />
-                  <span>{props.text || "Thêm vào lịch"}</span>
-                </button>
-              )}
+              {type === "ReminderBox" && (() => {
+                const title = encodeURIComponent(props.title || props.eventTitle || "Đám cưới hạnh phúc");
+                const targetYear = props.year || 2026;
+                const targetMonth = String(props.month || 12).padStart(2, "0");
+                const targetDay = String(props.day || 29).padStart(2, "0");
+                const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${targetYear}${targetMonth}${targetDay}T090000Z/${targetYear}${targetMonth}${targetDay}T140000Z`;
+                return (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      weddingSounds.playSoftClick();
+                      window.open(calendarUrl, "_blank");
+                    }}
+                    className="w-full h-full rounded-full bg-[#ece4d8] hover:bg-[#dfd4c4] text-[#590310] flex items-center justify-center font-bold text-xs sm:text-sm shadow-xs gap-2 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                  >
+                    <CalendarIcon className="w-4 h-4 text-[#590310]" />
+                    <span>{props.text || "Thêm vào lịch"}</span>
+                  </button>
+                );
+              })()}
 
               {/* Gift QR Box - Hiển thị mã VietQR thật 100% */}
               {type === "GiftQrBox" && (() => {
-                const isRealQrKey =
-                  props.imgKey &&
-                  (props.imgKey.includes("vietqr.io") || props.imgKey.includes("vietqr"));
-
-                const qrUrl = isRealQrKey
-                  ? props.imgKey
-                  : generateVietQrUrl(
-                      props.bankName || "MB BANK",
-                      props.accountNumber || "240220038888",
-                      props.accountName || "NGUYEN VAN HUNG",
-                      undefined,
-                      "Mung cuoi hai ban"
-                    );
+                const qrUrl = getGiftQrUrl(props);
 
                 return (
                   <div
@@ -375,20 +401,20 @@ export default function CardNodeRenderer({
 
                     {/* Khung Mã QR Chuẩn Napas 24/7 Thật */}
                     <div className="w-28 h-28 sm:w-32 sm:h-32 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
-                      <img
+                      {qrUrl ? <img
                         src={qrUrl}
                         alt="Mã VietQR Mừng Cưới"
                         onError={(e) => handleImageFallback(e, undefined, false)}
                         className="w-full h-full object-contain"
-                      />
+                      /> : <span className="text-xs text-gray-500">Chưa có thông tin tài khoản</span>}
                     </div>
 
                     <div className="space-y-0.5">
                       <p className="text-[11px] font-bold text-gray-800">
-                        {props.bankName || "MB BANK"} • {props.accountNumber || "240220038888"}
+                        {props.bankName || ""} {props.accountNumber ? `• ${props.accountNumber}` : ""}
                       </p>
                       <p className="text-[10px] text-gray-500 uppercase font-semibold truncate max-w-[190px]">
-                        {props.accountName || "NGUYEN VAN HUNG"}
+                        {props.accountName || ""}
                       </p>
                     </div>
 
@@ -418,7 +444,7 @@ export default function CardNodeRenderer({
                         if (onRsvpSuccess) {
                           onRsvpSuccess({
                             name: rsvpName.trim(),
-                            phone: rsvpPhone.trim() || "0900.000.000",
+                            phone: rsvpPhone.trim(),
                             attending: rsvpAttending,
                             guests: rsvpAttending ? rsvpGuests : 0,
                           });
@@ -439,8 +465,9 @@ export default function CardNodeRenderer({
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <input
-                          type="tel"
-                          placeholder="Số điện thoại..."
+                        type="tel"
+                        required
+                        placeholder="Số điện thoại..."
                           value={rsvpPhone}
                           onChange={(e) => setRsvpPhone(e.target.value)}
                           className="w-full p-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-zen-primary"
@@ -499,20 +526,30 @@ export default function CardNodeRenderer({
               )}
 
               {/* Map Box */}
-              {type === "MapBox" && (
-                <a
-                  href={`https://maps.google.com/?q=${encodeURIComponent(props.address || "Hà Nội")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-gray-100 flex items-center justify-center text-center p-3 hover:bg-gray-200 transition-colors block"
-                >
-                  <div className="flex flex-col items-center gap-1 text-gray-700">
-                    <MapPin className="w-5 h-5 text-zen-primary" />
-                    <span className="text-xs font-bold">{props.title || "Chỉ đường tới tiệc cưới"}</span>
-                    <span className="text-[10px] text-gray-500 truncate max-w-[200px]">{props.address || "Xem trên Google Maps"}</span>
-                  </div>
-                </a>
-              )}
+              {type === "MapBox" && (() => {
+                const venueName = props.venueName || props.title || "Trung tâm Tiệc cưới";
+                const address = props.address || "Hà Nội";
+                const generatedMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueName} ${address}`)}`;
+                const mapUrl = getSafeMapUrl(props.mapUrl, generatedMapUrl);
+                return (
+                  <a
+                    href={mapUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-white/95 flex flex-col items-center justify-between text-center p-3 hover:bg-gray-50 transition-colors block shadow-xs"
+                  >
+                    <div className="flex flex-col items-center gap-1 text-gray-700">
+                      <MapPin className="w-5 h-5 text-red-500 animate-pulse" />
+                      <span className="text-xs font-bold text-gray-900 font-serif line-clamp-1">{venueName}</span>
+                      <span className="text-[11px] text-gray-600 line-clamp-2 max-w-[280px]">{address}</span>
+                    </div>
+                    <span className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-full text-[10px] font-bold shadow-xs transition-colors mt-1">
+                      <span>Chỉ đường Google Maps</span>
+                      <span>↗</span>
+                    </span>
+                  </a>
+                );
+              })()}
             </div>
           );
         })}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb, createWishInDb, getWishesFromDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, createWishInDb, getWishesFromDb, isDbConfigured } from "@/lib/serverDb";
 import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
 import { recordActivity } from "@/lib/activityService";
 
@@ -16,6 +16,9 @@ interface Params {
 async function findPublishedCard(slug: string): Promise<WeddingCard | null> {
   const card = await getCardByIdOrSlugFromDb(slug);
   if (card) return card;
+
+  // Chỉ dùng dữ liệu mẫu khi chạy offline; production phải có bản ghi thật trong DB.
+  if (isDbConfigured) return null;
 
   const localFound = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
   if (localFound) return localFound;
