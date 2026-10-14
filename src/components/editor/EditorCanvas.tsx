@@ -25,8 +25,13 @@ import {
   UploadCloud,
   Lock,
   Magnet,
+  Edit3,
+  X,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
+import EditorFloatingToolbar from "./EditorFloatingToolbar";
+import EditorContextMenu from "./EditorContextMenu";
+import EditorBottomBar from "./EditorBottomBar";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import {
@@ -51,8 +56,14 @@ interface EditorCanvasProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onResetZoom: () => void;
+  onSetZoomLevel?: (zoom: number) => void;
+  onFitToScreen?: () => void;
   onQuickReplacePhoto: (index: number) => void;
   onOpenImageDrawer?: () => void;
+  onRemoveBackground?: () => void;
+  onOpenManualCutout?: () => void;
+  onOpenPreview?: () => void;
+  onOpenShortcuts?: () => void;
   isLeftDrawerOpen?: boolean;
 }
 
@@ -67,8 +78,14 @@ export default function EditorCanvas({
   onZoomIn,
   onZoomOut,
   onResetZoom,
+  onSetZoomLevel,
+  onFitToScreen,
   onQuickReplacePhoto,
   onOpenImageDrawer,
+  onRemoveBackground,
+  onOpenManualCutout,
+  onOpenPreview,
+  onOpenShortcuts,
   isLeftDrawerOpen = false,
 }: EditorCanvasProps) {
   const rootNode = nodes["ROOT"] || {};
@@ -115,6 +132,15 @@ export default function EditorCanvas({
   const [isQuickPanelCollapsed, setIsQuickPanelCollapsed] = useState(false);
   const quickScrollRef = useRef<HTMLDivElement>(null);
   const initialSlotImagesRef = useRef<Record<string, string>>({});
+
+  // Canva Design Tools State
+  const [isGridVisible, setIsGridVisible] = useState(true);
+  const [contextMenu, setContextMenu] = useState<{
+    x: number;
+    y: number;
+    element: SelectedElementData | null;
+  } | null>(null);
+  const [inlineEditNode, setInlineEditNode] = useState<{ id: string; text: string } | null>(null);
 
   // 1-second live ticker for real-time countdown
   const [, setLiveTick] = useState(0);
@@ -801,6 +827,13 @@ export default function EditorCanvas({
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onSelectElement(null);
+          setContextMenu(null);
+        }
+      }}
+      onContextMenu={(e) => {
+        if (e.target === e.currentTarget) {
+          e.preventDefault();
+          setContextMenu(null);
         }
       }}
     >
@@ -820,11 +853,13 @@ export default function EditorCanvas({
           transform: `scale(${zoomLevel})`,
         }}
       >
-        {/* Blueprint Graph Grid Overlay (Matches screenshot: visible on entire card) */}
-        <div
-          className="absolute inset-0 pointer-events-none z-[5] canvas-blueprint-grid opacity-70"
-          aria-hidden="true"
-        />
+        {/* Blueprint Graph Grid Overlay (Toggleable Canva-style grid) */}
+        {isGridVisible && (
+          <div
+            className="absolute inset-0 pointer-events-none z-[5] canvas-blueprint-grid opacity-70 animate-fade-in"
+            aria-hidden="true"
+          />
+        )}
 
         {/* Magnetic Snap Guides Overlay */}
         {activeSnapGuides && (
@@ -931,6 +966,25 @@ export default function EditorCanvas({
                 if (isDecorative) return;
                 e.stopPropagation();
                 onSelectElement({ id, type, props });
+              }}
+              onContextMenu={(e) => {
+                if (isDecorative) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const el = { id, type, props };
+                onSelectElement(el);
+                setContextMenu({
+                  x: e.clientX,
+                  y: e.clientY,
+                  element: el,
+                });
+              }}
+              onDoubleClick={(e) => {
+                if (isDecorative) return;
+                e.stopPropagation();
+                if (type === "TextBox") {
+                  setInlineEditNode({ id, text: props.text || "" });
+                }
               }}
               className={`absolute group select-none ${hoverClass} ${
                 isDecorative
@@ -1373,62 +1427,17 @@ export default function EditorCanvas({
                     </div>
                   )}
 
-                  {/* Top Floating Mini-Toolbar (Counter-rotated to remain horizontal) */}
-                  <div
-                    className="absolute -top-11 left-1/2 pointer-events-auto bg-white rounded-lg shadow-md border border-gray-200 flex items-center px-1.5 py-1 gap-1.5 z-50"
-                    style={{
-                      transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
-                      transformOrigin: "center center",
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDuplicateElement(selectedElement.id);
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-                      title="Nhân bản"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDeleteElement(selectedElement.id);
-                      }}
-                      className="p-1 hover:bg-red-50 rounded text-gray-600 hover:text-[#e54153] transition-colors cursor-pointer"
-                      title="Xóa phần tử"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const currentZ = Number(p.zIndex) || 1;
-                        onUpdateElementProps(selectedElement.id, { zIndex: currentZ + 1 });
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
-                      title="Đưa lên lớp trên (+1)"
-                    >
-                      <Layers className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onUpdateElementProps(selectedElement.id, {
-                          left: Math.round((canvasWidth - (p.width || 100)) / 2),
-                        });
-                      }}
-                      className="p-1 hover:bg-gray-100 rounded text-gray-600 hover:text-gray-900 transition-colors cursor-pointer text-[10px] font-bold px-1"
-                      title="Căn giữa thiệp"
-                    >
-                      Căn giữa
-                    </button>
-                  </div>
+                  {/* Canva-style Contextual Floating Quick Toolbar */}
+                  <EditorFloatingToolbar
+                    selectedElement={{ id: selectedElement.id, type: selectedElement.type, props: p }}
+                    canvasWidth={canvasWidth}
+                    onUpdateProps={onUpdateElementProps}
+                    onDuplicate={onDuplicateElement}
+                    onDelete={onDeleteElement}
+                    onOpenImageDrawer={onOpenImageDrawer}
+                    onRemoveBackground={onRemoveBackground}
+                    onOpenManualCutout={onOpenManualCutout}
+                  />
 
                   {/* Bottom Rotation Handle */}
                   <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center z-50">
@@ -1449,46 +1458,29 @@ export default function EditorCanvas({
         })()}
       </div>
 
-      {/* ================= FLOATING RIGHT ZOOM CONTROLS (Fixed on screen) ================= */}
-      <div className="fixed right-4 top-1/2 -translate-y-1/2 flex flex-col bg-white rounded-full shadow-md border border-gray-200 overflow-hidden z-40">
-        <button
-          type="button"
-          onClick={onZoomIn}
-          className="p-2 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center cursor-pointer"
-          title="Phóng to"
-        >
-          <Plus className="w-3.5 h-3.5" />
-        </button>
-        <button
-          type="button"
-          onClick={onResetZoom}
-          className="px-2 py-1 text-[11px] font-semibold text-gray-600 hover:bg-gray-50 text-center cursor-pointer"
-          title="Đặt lại 100%"
-        >
-          {Math.round(zoomLevel * 100)}%
-        </button>
-        <button
-          type="button"
-          onClick={onZoomOut}
-          className="p-2 hover:bg-gray-50 text-gray-600 hover:text-gray-900 transition-colors flex items-center justify-center cursor-pointer"
-          title="Thu nhỏ"
-        >
-          <span className="font-bold text-xs block leading-none text-center">−</span>
-        </button>
-        <div className="h-px bg-gray-200 my-0.5 mx-1.5" />
-        <button
-          type="button"
-          onClick={() => setIsSnappingEnabled((prev) => !prev)}
-          className={`p-2 transition-colors flex items-center justify-center cursor-pointer ${
-            isSnappingEnabled
-              ? "bg-rose-50 text-[#e54153]"
-              : "hover:bg-gray-50 text-gray-400 hover:text-gray-600"
-          }`}
-          title={isSnappingEnabled ? "Tự dính thông minh: Đang BẬT" : "Tự dính thông minh: Đang TẮT"}
-        >
-          <Magnet className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {/* ================= CANVA BOTTOM CONTROL BAR ================= */}
+      <EditorBottomBar
+        zoomLevel={zoomLevel}
+        onZoomIn={onZoomIn}
+        onZoomOut={onZoomOut}
+        onResetZoom={onResetZoom}
+        onSetZoom={(z) => onSetZoomLevel?.(z)}
+        onFitToScreen={() => {
+          if (onFitToScreen) {
+            onFitToScreen();
+          } else {
+            const vh = typeof window !== "undefined" ? window.innerHeight : 900;
+            const fit = Math.max(0.4, Math.min(1.2, (vh - 160) / canvasHeight));
+            onSetZoomLevel?.(Number(fit.toFixed(2)));
+          }
+        }}
+        isGridVisible={isGridVisible}
+        onToggleGrid={() => setIsGridVisible((v) => !v)}
+        isSnappingEnabled={isSnappingEnabled}
+        onToggleSnapping={() => setIsSnappingEnabled((v) => !v)}
+        onOpenPreview={() => onOpenPreview?.()}
+        onOpenShortcuts={() => onOpenShortcuts?.()}
+      />
 
       {/* ================= FIXED BOTTOM-LEFT: THAY ẢNH NHANH TOÀN BỘ TEMPLATE ================= */}
       {photoSlots.length > 0 && !isQuickPanelCollapsed ? (
@@ -1755,15 +1747,94 @@ export default function EditorCanvas({
       ) : null}
 
       {/* ================= FLOATING BOTTOM-RIGHT: AI COLOR (Fixed on screen) ================= */}
-      <div className="fixed bottom-5 right-6 z-40 pointer-events-auto">
-        <button
-          type="button"
-          className="px-4 py-2 rounded-full bg-white text-gray-700 hover:text-[#e54153] border border-gray-200 shadow-md text-xs font-semibold flex items-center gap-1.5 transition-transform hover:scale-105 active:scale-95 cursor-pointer"
+      {/* ================= CANVA RIGHT-CLICK CONTEXT MENU ================= */}
+      {contextMenu && (
+        <EditorContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          selectedElement={contextMenu.element}
+          canvasWidth={canvasWidth}
+          canvasHeight={canvasHeight}
+          onClose={() => setContextMenu(null)}
+          onDuplicate={onDuplicateElement}
+          onDelete={onDeleteElement}
+          onUpdateProps={onUpdateElementProps}
+          onRemoveBackground={onRemoveBackground}
+        />
+      )}
+
+      {/* ================= DOUBLE-CLICK INLINE TEXT QUICK EDIT POPOVER ================= */}
+      {inlineEditNode && (
+        <div
+          className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in"
+          onClick={() => setInlineEditNode(null)}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-400" />
-          <span>AI Color</span>
-        </button>
-      </div>
+          <div
+            className="w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-gray-100 p-5 relative animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-[#e54153] flex items-center justify-center font-bold">
+                  <Edit3 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm text-gray-800">Chỉnh sửa nhanh nội dung</h3>
+                  <p className="text-[11px] text-gray-400">Gõ nội dung thiệp và bấm Áp dụng (Ctrl + Enter)</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setInlineEditNode(null)}
+                className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <textarea
+              autoFocus
+              value={inlineEditNode.text}
+              onChange={(e) =>
+                setInlineEditNode({ ...inlineEditNode, text: e.target.value })
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  onUpdateElementProps(inlineEditNode.id, { text: inlineEditNode.text });
+                  setInlineEditNode(null);
+                }
+              }}
+              rows={5}
+              className="w-full p-3.5 rounded-2xl border border-gray-200 focus:outline-none focus:border-[#e54153] focus:ring-2 focus:ring-[#e54153]/20 text-sm text-gray-800 font-sans leading-relaxed resize-none"
+              placeholder="Nhập nội dung văn bản..."
+            />
+
+            <div className="flex items-center justify-between mt-3 text-xs">
+              <span className="text-gray-400 text-[11px]">Mẹo: Nhấn Ctrl + Enter để lưu nhanh</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setInlineEditNode(null)}
+                  className="px-4 py-2 rounded-xl hover:bg-gray-100 text-gray-600 font-semibold transition-colors cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateElementProps(inlineEditNode.id, { text: inlineEditNode.text });
+                    setInlineEditNode(null);
+                  }}
+                  className="px-5 py-2 rounded-xl bg-[#e54153] hover:bg-[#c93243] text-white font-bold shadow-xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                >
+                  Áp dụng ngay
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

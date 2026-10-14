@@ -55,6 +55,15 @@ export async function renderWeddingCardToCanvas(
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Không thể khởi tạo 2D context cho Canvas");
 
+  // Đảm bảo tất cả các web font tiếng Việt đã sẵn sàng trước khi vẽ
+  if (typeof document !== "undefined" && "fonts" in document) {
+    try {
+      await (document as any).fonts.ready;
+    } catch {
+      // Fallback êm dịu nếu môi trường test/headless không hỗ trợ
+    }
+  }
+
   // 1. NỀN THIỆP: Màu kem hoàng gia & họa tiết tinh tế
   const bgGrad = ctx.createLinearGradient(0, 0, 0, height);
   bgGrad.addColorStop(0, "#FBF9F5");

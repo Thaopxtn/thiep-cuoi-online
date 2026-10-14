@@ -17,11 +17,15 @@ export default function EditorShortcutsModal({
   const shortcuts = [
     { key: "Ctrl + Z", desc: "Hoàn tác hành động gần nhất" },
     { key: "Ctrl + Y", desc: "Làm lại hành động vừa hoàn tác" },
-    { key: "Ctrl + S", desc: "Lưu bản nháp thiệp vào kho mẫu" },
-    { key: "Delete / Backspace", desc: "Xóa phần tử đang chọn" },
+    { key: "Ctrl + S", desc: "Lưu bản nháp thiệp vào máy chủ" },
     { key: "Ctrl + D", desc: "Nhân bản phần tử đang chọn" },
+    { key: "Ctrl + L", desc: "Khóa / Mở khóa cố định vị trí" },
+    { key: "[ hoặc ]", desc: "Lùi về sau / Tiến lên 1 lớp (Layer)" },
+    { key: "Delete / Backspace", desc: "Xóa phần tử đang chọn" },
     { key: "Phím mũi tên", desc: "Di chuyển phần tử 1px" },
     { key: "Shift + Mũi tên", desc: "Di chuyển phần tử 10px" },
+    { key: "Chuột phải", desc: "Mở menu công cụ nhanh Canva" },
+    { key: "Nhấp đúp chuột", desc: "Chỉnh sửa nhanh nội dung chữ" },
     { key: "Esc", desc: "Hủy chọn phần tử hoặc đóng modal" },
   ];
 

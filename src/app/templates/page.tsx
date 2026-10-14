@@ -11,10 +11,7 @@ import {
   X,
   SlidersHorizontal,
   ChevronDown,
-  ArrowUpDown,
-  Filter,
   Heart,
-  Palette,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -60,8 +57,7 @@ function TemplatesPageContent() {
   // Modals
   const [previewTemplate, setPreviewTemplate] = useState<ZenLoveTemplate | null>(null);
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
-  const [isSortDropdownOpen, setIsSortDropdownOpen] = useState(false);
-  const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
 
   // Sync favorites on mount and on storage events
   useEffect(() => {
@@ -204,6 +200,23 @@ function TemplatesPageContent() {
     setVisibleCount(ITEMS_PER_PAGE);
   };
 
+  const advancedFilterCount = [pageTypeFilter !== "ALL", tagFilter !== "all", colorToneFilter !== "all"].filter(Boolean).length;
+  const hasActiveFilters = advancedFilterCount > 0 || selectedCategory !== "all" || showFavoritesOnly || searchQuery !== "";
+  const activeFilterLabels = [
+    pageTypeFilter !== "ALL" ? (pageTypeFilter === "CANVAS" ? "Kéo thả tự do" : "Điền thông tin theo mẫu") : "",
+    tagFilter !== "all" ? ({ free: "Miễn phí", hot: "Nổi bật", new: "Mới ra mắt" }[tagFilter]) : "",
+    colorToneFilter !== "all" ? COLOR_TONE_OPTIONS.find((color) => color.id === colorToneFilter)?.label : "",
+  ].filter(Boolean);
+  const resetFilters = () => {
+    setSelectedCategory("all");
+    setPageTypeFilter("ALL");
+    setTagFilter("all");
+    setColorToneFilter("all");
+    setShowFavoritesOnly(false);
+    setSearchQuery("");
+    setVisibleCount(ITEMS_PER_PAGE);
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#fffbfa] text-zen-black">
       <Navbar />
@@ -268,282 +281,98 @@ function TemplatesPageContent() {
           </div>
         </div>
 
-        {/* Filter Section: Categories + Controls Toolbar */}
-        <section className="space-y-4 mb-8">
-          {/* Top Row: Category Pills + Right Controls */}
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            {/* Horizontal Scrollable Category Pills */}
-            <div
-              className="-mx-3 flex items-center gap-2 overflow-x-auto px-3 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
-              role="group"
-              aria-label="Danh mục thiệp"
-            >
-              <button
-                type="button"
-                onClick={() => handleSelectCategory("all")}
-                className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                  selectedCategory === "all"
-                    ? "border-zen-primary bg-zen-primary/10 text-zen-primary shadow-xs"
-                    : "border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60"
-                }`}
-              >
-                Tất cả ({categoryCounts["all"] || 207})
-              </button>
-
-              {ZENLOVE_CATEGORIES.map((cat) => {
-                const count = categoryCounts[cat.idCat] || 0;
-                const isSelected = selectedCategory === cat.idCat;
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    onClick={() => handleSelectCategory(cat.idCat)}
-                    className={`shrink-0 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-semibold transition-all cursor-pointer ${
-                      isSelected
-                        ? "border-zen-primary bg-zen-primary/10 text-zen-primary shadow-xs"
-                        : "border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60"
-                    }`}
-                  >
-                    <span>{cat.name}</span>
-                    {count > 0 && <span className="ml-1 opacity-70 text-[11px]">({count})</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Right Controls: Gợi ý + Favorites + Segmented + Phân loại + Sắp xếp */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:pb-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden shrink-0">
-              {/* 'Gợi ý' Button */}
-              <button
-                type="button"
-                onClick={() => setIsSuggestModalOpen(true)}
-                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-zen-primary bg-zen-primary px-3.5 py-1.5 text-xs sm:text-sm font-bold text-white transition-all hover:bg-[#d93849] shadow-xs active:scale-95 cursor-pointer"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>Gợi ý</span>
-              </button>
-
-              {/* Favorites Tab Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowFavoritesOnly(!showFavoritesOnly);
-                  setVisibleCount(ITEMS_PER_PAGE);
-                }}
-                className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-xs sm:text-sm font-bold transition-all cursor-pointer ${
-                  showFavoritesOnly
-                    ? "border-rose-500 bg-rose-50 text-rose-600 shadow-xs"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-rose-300 hover:text-rose-600"
-                }`}
-                title="Xem danh sách mẫu bạn đã bấm tim yêu thích"
-              >
-                <Heart className={`w-3.5 h-3.5 ${showFavoritesOnly ? "fill-current" : ""}`} />
-                <span>Đã thích ({favoriteIds.length})</span>
-              </button>
-
-              {/* Segmented Control: Tất cả | Tự do | Biểu mẫu */}
-              <div
-                role="radiogroup"
-                aria-label="Lọc theo loại thiệp"
-                className="inline-flex p-1 bg-gray-100 rounded-full text-xs font-semibold shrink-0 border border-gray-200"
-              >
-                {[
-                  { id: "ALL", label: "Tất cả" },
-                  { id: "CANVAS", label: "Tự do" },
-                  { id: "FORM", label: "Biểu mẫu" },
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => {
-                      setPageTypeFilter(item.id as any);
-                      setVisibleCount(ITEMS_PER_PAGE);
-                    }}
-                    className={`px-3 py-1 rounded-full transition-all cursor-pointer ${
-                      pageTypeFilter === item.id
-                        ? "bg-white text-gray-900 shadow-xs font-bold"
-                        : "text-gray-500 hover:text-gray-900"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-
-              {/* Tag / Price Filter Dropdown */}
-              <div className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsTagDropdownOpen(!isTagDropdownOpen);
-                    setIsSortDropdownOpen(false);
-                  }}
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-medium border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60 transition-colors cursor-pointer"
-                >
-                  <Filter className="w-3.5 h-3.5" />
-                  <span>
-                    {tagFilter === "all"
-                      ? "Phân loại"
-                      : tagFilter === "free"
-                      ? "Miễn phí"
-                      : tagFilter === "hot"
-                      ? "Nổi bật"
-                      : "Mới nhất"}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                </button>
-
-                {isTagDropdownOpen && (
-                  <div
-                    className="absolute right-0 mt-1 w-36 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-40 animate-fade-in"
-                    onClick={() => setIsTagDropdownOpen(false)}
-                  >
-                    {[
-                      { id: "all", label: "Tất cả mẫu" },
-                      { id: "free", label: "Miễn phí" },
-                      { id: "hot", label: "Nổi bật (Hot)" },
-                      { id: "new", label: "Mới ra mắt" },
-                    ].map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setTagFilter(item.id);
-                          setVisibleCount(ITEMS_PER_PAGE);
-                        }}
-                        className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors cursor-pointer ${
-                          tagFilter === item.id
-                            ? "bg-rose-50 text-zen-primary font-bold"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Sort Dropdown */}
-              <div className="relative shrink-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSortDropdownOpen(!isSortDropdownOpen);
-                    setIsTagDropdownOpen(false);
-                  }}
-                  className="flex items-center gap-1 whitespace-nowrap rounded-full border px-3.5 py-1.5 text-xs sm:text-sm font-medium border-gray-200 bg-white text-gray-600 hover:border-zen-primary/60 transition-colors cursor-pointer"
-                >
-                  <ArrowUpDown className="w-3.5 h-3.5" />
-                  <span>
-                    {sortBy === "latest"
-                      ? "Vừa cập nhật"
-                      : sortBy === "views"
-                      ? "Xem nhiều nhất"
-                      : "Yêu thích nhất"}
-                  </span>
-                  <ChevronDown className="w-3 h-3 text-gray-400" />
-                </button>
-
-                {isSortDropdownOpen && (
-                  <div
-                    className="absolute right-0 mt-1 w-40 bg-white rounded-xl shadow-lg border border-gray-100 py-1.5 z-40 animate-fade-in"
-                    onClick={() => setIsSortDropdownOpen(false)}
-                  >
-                    {[
-                      { id: "latest", label: "Vừa cập nhật" },
-                      { id: "views", label: "Xem nhiều nhất" },
-                      { id: "likes", label: "Yêu thích nhất" },
-                    ].map((item) => (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => {
-                          setSortBy(item.id as any);
-                          setVisibleCount(ITEMS_PER_PAGE);
-                        }}
-                        className={`w-full text-left px-3.5 py-1.5 text-xs transition-colors cursor-pointer ${
-                          sortBy === item.id
-                            ? "bg-rose-50 text-zen-primary font-bold"
-                            : "text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
+        <section className="template-filters mb-8 rounded-2xl border border-[var(--zen-border)] bg-white p-4 sm:p-6" aria-label="Tìm và lọc mẫu thiệp">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+            <div className="min-w-0 flex-1">
+              <label htmlFor="template-search" className="mb-2 block text-sm font-bold text-gray-800">Tìm mẫu thiệp</label>
+              <div className="relative">
+                <Search aria-hidden="true" className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-500" />
+                <input id="template-search" type="search" placeholder="Tên mẫu, mã mẫu hoặc phong cách..."
+                  value={searchQuery} onChange={(event) => { setSearchQuery(event.target.value); setVisibleCount(ITEMS_PER_PAGE); }}
+                  className="min-h-11 w-full rounded-xl border border-gray-300 bg-white py-2 pl-10 pr-11 text-sm" />
+                {searchQuery && <button type="button" aria-label="Xóa từ khóa tìm kiếm" onClick={() => { setSearchQuery(""); setVisibleCount(ITEMS_PER_PAGE); }}
+                  className="absolute right-0 top-0 flex size-11 items-center justify-center text-gray-600"><X className="size-4" /></button>}
               </div>
             </div>
+            <button type="button" onClick={() => setIsSuggestModalOpen(true)} className="zen-control">
+              <Sparkles className="size-4" aria-hidden="true" /> Gợi ý mẫu phù hợp
+            </button>
           </div>
 
-          {/* Color Tone Palette Filter Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden border-y border-gray-100">
-            <div className="flex items-center gap-1 text-xs font-bold text-gray-500 uppercase tracking-wider pr-2 shrink-0">
-              <Palette className="w-3.5 h-3.5 text-rose-500" />
-              <span>Tone màu:</span>
-            </div>
-            {COLOR_TONE_OPTIONS.map((c) => {
-              const active = colorToneFilter === c.id;
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => {
-                    setColorToneFilter(c.id);
-                    setVisibleCount(ITEMS_PER_PAGE);
-                  }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shrink-0 transition-all border cursor-pointer ${
-                    active
-                      ? "border-zen-primary bg-zen-primary text-white shadow-xs font-bold scale-105"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                  }`}
-                >
-                  {c.id !== "all" && (
-                    <span
-                      className="w-2.5 h-2.5 rounded-full border border-black/10 shrink-0"
-                      style={{ backgroundColor: c.colorHex }}
-                    />
-                  )}
-                  <span>{c.label}</span>
+          <fieldset className="mt-5">
+            <legend className="mb-2 text-sm font-bold text-gray-800">Dịp của bạn</legend>
+            <div className="flex flex-wrap gap-2">
+              {[{ idCat: "all", name: "Tất cả" }, ...ZENLOVE_CATEGORIES].map((category) => (
+                <button key={category.idCat} type="button" aria-pressed={selectedCategory === category.idCat}
+                  onClick={() => handleSelectCategory(category.idCat)} className="zen-control">
+                  {category.name}<span className="text-xs tabular-nums">({categoryCounts[category.idCat] || 0})</span>
                 </button>
-              );
-            })}
+              ))}
+            </div>
+          </fieldset>
+
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-gray-100 pt-4">
+            <button type="button" aria-pressed={showFavoritesOnly}
+              onClick={() => { setShowFavoritesOnly(!showFavoritesOnly); setVisibleCount(ITEMS_PER_PAGE); }} className="zen-control">
+              <Heart className={`size-4 ${showFavoritesOnly ? "fill-current" : ""}`} aria-hidden="true" />
+              Đã thích ({favoriteIds.length})
+            </button>
+            <button type="button" aria-expanded={isAdvancedFiltersOpen} aria-controls="advanced-template-filters"
+              onClick={() => setIsAdvancedFiltersOpen((open) => !open)} className="zen-control">
+              <SlidersHorizontal className="size-4" aria-hidden="true" /> Bộ lọc
+              {advancedFilterCount > 0 && <span className="rounded-full bg-rose-100 px-2 text-xs">{advancedFilterCount}</span>}
+              <ChevronDown className={`size-4 ${isAdvancedFiltersOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+            </button>
+            <label className="flex min-h-11 items-center gap-2 text-sm text-gray-600 sm:ml-auto">
+              Sắp xếp
+              <select value={sortBy} onChange={(event) => { setSortBy(event.target.value as typeof sortBy); setVisibleCount(ITEMS_PER_PAGE); }}
+                className="min-h-11 max-w-full rounded-xl border border-gray-300 bg-white px-2 text-sm text-gray-800">
+                <option value="latest">Vừa cập nhật</option>
+                <option value="views">Xem nhiều nhất</option>
+                <option value="likes">Yêu thích nhất</option>
+              </select>
+            </label>
           </div>
 
-          {/* Search bar & active filter chips */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            {/* Live Search Input */}
-            <div className="relative w-full sm:max-w-md">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo tên mẫu thiệp, phong cách..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  setVisibleCount(ITEMS_PER_PAGE);
-                }}
-                className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm rounded-full border border-gray-200 bg-white focus:outline-none focus:border-zen-primary focus:ring-2 focus:ring-rose-100 transition-all shadow-2xs"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
+          {isAdvancedFiltersOpen && (
+            <div id="advanced-template-filters" className="mt-4 space-y-5 border-t border-gray-100 pt-5">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="text-sm font-bold text-gray-800">Cách chỉnh sửa
+                  <select value={pageTypeFilter} onChange={(event) => { setPageTypeFilter(event.target.value as typeof pageTypeFilter); setVisibleCount(ITEMS_PER_PAGE); }}
+                    className="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 font-normal">
+                    <option value="ALL">Tất cả cách chỉnh sửa</option>
+                    <option value="CANVAS">Kéo thả tự do</option>
+                    <option value="FORM">Điền thông tin theo mẫu</option>
+                  </select>
+                </label>
+                <label className="text-sm font-bold text-gray-800">Phân loại
+                  <select value={tagFilter} onChange={(event) => { setTagFilter(event.target.value); setVisibleCount(ITEMS_PER_PAGE); }}
+                    className="mt-2 min-h-11 w-full rounded-xl border border-gray-300 bg-white px-3 font-normal">
+                    <option value="all">Tất cả mẫu</option><option value="free">Miễn phí</option>
+                    <option value="hot">Nổi bật</option><option value="new">Mới ra mắt</option>
+                  </select>
+                </label>
+              </div>
+              <fieldset>
+                <legend className="mb-2 text-sm font-bold text-gray-800">Tone màu</legend>
+                <div className="flex flex-wrap gap-2">
+                  {COLOR_TONE_OPTIONS.map((color) => (
+                    <button key={color.id} type="button" aria-pressed={colorToneFilter === color.id}
+                      onClick={() => { setColorToneFilter(color.id); setVisibleCount(ITEMS_PER_PAGE); }} className="zen-control">
+                      {color.id !== "all" && <span aria-hidden="true" className="size-3 rounded-full border border-gray-300" style={{ backgroundColor: color.colorHex }} />}
+                      {color.label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
             </div>
-
-            {/* Results count text */}
-            <div className="text-xs text-gray-500 font-medium self-end sm:self-center">
-              Tìm thấy <strong className="text-zen-primary">{filteredTemplates.length}</strong> mẫu thiệp
-            </div>
+          )}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4">
+            <p role="status" className="text-sm text-gray-600">Tìm thấy <strong className="text-gray-900">{filteredTemplates.length}</strong> mẫu thiệp</p>
+            {hasActiveFilters && <button type="button" onClick={resetFilters} className="zen-control">Đặt lại bộ lọc</button>}
           </div>
+          {activeFilterLabels.length > 0 && <p className="mt-2 text-sm text-gray-600">Đang lọc: {activeFilterLabels.join(" · ")}</p>}
         </section>
-
         {/* Templates 6-column Responsive Grid */}
         <section>
           {displayedTemplates.length > 0 ? (
@@ -574,14 +403,7 @@ function TemplatesPageContent() {
               </p>
               <button
                 type="button"
-                onClick={() => {
-                  setSelectedCategory("all");
-                  setPageTypeFilter("ALL");
-                  setTagFilter("all");
-                  setColorToneFilter("all");
-                  setShowFavoritesOnly(false);
-                  setSearchQuery("");
-                }}
+                onClick={resetFilters}
                 className="mt-4 px-5 py-2 rounded-full bg-zen-primary text-white text-xs font-bold hover:bg-[#d93849] transition-colors shadow-xs cursor-pointer"
               >
                 Đặt lại bộ lọc

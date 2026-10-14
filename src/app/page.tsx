@@ -1,8 +1,6 @@
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
-import ProblemsSection from "@/components/ProblemsSection";
-import SolutionSection from "@/components/SolutionSection";
-import FeaturesSection from "@/components/FeaturesSection";
+import BenefitsSection from "@/components/BenefitsSection";
 import TemplatesSection from "@/components/TemplatesSection";
 import GuideStepsSection from "@/components/GuideStepsSection";
 import FeedbackSection from "@/components/FeedbackSection";
@@ -20,9 +18,7 @@ export default function Home() {
       {/* Main Content */}
       <main className="flex-1">
         <HeroSection />
-        <ProblemsSection />
-        <SolutionSection />
-        <FeaturesSection />
+        <BenefitsSection />
         <TemplatesSection />
         <GuideStepsSection />
         <FeedbackSection />

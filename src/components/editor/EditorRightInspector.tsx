@@ -767,18 +767,22 @@ export default function EditorRightInspector({
                     onChange={(e) => handlePropChange("fontFamily", e.target.value)}
                     className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white font-medium"
                   >
-                    <optgroup label="Thư Pháp & Chữ Viết Tay">
-                      <option value="font-great-vibes">Great Vibes (Thư pháp hoàng gia)</option>
+                    <optgroup label="Thư Pháp & Chữ Viết Tay Việt Hóa">
+                      <option value="font-charmonman">Charmonman (Chữ ký hoàng gia Việt hóa)</option>
+                      <option value="font-charm">Charm (Thư pháp thanh lịch Việt hóa)</option>
+                      <option value="font-dancing-script">Dancing Script (Thư pháp trẻ trung)</option>
+                      <option value="font-great-vibes">Great Vibes (Thư pháp uốn lượn)</option>
                       <option value="font-alex-brush">Alex Brush (Chữ ký thanh thoát)</option>
+                      <option value="font-pacifico">Pacifico (Bút cọ ngọt ngào)</option>
                       <option value="font-parisienne">Parisienne (Quý phái lãng mạn)</option>
                       <option value="font-allura">Allura (Mềm mại uyển chuyển)</option>
                       <option value="font-ephesis">Ephesis (Bay bổng nghệ thuật)</option>
-                      <option value="font-dancing-script">Dancing Script (Thư pháp trẻ trung)</option>
                       <option value="font-pinyon">Pinyon Script (Cổ điển quý tộc)</option>
                       <option value="font-sacramento">Sacramento (Nét thanh tao)</option>
                     </optgroup>
                     <optgroup label="Serif Sang Trọng & Hoàng Gia">
                       <option value="font-playfair">Playfair Display (Cổ điển sang trọng)</option>
+                      <option value="font-lora">Lora (Serif tinh tế chuẩn mực)</option>
                       <option value="font-cormorant">Cormorant Garamond (Đẳng cấp châu Âu)</option>
                       <option value="font-cinzel">Cinzel (Hoàng gia La Mã)</option>
                       <option value="font-prata">Prata (Thời trang thanh lịch)</option>

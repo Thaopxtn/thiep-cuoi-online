@@ -46,11 +46,10 @@ export default function HeroSection() {
         {/* Main Content Box */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="contentWrp">
-            <h1 className="sr-only">
-              Tạo thiệp cưới online miễn phí, đẹp tinh tế trong 5 bước
-            </h1>
-
-            <div className="hero-slide-up text-headline text-gray-900 font-heading des-xl !leading items-center text-center text-4xl md:text-left lg:text-5xl xl:text-6xl">
+            <h1
+              id="hero-heading"
+              className="hero-slide-up text-headline font-heading text-4xl leading-[1.12] text-gray-900 md:text-left lg:text-5xl xl:text-6xl"
+            >
               <span>Đổi mới cách gửi lời mời </span>
               <span className="inline-block align-baseline w-auto">
                 <span className="relative inline-block align-baseline">
@@ -75,11 +74,7 @@ export default function HeroSection() {
                 <span>với </span>
                 <span className="text-gradient-mm">ZenLove.</span>
               </div>
-            </div>
-
-            <h2 className="sr-only">
-              Tạo và gửi thiệp mời online nhanh chóng bằng ZenLove
-            </h2>
+            </h1>
 
             <p className="hero-slide-up text-center md:text-left text-base md:max-w-[635px] md:text-[1.125rem] mt-6 md:mt-4 relative m-0 max-w-none leading-6 md:leading-8 text-gray-700">
               Giải pháp tạo thiệp online đột phá giúp bạn gửi lời mời chuyên nghiệp chỉ
@@ -88,7 +83,7 @@ export default function HeroSection() {
             </p>
 
             <p className="hero-slide-up text-center md:text-left text-sm md:text-base text-gray-600 mt-4">
-              Tạo miễn phí · Mẫu đa dạng · Đẹp mới thanh toán
+              Tạo miễn phí · Mẫu đa dạng · Chỉ trả phí khi bạn cần thêm
             </p>
 
             <div className="hero-slide-up mt-6 flex justify-center md:justify-start gap-3 md:gap-4">

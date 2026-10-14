@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, X, Moon, Sun, ArrowRight, User, LogOut, FolderHeart, Sparkles, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -10,6 +11,7 @@ export default function Navbar() {
   const [isDark, setIsDark] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, isLoggedIn, openLoginModal, logout } = useAuth();
+  const pathname = usePathname();
 
   const toggleDarkMode = () => {
     setIsDark(!isDark);
@@ -21,7 +23,7 @@ export default function Navbar() {
   };
 
   const navLinks = [
-    { name: "Trang chủ", href: "/", active: true },
+    { name: "Trang chủ", href: "/" },
     { name: "Mẫu thiệp", href: "/templates" },
     { name: "Thiệp đã tạo", href: "/thiep-online/khach-hang" },
     { name: "Đối tác & Ưu đãi", href: "/doi-tac-cuoi" },
@@ -83,11 +85,12 @@ export default function Navbar() {
                   <li key={link.name}>
                     <Link
                       href={link.href}
-                      className={`whitespace-nowrap text-sm font-medium transition-all duration-200 hover:text-zen-primary hover:font-bold hover:scale-105 ${
-                        link.active
-                          ? "text-zen-primary font-bold scale-105"
+                      className={`whitespace-nowrap rounded-full px-2 py-1 text-sm font-medium transition-colors duration-200 hover:bg-rose-50 hover:text-zen-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zen-primary/30 ${
+                        pathname === link.href
+                          ? "bg-rose-50 font-bold text-zen-primary"
                           : "text-zen-black"
                       }`}
+                      aria-current={pathname === link.href ? "page" : undefined}
                       title={link.name}
                     >
                       {link.name}

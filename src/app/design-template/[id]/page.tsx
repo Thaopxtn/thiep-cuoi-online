@@ -502,6 +502,25 @@ export default function DesignTemplatePage() {
         handleDuplicateElement(selectedElement.id);
         showToast("✨ Đã nhân bản phần tử!");
       }
+      // Lock / Unlock: Ctrl + L
+      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l" && selectedElement) {
+        e.preventDefault();
+        const currentLocked = Boolean(selectedElement.props?.locked);
+        handleUpdateProps(selectedElement.id, { locked: !currentLocked });
+        showToast(currentLocked ? "🔓 Đã mở khóa phần tử!" : "🔒 Đã khóa cố định phần tử!");
+      }
+      // Layer Reordering: ] (Bring forward) or [ (Send backward)
+      else if ((e.key === "]" || (e.ctrlKey && e.key === "]")) && selectedElement) {
+        e.preventDefault();
+        const currentZ = Number(selectedElement.props?.zIndex) || 1;
+        handleUpdateProps(selectedElement.id, { zIndex: currentZ + 1 });
+        showToast(`⬆️ Đã đưa lên lớp ${currentZ + 1}`);
+      } else if ((e.key === "[" || (e.ctrlKey && e.key === "[")) && selectedElement) {
+        e.preventDefault();
+        const currentZ = Number(selectedElement.props?.zIndex) || 1;
+        handleUpdateProps(selectedElement.id, { zIndex: Math.max(1, currentZ - 1) });
+        showToast(`⬇️ Đã lùi về lớp ${Math.max(1, currentZ - 1)}`);
+      }
       // Delete: Delete or Backspace
       else if ((e.key === "Delete" || e.key === "Backspace") && selectedElement) {
         e.preventDefault();
@@ -539,6 +558,17 @@ export default function DesignTemplatePage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [historyIndex, history, selectedElement, nodes]);
+
+  // Canva-style Fit to Screen calculation
+  const handleFitToScreen = () => {
+    if (typeof window === "undefined") return;
+    const availableHeight = window.innerHeight - 150;
+    const rootProps = nodes["ROOT"]?.props || {};
+    const rootH = Number(rootProps.height) || 1600;
+    const targetZoom = Math.max(0.4, Math.min(1.25, availableHeight / rootH));
+    setZoomLevel(Number(targetZoom.toFixed(2)));
+    showToast(`🔍 Đã căn chỉnh vừa màn hình (${Math.round(targetZoom * 100)}%)`);
+  };
 
   // Add new image from left drawer
   const handleAddImage = (url: string) => {
@@ -1359,14 +1389,20 @@ export default function DesignTemplatePage() {
           onDeleteElement={handleDeleteElement}
           onDuplicateElement={handleDuplicateElement}
           zoomLevel={zoomLevel}
-          onZoomIn={() => setZoomLevel((z) => Math.min(1.5, z + 0.1))}
-          onZoomOut={() => setZoomLevel((z) => Math.max(0.4, z - 0.1))}
+          onZoomIn={() => setZoomLevel((z) => Math.min(1.5, Number((z + 0.1).toFixed(2))))}
+          onZoomOut={() => setZoomLevel((z) => Math.max(0.4, Number((z - 0.1).toFixed(2))))}
           onResetZoom={() => setZoomLevel(0.85)}
+          onSetZoomLevel={(z) => setZoomLevel(z)}
+          onFitToScreen={handleFitToScreen}
           onQuickReplacePhoto={handleQuickReplacePhoto}
           onOpenImageDrawer={() => {
             setActiveLeftTab("image");
             setIsLeftDrawerOpen(true);
           }}
+          onRemoveBackground={handleRemoveBackground}
+          onOpenManualCutout={handleOpenManualCutout}
+          onOpenPreview={handlePreview}
+          onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
           isLeftDrawerOpen={isLeftDrawerOpen}
         />
 
