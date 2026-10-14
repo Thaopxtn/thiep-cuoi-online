@@ -51,10 +51,11 @@ import {
 } from "@/lib/weddingCardService";
 import BulkGuestInvitationModal from "@/components/invitations/BulkGuestInvitationModal";
 import VietQrVipPaymentModal from "@/components/payment/VietQrVipPaymentModal";
+import GiftLedgerTab from "@/components/dashboard/GiftLedgerTab";
 
 export default function DashboardPage() {
   const { user, isLoggedIn, openLoginModal, updatePassword, updateProfile, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<"cards" | "rsvp" | "wishes" | "settings">("cards");
+  const [activeTab, setActiveTab] = useState<"cards" | "rsvp" | "wishes" | "gifts" | "settings">("cards");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Personalized Guest Link Modal state
@@ -349,6 +350,7 @@ export default function DashboardPage() {
             { id: "cards", label: "Thiệp cưới của tôi", icon: Calendar, count: myCards.length },
             { id: "rsvp", label: "Khách mời & Xác nhận (RSVP)", icon: Users, count: rsvpsList.length },
             { id: "wishes", label: "Sổ lưu bút & Lời chúc", icon: MessageSquare, count: wishesList.length },
+            { id: "gifts", label: "Sổ mừng cưới", icon: Gift },
             { id: "settings", label: "Cài đặt tài khoản", icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
@@ -1142,6 +1144,11 @@ export default function DashboardPage() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* TAB 4: SỔ MỪNG CƯỚI */}
+        {activeTab === "gifts" && (
+          <GiftLedgerTab cards={myCards} />
         )}
 
         {/* ================= MODAL TẠO LINK MỜI RIÊNG CHO KHÁCH TỪ DASHBOARD ================= */}
