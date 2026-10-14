@@ -1352,61 +1352,61 @@ export default function EditorCanvas({
                 </div>
               ) : (
                 <>
-                  {/* 8-Point Interactive Resize Handles (Mouse & Touch Enabled) */}
+                  {/* 8-Point Interactive Resize Handles (Mouse & Touch Enabled with expanded touch targets) */}
                   {/* Top-Left (nw) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "nw", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "nw", p)}
-                    className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để co giãn kích thước"
                   />
                   {/* Top-Center (n) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "n", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "n", p)}
-                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để thay đổi chiều cao"
                   />
                   {/* Top-Right (ne) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "ne", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "ne", p)}
-                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để co giãn kích thước"
                   />
                   {/* Center-Right (e) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "e", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "e", p)}
-                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để thay đổi chiều rộng"
                   />
                   {/* Bottom-Right (se) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "se", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "se", p)}
-                    className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nwse-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để co giãn kích thước"
                   />
                   {/* Bottom-Center (s) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "s", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "s", p)}
-                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ns-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để thay đổi chiều cao"
                   />
                   {/* Bottom-Left (sw) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "sw", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "sw", p)}
-                    className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-nesw-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để co giãn kích thước"
                   />
                   {/* Center-Left (w) */}
                   <div
                     onMouseDown={(e) => handleMouseDownResize(e, selectedElement.id, "w", p)}
                     onTouchStart={(e) => handleTouchStartResize(e, selectedElement.id, "w", p)}
-                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none"
+                    className="absolute top-1/2 -translate-y-1/2 -left-1.5 w-3 h-3 bg-white border-2 border-[#e54153] rounded-xs shadow-xs pointer-events-auto cursor-ew-resize hover:scale-125 transition-transform z-50 touch-none before:content-[''] before:absolute before:-inset-2.5 before:bg-transparent"
                     title="Kéo để thay đổi chiều rộng"
                   />
 
@@ -1445,7 +1445,7 @@ export default function EditorCanvas({
                     <div
                       onMouseDown={(e) => handleMouseDownRotate(e, selectedElement.id)}
                       onTouchStart={(e) => handleTouchStartRotate(e, selectedElement.id)}
-                      className="w-5 h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform touch-none"
+                      className="w-7 h-7 sm:w-5 sm:h-5 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center cursor-grab active:cursor-grabbing text-gray-700 hover:text-[#e54153] hover:scale-110 transition-transform touch-none"
                       title="Kéo chuột hoặc chạm xoay phần tử"
                     >
                       <RotateCw className="w-3 h-3" />

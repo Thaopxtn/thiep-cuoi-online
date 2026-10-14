@@ -87,6 +87,10 @@ export interface WeddingCard {
   }>;
   showCalendar?: boolean;
   showLoveStory?: boolean;
+  isVip?: boolean;
+  plan?: "free" | "vip" | "premium";
+  vipUnlockedAt?: string;
+  showWatermark?: boolean;
 }
 
 // Key operational templates

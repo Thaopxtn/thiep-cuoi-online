@@ -33,6 +33,7 @@ import {
   UserPlus,
   X,
   UtensilsCrossed,
+  Crown,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -48,6 +49,8 @@ import {
   deleteRsvp,
   updateRsvpStatus,
 } from "@/lib/weddingCardService";
+import BulkGuestInvitationModal from "@/components/invitations/BulkGuestInvitationModal";
+import VietQrVipPaymentModal from "@/components/payment/VietQrVipPaymentModal";
 
 export default function DashboardPage() {
   const { user, isLoggedIn, openLoginModal, updatePassword, updateProfile, logout } = useAuth();
@@ -59,6 +62,14 @@ export default function DashboardPage() {
   const [selectedCardForGuest, setSelectedCardForGuest] = useState<WeddingCard | null>(null);
   const [guestLinkInput, setGuestLinkInput] = useState("");
   const [copiedGuestLink, setCopiedGuestLink] = useState(false);
+
+  // Bulk Guest Invitation Modal state
+  const [bulkGuestModalCard, setBulkGuestModalCard] = useState<WeddingCard | null>(null);
+  const [isBulkGuestModalOpen, setIsBulkGuestModalOpen] = useState(false);
+
+  // VietQR VIP Modal state
+  const [vipModalCard, setVipModalCard] = useState<WeddingCard | null>(null);
+  const [isVipPaymentOpen, setIsVipPaymentOpen] = useState(false);
 
   // Live operational cards state
   const [myCards, setMyCards] = useState<WeddingCard[]>([]);
@@ -403,6 +414,12 @@ export default function DashboardPage() {
                             >
                               {card.status === "published" ? "🟢 Đã xuất bản" : "🟡 Đang soạn"}
                             </span>
+                            {Boolean(card.isVip || (card.groom as any)?.isVip) && (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-gradient-to-r from-amber-500 to-yellow-500 text-white shadow-2xs flex items-center gap-1">
+                                <Crown className="w-3 h-3 text-white" />
+                                <span>VIP PRO</span>
+                              </span>
+                            )}
                             {(() => {
                               const tpl = findZenloveTemplate(card.templateId);
                               return tpl?.displayCode ? (
@@ -493,6 +510,34 @@ export default function DashboardPage() {
                           <Share2 className="w-3.5 h-3.5" />
                           <span>Mời khách</span>
                         </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBulkGuestModalCard(card);
+                            setIsBulkGuestModalOpen(true);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition-colors flex items-center gap-1.5 border border-purple-200 cursor-pointer"
+                          title="Tạo link mời riêng hàng loạt và gửi Zalo 1 chạm"
+                        >
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span>Mời Zalo</span>
+                        </button>
+
+                        {!Boolean(card.isVip || (card.groom as any)?.isVip) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setVipModalCard(card);
+                              setIsVipPaymentOpen(true);
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white text-xs font-bold transition-all flex items-center gap-1 shadow-2xs cursor-pointer"
+                            title="Quét VietQR tự động kích hoạt gói VIP và xóa Watermark"
+                          >
+                            <Crown className="w-3.5 h-3.5" />
+                            <span>VIP</span>
+                          </button>
+                        )}
                       </div>
 
                       <div className="flex items-center gap-1.5">
@@ -684,6 +729,24 @@ export default function DashboardPage() {
 
               {/* Action buttons */}
               <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetCard = myCards.find(c => c.id === selectedCardFilter) || myCards[0];
+                    if (!targetCard) {
+                      alert("Vui lòng tạo ít nhất một thiệp cưới trước khi mời khách!");
+                      return;
+                    }
+                    setBulkGuestModalCard(targetCard);
+                    setIsBulkGuestModalOpen(true);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  title="Tạo link mời riêng hàng loạt và gửi Zalo 1 chạm"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Mời Zalo hàng loạt</span>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => {
@@ -1355,6 +1418,37 @@ export default function DashboardPage() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Bulk Guest Personalized Invitation Modal */}
+        {isBulkGuestModalOpen && bulkGuestModalCard && (
+          <BulkGuestInvitationModal
+            isOpen={isBulkGuestModalOpen}
+            onClose={() => setIsBulkGuestModalOpen(false)}
+            cardSlug={bulkGuestModalCard.slug}
+            cardTitle={bulkGuestModalCard.name}
+            groomName={bulkGuestModalCard.groom?.name}
+            brideName={bulkGuestModalCard.bride?.name}
+            weddingDate={bulkGuestModalCard.weddingDate}
+          />
+        )}
+
+        {/* VietQR VIP Payment & Auto-Activation Modal */}
+        {isVipPaymentOpen && vipModalCard && (
+          <VietQrVipPaymentModal
+            isOpen={isVipPaymentOpen}
+            onClose={() => setIsVipPaymentOpen(false)}
+            cardId={vipModalCard.id}
+            cardSlug={vipModalCard.slug}
+            cardName={vipModalCard.name}
+            onVipActivated={() => {
+              setMyCards((prev) =>
+                prev.map((c) =>
+                  c.id === vipModalCard.id ? { ...c, isVip: true, plan: "vip", showWatermark: false } : c
+                )
+              );
+            }}
+          />
         )}
       </main>
 

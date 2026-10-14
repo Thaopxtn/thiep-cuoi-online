@@ -641,41 +641,61 @@ export default function EditorLeftDrawer({
   ];
 
   return (
-    <aside className="w-[300px] sm:w-[320px] bg-white border-r border-gray-200 h-full flex flex-col z-30 select-none shrink-0 shadow-sm relative animate-slide-in">
-      {/* Hidden audio element for preview */}
-      <audio ref={audioRef} onEnded={() => setPlayingSongId(null)} />
-
-      {/* Collapse Drawer button on right edge */}
-      <button
-        type="button"
+    <>
+      {/* Mobile Backdrop Overlay */}
+      <div
+        className="fixed inset-0 bg-black/40 backdrop-blur-2xs z-40 md:hidden animate-fade-in"
         onClick={onClose}
-        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md text-gray-500 hover:text-gray-900 flex items-center justify-center z-40 transition-transform hover:scale-110"
-        title="Thu gọn bảng công cụ"
-      >
-        <ChevronLeft className="w-4 h-4" />
-      </button>
+      />
 
-      {/* Drawer Header */}
-      <div className="p-4 border-b border-gray-100 flex items-center justify-between">
-        <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
-          {activeTab === "autofill" && "Điền thông tin"}
-          {activeTab === "layers" && "Lớp & Phần tử"}
-          {activeTab === "image" && "Hình ảnh"}
-          {activeTab === "text" && "Văn bản"}
-          {activeTab === "background" && "Nền thiệp"}
-          {activeTab === "stock" && "Sticker & Họa tiết"}
-          {activeTab === "tools" && "Công cụ & AI"}
-          {activeTab === "music" && "Nhạc nền"}
-          {activeTab === "widgets" && "Khối mẫu"}
-          {activeTab === "templates" && "Mẫu thiệp"}
-          {activeTab === "effects" && "Hiệu ứng"}
-          {activeTab === "presets" && "Màu sắc & Font"}
-          {activeTab === "support" && "Hỗ trợ"}
-        </h3>
-        <span className="text-[11px] font-medium text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
-          ZenLove Studio
-        </span>
-      </div>
+      <aside className="fixed inset-x-0 bottom-0 z-50 md:relative md:inset-auto md:w-[320px] md:h-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col max-h-[80vh] md:max-h-full rounded-t-3xl md:rounded-none shadow-2xl md:shadow-sm animate-slide-up md:animate-slide-in select-none shrink-0">
+        {/* Pull handle on mobile */}
+        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto my-2 md:hidden" />
+
+        {/* Hidden audio element for preview */}
+        <audio ref={audioRef} onEnded={() => setPlayingSongId(null)} />
+
+        {/* Collapse Drawer button on right edge for desktop */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md text-gray-500 hover:text-gray-900 items-center justify-center z-40 transition-transform hover:scale-110"
+          title="Thu gọn bảng công cụ"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+
+        {/* Drawer Header */}
+        <div className="px-4 py-3 md:p-4 border-b border-gray-100 flex items-center justify-between">
+          <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
+            {activeTab === "autofill" && "Điền thông tin"}
+            {activeTab === "layers" && "Lớp & Phần tử"}
+            {activeTab === "image" && "Hình ảnh"}
+            {activeTab === "text" && "Văn bản"}
+            {activeTab === "background" && "Nền thiệp"}
+            {activeTab === "stock" && "Sticker & Họa tiết"}
+            {activeTab === "tools" && "Công cụ & AI"}
+            {activeTab === "music" && "Nhạc nền"}
+            {activeTab === "widgets" && "Khối mẫu"}
+            {activeTab === "templates" && "Mẫu thiệp"}
+            {activeTab === "effects" && "Hiệu ứng"}
+            {activeTab === "presets" && "Màu sắc & Font"}
+            {activeTab === "support" && "Hỗ trợ"}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-medium text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
+              ZenLove Studio
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="md:hidden w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 text-xs font-bold"
+              title="Đóng bảng công cụ"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
 
       {/* Drawer Body corresponding to activeTab */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -2099,5 +2119,6 @@ export default function EditorLeftDrawer({
         )}
       </div>
     </aside>
+  </>
   );
 }

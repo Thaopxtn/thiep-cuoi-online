@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb, createWishInDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, createWishInDb, activateCardVipInDb } from "@/lib/serverDb";
 import { recordActivity } from "@/lib/activityService";
 import crypto from "crypto";
 
@@ -219,11 +219,34 @@ export async function POST(request: NextRequest) {
     }
 
     // 4. Phân tích nội dung chuyển khoản để nhận diện thiệp cưới
-    // Cú pháp quy ước: "MC [SLUG] [TÊN KHÁCH] mung hai ban"
     let matchedCardId: string | null = null;
-    const cardMatch = content.match(/MC\s+([a-zA-Z0-9_-]+)/i);
+    let isVipUpgrade = false;
 
-    if (cardMatch && cardMatch[1]) {
+    // A. Nhận diện cú pháp Kích hoạt / Nâng cấp gói VIP: "VIP [SLUG]" hoặc "ZENLOVE VIP [SLUG]"
+    const vipMatch = content.match(/(?:VIP|ZENLOVE\s*VIP|NANG\s*CAP)\s+([a-zA-Z0-9_-]+)/i);
+    if (vipMatch && vipMatch[1]) {
+      const slugCandidate = vipMatch[1].toLowerCase();
+      const vipResult = await activateCardVipInDb(slugCandidate, payload);
+      if (vipResult.success && vipResult.card) {
+        matchedCardId = vipResult.card.id;
+        isVipUpgrade = true;
+
+        recordActivity({
+          type: "card_upgrade" as any,
+          title: `Tự động mở khóa VIP cho thiệp "${vipResult.card.name}" qua VietQR (${amount.toLocaleString("vi-VN")}đ)`,
+          actorName: String(payload.senderName || payload.accountName || "Khách hàng VietQR").trim(),
+          actorType: "user",
+          targetId: vipResult.card.id,
+          targetName: vipResult.card.name,
+          details: `Giao dịch ${referenceCode} đã kích hoạt gói VIP vĩnh viễn và xóa watermark ZenLove thành công`,
+          metadata: { amount, referenceCode, slug: vipResult.card.slug },
+        });
+      }
+    }
+
+    // B. Nhận diện cú pháp Mừng cưới Online: "MC [SLUG] [LỜI CHÚC]"
+    const cardMatch = content.match(/MC\s+([a-zA-Z0-9_-]+)/i);
+    if (cardMatch && cardMatch[1] && !isVipUpgrade) {
       const slugCandidate = cardMatch[1].toLowerCase();
       const card = await getCardByIdOrSlugFromDb(slugCandidate);
       if (card) {

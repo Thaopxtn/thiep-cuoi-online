@@ -485,7 +485,7 @@ export default function EditorRightInspector({
   };
 
   return (
-    <aside className="w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex flex-col z-30 select-none shrink-0 shadow-xs">
+    <aside className="hidden lg:flex w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex-col z-30 select-none shrink-0 shadow-xs">
       {/* Top Tabs: Cài đặt | Hiệu ứng */}
       <div className="flex border-b border-gray-200 bg-gray-50/50 p-1 shrink-0">
         <button

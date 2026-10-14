@@ -162,7 +162,7 @@ export default function EditorFloatingToolbar({
 
   return (
     <div
-      className="absolute -top-12 left-1/2 pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 flex items-center px-2 py-1 gap-1 z-50 animate-fade-in select-none"
+      className="absolute -top-12 left-1/2 pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 flex items-center px-2 py-1 gap-1 z-50 animate-fade-in select-none max-w-[94vw] overflow-x-auto scrollbar-none touch-manipulation"
       style={{
         transform: `translate(-50%, 0) rotate(${-(props.rotation || 0)}deg)`,
         transformOrigin: "center center",

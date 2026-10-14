@@ -14,10 +14,14 @@ import {
   Edit3,
   Sparkles,
   Save,
+  Users,
+  Crown,
 } from "lucide-react";
 import { WeddingCard, INITIAL_CARDS } from "@/data/initialCards";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
 import { findZenloveTemplate } from "@/data/zenloveTemplates";
+import BulkGuestInvitationModal from "@/components/invitations/BulkGuestInvitationModal";
+import VietQrVipPaymentModal from "@/components/payment/VietQrVipPaymentModal";
 import {
   generateBrandedWeddingSlug,
   normalizeToSlug,
@@ -53,6 +57,9 @@ export default function EditorPublishModal({
   const [guestName, setGuestName] = useState("");
   const [copiedGuest, setCopiedGuest] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
+  const [isBulkGuestModalOpen, setIsBulkGuestModalOpen] = useState(false);
+  const [isVipModalOpen, setIsVipModalOpen] = useState(false);
+  const [isVipLocal, setIsVipLocal] = useState(Boolean(card?.isVip || (card?.groom as any)?.isVip));
 
   // Trạng thái tùy chỉnh Slug theo 4 thành phần chuẩn:
   // [Tên người dùng] + [Địa chỉ web] + [Mẫu] + [Thông tin khác nếu có]
@@ -263,6 +270,33 @@ export default function EditorPublishModal({
           </div>
         </div>
 
+        {/* Banner Mở Khóa VIP VietQR */}
+        {!isVipLocal ? (
+          <div className="mb-4 p-3.5 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-2xl border border-amber-200/90 flex items-center justify-between gap-3 text-left">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-yellow-500 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Crown className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-900">Nâng cấp VIP (Xóa Watermark)</h4>
+                <p className="text-[10px] text-gray-500">Quét VietQR kích hoạt tự động sau 10s</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsVipModalOpen(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 hover:from-amber-700 hover:to-yellow-700 text-white font-bold text-xs shadow-xs transition-all cursor-pointer shrink-0"
+            >
+              Nâng cấp 99k
+            </button>
+          </div>
+        ) : (
+          <div className="mb-4 p-2.5 bg-amber-50/80 rounded-2xl border border-amber-200 flex items-center justify-center gap-2 text-xs font-bold text-amber-800">
+            <Crown className="w-4 h-4 text-amber-600" />
+            <span>Thiệp cưới đã kích hoạt VIP Vĩnh Viễn (Đã xóa Watermark)</span>
+          </div>
+        )}
+
         {/* QR Code & Link preview */}
         <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 flex flex-col sm:flex-row items-center gap-4 mb-4">
           <div className="w-28 h-28 bg-white p-2 rounded-xl shadow-xs border border-gray-200 shrink-0">
@@ -424,9 +458,19 @@ export default function EditorPublishModal({
 
         {/* Personalized Guest Link Section */}
         <div className="p-3.5 bg-rose-50/70 rounded-2xl border border-rose-100 mb-4 text-left">
-          <label className="text-[11px] font-bold text-rose-900 block mb-1.5">
-            💌 Gửi riêng cho từng khách (Tự in tên lên bìa thư sáp):
-          </label>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="text-[11px] font-bold text-rose-900 block">
+              💌 Gửi riêng cho từng khách (Tự in tên lên bìa thư sáp):
+            </label>
+            <button
+              type="button"
+              onClick={() => setIsBulkGuestModalOpen(true)}
+              className="text-[10px] font-bold text-[#e54153] hover:text-[#c93243] bg-white border border-rose-200 px-2 py-0.5 rounded-full shadow-2xs flex items-center gap-1 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            >
+              <Users className="w-3 h-3" />
+              <span>Gửi Zalo hàng loạt</span>
+            </button>
+          </div>
           <div className="flex gap-2">
             <input
               type="text"
@@ -578,6 +622,41 @@ export default function EditorPublishModal({
           <span>✨</span>
         </p>
       </div>
+
+      {/* Bulk Guest Invitation Modal */}
+      {isBulkGuestModalOpen && (
+        <BulkGuestInvitationModal
+          isOpen={isBulkGuestModalOpen}
+          onClose={() => setIsBulkGuestModalOpen(false)}
+          cardSlug={currentSlug}
+          groomName={card?.groom?.name || "Chú Rể"}
+          brideName={card?.bride?.name || "Cô Dâu"}
+        />
+      )}
+
+      {/* VietQR VIP Auto-Activation Modal */}
+      {isVipModalOpen && (
+        <VietQrVipPaymentModal
+          isOpen={isVipModalOpen}
+          onClose={() => setIsVipModalOpen(false)}
+          cardId={card?.id || templateId}
+          cardSlug={currentSlug}
+          cardName={card?.name || templateName}
+          onVipActivated={() => {
+            setIsVipLocal(true);
+            if (card) {
+              const updatedCard: WeddingCard = {
+                ...card,
+                isVip: true,
+                plan: "vip",
+                showWatermark: false,
+              };
+              saveCard(updatedCard);
+              saveCardAsync(updatedCard).catch(() => {});
+            }
+          }}
+        />
+      )}
     </div>
   );
 }

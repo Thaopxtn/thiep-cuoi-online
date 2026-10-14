@@ -1556,12 +1556,18 @@ export default function ShowInvitationPage() {
         {/* Bottom ZenLove Watermark & Commercial Ecosystem */}
         <AnimatedReveal animation="fade-up" delay={200}>
           <div className="pt-8 pb-14 px-6 text-center text-xs text-gray-400 border-t border-gray-100 relative z-10 bg-white space-y-2.5">
-            <p className="text-[11px] text-gray-500">
-              Thiệp cưới online được tạo miễn phí bởi{" "}
-              <Link href="/" className="font-bold text-zen-primary hover:underline">
-                ZenLove.me
-              </Link>
-            </p>
+            {!(card.isVip || (card.groom as any)?.isVip || card.showWatermark === false) ? (
+              <p className="text-[11px] text-gray-500">
+                Thiệp cưới online được tạo miễn phí bởi{" "}
+                <Link href="/" className="font-bold text-zen-primary hover:underline">
+                  ZenLove.me
+                </Link>
+              </p>
+            ) : (
+              <p className="text-[11px] text-amber-800/80 font-serif italic tracking-wide">
+                ✨ Trăm năm hạnh phúc • Vẹn tròn yêu thương ✨
+              </p>
+            )}
             <div className="flex flex-wrap items-center justify-center gap-2">
               <Link
                 href="/templates"

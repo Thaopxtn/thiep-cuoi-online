@@ -1334,7 +1334,7 @@ export default function DesignTemplatePage() {
       />
 
       {/* ================= 2. WORKSPACE BODY (Rail + Drawer + Canvas + Inspector) ================= */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
         {/* Leftmost Tool Rail (10 tools) */}
         <EditorLeftRail
           activeTab={activeLeftTab}

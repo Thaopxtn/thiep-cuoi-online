@@ -146,6 +146,13 @@ function mapDbToCard(row: any): WeddingCard {
       row.showRsvp !== undefined
         ? Boolean(row.showRsvp)
         : (row.groom?.showRsvp !== undefined ? Boolean(row.groom.showRsvp) : true),
+    isVip: Boolean(row.isVip ?? row.groom?.isVip ?? false),
+    plan: row.plan || row.groom?.plan || (row.isVip ? "vip" : "free"),
+    vipUnlockedAt: row.vipUnlockedAt || row.groom?.vipUnlockedAt,
+    showWatermark:
+      row.showWatermark !== undefined
+        ? Boolean(row.showWatermark)
+        : !Boolean(row.isVip ?? row.groom?.isVip),
   };
 }
 
@@ -685,5 +692,70 @@ export async function getUsersWithStatsFromDb(): Promise<AdminUserStats[]> {
     return [];
   }
 }
+
+/**
+ * Tự động kích hoạt VIP cho thiệp cưới khi nhận webhook thanh toán VietQR
+ */
+export async function activateCardVipInDb(
+  idOrSlug: string,
+  paymentMeta?: any
+): Promise<{ success: boolean; card?: WeddingCard }> {
+  try {
+    const card = await getCardByIdOrSlugFromDb(idOrSlug);
+    if (!card) {
+      console.warn(`Không tìm thấy thiệp cưới để kích hoạt VIP: ${idOrSlug}`);
+      return { success: false };
+    }
+
+    const nowIso = new Date().toISOString();
+    const updatedGroom = {
+      ...(card.groom || {}),
+      isVip: true,
+      plan: "vip",
+      vipUnlockedAt: nowIso,
+      showWatermark: false,
+    };
+
+    const updatedCard: WeddingCard = {
+      ...card,
+      isVip: true,
+      plan: "vip",
+      vipUnlockedAt: nowIso,
+      showWatermark: false,
+      groom: updatedGroom,
+    };
+
+    // 1. Cập nhật cache cục bộ
+    writeLocalCard(updatedCard);
+
+    // 2. Cập nhật Supabase Cloud nếu có cấu hình
+    if (isDbConfigured) {
+      const payload: Record<string, any> = {
+        isVip: true,
+        plan: "vip",
+        vipUnlockedAt: nowIso,
+        showWatermark: false,
+        groom: updatedGroom,
+      };
+
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/cards?id=eq.${encodeURIComponent(card.id)}`, {
+          method: "PATCH",
+          headers: getDbHeaders(),
+          body: JSON.stringify(payload),
+        });
+      } catch (patchErr) {
+        console.warn("Lỗi PATCH Supabase khi kích hoạt VIP, fallback qua upsertCardToDb:", patchErr);
+        await upsertCardToDb(updatedCard);
+      }
+    }
+
+    return { success: true, card: updatedCard };
+  } catch (err) {
+    console.error("Lỗi activateCardVipInDb:", err);
+    return { success: false };
+  }
+}
+
 
 

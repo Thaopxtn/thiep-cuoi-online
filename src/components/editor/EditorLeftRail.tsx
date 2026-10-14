@@ -84,9 +84,9 @@ export default function EditorLeftRail({
   };
 
   return (
-    <aside className="w-[62px] bg-white border-r border-gray-200 flex flex-col justify-between items-center py-3 z-40 select-none shrink-0 shadow-xs">
+    <aside className="w-full md:w-[62px] bg-white border-t md:border-t-0 md:border-r border-gray-200 flex md:flex-col flex-row justify-between items-center px-1.5 py-1 md:py-3 z-40 select-none shrink-0 shadow-xs overflow-x-auto md:overflow-x-hidden scrollbar-none touch-manipulation">
       {/* Tool Navigation Items */}
-      <div className="flex flex-col items-center gap-1.5 w-full px-1">
+      <div className="flex md:flex-col flex-row items-center gap-1 md:gap-1.5 w-auto md:w-full px-0.5">
         {railItems.map((item) => {
           const isActive = activeTab === item.id && isDrawerOpen;
           return (
@@ -94,7 +94,7 @@ export default function EditorLeftRail({
               key={item.id}
               type="button"
               onClick={() => handleClick(item.id)}
-              className={`w-full py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all text-center relative ${
+              className={`min-w-[56px] md:w-full py-1.5 md:py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all text-center relative shrink-0 cursor-pointer active:scale-95 ${
                 isActive
                   ? "bg-rose-50 text-zen-primary font-bold shadow-2xs"
                   : item.isSpecial
@@ -105,23 +105,23 @@ export default function EditorLeftRail({
               <div className={isActive ? "text-zen-primary" : item.isSpecial ? "text-[#e54153]" : "text-gray-500"}>
                 {item.icon}
               </div>
-              <span className="text-[10px] leading-none tracking-tight">
+              <span className="text-[10px] leading-tight tracking-tight whitespace-nowrap">
                 {item.label}
               </span>
               {item.isSpecial && !isActive && (
-                <span className="w-1.5 h-1.5 rounded-full bg-[#e54153] absolute top-1.5 right-1.5" />
+                <span className="w-1.5 h-1.5 rounded-full bg-[#e54153] absolute top-1 right-1" />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Bottom: Support Button */}
-      <div className="w-full px-1 pt-2 border-t border-gray-100 flex flex-col items-center">
+      {/* Bottom/Right: Support Button */}
+      <div className="md:w-full px-1 md:pt-2 md:border-t md:border-gray-100 flex md:flex-col flex-row items-center shrink-0">
         <button
           type="button"
           onClick={() => handleClick("support")}
-          className={`w-full py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-1 transition-all ${
+          className={`min-w-[52px] md:w-full py-1.5 md:py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all cursor-pointer ${
             activeTab === "support" && isDrawerOpen
               ? "bg-rose-50 text-zen-primary font-bold"
               : "text-gray-400 hover:text-gray-800 hover:bg-gray-100"
@@ -129,7 +129,7 @@ export default function EditorLeftRail({
           title="Hỗ trợ & Trợ giúp"
         >
           <HelpCircle className="w-4 h-4" />
-          <span className="text-[10px] leading-none">Hỗ trợ</span>
+          <span className="text-[10px] leading-none whitespace-nowrap">Hỗ trợ</span>
         </button>
       </div>
     </aside>
