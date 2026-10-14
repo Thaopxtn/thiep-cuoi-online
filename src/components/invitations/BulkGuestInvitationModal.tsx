@@ -16,14 +16,26 @@ import {
   Search,
   Sparkles,
   MessageCircle,
+  MessageSquare,
+  Mail,
+  Phone,
   Filter,
 } from "lucide-react";
+import {
+  formatGuestLink,
+  formatZaloInvite,
+  formatSmsInvite,
+  formatEmailInvite,
+  parseBulkGuestInput,
+  type GuestGroupType,
+} from "@/lib/guestInvitationHelper";
 
 export interface GuestItem {
   id: string;
   name: string;
-  group?: "all" | "groom" | "bride" | "friends" | "colleagues";
+  group?: GuestGroupType;
   phone?: string;
+  email?: string;
   isSent?: boolean;
 }
 
@@ -51,10 +63,11 @@ export default function BulkGuestInvitationModal({
   cardSlug,
   groomName = "Chú Rể",
   brideName = "Cô Dâu",
+  weddingDate,
 }: BulkGuestInvitationModalProps) {
   const [guests, setGuests] = useState<GuestItem[]>([]);
   const [rawInput, setRawInput] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState<string>("all");
+  const [selectedGroup, setSelectedGroup] = useState<GuestGroupType>("all");
   const [filterGroup, setFilterGroup] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -99,32 +112,26 @@ export default function BulkGuestInvitationModal({
 
   // Hàm tạo link riêng cho khách
   const getGuestLink = (guestName: string) => {
-    return `${baseUrl}?to=${encodeURIComponent(guestName.trim())}`;
+    return formatGuestLink(baseUrl, guestName);
   };
 
   // Hàm tạo tin nhắn mời Zalo chuẩn mực
   const getZaloMessage = (guestName: string) => {
     const link = getGuestLink(guestName);
-    return `🌸 THIỆP CƯỚI TRÂN TRỌNG 🌸\nKính gửi: ${guestName}\n\nChúng mình là ${groomName} & ${brideName}.\nTrân trọng kính mời bạn và gia đình tới tham dự lễ thành hôn cùng chúng mình tại:\n👉 ${link}\n\nSự hiện diện và lời chúc phúc của bạn là niềm vinh hạnh và hạnh phúc lớn nhất của chúng mình! ❤️`;
+    return formatZaloInvite({
+      guestName,
+      groomName,
+      brideName,
+      guestLink: link,
+      weddingDate,
+    });
   };
 
   // Xử lý import hàng loạt từ Textarea
   const handleBulkImport = () => {
     if (!rawInput.trim()) return;
-
-    const lines = rawInput
-      .split(/[\r\n]+/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-
-    const newItems: GuestItem[] = lines.map((name, idx) => ({
-      id: `guest_${Date.now()}_${idx}`,
-      name,
-      group: (selectedGroup as any) || "all",
-      isSent: false,
-    }));
-
-    const merged = [...guests, ...newItems];
+    const parsed = parseBulkGuestInput(rawInput, selectedGroup);
+    const merged = [...guests, ...parsed];
     saveGuests(merged);
     setRawInput("");
     setIsImportMode(false);
@@ -159,7 +166,42 @@ export default function BulkGuestInvitationModal({
     const shareUrl = `https://zalo.me/share?url=${encodeURIComponent(getGuestLink(guest.name))}`;
     window.open(shareUrl, "_blank");
 
-    // Tự động đánh dấu đã gửi
+    if (!guest.isSent) {
+      toggleSentStatus(guest.id);
+    }
+  };
+
+  // Gửi qua tin nhắn SMS
+  const handleSendViaSms = (guest: GuestItem) => {
+    const link = getGuestLink(guest.name);
+    const { text, smsUri } = formatSmsInvite({
+      guestName: guest.name,
+      groomName,
+      brideName,
+      guestLink: link,
+      weddingDate,
+    });
+    navigator.clipboard?.writeText(text);
+    window.open(smsUri, "_self");
+
+    if (!guest.isSent) {
+      toggleSentStatus(guest.id);
+    }
+  };
+
+  // Gửi qua Email
+  const handleSendViaEmail = (guest: GuestItem) => {
+    const link = getGuestLink(guest.name);
+    const { body, mailtoUrl } = formatEmailInvite({
+      guestName: guest.name,
+      groomName,
+      brideName,
+      guestLink: link,
+      weddingDate,
+    });
+    navigator.clipboard?.writeText(body);
+    window.open(mailtoUrl, "_blank");
+
     if (!guest.isSent) {
       toggleSentStatus(guest.id);
     }
@@ -173,13 +215,13 @@ export default function BulkGuestInvitationModal({
     setTimeout(() => setCopiedAll(false), 2500);
   };
 
-  // Xuất file CSV / Excel
+  // Xuất file CSV / Excel với tên, số điện thoại, email
   const handleExportCsv = () => {
-    const header = "Họ và tên,Nhóm,Đã gửi,Link thiệp cưới\n";
+    const header = "Họ và tên,Số điện thoại,Email,Nhóm,Đã gửi,Link thiệp cưới\n";
     const rows = guests
       .map(
         (g) =>
-          `"${g.name}","${
+          `"${g.name}","${g.phone || ""}","${g.email || ""}","${
             DEFAULT_GROUPS.find((gr) => gr.id === g.group)?.label || "Tất cả"
           }","${g.isSent ? "Đã gửi" : "Chưa gửi"}","${getGuestLink(g.name)}"`
       )
@@ -305,7 +347,7 @@ export default function BulkGuestInvitationModal({
                 <span className="text-[11px] text-gray-500">Phân nhóm:</span>
                 <select
                   value={selectedGroup}
-                  onChange={(e) => setSelectedGroup(e.target.value)}
+                  onChange={(e) => setSelectedGroup(e.target.value as GuestGroupType)}
                   className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs font-medium focus:outline-none focus:border-[#e54153]"
                 >
                   {DEFAULT_GROUPS.map((g) => (
@@ -321,13 +363,13 @@ export default function BulkGuestInvitationModal({
               value={rawInput}
               onChange={(e) => setRawInput(e.target.value)}
               rows={4}
-              placeholder={`Bác Hùng & Bác Gái\nAnh Hoàng (Bạn chú rể)\nChị Lan & Người thương\nBạn Tuấn (Lớp 12A1)...`}
+              placeholder={`Bác Hùng - 0912345678\nAnh Hoàng - hoang@gmail.com\nChị Lan & Người thương - 0987654321 - lan@gmail.com\nBạn Tuấn (Lớp 12A1)...`}
               className="w-full p-3 rounded-2xl bg-white border border-rose-200 focus:outline-none focus:border-[#e54153] focus:ring-2 focus:ring-[#e54153]/20 text-xs font-sans leading-relaxed resize-none shadow-2xs"
             />
 
             <div className="flex items-center justify-between mt-2">
               <span className="text-[11px] text-gray-500">
-                Mẹo: Hệ thống tự động tạo mã URL an toàn cho từng khách
+                Mẹo: Có thể nhập dạng &ldquo;Tên - SĐT - Email&rdquo; hoặc chỉ cần &ldquo;Tên&rdquo;, hệ thống sẽ tự tách trường.
               </span>
               <button
                 type="button"
@@ -403,13 +445,25 @@ export default function BulkGuestInvitationModal({
                     </span>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
                         <span className="font-bold text-xs text-gray-900 truncate">
                           {guest.name}
                         </span>
                         <span className="text-[10px] px-2 py-0.2 rounded-full bg-gray-100 text-gray-500 font-medium">
                           {DEFAULT_GROUPS.find((g) => g.id === guest.group)?.label || "Tất cả"}
                         </span>
+                        {guest.phone && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-stone-100 text-stone-600 font-mono flex items-center gap-0.5">
+                            <Phone className="w-2.5 h-2.5 text-stone-400" />
+                            <span>{guest.phone}</span>
+                          </span>
+                        )}
+                        {guest.email && (
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-stone-100 text-stone-600 font-mono flex items-center gap-0.5">
+                            <Mail className="w-2.5 h-2.5 text-stone-400" />
+                            <span>{guest.email}</span>
+                          </span>
+                        )}
                         {guest.isSent && (
                           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-700 font-bold flex items-center gap-0.5">
                             <Check className="w-2.5 h-2.5 stroke-[3]" />
@@ -430,17 +484,39 @@ export default function BulkGuestInvitationModal({
                     </div>
                   </div>
 
-                  {/* Right: Actions (Gửi Zalo 1 chạm, Chép link, Đánh dấu, Xóa) */}
-                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+                  {/* Right: Actions (Gửi Zalo 1 chạm, SMS, Email, Chép link, Đánh dấu, Xóa) */}
+                  <div className="flex items-center gap-1.5 shrink-0 self-end sm:self-center flex-wrap">
                     {/* Nút gửi Zalo 1 chạm */}
                     <button
                       type="button"
                       onClick={() => handleSendViaZalo(guest)}
-                      className="px-3 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                      className="px-2.5 py-1.5 rounded-xl bg-blue-500 hover:bg-blue-600 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
                       title="Mở Zalo và tự động soạn sẵn lời mời kèm link"
                     >
                       <Share2 className="w-3 h-3" />
-                      <span>Gửi Zalo</span>
+                      <span>Zalo</span>
+                    </button>
+
+                    {/* Nút gửi SMS */}
+                    <button
+                      type="button"
+                      onClick={() => handleSendViaSms(guest)}
+                      className="px-2.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                      title="Soạn tin nhắn SMS điện thoại"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>SMS</span>
+                    </button>
+
+                    {/* Nút gửi Email */}
+                    <button
+                      type="button"
+                      onClick={() => handleSendViaEmail(guest)}
+                      className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 shadow-2xs transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                      title="Mở ứng dụng Email soạn thư mời dự tiệc"
+                    >
+                      <Mail className="w-3 h-3" />
+                      <span>Email</span>
                     </button>
 
                     {/* Nút sao chép link */}

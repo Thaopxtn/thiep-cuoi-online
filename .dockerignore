@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.github
+.gemini
+.vscode
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+test-reports
+.env.local
+.env*.local
