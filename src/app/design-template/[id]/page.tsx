@@ -1285,6 +1285,9 @@ export default function DesignTemplatePage() {
       showGiftBox: base?.showGiftBox !== undefined ? base.showGiftBox : (existing?.showGiftBox !== undefined ? existing.showGiftBox : true),
       showWishes: base?.showWishes !== undefined ? base.showWishes : (existing?.showWishes !== undefined ? existing.showWishes : true),
       showRsvp: base?.showRsvp !== undefined ? base.showRsvp : (existing?.showRsvp !== undefined ? existing.showRsvp : true),
+      showCalendar: base?.showCalendar !== undefined ? base.showCalendar : (existing?.showCalendar !== undefined ? existing.showCalendar : true),
+      showEvents: base?.showEvents !== undefined ? base.showEvents : (existing?.showEvents !== undefined ? existing.showEvents : true),
+      showLoveStory: base?.showLoveStory !== undefined ? base.showLoveStory : (existing?.showLoveStory !== undefined ? existing.showLoveStory : true),
       groom: {
         userId: currentUserId,
         name: base?.groom?.name || groomName,
@@ -1505,6 +1508,17 @@ export default function DesignTemplatePage() {
     }
   };
 
+  const handleToggleFixedModuleCanvas = (key: keyof WeddingCard, value: boolean) => {
+    setCustomCardData((prev) => {
+      const base = prev || buildCardFromCurrentState();
+      const updated = { ...base, [key]: value };
+      saveCard(updated);
+      saveCardAsync(updated).catch(() => {});
+      return updated;
+    });
+    showToast(`${value ? "✓ Đã bật hiển thị" : "✕ Đã tắt"} khối trên bảng thiết kế!`);
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans relative">
       {/* ================= 1. TOP HEADER (Exact match to screenshot!) ================= */}
@@ -1606,6 +1620,13 @@ export default function DesignTemplatePage() {
           onOpenPreview={handlePreview}
           onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
           isLeftDrawerOpen={isLeftDrawerOpen}
+          card={customCardData || buildCardFromCurrentState()}
+          onOpenFixedModulesTab={() => {
+            setActiveLeftTab("widgets");
+            setIsLeftDrawerOpen(true);
+          }}
+          onToggleFixedModule={handleToggleFixedModuleCanvas}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
         />
 
         {/* Right Properties Inspector (Settings & Effects tabs) */}

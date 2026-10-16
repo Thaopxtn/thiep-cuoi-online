@@ -52,6 +52,9 @@ import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getGiftQrU
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
 
+import { WeddingCard } from "@/data/initialCards";
+import EditorFixedModulesCanvas from "./EditorFixedModulesCanvas";
+
 interface EditorCanvasProps {
   nodes: Record<string, any>;
   selectedElement: SelectedElementData | null;
@@ -72,6 +75,10 @@ interface EditorCanvasProps {
   onOpenPreview?: () => void;
   onOpenShortcuts?: () => void;
   isLeftDrawerOpen?: boolean;
+  card?: WeddingCard | null;
+  onOpenFixedModulesTab?: () => void;
+  onToggleFixedModule?: (key: keyof WeddingCard, value: boolean) => void;
+  onOpenSettings?: () => void;
 }
 
 export default function EditorCanvas({
@@ -94,6 +101,10 @@ export default function EditorCanvas({
   onOpenPreview,
   onOpenShortcuts,
   isLeftDrawerOpen = false,
+  card,
+  onOpenFixedModulesTab,
+  onToggleFixedModule,
+  onOpenSettings,
 }: EditorCanvasProps) {
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
@@ -862,11 +873,10 @@ export default function EditorCanvas({
 
       {/* ================= INVITATION CANVAS CONTAINER ================= */}
       <div
-        className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0 mb-20"
+        className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0 mb-20 flex flex-col"
         style={{
           width: `${canvasWidth}px`,
           minHeight: `${canvasHeight}px`,
-          height: `${canvasHeight}px`,
           backgroundColor: backgroundColor || "#fbf8f2",
           backgroundImage: backgroundImage
             ? `url("${backgroundImage}")`
@@ -876,6 +886,14 @@ export default function EditorCanvas({
           transform: `scale(${zoomLevel})`,
         }}
       >
+        {/* Upper custom design nodes area */}
+        <div
+          className="relative w-full shrink-0"
+          style={{
+            width: `${canvasWidth}px`,
+            height: `${canvasHeight}px`,
+          }}
+        >
         {/* Blueprint Graph Grid Overlay (Toggleable Canva-style grid) */}
         {isGridVisible && (
           <div
@@ -2183,6 +2201,16 @@ export default function EditorCanvas({
             </div>
           );
         })()}
+        </div>
+
+        {/* ================= LOWER FIXED MODULES SECTION ================= */}
+        <EditorFixedModulesCanvas
+          card={card}
+          onOpenFixedModulesTab={onOpenFixedModulesTab}
+          onToggleFixedModule={onToggleFixedModule}
+          onOpenAlbumDrawer={onOpenImageDrawer}
+          onOpenSettings={onOpenSettings}
+        />
       </div>
 
       {/* ================= CANVA BOTTOM CONTROL BAR ================= */}
