@@ -48,11 +48,22 @@ import {
   Navigation,
   ExternalLink,
   MessageSquare,
+  Crown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { compressImageToWebP, formatBytes } from "@/lib/imageCompression";
-import {  useUploadedMediaLibrary, countImageUsageInNodes , uploadFileToServer } from "@/lib/mediaLibraryService";
+import {
+  useUploadedMediaLibrary,
+  countImageUsageInNodes,
+  uploadFileToServer,
+  extractImagesFromNodes,
+  isSameImageUrl,
+} from "@/lib/mediaLibraryService";
 import { getSafeImageUrl, handleImageFallback, DEFAULT_WEDDING_BACKGROUND, DEFAULT_WEDDING_BACKGROUND_RED, DEFAULT_WEDDING_BACKGROUND_SILK } from "@/lib/imageUtils";
 import {
   isDecorativeNode,
@@ -92,7 +103,9 @@ interface EditorLeftDrawerProps {
   ) => void;
   onSelectElement?: (element: { id: string; type: string; props: any }) => void;
   onRepairDecorations?: () => void;
-  // Image
+  // Image & Album
+  cardAlbum?: string[];
+  onUpdateAlbum?: (album: string[]) => void;
   onAddImage: (url: string) => void;
   selectedElement?: SelectedElementData | null;
   onUpdateElementProps?: (elementId: string, updatedProps: Record<string, any>) => void;
@@ -140,6 +153,8 @@ export default function EditorLeftDrawer({
   onClose,
   nodes = {},
   card,
+  cardAlbum,
+  onUpdateAlbum,
   onOpenAutoFillModal,
   onApplyAutoFill,
   onSelectElement,
@@ -417,8 +432,10 @@ export default function EditorLeftDrawer({
     setTimeout(() => setAutoFillSuccessMessage(null), 5000);
   };
 
-  // Image Tab state with persistent Media Library (tự động lưu bền vững vào localStorage)
-  const [imageSubTab, setImageSubTab] = useState<"all" | "folders">("all");
+  // Image & Album Tab state: "album" (Album cưới phát hành) | "uploads" (Kho ảnh đã tải lên)
+  const [imageSubTab, setImageSubTab] = useState<"album" | "uploads">("album");
+  const [previewLightboxUrl, setPreviewLightboxUrl] = useState<string | null>(null);
+
   const {
     images: uploadedImages,
     addImages: addUploadedImages,
@@ -430,6 +447,52 @@ export default function EditorLeftDrawer({
   const [isCompressing, setIsCompressing] = useState(false);
   const [lastCompressionInfo, setLastCompressionInfo] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Danh sách ảnh trong Album cưới phát hành (đồng bộ thời gian thực với Studio)
+  const effectiveAlbum = React.useMemo(() => {
+    if (cardAlbum && cardAlbum.length > 0) return cardAlbum;
+    if (card?.album && card.album.length > 0) return card.album;
+    return Array.from(
+      new Set(
+        [
+          card?.coverImage,
+          ...extractImagesFromNodes(nodes),
+        ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
+      )
+    );
+  }, [cardAlbum, card?.album, card?.coverImage, nodes]);
+
+  // Thao tác chỉnh sửa Album cưới
+  const handleSetAsCover = (photoUrl: string) => {
+    const next = [photoUrl, ...effectiveAlbum.filter((p) => p !== photoUrl)];
+    onUpdateAlbum?.(next);
+  };
+
+  const handleRemoveFromAlbum = (photoUrl: string) => {
+    const next = effectiveAlbum.filter((p) => p !== photoUrl);
+    onUpdateAlbum?.(next);
+  };
+
+  const handleMoveAlbumPhoto = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= effectiveAlbum.length) return;
+    const next = [...effectiveAlbum];
+    const [moved] = next.splice(fromIdx, 1);
+    next.splice(toIdx, 0, moved);
+    onUpdateAlbum?.(next);
+  };
+
+  const handleAddToAlbum = (photoUrl: string) => {
+    if (effectiveAlbum.some((p) => isSameImageUrl(p, photoUrl))) return;
+    const next = [...effectiveAlbum, photoUrl];
+    onUpdateAlbum?.(next);
+  };
+
+  const handleAddAllUploadsToAlbum = () => {
+    const toAdd = uploadedImages.filter((u) => !effectiveAlbum.some((p) => isSameImageUrl(p, u)));
+    if (toAdd.length === 0) return;
+    const next = [...effectiveAlbum, ...toAdd];
+    onUpdateAlbum?.(next);
+  };
 
   // Background Tab state
   const bgFileInputRef = useRef<HTMLInputElement>(null);
@@ -540,9 +603,11 @@ export default function EditorLeftDrawer({
       );
       setTimeout(() => setLastCompressionInfo(null), 6000);
 
-      // Lưu bền vững vào Media Library (localStorage + broadcast event)
+      // Lưu bền vững vào Media Library và đưa vào Album cưới phát hành
       if (newUrls.length > 0) {
         addUploadedImages(newUrls);
+        const updatedAlbum = Array.from(new Set([...effectiveAlbum, ...newUrls]));
+        onUpdateAlbum?.(updatedAlbum);
       }
       setIsCompressing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -877,7 +942,7 @@ export default function EditorLeftDrawer({
           <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
             {activeTab === "autofill" && "Thông tin thiệp cưới"}
             {activeTab === "layers" && "Lớp & Phần tử"}
-            {activeTab === "image" && "Hình ảnh"}
+            {activeTab === "image" && "Ảnh & Album cưới"}
             {activeTab === "text" && "Văn bản"}
             {activeTab === "background" && "Nền thiệp"}
             {activeTab === "stock" && "Sticker & Họa tiết"}
@@ -1478,39 +1543,35 @@ export default function EditorLeftDrawer({
               )}
             </div>
 
-            {/* Sub-tabs: Thư viện ảnh đã tải lên & tự động lưu */}
-            <div className="flex items-center justify-between border-b border-gray-100 pb-2">
-              <div className="flex flex-col gap-0.5">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-gray-800">
-                    Thư viện đã tải lên ({uploadedImages.length})
-                  </span>
-                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
-                    <Check className="w-2.5 h-2.5" /> Tự động lưu
-                  </span>
-                </div>
-                <div className="text-[10px] text-gray-500 font-medium">
-                  {uploadedImages.filter((s) => countImageUsageInNodes(s, nodes)).length} đang dùng trên thiệp •{" "}
-                  {uploadedImages.filter((s) => countImageUsageInNodes(s, nodes) === 0).length} chưa dùng (ảnh thừa)
-                </div>
-              </div>
-              {uploadedImages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (window.confirm("Bạn có chắc chắn muốn xóa tất cả ảnh đã tải lên khỏi thư viện không?")) {
-                      clearUploadedLibrary();
-                    }
-                  }}
-                  className="text-[10px] text-gray-400 hover:text-rose-600 transition-colors font-medium cursor-pointer"
-                  title="Xóa tất cả ảnh đã tải lên"
-                >
-                  Xóa tất cả
-                </button>
-              )}
+            {/* Sub-tab Navigation: 📸 Album cưới phát hành vs 📁 Thư viện ảnh đã tải */}
+            <div className="flex p-1 bg-gray-100/90 rounded-2xl gap-1 border border-gray-200/60 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setImageSubTab("album")}
+                className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  imageSubTab === "album"
+                    ? "bg-white text-rose-600 shadow-xs border border-gray-100"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Album phát hành ({effectiveAlbum.length})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setImageSubTab("uploads")}
+                className={`flex-1 py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  imageSubTab === "uploads"
+                    ? "bg-white text-rose-600 shadow-xs border border-gray-100"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>Kho ảnh tải ({uploadedImages.length})</span>
+              </button>
             </div>
 
+            {/* Context Notice when an element is actively selected */}
             {selectedElement && selectedElement.type === "PhotoBox" && (() => {
               const isLockedPhoto = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
               if (isLockedPhoto) {
@@ -1548,156 +1609,420 @@ export default function EditorLeftDrawer({
                   <Sparkles className="w-3.5 h-3.5 shrink-0" />
                   <span>Đang chọn Album cưới ({Array.isArray(selectedElement.props?.imgList) ? selectedElement.props.imgList.length : 0} ảnh)</span>
                 </div>
-                <span className="text-[10px] text-gray-500 font-medium">Bấm ảnh để thêm vào album</span>
+                <span className="text-[10px] text-gray-500 font-medium">Bấm ảnh để thêm vào album xoay</span>
               </div>
             )}
 
-            {/* Images Grid */}
-            {uploadedImages.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 text-xs">
-                <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                <p>Chưa có ảnh nào trong thư viện.</p>
-                <p className="text-[11px] text-gray-400 mt-1">Bấm khung bên trên để tải ảnh lên.</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                {uploadedImages.map((src, idx) => {
-                  const safeSrc = getSafeImageUrl(src);
-                  const usageCount = countImageUsageInNodes(src, nodes);
-                  const isCurrentlyUsing =
-                    selectedElement?.type === "PhotoBox" &&
-                    (selectedElement.props?.imgKey === src ||
-                      selectedElement.props?.imgKey === safeSrc ||
-                      selectedElement.props?.src === src ||
-                      selectedElement.props?.src === safeSrc);
-                  const isInCarousel =
-                    selectedElement?.type === "CarouselBox" &&
-                    Array.isArray(selectedElement.props?.imgList) &&
-                    selectedElement.props.imgList.some(
-                      (item: any) =>
-                        item?.imageKey === src ||
-                        item?.imageKey === safeSrc ||
-                        item?.src === src ||
-                        item?.src === safeSrc
-                    );
-
-                  return (
-                    <div
-                      key={`${src}-${idx}`}
-                      onClick={() => {
-                        if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
-                          const isLockedPhoto = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
-                          if (isLockedPhoto) {
-                            alert("Họa tiết trang trí này đang bị khóa. Hãy bấm 'Mở khóa' ở phía trên để thay ảnh!");
-                            return;
-                          }
-                          onUpdateElementProps(selectedElement.id, { imgKey: safeSrc, src: safeSrc });
-                        } else if (selectedElement && selectedElement.type === "CarouselBox" && onUpdateElementProps) {
-                          const currentList = Array.isArray(selectedElement.props?.imgList) ? [...selectedElement.props.imgList] : [];
-                          currentList.push({
-                            imageKey: safeSrc,
-                            src: safeSrc,
-                            caption: `Khoảnh khắc cưới ${currentList.length + 1}`,
-                          });
-                          onUpdateElementProps(selectedElement.id, { imgList: currentList });
-                        } else {
-                          onAddImage(safeSrc);
-                        }
-                      }}
-                      className={`group relative aspect-square rounded-xl overflow-hidden border cursor-pointer hover:shadow-md transition-all ${
-                        isCurrentlyUsing || isInCarousel
-                          ? "border-[#e54153] ring-2 ring-rose-300"
-                          : "border-gray-200 hover:border-[#e54153]"
-                      }`}
-                    >
-                      <img
-                        src={safeSrc}
-                        alt={`Uploaded ${idx + 1}`}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                        onError={(e) => handleImageFallback(e)}
-                        loading="lazy"
-                      />
-
-                      {/* Top floating quick action buttons */}
-                      <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        {/* Copy URL button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigator.clipboard.writeText(src);
-                            setCopiedUrl(src);
-                            setTimeout(() => setCopiedUrl(null), 2000);
-                          }}
-                          className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm"
-                          title="Sao chép đường dẫn ảnh"
-                        >
-                          {copiedUrl === src ? (
-                            <Check className="w-3 h-3 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3 h-3" />
-                          )}
-                        </button>
-
-                        {/* Delete photo button */}
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            removeUploadedImage(src);
-                          }}
-                          className="w-6 h-6 rounded-md bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-sm"
-                          title="Xóa ảnh khỏi thư viện"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
+            {/* ================= SUB-TAB 1: ALBUM CƯỚI PHÁT HÀNH ================= */}
+            {imageSubTab === "album" && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-rose-50/80 via-white to-amber-50/70 border border-rose-200/60 shadow-2xs text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900">
+                          {effectiveAlbum.length} ảnh sẽ xuất hiện trong Album cưới khi phát hành
+                        </h4>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          Ảnh số 1 (👑) là <strong>Ảnh bìa</strong> chính của thiệp. Khách mời sẽ xem toàn bộ các ảnh này trong album cưới trực tuyến.
+                        </p>
                       </div>
-
-                      {/* Hover action overlay */}
-                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white text-[11px] font-bold p-1 text-center pointer-events-none">
-                        <span>
-                          {selectedElement && selectedElement.type === "PhotoBox"
-                            ? "Thay thế ảnh đang chọn"
-                            : selectedElement && selectedElement.type === "CarouselBox"
-                            ? "Thêm vào album cưới (+)"
-                            : "Chèn vào thiệp (+)"}
-                        </span>
-                      </div>
-
-                      {/* Badge số lần sử dụng trên thiệp */}
-                      <div className="absolute bottom-1.5 left-1.5 z-10 pointer-events-none">
-                        {usageCount > 0 ? (
-                          <span
-                            className="px-1.5 py-0.5 rounded-md bg-emerald-600/90 text-white text-[9px] font-bold shadow-xs flex items-center gap-1 backdrop-blur-xs"
-                            title={`Ảnh này đang được dùng ${usageCount} lần trên thiệp`}
-                          >
-                            <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            <span>Dùng {usageCount} lần</span>
-                          </span>
-                        ) : (
-                          <span
-                            className="px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-medium shadow-xs flex items-center gap-0.5 backdrop-blur-xs"
-                            title="Ảnh này chưa được gán vào khung nào trên thiệp (Ảnh thừa / dự phòng)"
-                          >
-                            <span>Chưa dùng</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Active badge */}
-                      {isCurrentlyUsing && (
-                        <div className="absolute top-1.5 left-1.5 bg-[#e54153] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm flex items-center gap-0.5 pointer-events-none z-10 animate-pulse">
-                          <span>Đang chọn</span>
-                        </div>
-                      )}
-                      {isInCarousel && (
-                        <div className="absolute top-1.5 left-1.5 bg-rose-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md shadow-sm flex items-center gap-0.5 pointer-events-none z-10">
-                          <span>Trong album</span>
-                        </div>
-                      )}
                     </div>
-                  );
-                })}
+                  </div>
+                </div>
+
+                {effectiveAlbum.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 text-xs bg-gray-50/50 rounded-2xl border border-dashed border-gray-200 p-4">
+                    <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p className="font-semibold text-gray-600">Chưa có ảnh nào trong Album phát hành.</p>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Hãy bấm khung tải ảnh ở trên hoặc chọn ảnh từ Kho ảnh tải lên.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setImageSubTab("uploads")}
+                      className="mt-3 px-3 py-1.5 bg-zen-primary text-white text-xs font-bold rounded-xl shadow-xs hover:bg-[#d93849] transition-all cursor-pointer inline-flex items-center gap-1"
+                    >
+                      <UploadCloud className="w-3.5 h-3.5" />
+                      <span>Xem Kho ảnh đã tải lên</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {effectiveAlbum.map((src, idx) => {
+                      const safeSrc = getSafeImageUrl(src);
+                      const isCover = idx === 0;
+                      const usageCount = countImageUsageInNodes(src, nodes);
+                      const isCurrentlyUsing =
+                        selectedElement?.type === "PhotoBox" &&
+                        (selectedElement.props?.imgKey === src ||
+                          selectedElement.props?.imgKey === safeSrc ||
+                          selectedElement.props?.src === src ||
+                          selectedElement.props?.src === safeSrc);
+
+                      return (
+                        <div
+                          key={`${src}-${idx}`}
+                          onClick={() => {
+                            if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
+                              const isLockedPhoto = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
+                              if (isLockedPhoto) {
+                                alert("Họa tiết trang trí này đang bị khóa. Hãy bấm 'Mở khóa' ở phía trên để thay ảnh!");
+                                return;
+                              }
+                              onUpdateElementProps(selectedElement.id, { imgKey: safeSrc, src: safeSrc });
+                            } else if (selectedElement && selectedElement.type === "CarouselBox" && onUpdateElementProps) {
+                              const currentList = Array.isArray(selectedElement.props?.imgList) ? [...selectedElement.props.imgList] : [];
+                              currentList.push({
+                                imageKey: safeSrc,
+                                src: safeSrc,
+                                caption: `Khoảnh khắc cưới ${currentList.length + 1}`,
+                              });
+                              onUpdateElementProps(selectedElement.id, { imgList: currentList });
+                            } else {
+                              onAddImage(safeSrc);
+                            }
+                          }}
+                          className={`group relative aspect-[4/5] rounded-2xl overflow-hidden border cursor-pointer hover:shadow-md transition-all ${
+                            isCover
+                              ? "border-amber-400 ring-2 ring-amber-300/60 shadow-xs"
+                              : isCurrentlyUsing
+                              ? "border-[#e54153] ring-2 ring-rose-300"
+                              : "border-gray-200 hover:border-[#e54153]"
+                          }`}
+                        >
+                          <img
+                            src={safeSrc}
+                            alt={`Album ảnh cưới ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => handleImageFallback(e)}
+                            loading="lazy"
+                          />
+
+                          {/* Top-left Index & Cover Badge */}
+                          <div className="absolute top-1.5 left-1.5 z-10 pointer-events-none">
+                            {isCover ? (
+                              <span className="px-2 py-0.5 rounded-md bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[9px] font-bold shadow-xs flex items-center gap-1">
+                                <Crown className="w-3 h-3" />
+                                <span>#1 Bìa</span>
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.5 rounded-md bg-black/60 text-white text-[9px] font-bold backdrop-blur-xs">
+                                #{idx + 1}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Top-right Actions: Set as Cover & Remove from album */}
+                          <div className="absolute top-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            {!isCover && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSetAsCover(src);
+                                }}
+                                className="w-6 h-6 rounded-md bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                                title="Đặt làm ảnh bìa chính (#1)"
+                              >
+                                <Crown className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewLightboxUrl(safeSrc);
+                              }}
+                              className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                              title="Xem ảnh lớn"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveFromAlbum(src);
+                              }}
+                              className="w-6 h-6 rounded-md bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                              title="Xóa khỏi album cưới (không xóa ảnh khỏi máy)"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* Bottom-left Canvas Usage Badge */}
+                          <div className="absolute bottom-1.5 left-1.5 z-10 pointer-events-none">
+                            {usageCount > 0 ? (
+                              <span className="px-1.5 py-0.5 rounded-md bg-emerald-600/90 text-white text-[9px] font-bold shadow-xs flex items-center gap-1 backdrop-blur-xs">
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                <span>Trên thiệp</span>
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Bottom-right Reorder Buttons: ⬅️ and ➡️ */}
+                          <div className="absolute bottom-1.5 right-1.5 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveAlbumPhoto(idx, idx - 1);
+                                }}
+                                className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                                title="Đưa ảnh lên trước"
+                              >
+                                <ArrowLeft className="w-3 h-3" />
+                              </button>
+                            )}
+
+                            {idx < effectiveAlbum.length - 1 && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleMoveAlbumPhoto(idx, idx + 1);
+                                }}
+                                className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                                title="Đưa ảnh ra sau"
+                              >
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Hover action label */}
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity text-white text-[11px] font-bold p-1 text-center pointer-events-none">
+                            <span>
+                              {selectedElement && selectedElement.type === "PhotoBox"
+                                ? "Thay vào khung đang chọn"
+                                : selectedElement && selectedElement.type === "CarouselBox"
+                                ? "Thêm vào album xoay (+)"
+                                : "Chèn vào thiệp (+)"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Switch to Uploads Helper */}
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-[11px] text-gray-500">
+                    Kho ảnh tải lên có {uploadedImages.length} ảnh
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setImageSubTab("uploads")}
+                    className="text-[11px] text-rose-600 hover:text-rose-700 font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Mở kho ảnh tải lên</span>
+                    <span>→</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= SUB-TAB 2: KHO ẢNH ĐÃ TẢI LÊN ================= */}
+            {imageSubTab === "uploads" && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                  <div className="flex flex-col gap-0.5 text-left">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-gray-800">
+                        Thư viện đã tải lên ({uploadedImages.length})
+                      </span>
+                      <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center gap-0.5">
+                        <Check className="w-2.5 h-2.5" /> Tự động lưu
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-gray-500 font-medium">
+                      {uploadedImages.filter((s) => effectiveAlbum.some((p) => isSameImageUrl(p, s))).length} đã đưa vào Album •{" "}
+                      {uploadedImages.filter((s) => !effectiveAlbum.some((p) => isSameImageUrl(p, s))).length} chưa có trong Album
+                    </div>
+                  </div>
+
+                  {uploadedImages.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddAllUploadsToAlbum();
+                        }}
+                        className="text-[10px] text-zen-primary hover:underline font-bold cursor-pointer"
+                        title="Đưa tất cả ảnh đã tải vào Album cưới phát hành"
+                      >
+                        + Đưa hết vào Album
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm("Bạn có chắc chắn muốn xóa tất cả ảnh đã tải lên khỏi thư viện không?")) {
+                            clearUploadedLibrary();
+                          }
+                        }}
+                        className="text-[10px] text-gray-400 hover:text-rose-600 transition-colors font-medium cursor-pointer"
+                        title="Xóa tất cả ảnh đã tải lên"
+                      >
+                        Xóa tất cả
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {uploadedImages.length === 0 ? (
+                  <div className="py-8 text-center text-gray-400 text-xs">
+                    <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                    <p>Chưa có ảnh nào trong thư viện tải lên.</p>
+                    <p className="text-[11px] text-gray-400 mt-1">Bấm khung bên trên để tải ảnh từ máy tính hoặc điện thoại.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    {uploadedImages.map((src, idx) => {
+                      const safeSrc = getSafeImageUrl(src);
+                      const isInAlbum = effectiveAlbum.some((p) => isSameImageUrl(p, src));
+                      const usageCount = countImageUsageInNodes(src, nodes);
+                      const isCurrentlyUsing =
+                        selectedElement?.type === "PhotoBox" &&
+                        (selectedElement.props?.imgKey === src ||
+                          selectedElement.props?.imgKey === safeSrc ||
+                          selectedElement.props?.src === src ||
+                          selectedElement.props?.src === safeSrc);
+
+                      return (
+                        <div
+                          key={`${src}-${idx}`}
+                          onClick={() => {
+                            if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
+                              const isLockedPhoto = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
+                              if (isLockedPhoto) {
+                                alert("Họa tiết trang trí này đang bị khóa. Hãy bấm 'Mở khóa' ở phía trên để thay ảnh!");
+                                return;
+                              }
+                              onUpdateElementProps(selectedElement.id, { imgKey: safeSrc, src: safeSrc });
+                            } else if (selectedElement && selectedElement.type === "CarouselBox" && onUpdateElementProps) {
+                              const currentList = Array.isArray(selectedElement.props?.imgList) ? [...selectedElement.props.imgList] : [];
+                              currentList.push({
+                                imageKey: safeSrc,
+                                src: safeSrc,
+                                caption: `Khoảnh khắc cưới ${currentList.length + 1}`,
+                              });
+                              onUpdateElementProps(selectedElement.id, { imgList: currentList });
+                            } else {
+                              onAddImage(safeSrc);
+                            }
+                          }}
+                          className={`group relative aspect-square rounded-xl overflow-hidden border cursor-pointer hover:shadow-md transition-all ${
+                            isCurrentlyUsing
+                              ? "border-[#e54153] ring-2 ring-rose-300"
+                              : "border-gray-200 hover:border-[#e54153]"
+                          }`}
+                        >
+                          <img
+                            src={safeSrc}
+                            alt={`Uploaded ${idx + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            onError={(e) => handleImageFallback(e)}
+                            loading="lazy"
+                          />
+
+                          {/* Top floating quick action buttons */}
+                          <div className="absolute top-1.5 left-1.5 right-1.5 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigator.clipboard.writeText(src);
+                                setCopiedUrl(src);
+                                setTimeout(() => setCopiedUrl(null), 2000);
+                              }}
+                              className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                              title="Sao chép đường dẫn ảnh"
+                            >
+                              {copiedUrl === src ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setPreviewLightboxUrl(safeSrc);
+                              }}
+                              className="w-6 h-6 rounded-md bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                              title="Xem ảnh lớn"
+                            >
+                              <Eye className="w-3 h-3" />
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                removeUploadedImage(src);
+                              }}
+                              className="w-6 h-6 rounded-md bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition-colors shadow-sm cursor-pointer"
+                              title="Xóa ảnh khỏi thư viện"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {/* In Album or Add to Album Badge / Button */}
+                          <div className="absolute bottom-1.5 right-1.5 z-20">
+                            {isInAlbum ? (
+                              <span
+                                className="px-1.5 py-0.5 rounded-md bg-rose-600 text-white text-[9px] font-bold shadow-xs flex items-center gap-0.5 backdrop-blur-xs"
+                                title="Ảnh này đã có trong Album cưới phát hành"
+                              >
+                                <Sparkles className="w-2.5 h-2.5" />
+                                <span>Trong Album</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleAddToAlbum(src);
+                                }}
+                                className="px-2 py-0.5 rounded-md bg-white hover:bg-rose-50 text-rose-600 border border-rose-300 text-[9px] font-bold shadow-xs flex items-center gap-0.5 cursor-pointer transition-colors"
+                                title="Đưa ảnh này vào Album cưới phát hành"
+                              >
+                                <Plus className="w-2.5 h-2.5" />
+                                <span>Thêm vào Album</span>
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Usage count badge */}
+                          <div className="absolute bottom-1.5 left-1.5 z-10 pointer-events-none">
+                            {usageCount > 0 ? (
+                              <span
+                                className="px-1.5 py-0.5 rounded-md bg-emerald-600/90 text-white text-[9px] font-bold shadow-xs flex items-center gap-1 backdrop-blur-xs"
+                                title={`Ảnh này đang được dùng ${usageCount} lần trên thiệp`}
+                              >
+                                <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                <span>Dùng {usageCount} lần</span>
+                              </span>
+                            ) : null}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2431,6 +2756,30 @@ export default function EditorLeftDrawer({
         )}
       </div>
     </aside>
+
+    {/* Lightbox Preview Modal for Album & Uploaded Photos */}
+    {previewLightboxUrl && (
+      <div
+        className="fixed inset-0 z-[9999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+        onClick={() => setPreviewLightboxUrl(null)}
+      >
+        <div className="relative max-w-lg max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setPreviewLightboxUrl(null)}
+            className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-900 flex items-center justify-center shadow-xl hover:bg-gray-100 font-bold transition-all z-20 cursor-pointer"
+            title="Đóng xem ảnh lớn"
+          >
+            ✕
+          </button>
+          <img
+            src={previewLightboxUrl}
+            alt="Ảnh cưới phóng to"
+            className="max-h-[82vh] max-w-full rounded-2xl object-contain shadow-2xl border-2 border-white/20 select-none animate-scale-up"
+          />
+        </div>
+      </div>
+    )}
   </>
   );
 }

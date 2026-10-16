@@ -90,6 +90,7 @@ export default function DesignTemplatePage() {
   const [cutoutTargetUrl, setCutoutTargetUrl] = useState<string | null>(null);
   const [cutoutInitialResult, setCutoutInitialResult] = useState<string | null>(null);
   const [customCardData, setCustomCardData] = useState<WeddingCard | null>(null);
+  const [cardAlbum, setCardAlbum] = useState<string[]>([]);
   const [isSaved, setIsSaved] = useState(true);
 
   // Persistent music and toast state
@@ -164,6 +165,20 @@ export default function DesignTemplatePage() {
       const existingCard = getCardByIdOrSlug(templateId);
       if (existingCard) {
         setCustomCardData(existingCard);
+        if (existingCard.album && Array.isArray(existingCard.album) && existingCard.album.length > 0) {
+          setCardAlbum(existingCard.album);
+        } else {
+          const initialPhotos = Array.from(
+            new Set(
+              [
+                existingCard.coverImage,
+                ...extractImagesFromNodes(existingCard.nodes || {}),
+                ...getSavedUploadedImages(),
+              ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
+            )
+          );
+          if (initialPhotos.length > 0) setCardAlbum(initialPhotos);
+        }
         if (existingCard.templateName) setTemplateName(existingCard.templateName);
         if (existingCard.musicUrl) {
           setCurrentMusic({
@@ -273,6 +288,19 @@ export default function DesignTemplatePage() {
                 type: "PhotoBox",
                 props: node.props || {},
               });
+            }
+
+            const initialPhotos = Array.from(
+              new Set(
+                [
+                  foundMeta?.imageUrl || json.data?.thumbnail || "",
+                  ...extractImagesFromNodes(fetchedNodes),
+                  ...getSavedUploadedImages(),
+                ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
+              )
+            );
+            if (initialPhotos.length > 0) {
+              setCardAlbum((prev) => (prev && prev.length > 0 ? prev : initialPhotos));
             }
             return;
           }
@@ -1192,17 +1220,21 @@ export default function DesignTemplatePage() {
       }
     }
 
-    // Album thiệp cưới: Chỉ lưu ảnh bìa và các ảnh do chính người dùng tải lên
+    // Album thiệp cưới: Ưu tiên state cardAlbum do người dùng sắp xếp trong Studio
     const userUploadedPhotos = getSavedUploadedImages();
     const mergedAlbum = Array.from(
       new Set(
         [
           coverImage,
-          ...(existing?.album || []),
+          ...(cardAlbum.length > 0 ? cardAlbum : (existing?.album || [])),
           ...userUploadedPhotos,
         ].filter((u) => Boolean(u) && typeof u === "string" && u.trim().length > 0)
       )
     );
+    const finalAlbum = cardAlbum.length > 0 ? cardAlbum : mergedAlbum;
+    if (finalAlbum.length > 0 && finalAlbum[0]) {
+      coverImage = finalAlbum[0];
+    }
 
     const base = customCardData || existing;
     const currentUserId = base?.userId || existing?.userId || user?.id;
@@ -1297,7 +1329,7 @@ export default function DesignTemplatePage() {
           address: venueAddress || "125 Đường Nguyễn Thị Minh Khai, P. Bến Thành, TP HCM",
         },
       ],
-      album: mergedAlbum.length > 0 ? mergedAlbum : (existing?.album || []),
+      album: finalAlbum.length > 0 ? finalAlbum : (existing?.album || []),
       musicTitle:
         currentMusic.title ||
         existing?.musicTitle ||
@@ -1316,6 +1348,20 @@ export default function DesignTemplatePage() {
     };
 
     return cardToSave;
+  };
+
+  // Album Handler - Cập nhật danh sách ảnh trong album cưới và đồng bộ ảnh bìa
+  const handleUpdateAlbum = (newAlbum: string[]) => {
+    setCardAlbum(newAlbum);
+    setCustomCardData((prev) => {
+      const base = prev || buildCardFromCurrentState();
+      return {
+        ...base,
+        album: newAlbum,
+        coverImage: newAlbum[0] || base.coverImage,
+      };
+    });
+    setIsSaved(false);
   };
 
   // Manual Save Handler - Saves current state and syncs to Supabase server
@@ -1495,6 +1541,8 @@ export default function DesignTemplatePage() {
         <EditorLeftDrawer
           nodes={nodes}
           card={buildCardFromCurrentState()}
+          cardAlbum={cardAlbum.length > 0 ? cardAlbum : (customCardData?.album || [])}
+          onUpdateAlbum={handleUpdateAlbum}
           activeTab={activeLeftTab}
           isOpen={isLeftDrawerOpen}
           onClose={() => setIsLeftDrawerOpen(false)}
@@ -1606,6 +1654,10 @@ export default function DesignTemplatePage() {
             const current = prev || buildCardFromCurrentState();
             return { ...current, slug: newSlug };
           });
+        }}
+        onOpenAlbumEditor={() => {
+          setActiveLeftTab("image");
+          setIsLeftDrawerOpen(true);
         }}
       />
 

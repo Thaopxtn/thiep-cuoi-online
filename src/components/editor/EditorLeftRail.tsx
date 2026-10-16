@@ -64,7 +64,7 @@ export default function EditorLeftRail({
       icon: <Layers className="w-4 h-4" />,
     },
     { id: "text", label: "Chữ", icon: <Type className="w-4 h-4" /> },
-    { id: "image", label: "Ảnh", icon: <ImageIcon className="w-4 h-4" /> },
+    { id: "image", label: "Ảnh & Album", icon: <ImageIcon className="w-4 h-4" /> },
     { id: "background", label: "Nền", icon: <Palette className="w-4 h-4" /> },
     { id: "stock", label: "Sticker", icon: <Camera className="w-4 h-4" /> },
     { id: "tools", label: "Công cụ", icon: <Wrench className="w-4 h-4" /> },

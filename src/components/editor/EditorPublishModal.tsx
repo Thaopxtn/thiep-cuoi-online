@@ -16,6 +16,8 @@ import {
   Save,
   Users,
   Crown,
+  Eye,
+  Image as ImageIcon,
 } from "lucide-react";
 import { WeddingCard, INITIAL_CARDS } from "@/data/initialCards";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
@@ -32,6 +34,7 @@ import {
 import { saveCard, saveCardAsync } from "@/lib/weddingCardService";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiClient";
+import { getSafeImageUrl } from "@/lib/imageUtils";
 
 interface EditorPublishModalProps {
   isOpen: boolean;
@@ -41,6 +44,7 @@ interface EditorPublishModalProps {
   cardSlug?: string;
   card?: WeddingCard;
   onSlugUpdated?: (newSlug: string) => void;
+  onOpenAlbumEditor?: () => void;
 }
 
 export default function EditorPublishModal({
@@ -51,6 +55,7 @@ export default function EditorPublishModal({
   cardSlug,
   card,
   onSlugUpdated,
+  onOpenAlbumEditor,
 }: EditorPublishModalProps) {
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -58,6 +63,7 @@ export default function EditorPublishModal({
   const [copiedGuest, setCopiedGuest] = useState(false);
   const [isExportingPng, setIsExportingPng] = useState(false);
   const [isBulkGuestModalOpen, setIsBulkGuestModalOpen] = useState(false);
+  const [previewModalPhoto, setPreviewModalPhoto] = useState<string | null>(null);
   const [isVipModalOpen, setIsVipModalOpen] = useState(false);
   const [isVipLocal, setIsVipLocal] = useState(Boolean(card?.isVip || (card?.groom as any)?.isVip));
 
@@ -76,6 +82,17 @@ export default function EditorPublishModal({
 
   const currentOrigin =
     typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
+
+  // Danh sách ảnh trong Album cưới phát hành
+  const albumPhotos = React.useMemo(() => {
+    if (card?.album && Array.isArray(card.album) && card.album.length > 0) {
+      return card.album;
+    }
+    if (card?.coverImage) {
+      return [card.coverImage];
+    }
+    return [];
+  }, [card?.album, card?.coverImage]);
 
   // Xác định thông tin mẫu thiệp
   const templateMeta = findZenloveTemplate(templateId) || findZenloveTemplate(card?.templateId);
@@ -337,6 +354,103 @@ export default function EditorPublishModal({
               Cấu trúc: <code>[Tên người dùng] + [Địa chỉ web] + [Mẫu] + [Thông tin khác nếu có]</code>
             </p>
           </div>
+        </div>
+
+        {/* ================= WEDDING ALBUM PUBLISHED PREVIEW ================= */}
+        <div className="mb-4 p-3.5 bg-gradient-to-br from-rose-50/60 via-white to-amber-50/50 rounded-2xl border border-rose-100 shadow-2xs text-left">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1.5">
+              <span className="text-base">📸</span>
+              <h4 className="text-xs font-bold text-gray-900">
+                Album ảnh cưới xuất bản ({albumPhotos.length} ảnh)
+              </h4>
+            </div>
+            {onOpenAlbumEditor && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAlbumEditor();
+                }}
+                className="text-[11px] font-semibold text-zen-primary hover:text-red-700 flex items-center gap-1 cursor-pointer transition-colors"
+                title="Mở Studio để thêm/bớt hoặc sắp xếp lại ảnh trong album"
+              >
+                <Edit3 className="w-3 h-3" />
+                <span>Chỉnh sửa album</span>
+              </button>
+            )}
+          </div>
+
+          {albumPhotos.length === 0 ? (
+            <div className="py-4 text-center text-gray-400 text-xs bg-gray-50/60 rounded-xl border border-dashed border-gray-200">
+              <ImageIcon className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+              <p className="text-[11px] font-medium text-gray-500">Chưa có ảnh nào trong Album cưới.</p>
+              {onOpenAlbumEditor && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenAlbumEditor();
+                  }}
+                  className="mt-2 px-3 py-1 bg-zen-primary text-white rounded-lg text-[10px] font-bold shadow-xs hover:bg-[#d93849] transition-all cursor-pointer"
+                >
+                  + Thêm ảnh vào album
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2 pt-0.5 scrollbar-thin">
+                {albumPhotos.map((photoUrl, idx) => {
+                  const safeSrc = getSafeImageUrl(photoUrl);
+                  const isCover = idx === 0;
+                  return (
+                    <div
+                      key={idx}
+                      onClick={() => setPreviewModalPhoto(safeSrc)}
+                      className={`relative w-16 h-20 rounded-xl overflow-hidden shrink-0 border cursor-pointer group transition-all hover:scale-105 shadow-2xs ${
+                        isCover ? "border-amber-400 ring-2 ring-amber-300/60" : "border-gray-200 hover:border-zen-primary"
+                      }`}
+                      title={isCover ? "Ảnh bìa chính của thiệp cưới (Chạm để phóng to)" : `Ảnh cưới #${idx + 1} (Chạm để phóng to)`}
+                    >
+                      <img
+                        src={safeSrc}
+                        alt={`Ảnh cưới ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        loading="lazy"
+                        onError={(e) => {
+                          (e.target as HTMLElement).setAttribute(
+                            "src",
+                            "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop"
+                          );
+                        }}
+                      />
+                      {/* Top badge */}
+                      <div className="absolute top-1 left-1 z-10 pointer-events-none">
+                        {isCover ? (
+                          <span className="px-1 py-0.5 rounded bg-gradient-to-r from-amber-500 to-yellow-500 text-white text-[8px] font-bold shadow-xs flex items-center gap-0.5">
+                            👑 Bìa
+                          </span>
+                        ) : (
+                          <span className="px-1 py-0.5 rounded bg-black/60 text-white text-[8px] font-bold">
+                            #{idx + 1}
+                          </span>
+                        )}
+                      </div>
+                      {/* Hover eye icon */}
+                      <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white pointer-events-none">
+                        <Eye className="w-4 h-4 drop-shadow-md" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-[10px] text-gray-500 mt-1 flex items-center justify-between">
+                <span>✨ Khách mời sẽ xem toàn bộ {albumPhotos.length} ảnh này trong Album ảnh cưới.</span>
+                <span className="text-gray-400 italic font-medium">Bấm ảnh để phóng to</span>
+              </p>
+            </>
+          )}
         </div>
 
         {/* Khu vực Tùy chỉnh URL theo ý muốn: 4 thành phần rõ ràng */}
@@ -656,6 +770,30 @@ export default function EditorPublishModal({
             }
           }}
         />
+      )}
+
+      {/* Lightbox Preview Modal for Published Album */}
+      {previewModalPhoto && (
+        <div
+          className="fixed inset-0 z-[9999999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setPreviewModalPhoto(null)}
+        >
+          <div className="relative max-w-lg max-h-[90vh] p-2" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setPreviewModalPhoto(null)}
+              className="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-white text-gray-900 flex items-center justify-center shadow-xl hover:bg-gray-100 font-bold transition-all z-20 cursor-pointer"
+              title="Đóng xem ảnh lớn"
+            >
+              ✕
+            </button>
+            <img
+              src={previewModalPhoto}
+              alt="Ảnh cưới phóng to"
+              className="max-h-[82vh] max-w-full rounded-2xl object-contain shadow-2xl border-2 border-white/20 select-none animate-scale-up"
+            />
+          </div>
+        </div>
       )}
     </div>
   );
