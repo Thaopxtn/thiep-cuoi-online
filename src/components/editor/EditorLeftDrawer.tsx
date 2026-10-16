@@ -38,12 +38,16 @@ import {
   Trash2,
   Settings,
   Lock,
+  Unlock,
   Eraser,
   Type,
   LayoutGrid,
   Clock,
   Users,
   CreditCard,
+  Navigation,
+  ExternalLink,
+  MessageSquare,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
@@ -52,11 +56,14 @@ import {  useUploadedMediaLibrary, countImageUsageInNodes , uploadFileToServer }
 import { getSafeImageUrl, handleImageFallback, DEFAULT_WEDDING_BACKGROUND, DEFAULT_WEDDING_BACKGROUND_RED, DEFAULT_WEDDING_BACKGROUND_SILK } from "@/lib/imageUtils";
 import {
   isDecorativeNode,
+  isElementLocked,
   classifyTemplateElements,
   TemplateElementItem,
   repairAndLockDecorativeNodes,
 } from "@/lib/decorativeLockService";
-import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { POPULAR_BANKS, generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { CURATED_WEDDING_SONGS } from "@/lib/weddingMusicLibrary";
+import { syncCardDataToCanvasNodes } from "@/lib/textSyncService";
 import { SelectedElementData } from "./EditorRightInspector";
 import { WeddingCard } from "@/data/initialCards";
 import { AutoFillFormData, applyAutoFillToNodes } from "@/lib/templateValidation";
@@ -66,11 +73,15 @@ import {
   ModulePresetItem,
   getPresetsByCategory,
 } from "@/lib/modulePresetsCatalog";
+import PhotoshopLayersPanel from "./PhotoshopLayersPanel";
+import ModulePresetsFolderBrowser from "./ModulePresetsFolderBrowser";
 
 interface EditorLeftDrawerProps {
   activeTab: EditorToolTab;
   isOpen: boolean;
   onClose: () => void;
+  onDuplicateElement?: (elementId: string) => void;
+  onDeleteElement?: (elementId: string) => void;
   nodes?: Record<string, any>;
   card?: WeddingCard | null;
   onOpenAutoFillModal?: () => void;
@@ -133,6 +144,8 @@ export default function EditorLeftDrawer({
   onApplyAutoFill,
   onSelectElement,
   onRepairDecorations,
+  onDuplicateElement,
+  onDeleteElement,
   onAddImage,
   selectedElement,
   onUpdateElementProps,
@@ -156,58 +169,252 @@ export default function EditorLeftDrawer({
   // Module Category Filter
   const [selectedModuleCategory, setSelectedModuleCategory] = useState<string>("all");
 
-  // Layers State
-  const [layersFilter, setLayersFilter] = useState<"all" | "decorative" | "photos" | "texts" | "widgets">("all");
-  const [layersSearch, setLayersSearch] = useState("");
+  // Thông tin thiệp cưới toàn diện (Điền 1 lần là xong - Chuyển toàn bộ từ biểu mẫu đầy đủ & mục cố định ra ngoài)
+  const [groomName, setGroomName] = useState(card?.groom?.name || "");
+  const [groomPhone, setGroomPhone] = useState(card?.groom?.phone || "");
+  const [groomFather, setGroomFather] = useState("");
+  const [groomMother, setGroomMother] = useState("");
+  const [groomBank, setGroomBank] = useState(card?.groom?.bankName || "MB BANK");
+  const [groomAccount, setGroomAccount] = useState(card?.groom?.accountNumber || "");
+  const [groomAccountName, setGroomAccountName] = useState(card?.groom?.accountName || card?.groom?.name || "");
 
-  // AutoFill state inside Drawer
-  const [quickGroom, setQuickGroom] = useState(card?.groom?.name || "");
-  const [quickBride, setQuickBride] = useState(card?.bride?.name || "");
-  const [quickDate, setQuickDate] = useState(card?.weddingDate || "2026-11-20");
-  const [quickTime, setQuickTime] = useState(card?.weddingTime || "11:00");
-  const [quickVenue, setQuickVenue] = useState(card?.events?.[0]?.venue || "");
-  const [quickAddress, setQuickAddress] = useState(card?.events?.[0]?.address || "");
+  const [brideName, setBrideName] = useState(card?.bride?.name || "");
+  const [bridePhone, setBridePhone] = useState(card?.bride?.phone || "");
+  const [brideFather, setBrideFather] = useState("");
+  const [brideMother, setBrideMother] = useState("");
+  const [brideBank, setBrideBank] = useState(card?.bride?.bankName || "TECHCOMBANK");
+  const [brideAccount, setBrideAccount] = useState(card?.bride?.accountNumber || "");
+  const [brideAccountName, setBrideAccountName] = useState(card?.bride?.accountName || card?.bride?.name || "");
+
+  const [weddingDate, setWeddingDate] = useState(card?.weddingDate || "2026-11-20");
+  const [weddingTime, setWeddingTime] = useState(card?.weddingTime || "11:00");
+  const [lunarDate, setLunarDate] = useState(card?.lunarDate || "Ngày 12 tháng 10 năm Bính Ngọ");
+
+  const [venueName, setVenueName] = useState(card?.events?.[0]?.venue || "");
+  const [address, setAddress] = useState(card?.events?.[0]?.address || "");
+  const [mapUrl, setMapUrl] = useState(card?.events?.[0]?.mapUrl || "");
+
+  // Tùy chọn Bật/Tắt các mục cố định & sơ đồ hôn lễ
+  const [showGiftBox, setShowGiftBox] = useState(card?.showGiftBox !== false);
+  const [showMapBox, setShowMapBox] = useState(card?.showEvents !== false);
+  const [showWishes, setShowWishes] = useState(card?.showWishes !== false);
+  const [showRsvp, setShowRsvp] = useState(card?.showRsvp !== false);
+
+  // Nhạc nền
+  const [musicTitle, setMusicTitle] = useState(card?.musicTitle || currentMusic?.title || CURATED_WEDDING_SONGS[0].title);
+  const [musicUrl, setMusicUrl] = useState(card?.musicUrl || currentMusic?.url || CURATED_WEDDING_SONGS[0].url);
+  const [previewingSongId, setPreviewingSongId] = useState<string | null>(null);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const [autoFillSuccessMessage, setAutoFillSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (card?.groom?.name) setQuickGroom(card.groom.name);
-    if (card?.bride?.name) setQuickBride(card.bride.name);
-    if (card?.weddingDate) setQuickDate(card.weddingDate);
-    if (card?.weddingTime) setQuickTime(card.weddingTime);
-    if (card?.events?.[0]?.venue) setQuickVenue(card.events[0].venue);
-    if (card?.events?.[0]?.address) setQuickAddress(card.events[0].address);
+    if (!card) return;
+    if (card.groom?.name) setGroomName(card.groom.name);
+    if (card.groom?.phone) setGroomPhone(card.groom.phone);
+    if (card.groom?.parents) {
+      const parts = card.groom.parents.split("&");
+      if (parts[0]) setGroomFather(parts[0].replace(/^(Ông:?|Ông)\s*/i, "").trim());
+      if (parts[1]) setGroomMother(parts[1].replace(/^(Bà:?|Bà)\s*/i, "").trim());
+    }
+    if (card.groom?.bankName) setGroomBank(card.groom.bankName);
+    if (card.groom?.accountNumber) setGroomAccount(card.groom.accountNumber);
+    if (card.groom?.accountName) setGroomAccountName(card.groom.accountName);
+
+    if (card.bride?.name) setBrideName(card.bride.name);
+    if (card.bride?.phone) setBridePhone(card.bride.phone);
+    if (card.bride?.parents) {
+      const parts = card.bride.parents.split("&");
+      if (parts[0]) setBrideFather(parts[0].replace(/^(Ông:?|Ông)\s*/i, "").trim());
+      if (parts[1]) setBrideMother(parts[1].replace(/^(Bà:?|Bà)\s*/i, "").trim());
+    }
+    if (card.bride?.bankName) setBrideBank(card.bride.bankName);
+    if (card.bride?.accountNumber) setBrideAccount(card.bride.accountNumber);
+    if (card.bride?.accountName) setBrideAccountName(card.bride.accountName);
+
+    if (card.weddingDate) setWeddingDate(card.weddingDate);
+    if (card.weddingTime) setWeddingTime(card.weddingTime);
+    if (card.lunarDate) setLunarDate(card.lunarDate);
+
+    if (card.events?.[0]?.venue) setVenueName(card.events[0].venue);
+    if (card.events?.[0]?.address) setAddress(card.events[0].address);
+    if (card.events?.[0]?.mapUrl) setMapUrl(card.events[0].mapUrl);
+
+    setShowGiftBox(card.showGiftBox !== false);
+    setShowMapBox(card.showEvents !== false);
+    setShowWishes(card.showWishes !== false);
+    setShowRsvp(card.showRsvp !== false);
+
+    if (card.musicTitle) setMusicTitle(card.musicTitle);
+    if (card.musicUrl) setMusicUrl(card.musicUrl);
   }, [card]);
 
+  const handleGenerateMapUrl = () => {
+    const query = `${venueName} ${address}`.trim();
+    if (!query) return;
+    setMapUrl(`https://maps.google.com/?q=${encodeURIComponent(query)}`);
+  };
+
+  const handleDrawerFillSample = () => {
+    setGroomName("Trần Minh Quân");
+    setGroomPhone("0912 345 678");
+    setGroomFather("Trần Văn Hùng");
+    setGroomMother("Nguyễn Thị Mai");
+    setGroomBank("MB BANK");
+    setGroomAccount("240220038888");
+    setGroomAccountName("TRAN MINH QUAN");
+
+    setBrideName("Phạm Mai Linh");
+    setBridePhone("0987 654 321");
+    setBrideFather("Phạm Quốc Tuấn");
+    setBrideMother("Lê Thị Thảo");
+    setBrideBank("TECHCOMBANK");
+    setBrideAccount("190365824988");
+    setBrideAccountName("PHAM MAI LINH");
+
+    setWeddingDate("2026-12-25");
+    setWeddingTime("11:30");
+    setLunarDate("Ngày 16 tháng 11 năm Bính Ngọ");
+
+    setVenueName("Trung tâm Hội nghị & Tiệc cưới Trống Đồng Palace");
+    setAddress("Số 72 Quán Sứ, Hoàn Kiếm, TP. Hà Nội");
+    setMapUrl("https://maps.google.com/?q=72+Quan+Su+Hoan+Kiem+Ha+Noi");
+
+    setShowGiftBox(true);
+    setShowMapBox(true);
+    setShowWishes(true);
+    setShowRsvp(true);
+  };
+
   const handleDrawerAutoFillApply = () => {
-    if (!quickGroom.trim() || !quickBride.trim()) {
+    if (!groomName.trim() || !brideName.trim()) {
       alert("Vui lòng nhập tên Chú Rể và Cô Dâu!");
       return;
     }
+
+    const cleanGroomAcc = (groomAccount || "").replace(/[^0-9]/g, "");
+    const cleanBrideAcc = (brideAccount || "").replace(/[^0-9]/g, "");
+    const generatedMap = mapUrl || (address ? `https://maps.google.com/?q=${encodeURIComponent(`${venueName} ${address}`.trim())}` : "");
+
     const formData: AutoFillFormData = {
-      groomName: quickGroom,
-      brideName: quickBride,
-      weddingDate: quickDate,
-      weddingTime: quickTime,
-      lunarDate: card?.lunarDate || "Ngày 10 tháng 10 năm Bính Ngọ",
-      venueName: quickVenue || "Trung tâm Hội nghị & Tiệc cưới Trống Đồng Palace",
-      address: quickAddress || "72 Quán Sứ, Hoàn Kiếm, Hà Nội",
+      groomName: groomName.trim(),
+      groomPhone: groomPhone.trim(),
+      groomFather: groomFather.trim(),
+      groomMother: groomMother.trim(),
+      groomBank,
+      groomAccount: cleanGroomAcc,
+      groomAccountName: groomAccountName.trim().toUpperCase() || groomName.trim().toUpperCase(),
+
+      brideName: brideName.trim(),
+      bridePhone: bridePhone.trim(),
+      brideFather: brideFather.trim(),
+      brideMother: brideMother.trim(),
+      brideBank,
+      brideAccount: cleanBrideAcc,
+      brideAccountName: brideAccountName.trim().toUpperCase() || brideName.trim().toUpperCase(),
+
+      weddingDate,
+      weddingTime,
+      lunarDate,
+      venueName: venueName.trim() || "Trung tâm Tiệc cưới",
+      address: address.trim() || "Hà Nội",
+      mapUrl: generatedMap,
+
       coverPhoto: card?.coverImage || "",
       albumPhotos: card?.album || [],
     };
 
-    const { updatedNodes, updatedCard, stats } = applyAutoFillToNodes(nodes, card || null, formData);
-    onApplyAutoFill?.(updatedNodes, updatedCard, stats);
-    setAutoFillSuccessMessage(`Đã tự động cập nhật ${stats.textCount} văn bản & ${stats.widgetCount} tiện ích vào thiệp!`);
-    setTimeout(() => setAutoFillSuccessMessage(null), 5000);
-  };
+    let { updatedNodes, updatedCard, stats } = applyAutoFillToNodes(nodes || {}, card || null, formData);
 
-  const handleDrawerFillSample = () => {
-    setQuickGroom("Trần Minh Quân");
-    setQuickBride("Phạm Mai Linh");
-    setQuickDate("2026-12-25");
-    setQuickTime("11:30");
-    setQuickVenue("Trung tâm Tiệc cưới Trống Đồng Palace");
-    setQuickAddress("Số 65 Quán Sứ, Hoàn Kiếm, TP. Hà Nội");
+    const groomParentsStr = groomFather && groomMother ? `Ông ${groomFather} & Bà ${groomMother}` : card?.groom?.parents || "";
+    const brideParentsStr = brideFather && brideMother ? `Ông ${brideFather} & Bà ${brideMother}` : card?.bride?.parents || "";
+
+    const { syncedNodes } = syncCardDataToCanvasNodes(
+      {
+        groom: {
+          name: groomName.trim(),
+          phone: groomPhone.trim(),
+          parents: groomParentsStr,
+          bankName: groomBank,
+          accountNumber: cleanGroomAcc,
+          accountName: groomAccountName.trim().toUpperCase() || groomName.trim().toUpperCase(),
+        } as any,
+        bride: {
+          name: brideName.trim(),
+          phone: bridePhone.trim(),
+          parents: brideParentsStr,
+          bankName: brideBank,
+          accountNumber: cleanBrideAcc,
+          accountName: brideAccountName.trim().toUpperCase() || brideName.trim().toUpperCase(),
+        } as any,
+        weddingDate,
+        weddingTime,
+        lunarDate,
+        events: [
+          {
+            id: "evt-main",
+            title: "Lễ Thành Hôn",
+            time: `${weddingTime} • ${weddingDate}`,
+            venue: venueName.trim() || "Trung tâm Tiệc cưới",
+            address: address.trim() || "Hà Nội",
+            mapUrl: generatedMap,
+          },
+        ],
+      },
+      updatedNodes
+    );
+    updatedNodes = syncedNodes;
+
+    const finalCard: Partial<WeddingCard> = {
+      ...updatedCard,
+      weddingDate,
+      weddingTime,
+      lunarDate,
+      showGiftBox,
+      showEvents: showMapBox,
+      showWishes,
+      showRsvp,
+      musicTitle,
+      musicUrl,
+      groom: {
+        ...(card?.groom || {}),
+        title: card?.groom?.title || "Chú Rể",
+        name: groomName.trim(),
+        phone: groomPhone.trim(),
+        parents: groomParentsStr,
+        bankName: groomBank,
+        accountNumber: cleanGroomAcc,
+        accountName: groomAccountName.trim().toUpperCase() || groomName.trim().toUpperCase(),
+      },
+      bride: {
+        ...(card?.bride || {}),
+        title: card?.bride?.title || "Cô Dâu",
+        name: brideName.trim(),
+        phone: bridePhone.trim(),
+        parents: brideParentsStr,
+        bankName: brideBank,
+        accountNumber: cleanBrideAcc,
+        accountName: brideAccountName.trim().toUpperCase() || brideName.trim().toUpperCase(),
+      },
+      events: [
+        {
+          id: "evt-main",
+          title: "Lễ Thành Hôn",
+          time: `${weddingTime} • ${weddingDate}`,
+          venue: venueName.trim() || "Trung tâm Tiệc cưới",
+          address: address.trim() || "Hà Nội",
+          mapUrl: generatedMap,
+        },
+      ],
+    };
+
+    if (musicUrl && onChangeMusic) {
+      onChangeMusic(musicTitle, musicUrl);
+    }
+
+    onApplyAutoFill?.(updatedNodes, finalCard, stats);
+    setAutoFillSuccessMessage(`✓ Đã cập nhật thành công ${stats.textCount} đoạn chữ, bản đồ & hộp mừng cưới!`);
+    setTimeout(() => setAutoFillSuccessMessage(null), 5000);
   };
 
   // Image Tab state with persistent Media Library (tự động lưu bền vững vào localStorage)
@@ -668,7 +875,7 @@ export default function EditorLeftDrawer({
         {/* Drawer Header */}
         <div className="px-4 py-3 md:p-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
-            {activeTab === "autofill" && "Điền thông tin"}
+            {activeTab === "autofill" && "Thông tin thiệp cưới"}
             {activeTab === "layers" && "Lớp & Phần tử"}
             {activeTab === "image" && "Hình ảnh"}
             {activeTab === "text" && "Văn bản"}
@@ -699,32 +906,44 @@ export default function EditorLeftDrawer({
 
       {/* Drawer Body corresponding to activeTab */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* ================= 0. TAB: TỰ ĐỘNG ĐIỀN (AUTO-FILL) ================= */}
+        {/* ================= 0. TAB: THÔNG TIN THIỆP CƯỚI (ALL-IN-ONE) ================= */}
         {activeTab === "autofill" && (
           <div className="space-y-4">
-            {/* Banner mở Modal đầy đủ */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-50 to-amber-50/50 border border-rose-200/80 shadow-xs space-y-2.5">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#e54153] to-[#ff5b70] text-white flex items-center justify-center shrink-0">
-                  <Wand2 className="w-4 h-4" />
+            {/* Banner Thông Tin & Nút Hành Động Nhanh */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50 border border-rose-200/80 shadow-xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#e54153] to-[#ff5b70] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900">
+                      Thông Tin Thiệp Cưới
+                    </h4>
+                    <p className="text-[10px] text-gray-500">
+                      Điền 1 lần là xong • Tự động đồng bộ toàn bộ thiệp
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-gray-900">
-                    Biểu mẫu Tự Động Điền
-                  </h4>
-                  <p className="text-[10px] text-gray-500">
-                    Tự động gán thông tin & ảnh vào toàn bộ thiệp
-                  </p>
-                </div>
+
+                <button
+                  type="button"
+                  onClick={handleDrawerFillSample}
+                  className="px-2.5 py-1 rounded-xl bg-white/90 hover:bg-white text-[#e54153] text-[10px] font-bold border border-rose-200 shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+                  title="Điền nhanh dữ liệu mẫu để thử nghiệm"
+                >
+                  ⚡ Điền mẫu thử
+                </button>
               </div>
 
+              {/* Nút lưu nổi bật trên đầu */}
               <button
                 type="button"
-                onClick={onOpenAutoFillModal}
+                onClick={handleDrawerAutoFillApply}
                 className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5268] hover:from-[#d93849] hover:to-[#e54153] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Mở biểu mẫu đầy đủ (Rộng rãi)</span>
+                <Check className="w-4 h-4 stroke-[2.5]" />
+                <span>Lưu & Áp Dụng Vào Thiệp</span>
               </button>
             </div>
 
@@ -736,327 +955,493 @@ export default function EditorLeftDrawer({
               </div>
             )}
 
-            {/* Biểu mẫu điền nhanh ngay trong Drawer */}
-            <div className="p-3.5 rounded-2xl bg-gray-50 border border-gray-100 space-y-3">
-              <div className="flex items-center justify-between border-b border-gray-200/80 pb-2">
-                <span className="text-xs font-bold text-gray-800">
-                  Điền nhanh vào thiệp:
+            {/* PHẦN 1: THÔNG TIN CÔ DÂU & CHÚ RỂ (HAI NHÀ) */}
+            <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                <Heart className="w-4 h-4 text-[#e54153]" />
+                <span className="text-xs font-bold text-gray-900">
+                  1. Cô Dâu & Chú Rể (Nhà Trai - Nhà Gái)
                 </span>
-                <button
-                  type="button"
-                  onClick={handleDrawerFillSample}
-                  className="text-[10px] text-[#e54153] font-bold hover:underline cursor-pointer"
-                >
-                  ⚡ Điền mẫu thử
-                </button>
               </div>
 
-              {/* Chú rể & Cô dâu */}
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-700">Tên Chú Rể:</label>
-                <input
-                  type="text"
-                  value={quickGroom}
-                  onChange={(e) => setQuickGroom(e.target.value)}
-                  placeholder="VD: Trần Minh Quân"
-                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
-                />
+              {/* Nhà Trai / Chú Rể */}
+              <div className="p-2.5 rounded-xl bg-blue-50/40 border border-blue-100/80 space-y-2">
+                <span className="text-[11px] font-bold text-blue-900 flex items-center gap-1">
+                  <span>🎩</span>
+                  <span>Nhà Trai / Chú Rể</span>
+                </span>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-gray-600">Tên Chú Rể (*):</label>
+                  <input
+                    type="text"
+                    value={groomName}
+                    onChange={(e) => setGroomName(e.target.value)}
+                    placeholder="VD: Trần Minh Quân"
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-gray-600">Số điện thoại:</label>
+                  <input
+                    type="tel"
+                    value={groomPhone}
+                    onChange={(e) => setGroomPhone(e.target.value)}
+                    placeholder="VD: 0912 345 678"
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Thân phụ (Bố):</label>
+                    <input
+                      type="text"
+                      value={groomFather}
+                      onChange={(e) => setGroomFather(e.target.value)}
+                      placeholder="Trần Văn Hùng"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Thân mẫu (Mẹ):</label>
+                    <input
+                      type="text"
+                      value={groomMother}
+                      onChange={(e) => setGroomMother(e.target.value)}
+                      placeholder="Nguyễn Thị Mai"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-700">Tên Cô Dâu:</label>
-                <input
-                  type="text"
-                  value={quickBride}
-                  onChange={(e) => setQuickBride(e.target.value)}
-                  placeholder="VD: Phạm Mai Linh"
-                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
-                />
+              {/* Nhà Gái / Cô Dâu */}
+              <div className="p-2.5 rounded-xl bg-rose-50/40 border border-rose-100/80 space-y-2">
+                <span className="text-[11px] font-bold text-rose-900 flex items-center gap-1">
+                  <span>👰</span>
+                  <span>Nhà Gái / Cô Dâu</span>
+                </span>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-gray-600">Tên Cô Dâu (*):</label>
+                  <input
+                    type="text"
+                    value={brideName}
+                    onChange={(e) => setBrideName(e.target.value)}
+                    placeholder="VD: Phạm Mai Linh"
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-gray-600">Số điện thoại:</label>
+                  <input
+                    type="tel"
+                    value={bridePhone}
+                    onChange={(e) => setBridePhone(e.target.value)}
+                    placeholder="VD: 0987 654 321"
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Thân phụ (Bố):</label>
+                    <input
+                      type="text"
+                      value={brideFather}
+                      onChange={(e) => setBrideFather(e.target.value)}
+                      placeholder="Phạm Quốc Tuấn"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Thân mẫu (Mẹ):</label>
+                    <input
+                      type="text"
+                      value={brideMother}
+                      onChange={(e) => setBrideMother(e.target.value)}
+                      placeholder="Lê Thị Thảo"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PHẦN 2: THỜI GIAN & SƠ ĐỒ HÔN LỄ */}
+            <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                <MapPin className="w-4 h-4 text-emerald-600" />
+                <span className="text-xs font-bold text-gray-900">
+                  2. Thời Gian & Sơ Đồ Hôn Lễ
+                </span>
               </div>
 
               {/* Ngày cưới & Giờ cưới */}
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-700">Ngày cưới:</label>
+                  <label className="text-[10px] font-semibold text-gray-600">Ngày cưới (Dương lịch):</label>
                   <input
                     type="date"
-                    value={quickDate}
-                    onChange={(e) => setQuickDate(e.target.value)}
+                    value={weddingDate}
+                    onChange={(e) => setWeddingDate(e.target.value)}
                     className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-700">Giờ cưới:</label>
+                  <label className="text-[10px] font-semibold text-gray-600">Giờ tổ chức:</label>
                   <input
                     type="time"
-                    value={quickTime}
-                    onChange={(e) => setQuickTime(e.target.value)}
+                    value={weddingTime}
+                    onChange={(e) => setWeddingTime(e.target.value)}
                     className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
                   />
                 </div>
               </div>
 
-              {/* Trung tâm tiệc cưới */}
+              {/* Ngày âm lịch */}
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-700">Trung tâm tiệc cưới / Nhà rạp:</label>
+                <label className="text-[10px] font-semibold text-gray-600">Ngày âm lịch:</label>
                 <input
                   type="text"
-                  value={quickVenue}
-                  onChange={(e) => setQuickVenue(e.target.value)}
-                  placeholder="Trống Đồng Palace"
+                  value={lunarDate}
+                  onChange={(e) => setLunarDate(e.target.value)}
+                  placeholder="VD: Ngày 12 tháng 10 năm Bính Ngọ"
                   className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
                 />
               </div>
 
+              {/* Tên địa điểm */}
               <div className="space-y-1">
-                <label className="text-[11px] font-semibold text-gray-700">Địa chỉ cụ thể:</label>
+                <label className="text-[10px] font-semibold text-gray-600">Trung tâm tiệc cưới / Nhà rạp:</label>
                 <input
                   type="text"
-                  value={quickAddress}
-                  onChange={(e) => setQuickAddress(e.target.value)}
-                  placeholder="Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội"
+                  value={venueName}
+                  onChange={(e) => setVenueName(e.target.value)}
+                  placeholder="VD: Trống Đồng Palace / Tư gia Nhà Gái"
+                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                />
+              </div>
+
+              {/* Địa chỉ cụ thể */}
+              <div className="space-y-1">
+                <label className="text-[10px] font-semibold text-gray-600">Địa chỉ cụ thể:</label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="VD: Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội"
                   className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white"
                 />
               </div>
 
-              {/* Nút Áp dụng ngay */}
-              <button
-                type="button"
-                onClick={handleDrawerAutoFillApply}
-                className="w-full py-2.5 px-3 rounded-xl bg-[#e54153] hover:bg-[#d93849] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer mt-2"
-              >
-                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                <span>Áp dụng vào thiệp cưới</span>
-              </button>
+              {/* Link Google Maps / Sơ đồ chỉ đường */}
+              <div className="space-y-1.5 pt-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-semibold text-gray-600">Link Google Maps (Chỉ đường):</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleGenerateMapUrl}
+                      className="text-[10px] text-emerald-700 font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                      title="Tạo link Google Maps từ tên địa điểm & địa chỉ"
+                    >
+                      <Navigation className="w-3 h-3" />
+                      <span>Tạo link tự động</span>
+                    </button>
+                    {mapUrl && (
+                      <a
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-blue-600 font-bold hover:underline flex items-center gap-0.5"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                        <span>Xem thử</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <input
+                  type="url"
+                  value={mapUrl}
+                  onChange={(e) => setMapUrl(e.target.value)}
+                  placeholder="https://maps.google.com/?q=..."
+                  className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-mono text-[11px]"
+                />
+              </div>
             </div>
+
+            {/* PHẦN 3: HỘP MỪNG CƯỚI & VIETQR */}
+            <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="w-4 h-4 text-amber-600" />
+                  <span className="text-xs font-bold text-gray-900">
+                    3. Mừng Cưới & VietQR Ngân Hàng
+                  </span>
+                </div>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showGiftBox}
+                    onChange={(e) => setShowGiftBox(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-[#e54153] rounded"
+                  />
+                  <span className="text-[10px] font-bold text-gray-700">Hiển thị</span>
+                </label>
+              </div>
+
+              {/* Ngân hàng Chú Rể */}
+              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200/70 space-y-2">
+                <span className="text-[10px] font-bold text-gray-700 uppercase">
+                  Tài Khoản Mừng Chú Rể (Nhà Trai)
+                </span>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-gray-600">Ngân hàng:</label>
+                  <select
+                    value={groomBank}
+                    onChange={(e) => setGroomBank(e.target.value)}
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                  >
+                    {POPULAR_BANKS.map((b) => (
+                      <option key={b.code} value={b.code}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Số tài khoản:</label>
+                    <input
+                      type="text"
+                      value={groomAccount}
+                      onChange={(e) => setGroomAccount(e.target.value)}
+                      placeholder="VD: 240220038888"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-mono font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Chủ tài khoản:</label>
+                    <input
+                      type="text"
+                      value={groomAccountName}
+                      onChange={(e) => setGroomAccountName(e.target.value.toUpperCase())}
+                      placeholder="TRAN MINH QUAN"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white uppercase font-bold text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Ngân hàng Cô Dâu */}
+              <div className="p-2.5 rounded-xl bg-gray-50 border border-gray-200/70 space-y-2">
+                <span className="text-[10px] font-bold text-gray-700 uppercase">
+                  Tài Khoản Mừng Cô Dâu (Nhà Gái)
+                </span>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-gray-600">Ngân hàng:</label>
+                  <select
+                    value={brideBank}
+                    onChange={(e) => setBrideBank(e.target.value)}
+                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                  >
+                    {POPULAR_BANKS.map((b) => (
+                      <option key={b.code} value={b.code}>
+                        {b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Số tài khoản:</label>
+                    <input
+                      type="text"
+                      value={brideAccount}
+                      onChange={(e) => setBrideAccount(e.target.value)}
+                      placeholder="VD: 190365824988"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-mono font-bold"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-semibold text-gray-600">Chủ tài khoản:</label>
+                    <input
+                      type="text"
+                      value={brideAccountName}
+                      onChange={(e) => setBrideAccountName(e.target.value.toUpperCase())}
+                      placeholder="PHAM MAI LINH"
+                      className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white uppercase font-bold text-[11px]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* PHẦN 4: BẬT / TẮT CÁC MỤC CỐ ĐỊNH & SƠ ĐỒ HÔN LỄ */}
+            <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-2.5">
+              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
+                <Sliders className="w-4 h-4 text-purple-600" />
+                <span className="text-xs font-bold text-gray-900">
+                  4. Bật / Tắt Các Mục Cố Định Trên Thiệp
+                </span>
+              </div>
+
+              <div className="space-y-2 pt-0.5">
+                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CreditCard className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-gray-800">Hộp Mừng Cưới (VietQR)</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showGiftBox}
+                    onChange={(e) => setShowGiftBox(e.target.checked)}
+                    className="w-4 h-4 accent-[#e54153] rounded"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-gray-800">Sơ Đồ Chỉ Đường & Bản Đồ</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showMapBox}
+                    onChange={(e) => setShowMapBox(e.target.checked)}
+                    className="w-4 h-4 accent-[#e54153] rounded"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-gray-800">Xác Nhận Tham Dự (RSVP)</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showRsvp}
+                    onChange={(e) => setShowRsvp(e.target.checked)}
+                    className="w-4 h-4 accent-[#e54153] rounded"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <MessageSquare className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                    <span className="text-[11px] font-bold text-gray-800">Sổ Lưu Bút & Lời Chúc Mừng</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showWishes}
+                    onChange={(e) => setShowWishes(e.target.checked)}
+                    className="w-4 h-4 accent-[#e54153] rounded"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* PHẦN 5: NHẠC NỀN ĐÁM CƯỚI */}
+            <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-2">
+                <div className="flex items-center gap-2">
+                  <Music className="w-4 h-4 text-rose-600" />
+                  <span className="text-xs font-bold text-gray-900">
+                    5. Nhạc Nền Thiệp Cưới
+                  </span>
+                </div>
+                <span className="text-[10px] text-gray-500 font-medium truncate max-w-[150px]">
+                  {musicTitle}
+                </span>
+              </div>
+
+              <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                {CURATED_WEDDING_SONGS.map((song) => {
+                  const isSelected = musicUrl === song.url;
+                  const isPreviewing = previewingSongId === song.id;
+
+                  return (
+                    <div
+                      key={song.id}
+                      onClick={() => {
+                        setMusicTitle(song.title);
+                        setMusicUrl(song.url);
+                      }}
+                      className={`p-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                        isSelected
+                          ? "bg-rose-50 border-rose-300 text-rose-900"
+                          : "bg-gray-50/70 hover:bg-gray-100 border-gray-200 text-gray-700"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm shrink-0">🎵</span>
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold truncate">{song.title}</p>
+                          <p className="text-[9px] text-gray-500 truncate">{song.artist}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isPreviewing) {
+                              previewAudioRef.current?.pause();
+                              setPreviewingSongId(null);
+                            } else {
+                              if (previewAudioRef.current) {
+                                previewAudioRef.current.src = song.url;
+                                previewAudioRef.current.play().catch(() => {});
+                                setPreviewingSongId(song.id);
+                              }
+                            }
+                          }}
+                          className="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center hover:bg-rose-50 hover:text-rose-600 text-gray-600 shadow-2xs"
+                        >
+                          {isPreviewing ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                        </button>
+                        {isSelected && <Check className="w-4 h-4 text-rose-600 stroke-[3]" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Nút to dưới cùng để lưu toàn bộ */}
+            <button
+              type="button"
+              onClick={handleDrawerAutoFillApply}
+              className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-[#e54153] via-[#f04a5e] to-[#ff5268] hover:brightness-105 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer"
+            >
+              <Check className="w-4 h-4 stroke-[3]" />
+              <span>LƯU & ÁP DỤNG TOÀN BỘ THÔNG TIN</span>
+            </button>
           </div>
         )}
 
-        {/* ================= TAB: THÀNH PHẦN THIỆP (LAYERS) ================= */}
-        {activeTab === "layers" && (() => {
-          const { decorativeList, photosList, textsList, widgetsList, allList, stats } = classifyTemplateElements(nodes);
-
-          let displayList: TemplateElementItem[] = allList;
-          if (layersFilter === "decorative") displayList = decorativeList;
-          else if (layersFilter === "photos") displayList = photosList;
-          else if (layersFilter === "texts") displayList = textsList;
-          else if (layersFilter === "widgets") displayList = widgetsList;
-
-          if (layersSearch.trim()) {
-            const q = layersSearch.toLowerCase().trim();
-            displayList = displayList.filter(
-              (item) =>
-                item.name.toLowerCase().includes(q) ||
-                item.description.toLowerCase().includes(q) ||
-                (item.previewText && item.previewText.toLowerCase().includes(q)) ||
-                item.id.toLowerCase().includes(q)
-            );
-          }
-
-          const handleFocusElement = (item: TemplateElementItem) => {
-            onSelectElement?.({
-              id: item.id,
-              type: item.type,
-              props: item.props,
-            });
-            const domEl = document.getElementById(`canvas-node-${item.id}`);
-            if (domEl) {
-              domEl.scrollIntoView({ behavior: "smooth", block: "center" });
-            }
-          };
-
-          return (
-            <div className="space-y-4">
-              {/* Thẻ thống kê tổng quan */}
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-slate-50 to-rose-50/40 border border-gray-200/80 shadow-xs space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0">
-                      <Layers className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-gray-900">
-                        Cấu trúc mẫu thiệp ({stats.total} thành phần)
-                      </h4>
-                      <p className="text-[10px] text-gray-500">
-                        Đã khóa {stats.decorative} họa tiết cố định & sẵn sàng {stats.photos + stats.texts + stats.widgets} mục chỉnh sửa
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Nút khôi phục chuẩn họa tiết */}
-                {onRepairDecorations && (
-                  <button
-                    type="button"
-                    onClick={onRepairDecorations}
-                    className="w-full py-2 px-3 rounded-xl bg-white hover:bg-rose-50 border border-gray-200 hover:border-rose-300 text-gray-700 hover:text-[#e54153] text-[11px] font-semibold flex items-center justify-center gap-1.5 transition-all shadow-2xs"
-                    title="Khôi phục chuẩn xác mọi hoa văn và phong bì về vị trí gốc nếu lỡ bị lệch"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Khôi phục chuẩn họa tiết trang trí</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Ô tìm kiếm thành phần */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm thành phần (VD: Chú rể, ảnh, phong bì...)"
-                  value={layersSearch}
-                  onChange={(e) => setLayersSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#e54153] bg-white placeholder-gray-400"
-                />
-                {layersSearch && (
-                  <button
-                    type="button"
-                    onClick={() => setLayersSearch("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* Bộ lọc tab con */}
-              <div className="flex gap-1 p-1 bg-gray-100 rounded-xl text-[11px] font-semibold text-gray-600 overflow-x-auto scrollbar-none">
-                <button
-                  type="button"
-                  onClick={() => setLayersFilter("all")}
-                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
-                    layersFilter === "all"
-                      ? "bg-white text-gray-900 shadow-2xs font-bold"
-                      : "hover:text-gray-900"
-                  }`}
-                >
-                  Tất cả ({stats.total})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayersFilter("decorative")}
-                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all flex items-center gap-1 ${
-                    layersFilter === "decorative"
-                      ? "bg-white text-amber-800 shadow-2xs font-bold"
-                      : "hover:text-amber-800"
-                  }`}
-                >
-                  <Lock className="w-3 h-3 text-amber-600" />
-                  <span>Cố định ({stats.decorative})</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayersFilter("photos")}
-                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
-                    layersFilter === "photos"
-                      ? "bg-white text-rose-600 shadow-2xs font-bold"
-                      : "hover:text-rose-600"
-                  }`}
-                >
-                  Ảnh cưới ({stats.photos})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayersFilter("texts")}
-                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
-                    layersFilter === "texts"
-                      ? "bg-white text-indigo-600 shadow-2xs font-bold"
-                      : "hover:text-indigo-600"
-                  }`}
-                >
-                  Văn bản ({stats.texts})
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLayersFilter("widgets")}
-                  className={`px-2.5 py-1 rounded-lg shrink-0 transition-all ${
-                    layersFilter === "widgets"
-                      ? "bg-white text-emerald-600 shadow-2xs font-bold"
-                      : "hover:text-emerald-600"
-                  }`}
-                >
-                  Tiện ích ({stats.widgets})
-                </button>
-              </div>
-
-              {/* Danh sách thành phần */}
-              <div className="space-y-2">
-                {displayList.length === 0 ? (
-                  <div className="p-6 text-center text-gray-400 text-xs">
-                    Không tìm thấy thành phần nào phù hợp
-                  </div>
-                ) : (
-                  displayList.map((item) => {
-                    const isSelected = selectedElement?.id === item.id;
-                    return (
-                      <div
-                        key={item.id}
-                        onClick={() => handleFocusElement(item)}
-                        className={`p-2.5 rounded-xl border transition-all cursor-pointer text-xs flex items-center gap-2.5 ${
-                          isSelected
-                            ? "bg-rose-50/70 border-[#e54153] ring-1 ring-[#e54153]/30 shadow-xs"
-                            : "bg-white hover:bg-gray-50 border-gray-200/80 hover:border-gray-300"
-                        }`}
-                      >
-                        {/* Icon hoặc Thumbnail */}
-                        <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center shrink-0 overflow-hidden border border-gray-200">
-                          {item.previewImage ? (
-                            <img
-                              src={getSafeImageUrl(item.previewImage)}
-                              alt={item.name}
-                              onError={(e) => handleImageFallback(e, undefined, false)}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : item.group === "decorative" ? (
-                            <Lock className="w-4 h-4 text-amber-600" />
-                          ) : item.group === "photos" ? (
-                            <ImageIcon className="w-4 h-4 text-rose-500" />
-                          ) : item.group === "texts" ? (
-                            <Type className="w-4 h-4 text-indigo-500" />
-                          ) : (
-                            <LayoutGrid className="w-4 h-4 text-emerald-500" />
-                          )}
-                        </div>
-
-                        {/* Thông tin thành phần */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 justify-between">
-                            <span className="font-bold text-gray-900 truncate">
-                              {item.name}
-                            </span>
-                            {item.isLocked ? (
-                              <span className="shrink-0 text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                                <Lock className="w-2.5 h-2.5" />
-                                <span>Cố định</span>
-                              </span>
-                            ) : item.group === "photos" ? (
-                              <span className="shrink-0 text-[10px] font-semibold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-md">
-                                Thay ảnh
-                              </span>
-                            ) : null}
-                          </div>
-
-                          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 truncate mt-0.5">
-                            <span>{item.type}</span>
-                            <span>•</span>
-                            <span>Vị trí: top {Math.round(item.top)}px</span>
-                          </div>
-
-                          {item.previewText && (
-                            <p className="text-[10px] text-gray-600 line-clamp-1 italic mt-0.5 bg-gray-50/80 px-1.5 py-0.5 rounded">
-                              "{item.previewText}"
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          );
-        })()}
+        {/* ================= TAB: THÀNH PHẦN THIỆP (LAYERS - PHOTOSHOP STYLE) ================= */}
+        {activeTab === "layers" && (
+          <PhotoshopLayersPanel
+            nodes={nodes}
+            selectedElement={selectedElement}
+            onSelectElement={(el) => onSelectElement?.(el)}
+            onUpdateElementProps={(id, updated) => onUpdateElementProps?.(id, updated)}
+            onDuplicateElement={onDuplicateElement}
+            onDeleteElement={onDeleteElement}
+            onRepairDecorations={onRepairDecorations}
+          />
+        )}
 
         {/* ================= 1. TAB: HÌNH ẢNH ================= */}
         {activeTab === "image" && (
@@ -1127,15 +1512,22 @@ export default function EditorLeftDrawer({
             </div>
 
             {selectedElement && selectedElement.type === "PhotoBox" && (() => {
-              const isLockedPhoto = isDecorativeNode(selectedElement.id, nodes[selectedElement.id]) || selectedElement.props?.locked;
+              const isLockedPhoto = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
               if (isLockedPhoto) {
                 return (
                   <div className="px-2.5 py-2 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between text-[11px] text-amber-800 shadow-2xs">
                     <div className="flex items-center gap-1.5 font-semibold">
                       <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span>Họa tiết trang trí của mẫu</span>
+                      <span>Họa tiết của mẫu (Đang khóa)</span>
                     </div>
-                    <span className="text-[10px] text-amber-700 font-medium">Đã khóa cố định</span>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateElementProps?.(selectedElement.id, { locked: false })}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded text-[10px] font-bold shadow-2xs transition-colors cursor-pointer"
+                      title="Mở khóa họa tiết để thay bằng ảnh của bạn"
+                    >
+                      <Unlock className="w-2.5 h-2.5" /> Mở khóa
+                    </button>
                   </div>
                 );
               }
@@ -1194,9 +1586,9 @@ export default function EditorLeftDrawer({
                       key={`${src}-${idx}`}
                       onClick={() => {
                         if (selectedElement && selectedElement.type === "PhotoBox" && onUpdateElementProps) {
-                          const isLockedPhoto = isDecorativeNode(selectedElement.id, nodes[selectedElement.id]) || selectedElement.props?.locked;
+                          const isLockedPhoto = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
                           if (isLockedPhoto) {
-                            alert("Họa tiết trang trí này đã được khóa cố định để đảm bảo thiết kế gốc của thiệp!");
+                            alert("Họa tiết trang trí này đang bị khóa. Hãy bấm 'Mở khóa' ở phía trên để thay ảnh!");
                             return;
                           }
                           onUpdateElementProps(selectedElement.id, { imgKey: safeSrc, src: safeSrc });
@@ -1836,98 +2228,18 @@ export default function EditorLeftDrawer({
           </div>
         )}
 
-        {/* ================= 7. TAB: KHỐI MẪU (MODULE PRESETS) ================= */}
+        {/* ================= 7. TAB: KHỐI MẪU DẠNG THƯ MỤC (MODULE PRESETS FOLDER BROWSER) ================= */}
         {activeTab === "widgets" && (
-          <div className="space-y-3">
-            {/* Category Filter Horizontal Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar select-none">
-              <button
-                type="button"
-                onClick={() => setSelectedModuleCategory("all")}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedModuleCategory === "all"
-                    ? "bg-rose-600 text-white shadow-2xs"
-                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                }`}
-              >
-                Tất cả
-              </button>
-              {MODULE_CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  type="button"
-                  onClick={() => setSelectedModuleCategory(cat.id)}
-                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all flex items-center gap-1 cursor-pointer ${
-                    selectedModuleCategory === cat.id
-                      ? "bg-rose-600 text-white shadow-2xs"
-                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
-                >
-                  <span>{cat.icon}</span>
-                  <span>{cat.name}</span>
-                </button>
-              ))}
-            </div>
-
-            {/* Presets List */}
-            <div className="space-y-2">
-              {MODULE_PRESETS.filter(
-                (p) => selectedModuleCategory === "all" || p.category === selectedModuleCategory
-              ).map((preset) => (
-                <div
-                  key={preset.id}
-                  onClick={() => {
-                    if (onAddModulePreset) {
-                      onAddModulePreset(preset);
-                    } else if (onAddWidget) {
-                      onAddWidget(preset.type, preset.defaultProps);
-                    }
-                  }}
-                  className="p-2.5 rounded-2xl border border-gray-200 hover:border-rose-400 bg-white flex items-center justify-between gap-2.5 cursor-pointer shadow-2xs hover:shadow-xs hover:bg-rose-50/20 transition-all group"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-gray-50 group-hover:bg-rose-100/60 border border-gray-100 flex items-center justify-center text-lg shrink-0 transition-colors">
-                      {preset.previewIcon}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h4 className="text-xs font-bold text-gray-900 group-hover:text-rose-600 truncate transition-colors">
-                          {preset.name}
-                        </h4>
-                        <span className="px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 text-[9px] font-semibold border border-rose-200/60 shrink-0">
-                          {preset.badge}
-                        </span>
-                      </div>
-                      <p className="text-[10px] text-gray-500 font-medium truncate mt-0.5">
-                        {preset.styleName}
-                      </p>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    className="px-2.5 py-1 rounded-lg bg-gray-100 group-hover:bg-rose-600 text-gray-700 group-hover:text-white text-[10px] font-bold shrink-0 transition-all pointer-events-none"
-                  >
-                    + Chọn
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Bottom Quick Setting Link */}
-            {onOpenSettings && (
-              <div className="pt-2 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={onOpenSettings}
-                  className="w-full py-2 px-3 rounded-xl bg-gray-50 hover:bg-rose-50 text-gray-600 hover:text-rose-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-200/70 transition-colors cursor-pointer"
-                >
-                  <Settings className="w-3.5 h-3.5" />
-                  <span>Cài đặt STK & RSVP cố định</span>
-                </button>
-              </div>
-            )}
-          </div>
+          <ModulePresetsFolderBrowser
+            onAddModulePreset={(preset) => {
+              if (onAddModulePreset) {
+                onAddModulePreset(preset);
+              } else if (onAddWidget) {
+                onAddWidget(preset.type, preset.defaultProps);
+              }
+            }}
+            onOpenSettings={onOpenSettings}
+          />
         )}
 
         {/* ================= 8. TAB: MẪU ================= */}

@@ -143,6 +143,18 @@ export default function DesignTemplatePage() {
     [historyIndex]
   );
 
+  // Tự động tối ưu giao diện trên thiết bị di động (Mobile Responsive Initialization)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        setIsLeftDrawerOpen(false);
+        const mobileZoom = Number(Math.max(0.55, Math.min(0.85, (window.innerWidth - 24) / 500)).toFixed(2));
+        setZoomLevel(mobileZoom);
+      }
+    }
+  }, []);
+
   // Fetch real template nodes from API
   useEffect(() => {
     let isMounted = true;
@@ -559,15 +571,22 @@ export default function DesignTemplatePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [historyIndex, history, selectedElement, nodes]);
 
-  // Canva-style Fit to Screen calculation
+  // Canva-style Fit to Screen calculation (hỗ trợ cả Mobile & Desktop)
   const handleFitToScreen = () => {
     if (typeof window === "undefined") return;
-    const availableHeight = window.innerHeight - 150;
-    const rootProps = nodes["ROOT"]?.props || {};
-    const rootH = Number(rootProps.height) || 1600;
-    const targetZoom = Math.max(0.4, Math.min(1.25, availableHeight / rootH));
-    setZoomLevel(Number(targetZoom.toFixed(2)));
-    showToast(`🔍 Đã căn chỉnh vừa màn hình (${Math.round(targetZoom * 100)}%)`);
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) {
+      const targetZoom = Number(Math.max(0.5, Math.min(1.0, (window.innerWidth - 24) / 500)).toFixed(2));
+      setZoomLevel(targetZoom);
+      showToast(`🔍 Đã căn vừa chiều rộng điện thoại (${Math.round(targetZoom * 100)}%)`);
+    } else {
+      const availableHeight = window.innerHeight - 150;
+      const rootProps = nodes["ROOT"]?.props || {};
+      const rootH = Number(rootProps.height) || 1600;
+      const targetZoom = Math.max(0.4, Math.min(1.25, availableHeight / rootH));
+      setZoomLevel(Number(targetZoom.toFixed(2)));
+      showToast(`🔍 Đã căn chỉnh vừa màn hình (${Math.round(targetZoom * 100)}%)`);
+    }
   };
 
   // Add new image from left drawer
@@ -897,38 +916,126 @@ export default function DesignTemplatePage() {
         text: generateBankCardHtml(bankData),
       };
     }
+    // Smart vertical layout reflow & push-down
+    const widgetHeight = Number(defaultProps.height || 180);
+    const gap = 24;
+    const shiftAmount = widgetHeight + gap;
+
+    let targetTop: number;
+    let shiftThresholdY: number | null = null;
+    const selectedNode = selectedElement ? nodes[selectedElement.id] : null;
+
+    if (selectedNode) {
+      const selTop = Number(selectedNode.props?.top ?? 0);
+      const selHeight = Number(selectedNode.props?.height ?? 100);
+      targetTop = selTop + selHeight + gap;
+      shiftThresholdY = selTop + (selHeight / 2);
+    } else {
+      const nonDecorativeNodes = Object.entries(nodes).filter(
+        ([id]) => id !== "ROOT" && !isDecorativeNode(id, nodes[id])
+      );
+      const maxBottom = nonDecorativeNodes.reduce((max, [, node]: [string, any]) => {
+        const top = Number(node?.props?.top ?? 0);
+        const h = Number(node?.props?.height ?? 100);
+        return Math.max(max, top + h);
+      }, 450);
+      targetTop = maxBottom + gap;
+    }
+
+    defaultProps.top = targetTop;
+    defaultProps.left = Math.max(0, Math.round((500 - (defaultProps.width || 420)) / 2));
+
     const newNode = {
       type: { resolvedName: widgetType },
       props: { ...defaultProps, ...(customProps || {}) },
     };
+
     setNodes((prev) => {
-      const newNodes = { ...prev, [newId]: newNode };
+      const newNodes = { ...prev };
+
+      // Đẩy tất cả các phần tử ở phía dưới xuống dưới
+      if (shiftThresholdY !== null) {
+        Object.keys(newNodes).forEach((id) => {
+          if (id === "ROOT") return;
+          const node = newNodes[id];
+          const top = Number(node.props?.top ?? 0);
+          if (top >= shiftThresholdY!) {
+            newNodes[id] = {
+              ...node,
+              props: {
+                ...node.props,
+                top: top + shiftAmount,
+              },
+            };
+          }
+        });
+      }
+
+      // Nới rộng chiều cao tổng của Canvas (ROOT)
+      if (newNodes["ROOT"]) {
+        const currentCanvasHeight = Number(newNodes["ROOT"].props?.height ?? 1200);
+        newNodes["ROOT"] = {
+          ...newNodes["ROOT"],
+          props: {
+            ...newNodes["ROOT"].props,
+            height: currentCanvasHeight + shiftAmount,
+          },
+        };
+      }
+
+      newNodes[newId] = newNode;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: widgetType, props: newNode.props });
       return newNodes;
     });
+
+    if (selectedNode) {
+      showToast(`✨ Đã chèn tiện ích bên dưới và tự động đẩy bố cục phía sau xuống!`);
+    } else {
+      showToast(`✨ Đã chèn tiện ích vào thiệp!`);
+    }
+
+    setTimeout(() => {
+      const element = document.getElementById(`canvas-node-${newId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
   };
 
-  // Add styled module preset with smart magnetic alignment
+  // Add styled module preset with smart magnetic alignment & vertical layout reflow
   const handleAddModulePreset = (preset: ModulePresetItem) => {
     const newId = `preset_${Date.now()}`;
     const width = preset.defaultWidth || 440;
     const height = preset.defaultHeight || 180;
+    const gap = 24;
+    const shiftAmount = height + gap;
 
     // Smart magnetic alignment: center horizontally (x = (500 - width) / 2)
     const targetLeft = Math.max(0, Math.round((500 - width) / 2));
 
-    // Smart magnetic alignment: snap right below lowest non-decorative element (+24px)
-    const nonDecorativeNodes = Object.entries(nodes).filter(
-      ([id]) => id !== "ROOT" && !isDecorativeNode(id, nodes[id])
-    );
-    const maxBottom = nonDecorativeNodes.reduce((max, [, node]: [string, any]) => {
-      const top = Number(node?.props?.top ?? 0);
-      const h = Number(node?.props?.height ?? 100);
-      return Math.max(max, top + h);
-    }, 450);
+    // Smart positioning & vertical reflow:
+    // Nếu có phần tử đang chọn: chèn ngay bên dưới phần tử đó, đẩy toàn bộ các phần tử phía sau xuống dưới!
+    let targetTop: number;
+    let shiftThresholdY: number | null = null;
+    const selectedNode = selectedElement ? nodes[selectedElement.id] : null;
 
-    const targetTop = maxBottom + 24;
+    if (selectedNode) {
+      const selTop = Number(selectedNode.props?.top ?? 0);
+      const selHeight = Number(selectedNode.props?.height ?? 100);
+      targetTop = selTop + selHeight + gap;
+      shiftThresholdY = selTop + (selHeight / 2);
+    } else {
+      const nonDecorativeNodes = Object.entries(nodes).filter(
+        ([id]) => id !== "ROOT" && !isDecorativeNode(id, nodes[id])
+      );
+      const maxBottom = nonDecorativeNodes.reduce((max, [, node]: [string, any]) => {
+        const top = Number(node?.props?.top ?? 0);
+        const h = Number(node?.props?.height ?? 100);
+        return Math.max(max, top + h);
+      }, 450);
+      targetTop = maxBottom + gap;
+    }
 
     const newNode = {
       type: { resolvedName: preset.type },
@@ -943,11 +1050,49 @@ export default function DesignTemplatePage() {
     };
 
     setNodes((prev) => {
-      const newNodes = { ...prev, [newId]: newNode };
+      const newNodes = { ...prev };
+
+      // Tự động đẩy tất cả các layout/phần tử nằm phía dưới xuống dưới
+      if (shiftThresholdY !== null) {
+        Object.keys(newNodes).forEach((id) => {
+          if (id === "ROOT") return;
+          const node = newNodes[id];
+          const top = Number(node.props?.top ?? 0);
+          if (top >= shiftThresholdY!) {
+            newNodes[id] = {
+              ...node,
+              props: {
+                ...node.props,
+                top: top + shiftAmount,
+              },
+            };
+          }
+        });
+      }
+
+      // Nới rộng chiều cao tổng của Canvas (ROOT) để không bị cắt cụt
+      if (newNodes["ROOT"]) {
+        const currentCanvasHeight = Number(newNodes["ROOT"].props?.height ?? 1200);
+        newNodes["ROOT"] = {
+          ...newNodes["ROOT"],
+          props: {
+            ...newNodes["ROOT"].props,
+            height: currentCanvasHeight + shiftAmount,
+          },
+        };
+      }
+
+      newNodes[newId] = newNode;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: preset.type, props: newNode.props });
       return newNodes;
     });
+
+    if (selectedNode) {
+      showToast(`✨ Đã chèn khối "${preset.name}" bên dưới và tự động đẩy bố cục phía sau xuống!`);
+    } else {
+      showToast(`✨ Đã chèn khối "${preset.name}" vào thiệp!`);
+    }
 
     setTimeout(() => {
       const element = document.getElementById(`canvas-node-${newId}`);
@@ -1357,6 +1502,8 @@ export default function DesignTemplatePage() {
           onApplyAutoFill={handleApplyAutoFill}
           onSelectElement={(el) => setSelectedElement(el)}
           onRepairDecorations={handleRepairDecorations}
+          onDuplicateElement={handleDuplicateElement}
+          onDeleteElement={handleDeleteElement}
           onAddImage={handleAddImage}
           selectedElement={selectedElement}
           onUpdateElementProps={handleUpdateProps}
@@ -1377,7 +1524,10 @@ export default function DesignTemplatePage() {
           onAddModulePreset={handleAddModulePreset}
           onSelectTemplate={handleSelectTemplate}
           onApplyThemePreset={handleApplyThemePreset}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenSettings={() => {
+            setActiveLeftTab("autofill");
+            setIsLeftDrawerOpen(true);
+          }}
         />
 
         {/* Center Canvas (Blueprint Grid + Mobile Viewport + Bounding Box) */}

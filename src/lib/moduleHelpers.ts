@@ -31,6 +31,7 @@ export interface CeremonyData {
   date: string;
   lunarDate: string;
   location: string;
+  styleVariant?: string;
 }
 
 export interface FamilyInfoData {
@@ -40,6 +41,7 @@ export interface FamilyInfoData {
   brideFather: string;
   brideMother: string;
   brideName: string;
+  styleVariant?: string;
 }
 
 export interface BankAccountInfo {
@@ -283,6 +285,24 @@ export function generateCeremonyHtml(
   primaryColor = "#6b3b59",
   textColor = "#2c2420"
 ): string {
+  if (data.styleVariant === "dual_party") {
+    return `<div style="padding:14px 16px; background:rgba(255,255,255,0.85); border:1px solid rgba(212,175,55,0.35); border-radius:18px; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
+      <div style="font-size:13px; font-weight:bold; color:${escapeModuleHtml(primaryColor)}; text-align:center; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px;">${escapeModuleHtml(data.ceremonyName || "Lễ Thành Hôn & Vu Quy")}</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px; text-align:center;">
+        <div style="background:rgba(254,242,242,0.7); padding:8px; border-radius:12px; border:1px solid rgba(254,202,202,0.8);">
+          <div style="font-weight:bold; color:#be123c; margin-bottom:2px;">LỄ VU QUY</div>
+          <div style="font-weight:600; color:#1f2937;">⏰ 09:00 Sáng</div>
+          <div style="font-size:11px; color:#4b5563; margin-top:2px;">Tư gia Nhà Gái</div>
+        </div>
+        <div style="background:rgba(239,246,255,0.7); padding:8px; border-radius:12px; border:1px solid rgba(191,219,254,0.8);">
+          <div style="font-weight:bold; color:#1d4ed8; margin-bottom:2px;">LỄ THÀNH HÔN</div>
+          <div style="font-weight:600; color:#1f2937;">⏰ 11:30 Trưa</div>
+          <div style="font-size:11px; color:#4b5563; margin-top:2px;">Trung tâm Tiệc cưới</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   const lunarHtml = data.lunarDate
     ? `<div style="font-size:11px; color:#888; margin-top:2px; font-style:italic;">${escapeModuleHtml(data.lunarDate)}</div>`
     : "";
@@ -341,13 +361,19 @@ export function generateFamilyInfoHtml(
   primaryColor = "#6b3b59",
   textColor = "#2c2420"
 ): string {
-  return `<div style="display:flex; justify-content:space-around; font-size:13px; line-height:1.7;">
-    <div><b>NHÀ TRAI</b><br/>${escapeModuleHtml(data.groomFather || "Ông Bố Chú Rể")}<br/>${
-    escapeModuleHtml(data.groomMother || "Bà Mẹ Chú Rể")
-  }<br/><span style="color:${escapeModuleHtml(primaryColor)}; font-weight:bold;">${escapeModuleHtml(data.groomName || "Chú Rể")}</span></div>
-    <div><b>NHÀ GÁI</b><br/>${escapeModuleHtml(data.brideFather || "Ông Bố Cô Dâu")}<br/>${
-    escapeModuleHtml(data.brideMother || "Bà Mẹ Cô Dâu")
-  }<br/><span style="color:${escapeModuleHtml(primaryColor)}; font-weight:bold;">${escapeModuleHtml(data.brideName || "Cô Dâu")}</span></div>
+  const songHy = data.styleVariant === "traditional"
+    ? `<div style="text-align:center; font-size:24px; color:#b91c1c; font-family:serif; font-weight:bold; margin-bottom:6px;">囍</div>`
+    : "";
+  return `<div style="padding:14px; background:rgba(255,255,255,0.85); border:1px solid rgba(212,175,55,0.25); border-radius:18px; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
+    ${songHy}
+    <div style="display:flex; justify-content:space-around; font-size:13px; line-height:1.7;">
+      <div><b>NHÀ TRAI</b><br/>${escapeModuleHtml(data.groomFather || "Ông Bố Chú Rể")}<br/>${
+      escapeModuleHtml(data.groomMother || "Bà Mẹ Chú Rể")
+    }<br/><span style="color:${escapeModuleHtml(primaryColor)}; font-weight:bold;">${escapeModuleHtml(data.groomName || "Chú Rể")}</span></div>
+      <div><b>NHÀ GÁI</b><br/>${escapeModuleHtml(data.brideFather || "Ông Bố Cô Dâu")}<br/>${
+      escapeModuleHtml(data.brideMother || "Bà Mẹ Cô Dâu")
+    }<br/><span style="color:${escapeModuleHtml(primaryColor)}; font-weight:bold;">${escapeModuleHtml(data.brideName || "Cô Dâu")}</span></div>
+    </div>
   </div>`;
 }
 

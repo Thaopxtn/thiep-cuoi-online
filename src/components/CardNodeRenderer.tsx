@@ -8,6 +8,14 @@ import {
   Send,
   Sparkles,
   CheckCircle,
+  CreditCard,
+  QrCode,
+  Phone,
+  MessageCircle,
+  Crown,
+  Copy,
+  Check,
+  X,
 } from "lucide-react";
 
 import {
@@ -521,6 +529,69 @@ export default function CardNodeRenderer({
               {type === "CountdownBoxV2" && (() => {
                 const cd = calculateCountdown(props.targetDate, props.targetTime);
                 const textColor = props.textColor || "#590310";
+                const variant = props.styleVariant;
+
+                if (variant === "flip") {
+                  return (
+                    <div className="w-full h-full flex flex-col justify-between p-3 bg-slate-900 text-white rounded-2xl border border-slate-700 shadow-lg text-center select-none">
+                      <div className="flex items-center justify-between text-[10px] border-b border-slate-800 pb-1">
+                        <span className="font-bold text-slate-300 tracking-wider">ĐẾM NGƯỢC NGÀY CHUNG ĐÔI</span>
+                        <span className="text-rose-400 font-bold font-mono">FLIP CLOCK</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 my-auto">
+                        {[
+                          { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
+                          { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
+                          { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
+                          { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
+                        ].map((item, i) => (
+                          <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl p-1.5 relative overflow-hidden flex flex-col items-center shadow-inner">
+                            <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-950/80 z-10" />
+                            <span className="text-xl sm:text-2xl font-black font-mono text-cyan-300 z-0">
+                              {item.val}
+                            </span>
+                            <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">
+                              {item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[9px] text-slate-400">Chính xác theo thời gian thực</div>
+                    </div>
+                  );
+                }
+
+                if (variant === "hearts") {
+                  return (
+                    <div className="w-full h-full flex flex-col justify-between p-3 bg-gradient-to-b from-rose-50/90 to-white rounded-2xl border border-rose-200 shadow-md text-center select-none">
+                      <div className="flex items-center justify-between text-[10px] border-b border-rose-100 pb-1">
+                        <span className="font-bold text-rose-800 tracking-wider flex items-center gap-1">
+                          <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> CÙNG ĐẾM NGƯỢC
+                        </span>
+                        <span className="text-rose-600 font-bold text-[9px]">Chung Đôi</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 my-auto">
+                        {[
+                          { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
+                          { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
+                          { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
+                          { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
+                        ].map((item, i) => (
+                          <div key={i} className="bg-white border border-rose-200/80 rounded-xl p-1.5 flex flex-col items-center shadow-2xs">
+                            <span className="text-xl sm:text-2xl font-black font-serif text-rose-600">
+                              {item.val}
+                            </span>
+                            <span className="text-[9px] uppercase font-bold text-rose-400 mt-0.5">
+                              {item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[9px] text-rose-500 font-medium">❤️ Đếm ngược từng khoảnh khắc ngọt ngào</div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="w-full h-full flex items-center justify-around p-3 bg-white/30 backdrop-blur-xs rounded-2xl border border-stone-200/50 text-center shadow-xs">
                     {[
@@ -549,6 +620,47 @@ export default function CardNodeRenderer({
               {type === "CalendarBoxV2" && (() => {
                 const cal = formatCalendarData(props);
                 const themeColor = props.themeColor || "#590310";
+                const variant = props.styleVariant;
+
+                if (variant === "royal") {
+                  return (
+                    <div className="w-full h-full p-3.5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100/50 border-2 border-amber-300 shadow-md flex flex-col justify-between items-center text-center select-none">
+                      <div className="flex items-center gap-1.5 text-amber-900 border-b border-amber-200/80 pb-1 w-full justify-center">
+                        <Crown className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-[10px] uppercase font-serif font-bold tracking-widest">
+                          {cal.formattedTitle}
+                        </span>
+                      </div>
+                      <div className="text-4xl sm:text-5xl font-serif font-black text-amber-950 my-1 drop-shadow-xs">
+                        {cal.day}
+                      </div>
+                      <div className="text-[10px] font-serif font-semibold text-amber-800 bg-amber-100/60 px-3 py-0.5 rounded-full border border-amber-200">
+                        {cal.dayOfWeek} • {cal.time} • Ngày Hoàng Đạo
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "stamp") {
+                  return (
+                    <div className="w-full h-full p-3 rounded-2xl bg-[#fdfaf2] border-2 border-dashed border-amber-400/90 shadow-sm flex items-center justify-between gap-3 text-left select-none">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] font-mono text-amber-800 font-bold tracking-widest uppercase">
+                          POSTMARK • WEDDING
+                        </span>
+                        <h4 className="text-base font-bold text-gray-900 font-serif mt-0.5">
+                          Ngày {cal.day} {cal.formattedTitle}
+                        </h4>
+                        <p className="text-[10px] text-gray-600">{cal.dayOfWeek} • {cal.time}</p>
+                      </div>
+                      <div className="w-16 h-16 rounded-full border-2 border-dashed border-rose-500 bg-white flex flex-col items-center justify-center text-rose-600 rotate-6 shrink-0 shadow-2xs">
+                        <Heart className="w-4 h-4 fill-rose-500" />
+                        <span className="text-[10px] font-bold font-mono mt-0.5">{cal.day}.{cal.month}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
                   <div className="w-full h-full p-4 rounded-3xl bg-amber-50/50 border border-amber-200/50 flex flex-col justify-center items-center text-center shadow-xs">
                     <span
@@ -592,14 +704,332 @@ export default function CardNodeRenderer({
                 );
               })()}
 
-              {/* Gift QR Box - Hiển thị mã VietQR thật 100% */}
+              {/* Gift QR Box - Đa giao diện khớp Preview 100% */}
               {type === "GiftQrBox" && (() => {
+                const variant = props.styleVariant || "minimal";
+                const modalTitle = props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)";
+
+                // 1. GIAO DIỆN 1: CẢ NHÀ TRAI & NHÀ GÁI (dual_accounts)
+                if (variant === "dual_accounts") {
+                  const gBank = props.groomBank || props.bankName || "MB BANK";
+                  const gAcc = props.groomAccount || props.accountNumber || "999988882026";
+                  const gName = props.groomName || props.accountName || "LÊ ĐỨC MẠNH";
+                  const gQr = generateVietQrUrl(gBank, gAcc, gName, undefined, "Mung cuoi Chu Re");
+
+                  const bBank = props.brideBank || "VIETCOMBANK";
+                  const bAcc = props.brideAccount || "1028492049";
+                  const bName = props.brideName || "TRẦN LỆ QUYÊN";
+                  const bQr = generateVietQrUrl(bBank, bAcc, bName, undefined, "Mung cuoi Co Dau");
+
+                  return (
+                    <div
+                      onClick={() => {
+                        weddingSounds.playChime();
+                        onOpenGiftQr?.();
+                      }}
+                      className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200/90 shadow-md flex flex-col justify-between cursor-pointer group hover:shadow-xl hover:border-rose-400 transition-all select-none hover:scale-[1.01]"
+                      title="Chạm để mở Hộp Quà Mừng Cưới"
+                    >
+                      <div className="flex items-center justify-between border-b border-rose-100 pb-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+                          <span>🎁</span>
+                          <span className="font-serif">{modalTitle}</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          Napas 24/7
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+                        {/* Nhà Trai */}
+                        <div className="bg-gradient-to-b from-blue-50/60 to-white rounded-xl p-2 border border-blue-200/80 flex flex-col items-center justify-between text-center shadow-2xs">
+                          <div className="w-full flex items-center justify-between text-[10px] font-bold text-blue-900 border-b border-blue-100 pb-1">
+                            <span className="bg-blue-100/70 text-blue-800 px-1.5 py-0.2 rounded font-mono">{gBank}</span>
+                            <span>🤵 Nhà Trai</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-blue-200 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
+                            {gQr ? (
+                              <img src={gQr} alt="QR Nhà Trai" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-gray-800 truncate">{gName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-blue-700 bg-blue-50/80 py-0.5 px-1 rounded truncate">
+                              STK: {gAcc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Nhà Gái */}
+                        <div className="bg-gradient-to-b from-rose-50/60 to-white rounded-xl p-2 border border-rose-200/80 flex flex-col items-center justify-between text-center shadow-2xs">
+                          <div className="w-full flex items-center justify-between text-[10px] font-bold text-rose-900 border-b border-rose-100 pb-1">
+                            <span className="bg-rose-100/70 text-rose-800 px-1.5 py-0.2 rounded font-mono">{bBank}</span>
+                            <span>👰 Nhà Gái</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-rose-200 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
+                            {bQr ? (
+                              <img src={bQr} alt="QR Nhà Gái" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-gray-800 truncate">{bName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-rose-700 bg-rose-50/80 py-0.5 px-1 rounded truncate">
+                              STK: {bAcc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-center text-[9px] text-rose-600 font-bold pt-1.5 flex items-center justify-center gap-1 group-hover:underline">
+                        <span>Chạm để mở STK Cô Dâu & Chú Rể ↗</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 2. GIAO DIỆN 3: DẠNG THẺ ATM LUXURY (vip_gold_card)
+                if (variant === "vip_gold_card") {
+                  const bankName = props.bankName || "TECHCOMBANK";
+                  const accNum = props.accountNumber || "987654321098";
+                  const accName = props.accountName || "HOÀNG NAM & THẢO LINH";
+                  const qrUrl = props.imgKey || generateVietQrUrl(bankName, accNum, accName, undefined, "Mung cuoi VIP");
+                  const formattedNum = accNum.replace(/(\d{4})/g, "$1 ").trim();
+
+                  return (
+                    <div
+                      onClick={() => {
+                        weddingSounds.playChime();
+                        onOpenGiftQr?.();
+                      }}
+                      className="w-full h-full bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 text-amber-950 p-3.5 rounded-2xl relative overflow-hidden shadow-lg border border-amber-300 flex flex-col justify-between cursor-pointer group hover:shadow-xl transition-all select-none hover:scale-[1.01]"
+                      title="Chạm để mở Hộp Quà Mừng Cưới"
+                    >
+                      <div className="absolute -top-12 -right-12 w-36 h-36 bg-white/20 rounded-full blur-xl pointer-events-none" />
+
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black tracking-widest font-mono uppercase bg-amber-900/10 px-2 py-0.5 rounded border border-amber-900/20">
+                            VIETQR GOLD VIP
+                          </span>
+                          <span className="text-[9px] font-bold text-amber-900/80 font-mono">{bankName}</span>
+                        </div>
+                        <CreditCard className="w-5 h-5 text-amber-900/80" />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 my-auto relative z-10">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="w-7 h-5 rounded bg-gradient-to-br from-amber-600/40 to-amber-700/60 border border-amber-700/60 shadow-xs flex items-center justify-center">
+                            <div className="w-4 h-2.5 border-t border-b border-amber-800/40" />
+                          </div>
+                          <div>
+                            <p className="font-mono text-sm sm:text-base font-black tracking-wider text-amber-950 drop-shadow-xs truncate">
+                              {formattedNum}
+                            </p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900 truncate mt-0.5">
+                              {accName}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white p-1 rounded-xl border-2 border-amber-500 shadow-md shrink-0 flex items-center justify-center group-hover:scale-105 transition-transform overflow-hidden">
+                          {qrUrl ? (
+                            <img src={qrUrl} alt="VietQR VIP" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                          ) : (
+                            <QrCode className="w-14 h-14 text-amber-950" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[9px] text-amber-900/90 font-semibold relative z-10 border-t border-amber-400/60 pt-1">
+                        <span>Napas 247 • Chuyển khoản mừng cưới thuận tiện</span>
+                        <span className="font-bold group-hover:underline">Chạm để mở ↗</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 3. GIAO DIỆN 2: THẺ TRUNG TÂM GỌN GÀNG (single_clean)
+                if (variant === "single_clean") {
+                  const bankName = props.bankName || "VIETCOMBANK";
+                  const accNum = props.accountNumber || "1028492049";
+                  const accName = props.accountName || "NGUYỄN HOÀNG NAM";
+                  const qrUrl = props.imgKey || generateVietQrUrl(bankName, accNum, accName, undefined, "Mung cuoi hai ban");
+
+                  return (
+                    <div
+                      onClick={() => {
+                        weddingSounds.playChime();
+                        onOpenGiftQr?.();
+                      }}
+                      className="w-full h-full bg-white/95 p-3.5 rounded-2xl border border-emerald-200/90 shadow-md flex items-center justify-between gap-3 cursor-pointer group hover:shadow-xl hover:border-emerald-400 transition-all select-none hover:scale-[1.01]"
+                      title="Chạm để mở Hộp Quà Mừng Cưới"
+                    >
+                      <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                        <div>
+                          <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <span>{bankName}</span>
+                            <span>• 24/7</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-gray-900 truncate mt-1.5 font-serif uppercase">
+                            {accName}
+                          </h4>
+                          <p className="text-xs font-mono font-semibold text-gray-600 mt-0.5">
+                            STK: <span className="text-gray-900 font-bold">{accNum}</span>
+                          </p>
+                        </div>
+
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              weddingSounds.playPop();
+                              if (typeof navigator !== "undefined" && navigator.clipboard) {
+                                navigator.clipboard.writeText(accNum);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors pointer-events-auto"
+                          >
+                            <Copy className="w-3 h-3 text-blue-600" />
+                            <span>Sao chép số TK</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white border-2 border-emerald-200 rounded-xl p-1.5 flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform overflow-hidden">
+                        {qrUrl ? (
+                          <img src={qrUrl} alt="VietQR" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                        ) : (
+                          <QrCode className="w-16 h-16 text-gray-800" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 4. GIAO DIỆN 4: LỜI CHÚC & COPY STK (message_envelope)
+                if (variant === "message_envelope") {
+                  const bankName = props.bankName || "VPBANK";
+                  const accNum = props.accountNumber || "888820268888";
+                  const accName = props.accountName || "LÊ ĐỨC MẠNH";
+                  const msg = props.messageText || "Sự hiện diện và lời chúc phúc của quý vị là món quà vô giá nhất đối với chúng mình!";
+                  const qrUrl = props.imgKey || generateVietQrUrl(bankName, accNum, accName, undefined, "Mung cuoi hai ban");
+
+                  return (
+                    <div
+                      onClick={() => {
+                        weddingSounds.playChime();
+                        onOpenGiftQr?.();
+                      }}
+                      className="w-full h-full bg-gradient-to-br from-rose-50/70 via-white to-amber-50/40 p-3 rounded-2xl border border-rose-200 shadow-md flex flex-col justify-between cursor-pointer group hover:shadow-xl hover:border-rose-400 transition-all select-none text-center hover:scale-[1.01]"
+                      title="Chạm để mở Hộp Quà Mừng Cưới"
+                    >
+                      <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-100/70 px-3 py-0.5 rounded-full w-fit mx-auto">
+                        <span>💌</span>
+                        <span>{modalTitle}</span>
+                      </div>
+
+                      <p className="text-[10px] text-gray-600 italic px-2 my-1 line-clamp-2">
+                        "{msg}"
+                      </p>
+
+                      <div className="flex items-center justify-center gap-3 my-0.5">
+                        <div className="w-20 h-20 p-1 bg-white rounded-xl border border-rose-200 shadow-inner shrink-0 group-hover:scale-105 transition-transform overflow-hidden">
+                          {qrUrl ? (
+                            <img src={qrUrl} alt="VietQR" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                          ) : (
+                            <QrCode className="w-14 h-14 text-gray-700" />
+                          )}
+                        </div>
+                        <div className="text-left space-y-0.5">
+                          <span className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 font-mono">{bankName}</span>
+                          <p className="text-xs font-bold text-gray-900 truncate">{accName}</p>
+                          <p className="text-[11px] font-mono font-bold text-rose-600">{accNum}</p>
+                        </div>
+                      </div>
+
+                      <span className="text-[9px] text-rose-600 font-bold group-hover:underline">
+                        Chạm để mở Hộp Quà Mừng Cưới ↗
+                      </span>
+                    </div>
+                  );
+                }
+
+                // 5. GIAO DIỆN 6: HAI THẺ DỌC KÈM GỢI Ý (dual_vertical)
+                if (variant === "dual_vertical") {
+                  const gBank = props.groomBank || props.bankName || "MB BANK";
+                  const gAcc = props.groomAccount || props.accountNumber || "240220038888";
+                  const gName = props.groomName || props.accountName || "TRẦN MINH QUÂN";
+                  const gQr = generateVietQrUrl(gBank, gAcc, gName, undefined, "Mung cuoi Chu Re");
+
+                  const bBank = props.brideBank || "TECHCOMBANK";
+                  const bAcc = props.brideAccount || "19038294829012";
+                  const bName = props.brideName || "LÊ THỊ MAI";
+                  const bQr = generateVietQrUrl(bBank, bAcc, bName, undefined, "Mung cuoi Co Dau");
+
+                  return (
+                    <div
+                      onClick={() => {
+                        weddingSounds.playChime();
+                        onOpenGiftQr?.();
+                      }}
+                      className="w-full h-full bg-white/95 rounded-2xl p-2.5 border border-rose-200/90 shadow-md flex flex-col justify-between cursor-pointer group hover:shadow-xl hover:border-rose-400 transition-all select-none hover:scale-[1.01]"
+                      title="Chạm để mở Hộp Quà Mừng Cưới"
+                    >
+                      <div className="flex items-center justify-between text-xs font-bold text-rose-800 px-1">
+                        <span>🎁 {modalTitle}</span>
+                        <div className="flex gap-1 text-[8px]">
+                          {["200k", "500k", "1Tr"].map((m, idx) => (
+                            <span key={idx} className="px-1.5 py-0.2 bg-rose-50 text-rose-700 rounded border border-rose-200 font-bold">{m}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 my-auto">
+                        {/* Row 1: Chú Rể */}
+                        <div className="flex items-center justify-between p-1.5 bg-blue-50/50 rounded-xl border border-blue-100 gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm">🤵</span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-blue-900 truncate">Mừng Chú Rể • {gName}</p>
+                              <p className="text-[9px] font-mono text-gray-600 truncate">{gBank}: {gAcc}</p>
+                            </div>
+                          </div>
+                          <div className="w-12 h-12 bg-white p-0.5 rounded-lg border border-blue-200 shrink-0 overflow-hidden flex items-center justify-center">
+                            {gQr ? <img src={gQr} alt="QR Chú Rể" className="w-full h-full object-contain" /> : <QrCode className="w-8 h-8 text-blue-900" />}
+                          </div>
+                        </div>
+
+                        {/* Row 2: Cô Dâu */}
+                        <div className="flex items-center justify-between p-1.5 bg-rose-50/50 rounded-xl border border-rose-100 gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm">👰</span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-rose-900 truncate">Mừng Cô Dâu • {bName}</p>
+                              <p className="text-[9px] font-mono text-gray-600 truncate">{bBank}: {bAcc}</p>
+                            </div>
+                          </div>
+                          <div className="w-12 h-12 bg-white p-0.5 rounded-lg border border-rose-200 shrink-0 overflow-hidden flex items-center justify-center">
+                            {bQr ? <img src={bQr} alt="QR Cô Dâu" className="w-full h-full object-contain" /> : <QrCode className="w-8 h-8 text-rose-900" />}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className="text-[9px] text-center text-rose-600 font-bold group-hover:underline">Chạm để mở STK Cô Dâu & Chú Rể ↗</span>
+                    </div>
+                  );
+                }
+
+                // 6. GIAO DIỆN MẶC ĐỊNH / TỐI GIẢN (minimal)
                 let qrUrl = getGiftQrUrl(props);
                 let bankName = props.bankName;
                 let accountNumber = props.accountNumber;
                 let accountName = props.accountName;
 
-                // Tự động fallback từ Groom/Bride của thiệp nếu node chưa được cấu hình tài khoản riêng
                 if (!qrUrl && (groom?.accountNumber || bride?.accountNumber)) {
                   const targetBank = groom?.accountNumber ? groom : bride;
                   if (targetBank) {
@@ -621,7 +1051,7 @@ export default function CardNodeRenderer({
                   >
                     <div className="flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full">
                       <span>🎁</span>
-                      <span>{props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)"}</span>
+                      <span>{modalTitle}</span>
                     </div>
 
                     {/* Khung Mã QR Chuẩn Napas 24/7 Thật */}
@@ -754,12 +1184,240 @@ export default function CardNodeRenderer({
                 </div>
               )}
 
-              {/* Map Box */}
+              {/* Map Box (Hỗ trợ 6 giao diện bản đồ đa dạng) */}
               {type === "MapBox" && (() => {
+                const variant = props.styleVariant || "minimal";
                 const venueName = props.venueName || props.title || "Trung tâm Tiệc cưới";
                 const address = props.address || "Hà Nội";
                 const generatedMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueName} ${address}`)}`;
                 const mapUrl = getSafeMapUrl(props.mapUrl, generatedMapUrl);
+
+                if (variant === "satellite_preview") {
+                  const previewImg = props.previewImg || "https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600";
+                  return (
+                    <div className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-white/95 flex flex-col shadow-xs group">
+                      <div className="relative w-full h-[55%] overflow-hidden bg-slate-100">
+                        <img src={previewImg} alt="Bản đồ vị trí" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <div className="p-1.5 bg-red-600 text-white rounded-full shadow-lg animate-bounce">
+                            <MapPin className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <span className="absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-xs">
+                          Ảnh Vệ Tinh
+                        </span>
+                      </div>
+                      <div className="flex-1 p-2 flex flex-col justify-between items-center text-center">
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900 font-serif line-clamp-1">{venueName}</h4>
+                          <p className="text-[10px] text-gray-500 line-clamp-1">{address}</p>
+                        </div>
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 text-white rounded-full text-[10px] font-bold shadow-xs pointer-events-auto"
+                        >
+                          <span>Mở Google Maps</span>
+                          <span>↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "dual_venue") {
+                  const vGroom = props.venueNameGroom || "Tư gia Nhà Trai";
+                  const aGroom = props.addressGroom || "Số 12 Phố Huế, Hoàn Kiếm";
+                  const urlGroom = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${vGroom} ${aGroom}`)}`;
+                  const vBride = props.venueNameBride || "Tư gia Nhà Gái";
+                  const aBride = props.addressBride || "Số 45 Lê Lợi, Ba Đình";
+                  const urlBride = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${vBride} ${aBride}`)}`;
+
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-rose-200/80 bg-white/95 p-2.5 flex flex-col justify-between shadow-xs text-center select-none">
+                      <div className="text-[11px] font-bold text-rose-800 uppercase tracking-wider">
+                        📍 Địa Điểm Hai Gia Đình
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-blue-700 uppercase bg-blue-50 px-1.5 py-0.5 rounded">Nhà Trai</span>
+                            <p className="text-[11px] font-bold text-gray-900 mt-0.5 truncate">{vGroom}</p>
+                            <p className="text-[9px] text-gray-500 line-clamp-2 mt-0.5">{aGroom}</p>
+                          </div>
+                          <a
+                            href={urlGroom}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1.5 inline-flex items-center justify-center gap-0.5 py-1 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold pointer-events-auto"
+                          >
+                            Chỉ đường ↗
+                          </a>
+                        </div>
+
+                        <div className="p-2 rounded-xl bg-rose-50/50 border border-rose-100 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-rose-700 uppercase bg-rose-50 px-1.5 py-0.5 rounded">Nhà Gái</span>
+                            <p className="text-[11px] font-bold text-gray-900 mt-0.5 truncate">{vBride}</p>
+                            <p className="text-[9px] text-gray-500 line-clamp-2 mt-0.5">{aBride}</p>
+                          </div>
+                          <a
+                            href={urlBride}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1.5 inline-flex items-center justify-center gap-0.5 py-1 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[9px] font-bold pointer-events-auto"
+                          >
+                            Chỉ đường ↗
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "qr_nav") {
+                  const qrMapUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mapUrl)}`;
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-gray-200 bg-white/95 p-3 flex items-center justify-between gap-3 shadow-xs select-none">
+                      <div className="flex-1 flex flex-col justify-between h-full text-left">
+                        <div>
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-rose-700 uppercase">
+                            <MapPin className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Chỉ Đường Thông Minh</span>
+                          </div>
+                          <h4 className="text-xs font-bold text-gray-900 font-serif mt-1">{venueName}</h4>
+                          <p className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">{address}</p>
+                        </div>
+                        <div className="pt-2">
+                          <a
+                            href={mapUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-bold shadow-xs pointer-events-auto"
+                          >
+                            Mở Google Maps ↗
+                          </a>
+                        </div>
+                      </div>
+                      <div className="w-24 h-24 rounded-xl border border-gray-200 p-1.5 bg-white flex flex-col items-center justify-center shrink-0 shadow-inner">
+                        <img src={qrMapUrl} alt="QR Chỉ đường" className="w-full h-full object-contain" />
+                        <span className="text-[8px] text-gray-400 mt-0.5">Quét bằng camera</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "royal_gold") {
+                  return (
+                    <div className="w-full h-full rounded-2xl border-2 border-amber-400/80 bg-gradient-to-b from-amber-50/50 via-white to-amber-50/30 p-3 flex flex-col items-center justify-between text-center shadow-md relative overflow-hidden select-none">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 text-amber-950 flex items-center justify-center shadow-xs">
+                          <MapPin className="w-3.5 h-3.5 text-amber-900" />
+                        </div>
+                        <h4 className="text-xs font-bold text-amber-950 font-serif uppercase tracking-wider">{venueName}</h4>
+                        <p className="text-[10px] text-amber-900/80 line-clamp-2 max-w-[280px]">{address}</p>
+                      </div>
+                      <a
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-3.5 py-1 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:brightness-110 text-white rounded-full text-[10px] font-bold shadow-xs pointer-events-auto transition-all"
+                      >
+                        <span>CHỈ ĐƯỜNG ĐẾN HÔN LỄ</span>
+                        <span>↗</span>
+                      </a>
+                    </div>
+                  );
+                }
+
+                if (variant === "roadmap_card") {
+                  const parkingNote = props.parkingNote || "Có bãi đỗ xe ô tô & xe máy miễn phí";
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-slate-200 bg-white/95 p-3 flex flex-col justify-between shadow-xs text-left select-none">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                            <MapPin className="w-4 h-4 text-red-500" />
+                            <span>{venueName}</span>
+                          </div>
+                          <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            Chỉ dẫn đỗ xe
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mt-1 line-clamp-2">{address}</p>
+                        <div className="mt-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100 text-[10px] text-slate-600 flex items-center gap-1.5">
+                          <span>🚗</span>
+                          <span className="truncate">{parkingNote}</span>
+                        </div>
+                      </div>
+                      <div className="pt-1 flex items-center justify-end">
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[9px] font-bold pointer-events-auto transition-colors"
+                        >
+                          <span>Mở Google Maps</span>
+                          <span>↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "handdrawn") {
+                  return (
+                    <div className="w-full h-full rounded-2xl border-2 border-dashed border-[#8c6d46]/70 bg-[#faf6ee] p-3 flex flex-col justify-between text-center shadow-xs select-none relative overflow-hidden">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 rounded-full bg-[#f0e6d2] border border-[#8c6d46]/50 text-[#6a4f2e] flex items-center justify-center shadow-2xs">
+                          <MapPin className="w-4 h-4 text-[#8c6d46]" />
+                        </div>
+                        <span className="text-[9px] font-serif uppercase tracking-widest text-[#8c6d46]">Sơ Đồ Hướng Dẫn</span>
+                        <h4 className="text-xs font-bold text-[#4a3520] font-serif">{venueName}</h4>
+                        <p className="text-[10px] text-[#7a6245] italic line-clamp-2 max-w-[280px]">{address}</p>
+                      </div>
+                      <a
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1 bg-[#6a4f2e] hover:bg-[#533d23] text-[#faf6ee] rounded-full text-[10px] font-bold shadow-xs pointer-events-auto transition-all"
+                      >
+                        <span>Xem bản đồ dẫn đường</span>
+                        <span>↗</span>
+                      </a>
+                    </div>
+                  );
+                }
+
+                if (variant === "darkmode") {
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-amber-500/40 bg-zinc-950 text-white p-3 flex flex-col justify-between text-center shadow-xl select-none relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-black/60 pointer-events-none" />
+                      <div className="relative z-10 flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-300 flex items-center justify-center shadow-inner">
+                          <MapPin className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-[9px] font-mono tracking-widest text-amber-400 uppercase">Luxury Night Venue</span>
+                        <h4 className="text-xs font-bold text-amber-100 font-serif tracking-wide">{venueName}</h4>
+                        <p className="text-[10px] text-zinc-400 line-clamp-2 max-w-[280px]">{address}</p>
+                      </div>
+                      <div className="relative z-10 pt-1">
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center justify-center gap-1 px-4 py-1.5 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-zinc-950 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg pointer-events-auto transition-all"
+                        >
+                          <span>Dẫn Đường Google Maps</span>
+                          <span>↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Default: Minimal 1-touch card
                 return (
                   <a
                     href={mapUrl}

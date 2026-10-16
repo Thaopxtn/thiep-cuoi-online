@@ -264,6 +264,13 @@ class WeddingSoundService {
       // Ignore
     }
   }
+
+  /**
+   * 7. Âm thanh Pop nhẹ khi bấm tương tác hoặc sao chép
+   */
+  public playPop() {
+    this.playSoftClick();
+  }
 }
 
 // Singleton instance

@@ -391,9 +391,9 @@ export function classifyTemplateElements(nodes: Record<string, any>): {
     // 1. Kiểm tra nếu là Họa tiết trang trí
     if (isDecorativeNode(id, node)) {
       group = "decorative";
-      groupTitle = "Họa tiết cố định";
-      isLocked = true;
-      isReplaceable = false;
+      groupTitle = "Họa tiết trang trí";
+      isLocked = props.locked !== false; // Mặc định khóa, nhưng cho phép mở khóa để sửa
+      isReplaceable = !isLocked;
       if (!meta) {
         if (type === "PhotoBox") name = "Họa tiết hình ảnh trang trí";
         else if (type === "GeometricBox") name = "Hình khối nền trang trí";
@@ -550,6 +550,20 @@ export function isDecorativeNode(nodeId: string, node?: any, templateIdOrSlug?: 
   }
 
   return false;
+}
+
+/**
+ * Kiểm tra xem một phần tử hiện tại có đang bị khóa hay không.
+ * Mặc định các họa tiết trang trí sẽ bị khóa (locked: true),
+ * NHƯNG nếu người dùng chủ động mở khóa (props.locked === false) thì phần tử sẽ được mở khóa để sửa như các phần tử khác.
+ */
+export function isElementLocked(nodeId: string, nodeOrProps?: any, templateIdOrSlug?: string): boolean {
+  if (!nodeOrProps) return false;
+  const props = nodeOrProps?.props ?? (nodeOrProps.locked !== undefined ? nodeOrProps : {});
+  if (props.locked === false) return false;
+  if (props.locked === true) return true;
+  const node = nodeOrProps?.props ? nodeOrProps : { props: nodeOrProps, type: nodeOrProps?.type };
+  return isDecorativeNode(nodeId, node, templateIdOrSlug);
 }
 
 /**

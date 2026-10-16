@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   isHongPhongTemplate,
   isDecorativeNode,
+  isElementLocked,
+  classifyTemplateElements,
   getRealWeddingPhotoSlots,
   repairAndLockDecorativeNodes,
   HONG_PHONG_DECORATIVE_NODE_IDS,
@@ -207,5 +209,80 @@ describe("Dịch vụ Khóa họa tiết chuẩn & Trích xuất nội dung mẫ
       // Các ảnh PNG minh họa mặt trăng, đám mây, múa lân không bị đưa vào slot thay ảnh
       expect(slots.length).toBe(0);
     }
+  });
+
+  it("Họa tiết trang trí mặc định bị khóa (locked: true), nhưng cho phép mở khóa để sửa (locked: false)", () => {
+    // 1. Họa tiết mặc định không có props.locked -> Bị khóa
+    const decorativeNodeDefault = {
+      type: { resolvedName: "PhotoBox" },
+      props: {
+        imgKey: "resources/background/flower2-decoration.png",
+        top: 100,
+      },
+    };
+    expect(isDecorativeNode("flower_node", decorativeNodeDefault)).toBe(true);
+    expect(isElementLocked("flower_node", decorativeNodeDefault)).toBe(true);
+
+    // 2. Người dùng chủ động mở khóa (locked: false) -> Cho phép sửa như phần tử bình thường
+    const decorativeNodeUnlocked = {
+      type: { resolvedName: "PhotoBox" },
+      props: {
+        imgKey: "resources/background/flower2-decoration.png",
+        top: 100,
+        locked: false,
+      },
+    };
+    expect(isElementLocked("flower_node", decorativeNodeUnlocked)).toBe(false);
+
+    // 3. Người dùng khóa lại thủ công (locked: true) -> Bị khóa
+    const decorativeNodeRelocked = {
+      type: { resolvedName: "PhotoBox" },
+      props: {
+        imgKey: "resources/background/flower2-decoration.png",
+        top: 100,
+        locked: true,
+      },
+    };
+    expect(isElementLocked("flower_node", decorativeNodeRelocked)).toBe(true);
+
+    // 4. Phần tử thông thường (TextBox của cô dâu chú rể) -> Mặc định không bị khóa
+    const normalTextBox = {
+      type: { resolvedName: "TextBox" },
+      props: {
+        text: "Trọng Tấn & Cẩm Ly",
+        top: 200,
+      },
+    };
+    expect(isElementLocked("text_couple", normalTextBox)).toBe(false);
+  });
+
+  it("classifyTemplateElements phản ánh chính xác trạng thái mở khóa của họa tiết", () => {
+    const nodes = {
+      flower_locked: {
+        type: { resolvedName: "PhotoBox" },
+        props: {
+          imgKey: "resources/background/flower2-decoration.png",
+          top: 100,
+        },
+      },
+      flower_unlocked: {
+        type: { resolvedName: "PhotoBox" },
+        props: {
+          imgKey: "resources/background/flower2-decoration.png",
+          top: 150,
+          locked: false,
+        },
+      },
+    };
+
+    const classified = classifyTemplateElements(nodes);
+    const itemLocked = classified.decorativeList.find((i) => i.id === "flower_locked");
+    const itemUnlocked = classified.decorativeList.find((i) => i.id === "flower_unlocked");
+
+    expect(itemLocked?.isLocked).toBe(true);
+    expect(itemLocked?.isReplaceable).toBe(false);
+
+    expect(itemUnlocked?.isLocked).toBe(false);
+    expect(itemUnlocked?.isReplaceable).toBe(true);
   });
 });

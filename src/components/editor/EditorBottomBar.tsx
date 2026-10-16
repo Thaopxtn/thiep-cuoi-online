@@ -71,7 +71,7 @@ export default function EditorBottomBar({
 
   return (
     <footer
-      className="fixed bottom-4 right-4 z-40 flex items-center gap-2 select-none pointer-events-auto"
+      className="fixed bottom-16 sm:bottom-4 right-2 sm:right-4 z-30 flex items-center gap-1.5 sm:gap-2 select-none pointer-events-auto"
       onClick={(e) => e.stopPropagation()}
     >
       {/* ================= CANVA BOTTOM TOOLBAR PILL ================= */}

@@ -16,6 +16,7 @@ import {
   Scissors,
   Check,
 } from "lucide-react";
+import { isElementLocked } from "@/lib/decorativeLockService";
 
 export interface ContextMenuProps {
   x: number;
@@ -73,7 +74,7 @@ export default function EditorContextMenu({
   if (!selectedElement) return null;
 
   const { id, type, props } = selectedElement;
-  const isLocked = Boolean(props.locked);
+  const isLocked = isElementLocked(id, { props, type });
   const currentZ = Number(props.zIndex) || 1;
 
   // Align horizontal center

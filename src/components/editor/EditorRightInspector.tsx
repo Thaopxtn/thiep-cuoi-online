@@ -32,6 +32,7 @@ import {
   Check,
   ExternalLink,
   Lock,
+  Unlock,
   Palette,
   Users,
   QrCode,
@@ -68,7 +69,7 @@ import { weddingSounds } from "@/lib/soundEffects";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import { getSafeImageUrl } from "@/lib/imageUtils";
-import { isDecorativeNode } from "@/lib/decorativeLockService";
+import { isDecorativeNode, isElementLocked } from "@/lib/decorativeLockService";
 import {
   parseTimelineItems,
   generateTimelineHtml,
@@ -398,7 +399,7 @@ export default function EditorRightInspector({
   }
 
   const { id, type, props } = selectedElement;
-  const isLocked = Boolean(props.locked || isDecorativeNode(id, { props, type }));
+  const isLocked = isElementLocked(id, { props, type });
   const isImage = type === "PhotoBox" || (!props.text && !!props.imgKey);
   const isShape = type === "GeometricBox" || type === "LineBox";
   const isCountdown = type === "CountdownBoxV2" || type === "CountdownBox" || id.includes("countdown");
@@ -521,16 +522,24 @@ export default function EditorRightInspector({
           <div className="space-y-4">
             {/* Banner nếu phần tử bị khóa cố định */}
             {isLocked && (
-              <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-900 shadow-2xs space-y-1.5">
-                <div className="flex items-center gap-1.5 font-bold text-xs text-amber-800">
-                  <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Họa tiết trang trí của mẫu</span>
-                  <span className="ml-auto text-[10px] font-semibold bg-amber-200/70 text-amber-800 px-2 py-0.5 rounded-full">
-                    Đã khóa cố định
-                  </span>
+              <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-900 shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-amber-800">
+                    <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Họa tiết của mẫu (Đang khóa)</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateProps(id, { locked: false })}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
+                    title="Mở khóa để di chuyển, co giãn, đổi màu hoặc thay ảnh"
+                  >
+                    <Unlock className="w-3 h-3" />
+                    <span>Mở khóa</span>
+                  </button>
                 </div>
                 <p className="text-[11px] text-amber-700 leading-relaxed">
-                  Chi tiết này là đồ họa nghệ thuật gốc của thiệp, được cố định vị trí và hình ảnh để bảo toàn tính thẩm mỹ chuẩn.
+                  Họa tiết mặc định được cố định để bảo toàn bố cục chuẩn. Bấm <b>"Mở khóa"</b> để tự do di chuyển, đổi kích thước hoặc thay ảnh.
                 </p>
               </div>
             )}

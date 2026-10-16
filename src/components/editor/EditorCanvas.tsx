@@ -24,12 +24,18 @@ import {
   Upload,
   UploadCloud,
   Lock,
+  Unlock,
   Magnet,
   Edit3,
   X,
+  CreditCard,
+  QrCode,
+  Phone,
+  MessageCircle,
+  Crown,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
-import EditorFloatingToolbar from "./EditorFloatingToolbar";
+import EditorTopContextualBar from "./EditorTopContextualBar";
 import EditorContextMenu from "./EditorContextMenu";
 import EditorBottomBar from "./EditorBottomBar";
 import { compressImageToWebP } from "@/lib/imageCompression";
@@ -41,8 +47,9 @@ import {
   DEFAULT_WEDDING_BACKGROUND,
   isDecorativeAsset,
 } from "@/lib/imageUtils";
-import { isDecorativeNode, getRealWeddingPhotoSlots } from "@/lib/decorativeLockService";
+import { isDecorativeNode, isElementLocked, getRealWeddingPhotoSlots } from "@/lib/decorativeLockService";
 import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getGiftQrUrl, getSafeMapUrl } from "@/lib/moduleHelpers";
+import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
 
 interface EditorCanvasProps {
@@ -239,8 +246,8 @@ export default function EditorCanvas({
     e.stopPropagation();
     onSelectElement({ id, type, props });
 
-    // Không cho phép kéo di chuyển nếu phần tử bị khóa hoặc là họa tiết trang trí của mẫu
-    if (props.locked || isDecorativeNode(id, nodes[id])) {
+    // Không cho phép kéo di chuyển nếu phần tử bị khóa (mặc định các họa tiết bị khóa, trừ khi đã mở khóa)
+    if (isElementLocked(id, props, nodes[id])) {
       return;
     }
 
@@ -478,8 +485,8 @@ export default function EditorCanvas({
     const touch = e.touches[0];
     onSelectElement({ id, type, props });
 
-    // Không cho phép chạm kéo di chuyển nếu phần tử bị khóa hoặc là họa tiết trang trí của mẫu
-    if (props.locked || isDecorativeNode(id, nodes[id])) {
+    // Không cho phép chạm kéo di chuyển nếu phần tử bị khóa (mặc định các họa tiết bị khóa, trừ khi đã mở khóa)
+    if (isElementLocked(id, nodes[id])) {
       return;
     }
 
@@ -823,7 +830,7 @@ export default function EditorCanvas({
 
   return (
     <div
-      className="flex-1 h-full overflow-auto relative flex items-start justify-center p-4 sm:p-8 pb-36 sm:pb-48 select-none bg-[#dedfe2]"
+      className="flex-1 h-full overflow-auto relative flex flex-col items-center p-2 sm:p-8 pb-32 sm:pb-48 select-none bg-[#dedfe2] touch-pan-y"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onSelectElement(null);
@@ -837,6 +844,22 @@ export default function EditorCanvas({
         }
       }}
     >
+      {/* ================= CANVA-STYLE TOP CONTEXTUAL FORMATTING BAR (OUTSIDE CANVAS CARD) ================= */}
+      {selectedElement && (
+        <div className="sticky top-2 z-50 mb-3 shrink-0 pointer-events-auto overflow-visible">
+          <EditorTopContextualBar
+            selectedElement={selectedElement}
+            onUpdateProps={onUpdateElementProps}
+            onDuplicate={onDuplicateElement}
+            onDelete={onDeleteElement}
+            onDeselect={() => onSelectElement(null)}
+            onOpenImageDrawer={onOpenImageDrawer}
+            onRemoveBackground={onRemoveBackground}
+            onOpenManualCutout={onOpenManualCutout}
+          />
+        </div>
+      )}
+
       {/* ================= INVITATION CANVAS CONTAINER ================= */}
       <div
         className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0 mb-20"
@@ -919,7 +942,13 @@ export default function EditorCanvas({
             animClass = "animate-zen-shake";
           }
 
-          const isDecorative = isDecorativeNode(id, nodes[id]) || Boolean(props.locked);
+          // Ẩn phần tử nếu cờ hidden được kích hoạt (như tính năng con mắt trong Photoshop)
+          if (props.hidden) {
+            return null;
+          }
+
+          const isLocked = isElementLocked(id, nodes[id]);
+          const isDecorative = isDecorativeNode(id, nodes[id]);
 
           // Entrance / Exit transition effect
           const transition = props.transition;
@@ -959,16 +988,13 @@ export default function EditorCanvas({
               key={`${id}-${props._previewKey || ""}`}
               id={`canvas-node-${id}`}
               onMouseDown={(e) => {
-                if (isDecorative) return;
                 handleMouseDownElement(e, id, props, type);
               }}
               onClick={(e) => {
-                if (isDecorative) return;
                 e.stopPropagation();
                 onSelectElement({ id, type, props });
               }}
               onContextMenu={(e) => {
-                if (isDecorative) return;
                 e.preventDefault();
                 e.stopPropagation();
                 const el = { id, type, props };
@@ -980,15 +1006,15 @@ export default function EditorCanvas({
                 });
               }}
               onDoubleClick={(e) => {
-                if (isDecorative) return;
+                if (isLocked) return;
                 e.stopPropagation();
                 if (type === "TextBox") {
                   setInlineEditNode({ id, text: props.text || "" });
                 }
               }}
               className={`absolute group select-none ${hoverClass} ${
-                isDecorative
-                  ? "pointer-events-none"
+                isLocked
+                  ? "pointer-events-auto cursor-pointer"
                   : selectedElement?.id === id
                   ? "cursor-grab active:cursor-grabbing ring-1 ring-[#e54153]/40 pointer-events-auto"
                   : "cursor-pointer hover:ring-1 hover:ring-gray-300/60 pointer-events-auto"
@@ -1001,6 +1027,7 @@ export default function EditorCanvas({
                 transform: `rotate(${rotation}deg)`,
                 opacity: opacity,
                 zIndex: zIndex,
+                mixBlendMode: props.blendMode || undefined,
                 ...transitionStyle,
               }}
             >
@@ -1151,8 +1178,71 @@ export default function EditorCanvas({
               {type === "CountdownBoxV2" && (() => {
                 const cd = calculateCountdown(props.targetDate, props.targetTime);
                 const textColor = props.textColor || "#590310";
+                const variant = props.styleVariant;
+
+                if (variant === "flip") {
+                  return (
+                    <div className="w-full h-full flex flex-col justify-between p-3 bg-slate-900 text-white rounded-2xl border border-slate-700 shadow-lg text-center select-none">
+                      <div className="flex items-center justify-between text-[10px] border-b border-slate-800 pb-1">
+                        <span className="font-bold text-slate-300 tracking-wider">ĐẾM NGƯỢC NGÀY CHUNG ĐÔI</span>
+                        <span className="text-rose-400 font-bold font-mono">FLIP CLOCK</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 my-auto">
+                        {[
+                          { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
+                          { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
+                          { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
+                          { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
+                        ].map((item, i) => (
+                          <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl p-1.5 relative overflow-hidden flex flex-col items-center shadow-inner">
+                            <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-950/80 z-10" />
+                            <span className="text-xl sm:text-2xl font-black font-mono text-cyan-300 z-0">
+                              {item.val}
+                            </span>
+                            <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">
+                              {item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[9px] text-slate-400">Chính xác theo thời gian thực</div>
+                    </div>
+                  );
+                }
+
+                if (variant === "hearts") {
+                  return (
+                    <div className="w-full h-full flex flex-col justify-between p-3 bg-gradient-to-b from-rose-50/90 to-white rounded-2xl border border-rose-200 shadow-md text-center select-none">
+                      <div className="flex items-center justify-between text-[10px] border-b border-rose-100 pb-1">
+                        <span className="font-bold text-rose-800 tracking-wider flex items-center gap-1">
+                          <Heart className="w-3 h-3 text-rose-500 fill-rose-500" /> CÙNG ĐẾM NGƯỢC
+                        </span>
+                        <span className="text-rose-600 font-bold text-[9px]">Chung Đôi</span>
+                      </div>
+                      <div className="grid grid-cols-4 gap-2 my-auto">
+                        {[
+                          { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
+                          { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
+                          { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
+                          { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
+                        ].map((item, i) => (
+                          <div key={i} className="bg-white border border-rose-200/80 rounded-xl p-1.5 flex flex-col items-center shadow-2xs">
+                            <span className="text-xl sm:text-2xl font-black font-serif text-rose-600">
+                              {item.val}
+                            </span>
+                            <span className="text-[9px] uppercase font-bold text-rose-400 mt-0.5">
+                              {item.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="text-[9px] text-rose-500 font-medium">❤️ Đếm ngược từng khoảnh khắc ngọt ngào</div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div className="w-full h-full flex items-center justify-around p-3 bg-white/20 backdrop-blur-xs rounded-xl border border-stone-200/50 text-center">
+                  <div className="w-full h-full flex items-center justify-around p-3 bg-white/20 backdrop-blur-xs rounded-xl border border-stone-200/50 text-center select-none">
                     {[
                       { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
                       { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
@@ -1178,8 +1268,49 @@ export default function EditorCanvas({
               {type === "CalendarBoxV2" && (() => {
                 const cal = formatCalendarData(props);
                 const themeColor = props.themeColor || "#590310";
+                const variant = props.styleVariant;
+
+                if (variant === "royal") {
+                  return (
+                    <div className="w-full h-full p-3.5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100/50 border-2 border-amber-300 shadow-md flex flex-col justify-between items-center text-center select-none">
+                      <div className="flex items-center gap-1.5 text-amber-900 border-b border-amber-200/80 pb-1 w-full justify-center">
+                        <Crown className="w-3.5 h-3.5 text-amber-600" />
+                        <span className="text-[10px] uppercase font-serif font-bold tracking-widest">
+                          {cal.formattedTitle}
+                        </span>
+                      </div>
+                      <div className="text-4xl sm:text-5xl font-serif font-black text-amber-950 my-1 drop-shadow-xs">
+                        {cal.day}
+                      </div>
+                      <div className="text-[10px] font-serif font-semibold text-amber-800 bg-amber-100/60 px-3 py-0.5 rounded-full border border-amber-200">
+                        {cal.dayOfWeek} • {cal.time} • Ngày Hoàng Đạo
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "stamp") {
+                  return (
+                    <div className="w-full h-full p-3 rounded-2xl bg-[#fdfaf2] border-2 border-dashed border-amber-400/90 shadow-sm flex items-center justify-between gap-3 text-left select-none">
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[9px] font-mono text-amber-800 font-bold tracking-widest uppercase">
+                          POSTMARK • WEDDING
+                        </span>
+                        <h4 className="text-base font-bold text-gray-900 font-serif mt-0.5">
+                          Ngày {cal.day} {cal.formattedTitle}
+                        </h4>
+                        <p className="text-[10px] text-gray-600">{cal.dayOfWeek} • {cal.time}</p>
+                      </div>
+                      <div className="w-16 h-16 rounded-full border-2 border-dashed border-rose-500 bg-white flex flex-col items-center justify-center text-rose-600 rotate-6 shrink-0 shadow-2xs">
+                        <Heart className="w-4 h-4 fill-rose-500" />
+                        <span className="text-[10px] font-bold font-mono mt-0.5">{cal.day}.{cal.month}</span>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div className="w-full h-full p-4 rounded-3xl bg-amber-50/40 border border-amber-200/40 flex flex-col justify-center items-center text-center">
+                  <div className="w-full h-full p-4 rounded-3xl bg-amber-50/40 border border-amber-200/40 flex flex-col justify-center items-center text-center select-none">
                     <span
                       className="text-xs uppercase font-bold tracking-widest"
                       style={{ color: themeColor }}
@@ -1200,30 +1331,317 @@ export default function EditorCanvas({
               })()}
 
               {type === "ReminderBox" && (
-                <div className="w-full h-full rounded-full bg-[#ece4d8] text-[#590310] flex items-center justify-center font-bold text-sm shadow-sm gap-2">
+                <div className="w-full h-full rounded-full bg-[#ece4d8] text-[#590310] flex items-center justify-center font-bold text-sm shadow-sm gap-2 select-none">
                   <CalendarIcon className="w-4 h-4" />
                   <span>{props.text || "Thêm vào lịch"}</span>
                 </div>
               )}
 
               {type === "GiftQrBox" && (() => {
-                const qrUrl = getGiftQrUrl(props);
+                const variant = props.styleVariant || "minimal";
+                const modalTitle = props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)";
+
+                // 1. GIAO DIỆN 1: CẢ NHÀ TRAI & NHÀ GÁI (dual_accounts)
+                if (variant === "dual_accounts") {
+                  const gBank = props.groomBank || props.bankName || "MB BANK";
+                  const gAcc = props.groomAccount || props.accountNumber || "999988882026";
+                  const gName = props.groomName || props.accountName || "LÊ ĐỨC MẠNH";
+                  const gQr = generateVietQrUrl(gBank, gAcc, gName, undefined, "Mung cuoi Chu Re");
+
+                  const bBank = props.brideBank || "VIETCOMBANK";
+                  const bAcc = props.brideAccount || "1028492049";
+                  const bName = props.brideName || "TRẦN LỆ QUYÊN";
+                  const bQr = generateVietQrUrl(bBank, bAcc, bName, undefined, "Mung cuoi Co Dau");
+
+                  return (
+                    <div className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200/90 shadow-md flex flex-col justify-between select-none">
+                      <div className="flex items-center justify-between border-b border-rose-100 pb-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-rose-800">
+                          <span>🎁</span>
+                          <span className="font-serif">{modalTitle}</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                          Napas 24/7
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+                        {/* Nhà Trai */}
+                        <div className="bg-gradient-to-b from-blue-50/60 to-white rounded-xl p-2 border border-blue-200/80 flex flex-col items-center justify-between text-center shadow-2xs">
+                          <div className="w-full flex items-center justify-between text-[10px] font-bold text-blue-900 border-b border-blue-100 pb-1">
+                            <span className="bg-blue-100/70 text-blue-800 px-1.5 py-0.2 rounded font-mono">{gBank}</span>
+                            <span>🤵 Nhà Trai</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-blue-200 shadow-inner flex items-center justify-center my-1 overflow-hidden">
+                            {gQr ? (
+                              <img src={gQr} alt="QR Nhà Trai" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-gray-800 truncate">{gName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-blue-700 bg-blue-50/80 py-0.5 px-1 rounded truncate">
+                              STK: {gAcc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Nhà Gái */}
+                        <div className="bg-gradient-to-b from-rose-50/60 to-white rounded-xl p-2 border border-rose-200/80 flex flex-col items-center justify-between text-center shadow-2xs">
+                          <div className="w-full flex items-center justify-between text-[10px] font-bold text-rose-900 border-b border-rose-100 pb-1">
+                            <span className="bg-rose-100/70 text-rose-800 px-1.5 py-0.2 rounded font-mono">{bBank}</span>
+                            <span>👰 Nhà Gái</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-rose-200 shadow-inner flex items-center justify-center my-1 overflow-hidden">
+                            {bQr ? (
+                              <img src={bQr} alt="QR Nhà Gái" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-gray-800 truncate">{bName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-rose-700 bg-rose-50/80 py-0.5 px-1 rounded truncate">
+                              STK: {bAcc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-center text-[9px] text-gray-500 pt-1.5 flex items-center justify-center gap-1">
+                        <span>Chuyển khoản mừng cưới 24/7 trực tiếp tới Cô Dâu & Chú Rể</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 2. GIAO DIỆN 3: DẠNG THẺ ATM LUXURY (vip_gold_card)
+                if (variant === "vip_gold_card") {
+                  const bankName = props.bankName || "TECHCOMBANK";
+                  const accNum = props.accountNumber || "987654321098";
+                  const accName = props.accountName || "HOÀNG NAM & THẢO LINH";
+                  const qrUrl = props.imgKey || generateVietQrUrl(bankName, accNum, accName, undefined, "Mung cuoi VIP");
+                  const formattedNum = accNum.replace(/(\d{4})/g, "$1 ").trim();
+
+                  return (
+                    <div className="w-full h-full bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 text-amber-950 p-3.5 rounded-2xl relative overflow-hidden shadow-lg border border-amber-300 flex flex-col justify-between select-none">
+                      <div className="absolute -top-12 -right-12 w-36 h-36 bg-white/20 rounded-full blur-xl pointer-events-none" />
+
+                      <div className="flex items-center justify-between relative z-10">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-black tracking-widest font-mono uppercase bg-amber-900/10 px-2 py-0.5 rounded border border-amber-900/20">
+                            VIETQR GOLD VIP
+                          </span>
+                          <span className="text-[9px] font-bold text-amber-900/80 font-mono">{bankName}</span>
+                        </div>
+                        <CreditCard className="w-5 h-5 text-amber-900/80" />
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 my-auto relative z-10">
+                        <div className="space-y-1.5 min-w-0">
+                          <div className="w-7 h-5 rounded bg-gradient-to-br from-amber-600/40 to-amber-700/60 border border-amber-700/60 shadow-xs flex items-center justify-center">
+                            <div className="w-4 h-2.5 border-t border-b border-amber-800/40" />
+                          </div>
+                          <div>
+                            <p className="font-mono text-sm sm:text-base font-black tracking-wider text-amber-950 drop-shadow-xs truncate">
+                              {formattedNum}
+                            </p>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-amber-900 truncate mt-0.5">
+                              {accName}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white p-1 rounded-xl border-2 border-amber-500 shadow-md shrink-0 flex items-center justify-center overflow-hidden">
+                          {qrUrl ? (
+                            <img src={qrUrl} alt="VietQR VIP" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                          ) : (
+                            <QrCode className="w-14 h-14 text-amber-950" />
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-[9px] text-amber-900/90 font-semibold relative z-10 border-t border-amber-400/60 pt-1">
+                        <span>Napas 247 • Chuyển khoản mừng cưới thuận tiện</span>
+                        <span className="font-bold">VIP MEMBER</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 3. GIAO DIỆN 2: THẺ TRUNG TÂM GỌN GÀNG (single_clean)
+                if (variant === "single_clean") {
+                  const bankName = props.bankName || "VIETCOMBANK";
+                  const accNum = props.accountNumber || "1028492049";
+                  const accName = props.accountName || "NGUYỄN HOÀNG NAM";
+                  const qrUrl = props.imgKey || generateVietQrUrl(bankName, accNum, accName, undefined, "Mung cuoi hai ban");
+
+                  return (
+                    <div className="w-full h-full bg-white/95 p-3.5 rounded-2xl border border-emerald-200/90 shadow-md flex items-center justify-between gap-3 select-none">
+                      <div className="flex-1 min-w-0 flex flex-col justify-between h-full py-0.5">
+                        <div>
+                          <div className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            <span>{bankName}</span>
+                            <span>• 24/7</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-gray-900 truncate mt-1.5 font-serif uppercase">
+                            {accName}
+                          </h4>
+                          <p className="text-xs font-mono font-semibold text-gray-600 mt-0.5">
+                            STK: <span className="text-gray-900 font-bold">{accNum}</span>
+                          </p>
+                        </div>
+
+                        <div className="pt-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (typeof navigator !== "undefined" && navigator.clipboard) {
+                                navigator.clipboard.writeText(accNum);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 text-[10px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 transition-colors pointer-events-auto"
+                          >
+                            <Copy className="w-3 h-3 text-blue-600" />
+                            <span>Sao chép số TK</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white border-2 border-emerald-200 rounded-xl p-1.5 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                        {qrUrl ? (
+                          <img src={qrUrl} alt="VietQR" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                        ) : (
+                          <QrCode className="w-16 h-16 text-gray-800" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // 4. GIAO DIỆN 4: LỜI CHÚC & COPY STK (message_envelope)
+                if (variant === "message_envelope") {
+                  const bankName = props.bankName || "VPBANK";
+                  const accNum = props.accountNumber || "888820268888";
+                  const accName = props.accountName || "LÊ ĐỨC MẠNH";
+                  const msg = props.messageText || "Sự hiện diện và lời chúc phúc của quý vị là món quà vô giá nhất đối với chúng mình!";
+                  const qrUrl = props.imgKey || generateVietQrUrl(bankName, accNum, accName, undefined, "Mung cuoi hai ban");
+
+                  return (
+                    <div className="w-full h-full bg-gradient-to-br from-rose-50/70 via-white to-amber-50/40 p-3 rounded-2xl border border-rose-200 shadow-md flex flex-col justify-between select-none text-center">
+                      <div className="flex items-center justify-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-100/70 px-3 py-0.5 rounded-full w-fit mx-auto">
+                        <span>💌</span>
+                        <span>{modalTitle}</span>
+                      </div>
+
+                      <p className="text-[10px] text-gray-600 italic px-2 my-1 line-clamp-2">
+                        "{msg}"
+                      </p>
+
+                      <div className="flex items-center justify-center gap-3 my-0.5">
+                        <div className="w-20 h-20 p-1 bg-white rounded-xl border border-rose-200 shadow-inner shrink-0 overflow-hidden">
+                          {qrUrl ? (
+                            <img src={qrUrl} alt="VietQR" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                          ) : (
+                            <QrCode className="w-14 h-14 text-gray-700" />
+                          )}
+                        </div>
+                        <div className="text-left space-y-0.5">
+                          <span className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 font-mono">{bankName}</span>
+                          <p className="text-xs font-bold text-gray-900 truncate">{accName}</p>
+                          <p className="text-[11px] font-mono font-bold text-rose-600">{accNum}</p>
+                        </div>
+                      </div>
+
+                      <span className="text-[9px] text-gray-500 font-medium">
+                        Cảm ơn tình cảm và sự chúc phúc của quý khách!
+                      </span>
+                    </div>
+                  );
+                }
+
+                // 5. GIAO DIỆN 6: HAI THẺ DỌC KÈM GỢI Ý (dual_vertical)
+                if (variant === "dual_vertical") {
+                  const gBank = props.groomBank || props.bankName || "MB BANK";
+                  const gAcc = props.groomAccount || props.accountNumber || "240220038888";
+                  const gName = props.groomName || props.accountName || "TRẦN MINH QUÂN";
+                  const gQr = generateVietQrUrl(gBank, gAcc, gName, undefined, "Mung cuoi Chu Re");
+
+                  const bBank = props.brideBank || "TECHCOMBANK";
+                  const bAcc = props.brideAccount || "19038294829012";
+                  const bName = props.brideName || "LÊ THỊ MAI";
+                  const bQr = generateVietQrUrl(bBank, bAcc, bName, undefined, "Mung cuoi Co Dau");
+
+                  return (
+                    <div className="w-full h-full bg-white/95 rounded-2xl p-2.5 border border-rose-200/90 shadow-md flex flex-col justify-between select-none">
+                      <div className="flex items-center justify-between text-xs font-bold text-rose-800 px-1">
+                        <span>🎁 {modalTitle}</span>
+                        <div className="flex gap-1 text-[8px]">
+                          {["200k", "500k", "1Tr"].map((m, idx) => (
+                            <span key={idx} className="px-1.5 py-0.2 bg-rose-50 text-rose-700 rounded border border-rose-200 font-bold">{m}</span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5 my-auto">
+                        {/* Row 1: Chú Rể */}
+                        <div className="flex items-center justify-between p-1.5 bg-blue-50/50 rounded-xl border border-blue-100 gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm">🤵</span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-blue-900 truncate">Mừng Chú Rể • {gName}</p>
+                              <p className="text-[9px] font-mono text-gray-600 truncate">{gBank}: {gAcc}</p>
+                            </div>
+                          </div>
+                          <div className="w-12 h-12 bg-white p-0.5 rounded-lg border border-blue-200 shrink-0 overflow-hidden flex items-center justify-center">
+                            {gQr ? <img src={gQr} alt="QR Chú Rể" className="w-full h-full object-contain" /> : <QrCode className="w-8 h-8 text-blue-900" />}
+                          </div>
+                        </div>
+
+                        {/* Row 2: Cô Dâu */}
+                        <div className="flex items-center justify-between p-1.5 bg-rose-50/50 rounded-xl border border-rose-100 gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <span className="text-sm">👰</span>
+                            <div className="min-w-0">
+                              <p className="text-[10px] font-bold text-rose-900 truncate">Mừng Cô Dâu • {bName}</p>
+                              <p className="text-[9px] font-mono text-gray-600 truncate">{bBank}: {bAcc}</p>
+                            </div>
+                          </div>
+                          <div className="w-12 h-12 bg-white p-0.5 rounded-lg border border-rose-200 shrink-0 overflow-hidden flex items-center justify-center">
+                            {bQr ? <img src={bQr} alt="QR Cô Dâu" className="w-full h-full object-contain" /> : <QrCode className="w-8 h-8 text-rose-900" />}
+                          </div>
+                        </div>
+                      </div>
+
+                      <span className="text-[9px] text-center text-gray-500 font-medium">Quét mã chuyển khoản Napas 24/7 tiện lợi</span>
+                    </div>
+                  );
+                }
+
+                // 6. GIAO DIỆN MẶC ĐỊNH / TỐI GIẢN (minimal)
+                const qrUrl = getGiftQrUrl(props) || (props.bankName && props.accountNumber ? generateVietQrUrl(props.bankName, props.accountNumber, props.accountName) : "");
 
                 return (
                   <div className="w-full h-full bg-white/95 rounded-2xl p-3 border border-rose-200 shadow-md flex flex-col items-center justify-between text-center select-none">
                     <div className="flex items-center gap-1 text-[11px] font-bold text-rose-800 bg-rose-50 px-2.5 py-0.5 rounded-full">
                       <span>🎁</span>
-                      <span>{props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)"}</span>
+                      <span>{modalTitle}</span>
                     </div>
 
                     {/* Mã QR chuẩn Napas 24/7 Thật */}
-                    <div className="w-28 h-28 sm:w-32 sm:h-32 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 overflow-hidden">
-                      {qrUrl ? <img
-                        src={qrUrl}
-                        alt="Mã VietQR Mừng Cưới"
-                        onError={(e) => handleImageFallback(e, undefined, false)}
-                        className="w-full h-full object-contain"
-                      /> : <span className="text-xs text-gray-500">Chưa có thông tin tài khoản</span>}
+                    <div className="w-24 h-24 sm:w-28 sm:h-28 p-1.5 bg-white rounded-xl border-2 border-dashed border-amber-400/80 shadow-inner flex items-center justify-center my-1 overflow-hidden">
+                      {qrUrl ? (
+                        <img
+                          src={qrUrl}
+                          alt="Mã VietQR Mừng Cưới"
+                          onError={(e) => handleImageFallback(e, undefined, false)}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-xs text-gray-500">Chưa có thông tin tài khoản</span>
+                      )}
                     </div>
 
                     <div className="space-y-0.5">
@@ -1242,37 +1660,330 @@ export default function EditorCanvas({
                 );
               })()}
 
-              {type === "RsvpBoxV2" && (
-                <div className="w-full h-full p-5 bg-white rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between text-left">
-                  <h4 className="font-bold text-base text-[#511419] font-serif">
-                    {props.titleText || "Xác nhận tham dự"}
-                  </h4>
-                  <div className="space-y-2 text-xs">
-                    <input
-                      type="text"
-                      placeholder="Họ và tên của bạn"
-                      className="w-full p-2 rounded-lg border border-gray-200 text-xs"
-                    />
-                    <div className="flex gap-2">
-                      <button className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-[11px]">
-                        Sẽ tham dự
-                      </button>
-                      <button className="flex-1 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 font-semibold text-[11px]">
-                        Không thể dự
-                      </button>
+              {type === "RsvpBoxV2" && (() => {
+                const variant = props.styleVariant;
+                const titleText = props.titleText || "Xác nhận tham dự";
+
+                if (variant === "direct_call") {
+                  return (
+                    <div className="w-full h-full p-4 bg-white/95 rounded-2xl border border-rose-200 shadow-md flex flex-col justify-between text-center select-none">
+                      <div>
+                        <div className="flex items-center justify-center gap-1 text-xs font-bold text-rose-800">
+                          <Phone className="w-3.5 h-3.5 text-rose-600" />
+                          <span>{titleText}</span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1">Liên hệ trực tiếp qua điện thoại hoặc Zalo</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 my-auto">
+                        <button
+                          type="button"
+                          className="py-2 px-3 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-blue-700 pointer-events-auto"
+                        >
+                          <Phone className="w-3.5 h-3.5" />
+                          <span>Gọi Nhà Trai</span>
+                        </button>
+                        <button
+                          type="button"
+                          className="py-2 px-3 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm hover:bg-emerald-700 pointer-events-auto"
+                        >
+                          <MessageCircle className="w-3.5 h-3.5" />
+                          <span>Nhắn Zalo</span>
+                        </button>
+                      </div>
+
+                      <span className="text-[9px] text-gray-400">Tiện lợi cho người lớn tuổi và bạn bè</span>
                     </div>
+                  );
+                }
+
+                if (variant === "minimal_choice") {
+                  return (
+                    <div className="w-full h-full p-4 bg-white/95 rounded-2xl border border-gray-200 shadow-md flex flex-col justify-between text-center select-none">
+                      <h4 className="font-bold text-sm text-[#511419] font-serif">
+                        {titleText}
+                      </h4>
+                      <div className="grid grid-cols-2 gap-2 my-auto">
+                        <button className="py-2.5 rounded-xl bg-emerald-50 text-emerald-800 border-2 border-emerald-300 font-bold text-xs flex items-center justify-center gap-1 shadow-2xs hover:bg-emerald-100 pointer-events-auto">
+                          <Check className="w-3.5 h-3.5" /> Sẽ tham dự
+                        </button>
+                        <button className="py-2.5 rounded-xl bg-gray-50 text-gray-700 border-2 border-gray-200 font-bold text-xs flex items-center justify-center gap-1 shadow-2xs hover:bg-gray-100 pointer-events-auto">
+                          <X className="w-3.5 h-3.5" /> Rất tiếc bận
+                        </button>
+                      </div>
+                      <span className="text-[9px] text-gray-500">1 Chạm phản hồi nhanh</span>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="w-full h-full p-4 sm:p-5 bg-white/95 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between text-left select-none">
+                    <h4 className="font-bold text-sm sm:text-base text-[#511419] font-serif">
+                      {titleText}
+                    </h4>
+                    <div className="space-y-2 text-xs">
+                      <input
+                        type="text"
+                        placeholder="Họ và tên của bạn"
+                        className="w-full p-2 rounded-lg border border-gray-200 text-xs"
+                      />
+                      <div className="flex gap-2">
+                        <button className="flex-1 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold text-[11px]">
+                          Sẽ tham dự
+                        </button>
+                        <button className="flex-1 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 font-semibold text-[11px]">
+                          Không thể dự
+                        </button>
+                      </div>
+                    </div>
+                    <button className="w-full py-2 rounded-lg bg-[#511419] text-white font-bold text-xs">
+                      Gửi xác nhận
+                    </button>
                   </div>
-                  <button className="w-full py-2 rounded-lg bg-[#511419] text-white font-bold text-xs">
-                    Gửi xác nhận
-                  </button>
-                </div>
-              )}
+                );
+              })()}
 
               {type === "MapBox" && (() => {
+                const variant = props.styleVariant || "minimal";
                 const venueName = props.venueName || props.title || "Trung tâm Tiệc cưới Trống Đồng";
                 const address = props.address || "Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội";
                 const generatedMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${venueName} ${address}`)}`;
                 const mapUrl = getSafeMapUrl(props.mapUrl, generatedMapUrl);
+
+                if (variant === "satellite_preview") {
+                  const previewImg = props.previewImg || "https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=600";
+                  return (
+                    <div className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-white/95 flex flex-col shadow-xs group">
+                      <div className="relative w-full h-[55%] overflow-hidden bg-slate-100">
+                        <img src={previewImg} alt="Bản đồ vị trí" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
+                          <div className="p-1.5 bg-red-600 text-white rounded-full shadow-lg animate-bounce">
+                            <MapPin className="w-4 h-4" />
+                          </div>
+                        </div>
+                        <span className="absolute top-2 right-2 text-[9px] font-bold px-2 py-0.5 rounded-full bg-black/60 text-white backdrop-blur-xs">
+                          Ảnh Vệ Tinh
+                        </span>
+                      </div>
+                      <div className="flex-1 p-2 flex flex-col justify-between items-center text-center">
+                        <div>
+                          <h4 className="text-xs font-bold text-gray-900 font-serif line-clamp-1">{venueName}</h4>
+                          <p className="text-[10px] text-gray-500 line-clamp-1">{address}</p>
+                        </div>
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 text-white rounded-full text-[10px] font-bold shadow-xs pointer-events-auto"
+                        >
+                          <span>Mở Google Maps</span>
+                          <span>↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "dual_venue") {
+                  const vGroom = props.venueNameGroom || "Tư gia Nhà Trai";
+                  const aGroom = props.addressGroom || "Số 12 Phố Huế, Hoàn Kiếm";
+                  const urlGroom = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${vGroom} ${aGroom}`)}`;
+                  const vBride = props.venueNameBride || "Tư gia Nhà Gái";
+                  const aBride = props.addressBride || "Số 45 Lê Lợi, Ba Đình";
+                  const urlBride = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${vBride} ${aBride}`)}`;
+
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-rose-200/80 bg-white/95 p-2.5 flex flex-col justify-between shadow-xs text-center select-none">
+                      <div className="text-[11px] font-bold text-rose-800 uppercase tracking-wider">
+                        📍 Địa Điểm Hai Gia Đình
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-blue-700 uppercase bg-blue-50 px-1.5 py-0.5 rounded">Nhà Trai</span>
+                            <p className="text-[11px] font-bold text-gray-900 mt-0.5 truncate">{vGroom}</p>
+                            <p className="text-[9px] text-gray-500 line-clamp-2 mt-0.5">{aGroom}</p>
+                          </div>
+                          <a
+                            href={urlGroom}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1.5 inline-flex items-center justify-center gap-0.5 py-1 px-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[9px] font-bold pointer-events-auto"
+                          >
+                            Chỉ đường ↗
+                          </a>
+                        </div>
+
+                        <div className="p-2 rounded-xl bg-rose-50/50 border border-rose-100 flex flex-col justify-between">
+                          <div>
+                            <span className="text-[9px] font-bold text-rose-700 uppercase bg-rose-50 px-1.5 py-0.5 rounded">Nhà Gái</span>
+                            <p className="text-[11px] font-bold text-gray-900 mt-0.5 truncate">{vBride}</p>
+                            <p className="text-[9px] text-gray-500 line-clamp-2 mt-0.5">{aBride}</p>
+                          </div>
+                          <a
+                            href={urlBride}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="mt-1.5 inline-flex items-center justify-center gap-0.5 py-1 px-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[9px] font-bold pointer-events-auto"
+                          >
+                            Chỉ đường ↗
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "qr_nav") {
+                  const qrMapUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(mapUrl)}`;
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-gray-200 bg-white/95 p-3 flex items-center justify-between gap-3 shadow-xs select-none">
+                      <div className="flex-1 flex flex-col justify-between h-full text-left">
+                        <div>
+                          <div className="flex items-center gap-1 text-[10px] font-bold text-rose-700 uppercase">
+                            <MapPin className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Chỉ Đường Thông Minh</span>
+                          </div>
+                          <h4 className="text-xs font-bold text-gray-900 font-serif mt-1">{venueName}</h4>
+                          <p className="text-[10px] text-gray-500 line-clamp-2 mt-0.5">{address}</p>
+                        </div>
+                        <div className="pt-2">
+                          <a
+                            href={mapUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="inline-flex items-center gap-1 px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded-lg text-[10px] font-bold shadow-xs pointer-events-auto"
+                          >
+                            Mở Google Maps ↗
+                          </a>
+                        </div>
+                      </div>
+                      <div className="w-24 h-24 rounded-xl border border-gray-200 p-1.5 bg-white flex flex-col items-center justify-center shrink-0 shadow-inner">
+                        <img src={qrMapUrl} alt="QR Chỉ đường" className="w-full h-full object-contain" />
+                        <span className="text-[8px] text-gray-400 mt-0.5">Quét bằng camera</span>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "royal_gold") {
+                  return (
+                    <div className="w-full h-full rounded-2xl border-2 border-amber-400/80 bg-gradient-to-b from-amber-50/50 via-white to-amber-50/30 p-3 flex flex-col items-center justify-between text-center shadow-md relative overflow-hidden select-none">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 to-yellow-200 text-amber-950 flex items-center justify-center shadow-xs">
+                          <MapPin className="w-3.5 h-3.5 text-amber-900" />
+                        </div>
+                        <h4 className="text-xs font-bold text-amber-950 font-serif uppercase tracking-wider">{venueName}</h4>
+                        <p className="text-[10px] text-amber-900/80 line-clamp-2 max-w-[280px]">{address}</p>
+                      </div>
+                      <a
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1 px-3.5 py-1 bg-gradient-to-r from-amber-500 via-amber-600 to-yellow-600 hover:brightness-110 text-white rounded-full text-[10px] font-bold shadow-xs pointer-events-auto transition-all"
+                      >
+                        <span>CHỈ ĐƯỜNG ĐẾN HÔN LỄ</span>
+                        <span>↗</span>
+                      </a>
+                    </div>
+                  );
+                }
+
+                if (variant === "roadmap_card") {
+                  const parkingNote = props.parkingNote || "Có bãi đỗ xe ô tô & xe máy miễn phí";
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-slate-200 bg-white/95 p-3 flex flex-col justify-between shadow-xs text-left select-none">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
+                            <MapPin className="w-4 h-4 text-red-500" />
+                            <span>{venueName}</span>
+                          </div>
+                          <span className="text-[9px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            Chỉ dẫn đỗ xe
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-600 mt-1 line-clamp-2">{address}</p>
+                        <div className="mt-1.5 p-1.5 rounded-lg bg-slate-50 border border-slate-100 text-[10px] text-slate-600 flex items-center gap-1.5">
+                          <span>🚗</span>
+                          <span className="truncate">{parkingNote}</span>
+                        </div>
+                      </div>
+                      <div className="pt-1 flex items-center justify-end">
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 px-2.5 py-1 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-[9px] font-bold pointer-events-auto transition-colors"
+                        >
+                          <span>Mở Google Maps</span>
+                          <span>↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+
+                if (variant === "handdrawn") {
+                  return (
+                    <div className="w-full h-full rounded-2xl border-2 border-dashed border-[#8c6d46]/70 bg-[#faf6ee] p-3 flex flex-col justify-between text-center shadow-xs select-none relative overflow-hidden">
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 rounded-full bg-[#f0e6d2] border border-[#8c6d46]/50 text-[#6a4f2e] flex items-center justify-center shadow-2xs">
+                          <MapPin className="w-4 h-4 text-[#8c6d46]" />
+                        </div>
+                        <span className="text-[9px] font-serif uppercase tracking-widest text-[#8c6d46]">Sơ Đồ Hướng Dẫn</span>
+                        <h4 className="text-xs font-bold text-[#4a3520] font-serif">{venueName}</h4>
+                        <p className="text-[10px] text-[#7a6245] italic line-clamp-2 max-w-[280px]">{address}</p>
+                      </div>
+                      <a
+                        href={mapUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center justify-center gap-1.5 px-3 py-1 bg-[#6a4f2e] hover:bg-[#533d23] text-[#faf6ee] rounded-full text-[10px] font-bold shadow-xs pointer-events-auto transition-all"
+                      >
+                        <span>Xem bản đồ dẫn đường</span>
+                        <span>↗</span>
+                      </a>
+                    </div>
+                  );
+                }
+
+                if (variant === "darkmode") {
+                  return (
+                    <div className="w-full h-full rounded-2xl border border-amber-500/40 bg-zinc-950 text-white p-3 flex flex-col justify-between text-center shadow-xl select-none relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-b from-amber-500/10 via-transparent to-black/60 pointer-events-none" />
+                      <div className="relative z-10 flex flex-col items-center gap-1">
+                        <div className="w-7 h-7 rounded-full bg-amber-500/20 border border-amber-400/60 text-amber-300 flex items-center justify-center shadow-inner">
+                          <MapPin className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <span className="text-[9px] font-mono tracking-widest text-amber-400 uppercase">Luxury Night Venue</span>
+                        <h4 className="text-xs font-bold text-amber-100 font-serif tracking-wide">{venueName}</h4>
+                        <p className="text-[10px] text-zinc-400 line-clamp-2 max-w-[280px]">{address}</p>
+                      </div>
+                      <div className="relative z-10 pt-1">
+                        <a
+                          href={mapUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center justify-center gap-1 px-4 py-1.5 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-500 hover:brightness-110 text-zinc-950 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg pointer-events-auto transition-all"
+                        >
+                          <span>Dẫn Đường Google Maps</span>
+                          <span>↗</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Default: Minimal 1-touch card
                 return (
                   <div className="w-full h-full rounded-2xl overflow-hidden border border-gray-200 bg-white/95 flex flex-col items-center justify-between text-center p-3 relative shadow-xs">
                     <div className="flex flex-col items-center gap-1 text-gray-700">
@@ -1306,7 +2017,7 @@ export default function EditorCanvas({
           const node = nodes[selectedElement.id];
           if (!node) return null;
           const p = node.props || {};
-          const isLocked = Boolean(p.locked || isDecorativeNode(selectedElement.id, node));
+          const isLocked = isElementLocked(selectedElement.id, node);
           const top = p.top ?? 0;
           const left = p.left ?? 0;
           const width = p.width ?? 100;
@@ -1335,23 +2046,50 @@ export default function EditorCanvas({
                 className={`absolute inset-0 pointer-events-auto ${
                   isLocked ? "cursor-default" : "cursor-move"
                 }`}
-                title={isLocked ? "Họa tiết cố định của mẫu (Không thể di chuyển)" : "Giữ chuột hoặc chạm để di chuyển vị trí"}
+                title={isLocked ? "Họa tiết đang khóa (Bấm Mở khóa bên trên để di chuyển)" : "Giữ chuột hoặc chạm để di chuyển vị trí"}
               />
 
-              {/* Nếu phần tử bị khóa: Hiển thị Badge thông báo ĐÃ KHÓA CỐ ĐỊNH */}
+              {/* Nếu phần tử bị khóa: Hiển thị Badge thông báo ĐÃ KHÓA kèm nút Mở khóa */}
               {isLocked ? (
                 <div
-                  className="absolute -top-9 left-1/2 pointer-events-auto bg-amber-600 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap z-50"
+                  className="absolute -top-9 left-1/2 pointer-events-auto bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center gap-1.5 whitespace-nowrap z-50 cursor-pointer transition-colors"
                   style={{
                     transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
                     transformOrigin: "center center",
                   }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUpdateElementProps(selectedElement.id, { locked: false });
+                  }}
+                  title="Click để mở khóa và tự do chỉnh sửa, kéo thả, co giãn"
                 >
                   <Lock className="w-3 h-3 text-amber-200" />
-                  <span>Họa tiết cố định</span>
+                  <span>Họa tiết đang khóa</span>
+                  <span className="text-[10px] bg-white/20 hover:bg-white/30 px-1.5 py-0.5 rounded ml-0.5 inline-flex items-center gap-1 font-bold">
+                    <Unlock className="w-2.5 h-2.5" /> Mở khóa
+                  </span>
                 </div>
               ) : (
                 <>
+                  {/* Nếu là họa tiết nhưng đã được mở khóa: hiện badge nhỏ cho phép khóa lại */}
+                  {isDecorativeNode(selectedElement.id, node) && (
+                    <div
+                      className="absolute -top-9 left-1/2 pointer-events-auto bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-medium px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 whitespace-nowrap z-50 cursor-pointer transition-colors"
+                      style={{
+                        transform: `translate(-50%, 0) rotate(${-rotation}deg)`,
+                        transformOrigin: "center center",
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUpdateElementProps(selectedElement.id, { locked: true });
+                      }}
+                      title="Click để khóa lại sau khi đã chỉnh sửa xong"
+                    >
+                      <Unlock className="w-2.5 h-2.5 text-emerald-200" />
+                      <span>Đã mở khóa</span>
+                      <span className="text-[9px] bg-white/20 px-1 py-0.2 rounded font-bold ml-0.5">Khóa lại</span>
+                    </div>
+                  )}
                   {/* 8-Point Interactive Resize Handles (Mouse & Touch Enabled with expanded touch targets) */}
                   {/* Top-Left (nw) */}
                   <div
@@ -1427,17 +2165,6 @@ export default function EditorCanvas({
                     </div>
                   )}
 
-                  {/* Canva-style Contextual Floating Quick Toolbar */}
-                  <EditorFloatingToolbar
-                    selectedElement={{ id: selectedElement.id, type: selectedElement.type, props: p }}
-                    canvasWidth={canvasWidth}
-                    onUpdateProps={onUpdateElementProps}
-                    onDuplicate={onDuplicateElement}
-                    onDelete={onDeleteElement}
-                    onOpenImageDrawer={onOpenImageDrawer}
-                    onRemoveBackground={onRemoveBackground}
-                    onOpenManualCutout={onOpenManualCutout}
-                  />
 
                   {/* Bottom Rotation Handle */}
                   <div className="absolute -bottom-9 left-1/2 -translate-x-1/2 pointer-events-auto flex flex-col items-center z-50">
@@ -1485,8 +2212,8 @@ export default function EditorCanvas({
       {/* ================= FIXED BOTTOM-LEFT: THAY ẢNH NHANH TOÀN BỘ TEMPLATE ================= */}
       {photoSlots.length > 0 && !isQuickPanelCollapsed ? (
         <div
-          className={`fixed bottom-5 z-40 max-w-[calc(100vw-120px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
-            isLeftDrawerOpen ? "left-4 sm:left-[395px]" : "left-16 sm:left-24"
+          className={`fixed bottom-16 sm:bottom-5 z-30 max-w-[calc(100vw-24px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
+            isLeftDrawerOpen ? "hidden md:block md:left-[395px]" : "left-3 right-3 sm:right-auto sm:left-24"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
@@ -1720,8 +2447,8 @@ export default function EditorCanvas({
       ) : photoSlots.length > 0 ? (
         /* Trạng thái thu nhỏ gọn gàng */
         <div
-          className={`fixed bottom-5 z-40 pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
-            isLeftDrawerOpen ? "left-4 sm:left-[395px]" : "left-16 sm:left-24"
+          className={`fixed bottom-16 sm:bottom-5 z-30 pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
+            isLeftDrawerOpen ? "hidden md:block md:left-[395px]" : "left-3 sm:left-24"
           }`}
           onClick={(e) => e.stopPropagation()}
         >

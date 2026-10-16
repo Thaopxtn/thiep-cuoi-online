@@ -48,8 +48,8 @@ export default function EditorLeftRail({
   const railItems: Array<{ id: EditorToolTab; label: string; icon: React.ReactNode; isSpecial?: boolean }> = [
     {
       id: "autofill",
-      label: "Tự điền",
-      icon: <Wand2 className="w-4 h-4" />,
+      label: "Thông tin",
+      icon: <FileText className="w-4 h-4" />,
       isSpecial: true,
     },
     {
@@ -84,7 +84,7 @@ export default function EditorLeftRail({
   };
 
   return (
-    <aside className="w-full md:w-[62px] bg-white border-t md:border-t-0 md:border-r border-gray-200 flex md:flex-col flex-row justify-between items-center px-1.5 py-1 md:py-3 z-40 select-none shrink-0 shadow-xs overflow-x-auto md:overflow-x-hidden scrollbar-none touch-manipulation">
+    <aside className="w-full md:w-[62px] bg-white/98 backdrop-blur-md border-t md:border-t-0 md:border-r border-gray-200 flex md:flex-col flex-row justify-between items-center px-1.5 py-1.5 pb-2.5 md:py-3 z-40 select-none shrink-0 shadow-md md:shadow-xs overflow-x-auto md:overflow-x-hidden scrollbar-none touch-manipulation">
       {/* Tool Navigation Items */}
       <div className="flex md:flex-col flex-row items-center gap-1 md:gap-1.5 w-auto md:w-full px-0.5">
         {railItems.map((item) => {
@@ -94,7 +94,7 @@ export default function EditorLeftRail({
               key={item.id}
               type="button"
               onClick={() => handleClick(item.id)}
-              className={`min-w-[56px] md:w-full py-1.5 md:py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all text-center relative shrink-0 cursor-pointer active:scale-95 ${
+              className={`min-w-[58px] min-h-[46px] md:w-full py-1.5 md:py-2 px-1 rounded-xl flex flex-col items-center justify-center gap-0.5 md:gap-1 transition-all text-center relative shrink-0 cursor-pointer active:scale-95 ${
                 isActive
                   ? "bg-rose-50 text-zen-primary font-bold shadow-2xs"
                   : item.isSpecial
