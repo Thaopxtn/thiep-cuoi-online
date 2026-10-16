@@ -1546,6 +1546,10 @@ export default function DesignTemplatePage() {
           activeTab={activeLeftTab}
           isOpen={isLeftDrawerOpen}
           onClose={() => setIsLeftDrawerOpen(false)}
+          onSelectTab={(tab) => {
+            setActiveLeftTab(tab);
+            if (!isLeftDrawerOpen) setIsLeftDrawerOpen(true);
+          }}
           onOpenAutoFillModal={() => setIsAutoFillModalOpen(true)}
           onApplyAutoFill={handleApplyAutoFill}
           onSelectElement={(el) => setSelectedElement(el)}
@@ -1573,7 +1577,7 @@ export default function DesignTemplatePage() {
           onSelectTemplate={handleSelectTemplate}
           onApplyThemePreset={handleApplyThemePreset}
           onOpenSettings={() => {
-            setActiveLeftTab("autofill");
+            setActiveLeftTab("widgets");
             setIsLeftDrawerOpen(true);
           }}
         />

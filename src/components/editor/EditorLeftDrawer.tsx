@@ -53,6 +53,7 @@ import {
   ArrowRight,
   ArrowUp,
   ArrowDown,
+  CheckCircle2,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
@@ -84,6 +85,7 @@ import {
   ModulePresetItem,
   getPresetsByCategory,
 } from "@/lib/modulePresetsCatalog";
+import { weddingSounds } from "@/lib/soundEffects";
 import PhotoshopLayersPanel from "./PhotoshopLayersPanel";
 import ModulePresetsFolderBrowser from "./ModulePresetsFolderBrowser";
 
@@ -91,6 +93,7 @@ interface EditorLeftDrawerProps {
   activeTab: EditorToolTab;
   isOpen: boolean;
   onClose: () => void;
+  onSelectTab?: (tab: EditorToolTab) => void;
   onDuplicateElement?: (elementId: string) => void;
   onDeleteElement?: (elementId: string) => void;
   nodes?: Record<string, any>;
@@ -151,6 +154,7 @@ export default function EditorLeftDrawer({
   activeTab,
   isOpen,
   onClose,
+  onSelectTab,
   nodes = {},
   card,
   cardAlbum,
@@ -184,6 +188,10 @@ export default function EditorLeftDrawer({
   // Module Category Filter
   const [selectedModuleCategory, setSelectedModuleCategory] = useState<string>("all");
 
+  // Sub-tab switcher cho Khối Mẫu: "fixed" (Khối mẫu cố định chân trang) hoặc "library" (Thư viện mẫu 47 kiểu)
+  const [widgetsSubTab, setWidgetsSubTab] = useState<"fixed" | "library">("fixed");
+  const [fixedModuleToast, setFixedModuleToast] = useState<string | null>(null);
+
   // Thông tin thiệp cưới toàn diện (Điền 1 lần là xong - Chuyển toàn bộ từ biểu mẫu đầy đủ & mục cố định ra ngoài)
   const [groomName, setGroomName] = useState(card?.groom?.name || "");
   const [groomPhone, setGroomPhone] = useState(card?.groom?.phone || "");
@@ -214,6 +222,8 @@ export default function EditorLeftDrawer({
   const [showMapBox, setShowMapBox] = useState(card?.showEvents !== false);
   const [showWishes, setShowWishes] = useState(card?.showWishes !== false);
   const [showRsvp, setShowRsvp] = useState(card?.showRsvp !== false);
+  const [showCalendar, setShowCalendar] = useState(card?.showCalendar !== false);
+  const [showEvents, setShowEvents] = useState(card?.showEvents !== false);
 
   // Nhạc nền
   const [musicTitle, setMusicTitle] = useState(card?.musicTitle || currentMusic?.title || CURATED_WEDDING_SONGS[0].title);
@@ -259,10 +269,73 @@ export default function EditorLeftDrawer({
     setShowMapBox(card.showEvents !== false);
     setShowWishes(card.showWishes !== false);
     setShowRsvp(card.showRsvp !== false);
+    setShowCalendar(card.showCalendar !== false);
+    setShowEvents(card.showEvents !== false);
 
     if (card.musicTitle) setMusicTitle(card.musicTitle);
     if (card.musicUrl) setMusicUrl(card.musicUrl);
   }, [card]);
+
+  // Thao tác bật/tắt nhanh từng khối mẫu cố định với hiệu ứng âm thanh và lưu tức thì
+  const handleToggleFixedModule = (
+    key: "showGiftBox" | "showMapBox" | "showRsvp" | "showWishes" | "showCalendar" | "showEvents",
+    newValue: boolean,
+    moduleTitle: string
+  ) => {
+    try {
+      weddingSounds.playSoftClick();
+    } catch {}
+
+    let partial: Partial<WeddingCard> = {};
+    if (key === "showGiftBox") {
+      setShowGiftBox(newValue);
+      partial = { showGiftBox: newValue };
+    } else if (key === "showMapBox") {
+      setShowMapBox(newValue);
+      setShowEvents(newValue);
+      partial = { showEvents: newValue };
+    } else if (key === "showRsvp") {
+      setShowRsvp(newValue);
+      partial = { showRsvp: newValue };
+    } else if (key === "showWishes") {
+      setShowWishes(newValue);
+      partial = { showWishes: newValue };
+    } else if (key === "showCalendar") {
+      setShowCalendar(newValue);
+      partial = { showCalendar: newValue };
+    } else if (key === "showEvents") {
+      setShowEvents(newValue);
+      setShowMapBox(newValue);
+      partial = { showEvents: newValue };
+    }
+
+    onApplyAutoFill?.(nodes || {}, partial, { textCount: 0, photoCount: 0, widgetCount: 0 });
+    setFixedModuleToast(`${newValue ? "✓ Đã bật hiển thị" : "✕ Đã tắt"} khối ${moduleTitle}!`);
+    setTimeout(() => setFixedModuleToast(null), 3000);
+  };
+
+  const handleSetAllFixedModules = (status: boolean) => {
+    try {
+      weddingSounds.playSoftClick();
+    } catch {}
+    setShowGiftBox(status);
+    setShowMapBox(status);
+    setShowRsvp(status);
+    setShowWishes(status);
+    setShowCalendar(status);
+    setShowEvents(status);
+
+    const partial: Partial<WeddingCard> = {
+      showGiftBox: status,
+      showEvents: status,
+      showRsvp: status,
+      showWishes: status,
+      showCalendar: status,
+    };
+    onApplyAutoFill?.(nodes || {}, partial, { textCount: 0, photoCount: 0, widgetCount: 0 });
+    setFixedModuleToast(status ? "✨ Đã bật toàn bộ các khối cố định trên thiệp!" : "✕ Đã tắt toàn bộ các khối cố định.");
+    setTimeout(() => setFixedModuleToast(null), 3000);
+  };
 
   const handleGenerateMapUrl = () => {
     const query = `${venueName} ${address}`.trim();
@@ -299,6 +372,8 @@ export default function EditorLeftDrawer({
     setShowMapBox(true);
     setShowWishes(true);
     setShowRsvp(true);
+    setShowCalendar(true);
+    setShowEvents(true);
   };
 
   const handleDrawerAutoFillApply = () => {
@@ -389,6 +464,7 @@ export default function EditorLeftDrawer({
       showEvents: showMapBox,
       showWishes,
       showRsvp,
+      showCalendar,
       musicTitle,
       musicUrl,
       groom: {
@@ -1351,77 +1427,40 @@ export default function EditorLeftDrawer({
               </div>
             </div>
 
-            {/* PHẦN 4: BẬT / TẮT CÁC MỤC CỐ ĐỊNH & SƠ ĐỒ HÔN LỄ */}
-            <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-2.5">
-              <div className="flex items-center gap-2 border-b border-gray-100 pb-2">
-                <Sliders className="w-4 h-4 text-purple-600" />
-                <span className="text-xs font-bold text-gray-900">
-                  4. Bật / Tắt Các Mục Cố Định Trên Thiệp
-                </span>
+            {/* GỢI Ý ĐIỀU HƯỚNG SANG MỤC KHỐI MẪU CỐ ĐỊNH */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-50 via-rose-50/40 to-amber-50/50 border border-purple-200/70 flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                  <Sliders className="w-3.5 h-3.5" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[11px] font-bold text-gray-900 block truncate">
+                    Bật / Tắt Các Khối Mẫu Cố Định
+                  </span>
+                  <span className="text-[10px] text-gray-500 block truncate">
+                    Đã chuyển về tab <strong>Khối mẫu</strong> để đồng bộ giao diện
+                  </span>
+                </div>
               </div>
-
-              <div className="space-y-2 pt-0.5">
-                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <CreditCard className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span className="text-[11px] font-bold text-gray-800">Hộp Mừng Cưới (VietQR)</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={showGiftBox}
-                    onChange={(e) => setShowGiftBox(e.target.checked)}
-                    className="w-4 h-4 accent-[#e54153] rounded"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="text-[11px] font-bold text-gray-800">Sơ Đồ Chỉ Đường & Bản Đồ</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={showMapBox}
-                    onChange={(e) => setShowMapBox(e.target.checked)}
-                    className="w-4 h-4 accent-[#e54153] rounded"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <Check className="w-3.5 h-3.5 text-blue-600 shrink-0" />
-                    <span className="text-[11px] font-bold text-gray-800">Xác Nhận Tham Dự (RSVP)</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={showRsvp}
-                    onChange={(e) => setShowRsvp(e.target.checked)}
-                    className="w-4 h-4 accent-[#e54153] rounded"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between p-2 rounded-xl bg-gray-50 hover:bg-gray-100/70 cursor-pointer transition-colors">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <MessageSquare className="w-3.5 h-3.5 text-rose-600 shrink-0" />
-                    <span className="text-[11px] font-bold text-gray-800">Sổ Lưu Bút & Lời Chúc Mừng</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={showWishes}
-                    onChange={(e) => setShowWishes(e.target.checked)}
-                    className="w-4 h-4 accent-[#e54153] rounded"
-                  />
-                </label>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectTab?.("widgets");
+                  setWidgetsSubTab("fixed");
+                }}
+                className="px-2.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-[10px] font-bold transition-all shadow-2xs cursor-pointer shrink-0"
+              >
+                Mở Khối Mẫu ➔
+              </button>
             </div>
 
-            {/* PHẦN 5: NHẠC NỀN ĐÁM CƯỚI */}
+            {/* PHẦN 4: NHẠC NỀN ĐÁM CƯỚI */}
             <div className="p-3.5 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
               <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                 <div className="flex items-center gap-2">
                   <Music className="w-4 h-4 text-rose-600" />
                   <span className="text-xs font-bold text-gray-900">
-                    5. Nhạc Nền Thiệp Cưới
+                    4. Nhạc Nền Thiệp Cưới
                   </span>
                 </div>
                 <span className="text-[10px] text-gray-500 font-medium truncate max-w-[150px]">
@@ -2553,18 +2592,468 @@ export default function EditorLeftDrawer({
           </div>
         )}
 
-        {/* ================= 7. TAB: KHỐI MẪU DẠNG THƯ MỤC (MODULE PRESETS FOLDER BROWSER) ================= */}
+        {/* ================= 7. TAB: KHỐI MẪU & TIỆN ÍCH (FIXED MODULES & PRESETS) ================= */}
         {activeTab === "widgets" && (
-          <ModulePresetsFolderBrowser
-            onAddModulePreset={(preset) => {
-              if (onAddModulePreset) {
-                onAddModulePreset(preset);
-              } else if (onAddWidget) {
-                onAddWidget(preset.type, preset.defaultProps);
-              }
-            }}
-            onOpenSettings={onOpenSettings}
-          />
+          <div className="space-y-3">
+            {/* Sub-tab switcher đồng bộ UX UI */}
+            <div className="flex items-center gap-1.5 p-1 bg-gray-100/90 rounded-2xl shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setWidgetsSubTab("fixed")}
+                className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  widgetsSubTab === "fixed"
+                    ? "bg-white text-rose-600 shadow-xs border border-gray-100"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Sliders className="w-3.5 h-3.5" />
+                <span>Khối mẫu cố định ({[showGiftBox, showMapBox, showRsvp, showWishes, showCalendar, showEvents].filter(Boolean).length}/6)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWidgetsSubTab("library")}
+                className={`flex-1 py-2 px-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  widgetsSubTab === "library"
+                    ? "bg-white text-rose-600 shadow-xs border border-gray-100"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                <Layers className="w-3.5 h-3.5" />
+                <span>Thư viện mẫu (47)</span>
+              </button>
+            </div>
+
+            {/* Thông báo cập nhật trạng thái khối */}
+            {fixedModuleToast && (
+              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 animate-fadeIn">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
+                <span>{fixedModuleToast}</span>
+              </div>
+            )}
+
+            {/* ================= SUB-TAB 1: KHỐI MẪU CỐ ĐỊNH ================= */}
+            {widgetsSubTab === "fixed" && (
+              <div className="space-y-3">
+                {/* Banner hướng dẫn */}
+                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-50 via-white to-amber-50/70 border border-rose-200/80 shadow-2xs text-left">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2">
+                      <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#e54153] to-[#ff5b70] text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Sliders className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                          <span>Khối Mẫu Cố Định Trên Thiệp</span>
+                          <span className="px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
+                            Tự động đồng bộ
+                          </span>
+                        </h4>
+                        <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">
+                          Các khối tương tác này xuất hiện ở cuối thiệp trực tuyến của bạn. Bạn có thể tự do bật/tắt hoặc chỉnh sửa nội dung bất kỳ lúc nào.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Nút bật/tắt toàn bộ nhanh */}
+                  <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-rose-100">
+                    <button
+                      type="button"
+                      onClick={() => handleSetAllFixedModules(true)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 shadow-2xs transition-all cursor-pointer text-center"
+                    >
+                      ✓ Bật tất cả các khối
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleSetAllFixedModules(false)}
+                      className="flex-1 py-1.5 px-2 rounded-lg bg-white hover:bg-gray-100 text-gray-600 text-[10px] font-bold border border-gray-200 shadow-2xs transition-all cursor-pointer text-center"
+                    >
+                      ✕ Tắt tất cả
+                    </button>
+                  </div>
+                </div>
+
+                {/* Danh sách 7 Khối Mẫu Cố Định */}
+                <div className="space-y-2.5">
+                  {/* 1. Hộp mừng cưới VietQR */}
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    showGiftBox
+                      ? "bg-white border-amber-200 shadow-2xs"
+                      : "bg-gray-50/70 border-gray-200 opacity-70"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          showGiftBox ? "bg-amber-50 text-amber-600" : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <CreditCard className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Hộp Mừng Cưới (VietQR)</h5>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              showGiftBox ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {showGiftBox ? "Đang bật" : "Đã tắt"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Quét mã VietQR chuyển khoản mừng cưới Chú Rể & Cô Dâu
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Nút Switch gạt bật/tắt */}
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedModule("showGiftBox", !showGiftBox, "Hộp mừng cưới")}
+                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
+                          showGiftBox ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={showGiftBox ? "Bấm để tắt" : "Bấm để bật"}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            showGiftBox ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {showGiftBox && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                        <span className="text-gray-500 truncate">
+                          {groomBank || "MB"} ({groomAccount || "Chưa nhập STK"})
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onSelectTab?.("autofill")}
+                          className="text-amber-700 font-bold hover:underline shrink-0 cursor-pointer"
+                        >
+                          ✏️ Sửa số tài khoản
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 2. Sơ đồ & Chỉ đường */}
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    showMapBox
+                      ? "bg-white border-emerald-200 shadow-2xs"
+                      : "bg-gray-50/70 border-gray-200 opacity-70"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          showMapBox ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <MapPin className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Sơ Đồ Chỉ Đường & Bản Đồ</h5>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              showMapBox ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {showMapBox ? "Đang bật" : "Đã tắt"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Địa điểm tiệc cưới & nút chỉ đường Google Maps
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedModule("showMapBox", !showMapBox, "Sơ đồ chỉ đường")}
+                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
+                          showMapBox ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={showMapBox ? "Bấm để tắt" : "Bấm để bật"}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            showMapBox ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {showMapBox && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                        <span className="text-gray-500 truncate">
+                          {venueName || "Địa điểm tiệc cưới"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onSelectTab?.("autofill")}
+                          className="text-emerald-700 font-bold hover:underline shrink-0 cursor-pointer"
+                        >
+                          ✏️ Sửa địa điểm
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 3. Form RSVP */}
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    showRsvp
+                      ? "bg-white border-blue-200 shadow-2xs"
+                      : "bg-gray-50/70 border-gray-200 opacity-70"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          showRsvp ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <Check className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Xác Nhận Tham Dự (RSVP)</h5>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              showRsvp ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {showRsvp ? "Đang bật" : "Đã tắt"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Thu thập phản hồi khách đến dự & số người đi cùng
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedModule("showRsvp", !showRsvp, "Xác nhận tham dự (RSVP)")}
+                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
+                          showRsvp ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={showRsvp ? "Bấm để tắt" : "Bấm để bật"}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            showRsvp ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 4. Sổ lưu bút */}
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    showWishes
+                      ? "bg-white border-rose-200 shadow-2xs"
+                      : "bg-gray-50/70 border-gray-200 opacity-70"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          showWishes ? "bg-rose-50 text-rose-600" : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <MessageSquare className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Sổ Lưu Bút & Lời Chúc Mừng</h5>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              showWishes ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {showWishes ? "Đang bật" : "Đã tắt"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Cho phép quan khách gửi lời chúc mừng & thả tim trực tuyến
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedModule("showWishes", !showWishes, "Sổ lưu bút")}
+                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
+                          showWishes ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={showWishes ? "Bấm để tắt" : "Bấm để bật"}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            showWishes ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 5. Lịch cưới & Đếm ngược */}
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    showCalendar
+                      ? "bg-white border-indigo-200 shadow-2xs"
+                      : "bg-gray-50/70 border-gray-200 opacity-70"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          showCalendar ? "bg-indigo-50 text-indigo-600" : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <Calendar className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Lịch Cưới & Đếm Ngược</h5>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              showCalendar ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {showCalendar ? "Đang bật" : "Đã tắt"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Đồng hồ đếm ngược Ngày - Giờ & Lưu ngày cưới (Save The Date)
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedModule("showCalendar", !showCalendar, "Lịch cưới & đếm ngược")}
+                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
+                          showCalendar ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={showCalendar ? "Bấm để tắt" : "Bấm để bật"}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            showCalendar ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {showCalendar && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                        <span className="text-gray-500 truncate">
+                          {weddingDate ? weddingDate.split("-").reverse().join("/") : "20/11/2026"} • {weddingTime || "11:00"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onSelectTab?.("autofill")}
+                          className="text-indigo-700 font-bold hover:underline shrink-0 cursor-pointer"
+                        >
+                          ✏️ Sửa ngày cưới
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 6. Chương trình hôn lễ (Timeline) */}
+                  <div className={`p-3.5 rounded-2xl border transition-all ${
+                    showEvents
+                      ? "bg-white border-purple-200 shadow-2xs"
+                      : "bg-gray-50/70 border-gray-200 opacity-70"
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                          showEvents ? "bg-purple-50 text-purple-600" : "bg-gray-100 text-gray-400"
+                        }`}>
+                          <Clock className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Chương Trình Hôn Lễ (Timeline)</h5>
+                            <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
+                              showEvents ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
+                            }`}>
+                              {showEvents ? "Đang bật" : "Đã tắt"}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Lịch trình chi tiết các nghi lễ Vu Quy, Thành Hôn, Tiệc Cưới
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleFixedModule("showEvents", !showEvents, "Chương trình hôn lễ")}
+                        className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
+                          showEvents ? "bg-emerald-600" : "bg-gray-300"
+                        }`}
+                        title={showEvents ? "Bấm để tắt" : "Bấm để bật"}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
+                            showEvents ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 7. Album ảnh cưới */}
+                  <div className="p-3.5 rounded-2xl bg-white border border-pink-200 shadow-2xs">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">
+                          <Camera className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <h5 className="text-xs font-bold text-gray-900 truncate">Album Ảnh Cưới Trực Tuyến</h5>
+                            <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200/60">
+                              {effectiveAlbum.length} ảnh
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                            Bộ sưu tập ảnh cưới chất lượng cao hiển thị ở cuối thiệp
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onSelectTab?.("image");
+                          setImageSubTab("album");
+                        }}
+                        className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer shrink-0"
+                      >
+                        Quản lý Album ↗
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Nút chuyển nhanh sang Thư viện mẫu */}
+                <div className="pt-2 border-t border-gray-100">
+                  <button
+                    type="button"
+                    onClick={() => setWidgetsSubTab("library")}
+                    className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-500 to-[#e54153] hover:from-rose-600 hover:to-rose-500 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-xs cursor-pointer transition-all"
+                  >
+                    <Layers className="w-4 h-4" />
+                    <span>Mở Thư Viện Kiểu Dáng (47 Thiết kế) ➔</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ================= SUB-TAB 2: THƯ VIỆN KHỐI MẪU (47 MẪU) ================= */}
+            {widgetsSubTab === "library" && (
+              <ModulePresetsFolderBrowser
+                onAddModulePreset={(preset) => {
+                  if (onAddModulePreset) {
+                    onAddModulePreset(preset);
+                  } else if (onAddWidget) {
+                    onAddWidget(preset.type, preset.defaultProps);
+                  }
+                }}
+                onOpenSettings={() => setWidgetsSubTab("fixed")}
+              />
+            )}
+          </div>
         )}
 
         {/* ================= 8. TAB: MẪU ================= */}

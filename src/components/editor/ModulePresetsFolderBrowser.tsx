@@ -13,6 +13,7 @@ import {
   Check,
   Settings,
   MapPin,
+  Sliders,
 } from "lucide-react";
 import {
   MODULE_CATEGORIES,
@@ -361,10 +362,10 @@ export default function ModulePresetsFolderBrowser({
           <button
             type="button"
             onClick={onOpenSettings}
-            className="w-full py-2 px-3 rounded-xl bg-gray-50 hover:bg-rose-50 text-gray-600 hover:text-rose-700 text-xs font-semibold flex items-center justify-center gap-1.5 border border-gray-200/70 transition-colors cursor-pointer"
+            className="w-full py-2.5 px-3 rounded-xl bg-gray-50 hover:bg-rose-50 text-gray-700 hover:text-rose-700 text-xs font-bold flex items-center justify-center gap-1.5 border border-gray-200/80 transition-colors cursor-pointer shadow-2xs"
           >
-            <Settings className="w-3.5 h-3.5 text-gray-500" />
-            <span>Cài đặt thông tin thiệp & ngân hàng</span>
+            <Sliders className="w-3.5 h-3.5 text-rose-500" />
+            <span>Quản lý Khối mẫu cố định (Bật / Tắt) ➔</span>
           </button>
         </div>
       )}
