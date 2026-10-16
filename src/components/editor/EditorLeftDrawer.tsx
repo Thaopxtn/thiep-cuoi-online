@@ -148,6 +148,7 @@ interface EditorLeftDrawerProps {
   }) => void;
   // Settings
   onOpenSettings?: () => void;
+  onOpenModuleConfig?: (moduleId: import("./EditorFixedModuleEditModal").FixedModuleId) => void;
 }
 
 export default function EditorLeftDrawer({
@@ -184,6 +185,7 @@ export default function EditorLeftDrawer({
   activeEffects = [],
   onApplyThemePreset,
   onOpenSettings,
+  onOpenModuleConfig,
 }: EditorLeftDrawerProps) {
   // Module Category Filter
   const [selectedModuleCategory, setSelectedModuleCategory] = useState<string>("all");
@@ -2722,16 +2724,16 @@ export default function EditorLeftDrawer({
                     </div>
 
                     {showGiftBox && (
-                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
                         <span className="text-gray-500 truncate">
-                          {groomBank || "MB"} ({groomAccount || "Chưa nhập STK"})
+                          {card?.fixedModuleStyles?.giftBox === "red-envelope" ? "🧧 Bao Lì Xì Đỏ" : card?.fixedModuleStyles?.giftBox === "luxury-gold" ? "👑 Hoàng Gia Gold" : "💳 2 Thẻ Hiện Đại"} • {groomBank || "MB"} ({groomAccount ? "✓ Đã có STK" : "Chưa nhập STK"})
                         </span>
                         <button
                           type="button"
-                          onClick={() => onSelectTab?.("autofill")}
-                          className="text-amber-700 font-bold hover:underline shrink-0 cursor-pointer"
+                          onClick={() => onOpenModuleConfig?.("giftBox")}
+                          className="px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold shrink-0 transition-colors cursor-pointer border border-amber-200"
                         >
-                          ✏️ Sửa số tài khoản
+                          ✏️ Điền STK & Đổi kiểu ➔
                         </button>
                       </div>
                     )}
@@ -2782,16 +2784,16 @@ export default function EditorLeftDrawer({
                     </div>
 
                     {showMapBox && (
-                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
                         <span className="text-gray-500 truncate">
-                          {venueName || "Địa điểm tiệc cưới"}
+                          {card?.fixedModuleStyles?.events === "vertical-timeline" ? "⏳ Timeline Dọc" : card?.fixedModuleStyles?.events === "traditional-red" ? "🧧 Thiệp Hồng" : "📇 Thẻ Độc Lập"} • {venueName || "Địa điểm tiệc cưới"}
                         </span>
                         <button
                           type="button"
-                          onClick={() => onSelectTab?.("autofill")}
-                          className="text-emerald-700 font-bold hover:underline shrink-0 cursor-pointer"
+                          onClick={() => onOpenModuleConfig?.("events")}
+                          className="px-2 py-0.5 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold shrink-0 transition-colors cursor-pointer border border-emerald-200"
                         >
-                          ✏️ Sửa địa điểm
+                          ✏️ Sửa sự kiện & Đổi kiểu ➔
                         </button>
                       </div>
                     )}
@@ -2840,6 +2842,21 @@ export default function EditorLeftDrawer({
                         />
                       </button>
                     </div>
+
+                    {showRsvp && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
+                        <span className="text-gray-500 truncate">
+                          {card?.fixedModuleStyles?.rsvp === "red-velvet" ? "🌹 Nhung Đỏ Quý Phái" : card?.fixedModuleStyles?.rsvp === "luxury-envelope" ? "✉️ Phong Thư Hồi Đáp" : "💌 Form Bo Góc"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenModuleConfig?.("rsvp")}
+                          className="px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold shrink-0 transition-colors cursor-pointer border border-blue-200"
+                        >
+                          ✏️ Cài đặt RSVP & Đổi kiểu ➔
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 4. Sổ lưu bút */}
@@ -2885,6 +2902,21 @@ export default function EditorLeftDrawer({
                         />
                       </button>
                     </div>
+
+                    {showWishes && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
+                        <span className="text-gray-500 truncate">
+                          {card?.fixedModuleStyles?.wishes === "vintage-card" ? "📜 Bưu Thiếp Vintage" : "💬 Bong Bóng Chat"}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenModuleConfig?.("wishes")}
+                          className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold shrink-0 transition-colors cursor-pointer border border-rose-200"
+                        >
+                          ✏️ Cài đặt & Đổi kiểu ➔
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 5. Lịch cưới & Đếm ngược */}
@@ -2932,16 +2964,16 @@ export default function EditorLeftDrawer({
                     </div>
 
                     {showCalendar && (
-                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px]">
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
                         <span className="text-gray-500 truncate">
-                          {weddingDate ? weddingDate.split("-").reverse().join("/") : "20/11/2026"} • {weddingTime || "11:00"}
+                          {card?.fixedModuleStyles?.calendar === "luxury-gold" ? "✨ Hoàng Gia Gold" : card?.fixedModuleStyles?.calendar === "traditional-red" ? "囍 Song Hỷ" : card?.fixedModuleStyles?.calendar === "modern-minimal" ? "🖤 Tối Giản" : "🗓️ Nền Kem"} • {weddingDate ? weddingDate.split("-").reverse().join("/") : "20/11/2026"}
                         </span>
                         <button
                           type="button"
-                          onClick={() => onSelectTab?.("autofill")}
-                          className="text-indigo-700 font-bold hover:underline shrink-0 cursor-pointer"
+                          onClick={() => onOpenModuleConfig?.("calendar")}
+                          className="px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold shrink-0 transition-colors cursor-pointer border border-indigo-200"
                         >
-                          ✏️ Sửa ngày cưới
+                          ✏️ Sửa ngày & Đổi kiểu ➔
                         </button>
                       </div>
                     )}
@@ -2990,6 +3022,21 @@ export default function EditorLeftDrawer({
                         />
                       </button>
                     </div>
+
+                    {showEvents && (
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
+                        <span className="text-gray-500 truncate">
+                          {card?.fixedModuleStyles?.events === "vertical-timeline" ? "⏳ Timeline Dọc" : card?.fixedModuleStyles?.events === "traditional-red" ? "🧧 Thiệp Hồng" : "📇 Thẻ Độc Lập"} • {card?.events?.length || 0} mốc sự kiện
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => onOpenModuleConfig?.("events")}
+                          className="px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold shrink-0 transition-colors cursor-pointer border border-purple-200"
+                        >
+                          ✏️ Sửa lịch trình & Đổi kiểu ➔
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* 7. Album ảnh cưới */}
@@ -3021,6 +3068,19 @@ export default function EditorLeftDrawer({
                         className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer shrink-0"
                       >
                         Quản lý Album ↗
+                      </button>
+                    </div>
+
+                    <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
+                      <span className="text-gray-500 truncate">
+                        {card?.fixedModuleStyles?.album === "polaroid-scrapbook" ? "📸 Polaroid Scrapbook" : card?.fixedModuleStyles?.album === "masonry-chic" ? "📰 So Le Vogue" : "🖼️ Lưới 2 Cột"}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onOpenModuleConfig?.("album")}
+                        className="px-2 py-0.5 rounded-md bg-pink-50 hover:bg-pink-100 text-pink-800 font-bold shrink-0 transition-colors cursor-pointer border border-pink-200"
+                      >
+                        ✏️ Quản lý ảnh & Đổi kiểu ➔
                       </button>
                     </div>
                   </div>

@@ -54,6 +54,7 @@ import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
 
 import { WeddingCard } from "@/data/initialCards";
 import EditorFixedModulesCanvas from "./EditorFixedModulesCanvas";
+import { FixedModuleId } from "./EditorFixedModuleEditModal";
 
 interface EditorCanvasProps {
   nodes: Record<string, any>;
@@ -79,6 +80,7 @@ interface EditorCanvasProps {
   onOpenFixedModulesTab?: () => void;
   onToggleFixedModule?: (key: keyof WeddingCard, value: boolean) => void;
   onOpenSettings?: () => void;
+  onOpenModuleConfig?: (moduleId: FixedModuleId) => void;
 }
 
 export default function EditorCanvas({
@@ -105,6 +107,7 @@ export default function EditorCanvas({
   onOpenFixedModulesTab,
   onToggleFixedModule,
   onOpenSettings,
+  onOpenModuleConfig,
 }: EditorCanvasProps) {
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
@@ -2210,6 +2213,7 @@ export default function EditorCanvas({
           onToggleFixedModule={onToggleFixedModule}
           onOpenAlbumDrawer={onOpenImageDrawer}
           onOpenSettings={onOpenSettings}
+          onOpenModuleConfig={onOpenModuleConfig}
         />
       </div>
 

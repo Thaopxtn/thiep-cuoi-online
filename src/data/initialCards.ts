@@ -87,6 +87,7 @@ export interface WeddingCard {
   }>;
   showCalendar?: boolean;
   showLoveStory?: boolean;
+  fixedModuleStyles?: Record<string, string>;
   isVip?: boolean;
   plan?: "free" | "vip" | "premium";
   vipUnlockedAt?: string;

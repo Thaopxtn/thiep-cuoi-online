@@ -15,6 +15,7 @@ import EditorWeddingSettingsModal from "@/components/editor/EditorWeddingSetting
 import EditorAutoFillModal from "@/components/editor/EditorAutoFillModal";
 import EditorPublishWarningModal from "@/components/editor/EditorPublishWarningModal";
 import EditorBackgroundCutoutModal from "@/components/editor/EditorBackgroundCutoutModal";
+import EditorFixedModuleEditModal, { FixedModuleId } from "@/components/editor/EditorFixedModuleEditModal";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate, findZenloveTemplate } from "@/data/zenloveTemplates";
@@ -91,6 +92,7 @@ export default function DesignTemplatePage() {
   const [cutoutInitialResult, setCutoutInitialResult] = useState<string | null>(null);
   const [customCardData, setCustomCardData] = useState<WeddingCard | null>(null);
   const [cardAlbum, setCardAlbum] = useState<string[]>([]);
+  const [activeFixedModuleConfigId, setActiveFixedModuleConfigId] = useState<FixedModuleId | null>(null);
   const [isSaved, setIsSaved] = useState(true);
 
   // Persistent music and toast state
@@ -1347,6 +1349,7 @@ export default function DesignTemplatePage() {
         "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
       rsvps: existing?.rsvps || [],
       wishes: existing?.wishes || [],
+      fixedModuleStyles: base?.fixedModuleStyles || existing?.fixedModuleStyles,
       nodes,
     };
 
@@ -1519,6 +1522,13 @@ export default function DesignTemplatePage() {
     showToast(`${value ? "✓ Đã bật hiển thị" : "✕ Đã tắt"} khối trên bảng thiết kế!`);
   };
 
+  const handleSaveFixedModuleConfig = (updatedCard: WeddingCard) => {
+    setCustomCardData(updatedCard);
+    saveCard(updatedCard);
+    saveCardAsync(updatedCard).catch(() => {});
+    showToast("✨ Đã cập nhật thông tin & kiểu mẫu khối cố định!");
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans relative">
       {/* ================= 1. TOP HEADER (Exact match to screenshot!) ================= */}
@@ -1594,6 +1604,7 @@ export default function DesignTemplatePage() {
             setActiveLeftTab("widgets");
             setIsLeftDrawerOpen(true);
           }}
+          onOpenModuleConfig={(modId) => setActiveFixedModuleConfigId(modId as FixedModuleId)}
         />
 
         {/* Center Canvas (Blueprint Grid + Mobile Viewport + Bounding Box) */}
@@ -1627,6 +1638,7 @@ export default function DesignTemplatePage() {
           }}
           onToggleFixedModule={handleToggleFixedModuleCanvas}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenModuleConfig={(modId) => setActiveFixedModuleConfigId(modId)}
         />
 
         {/* Right Properties Inspector (Settings & Effects tabs) */}
@@ -1733,7 +1745,16 @@ export default function DesignTemplatePage() {
         onApply={handleApplyCutout}
       />
 
-      {/* 6. AUTH GUARD OVERLAY FOR STUDIO CANVAS */}
+      {/* 7. FIXED MODULE CONFIG & STYLE VARIANT MODAL */}
+      <EditorFixedModuleEditModal
+        isOpen={Boolean(activeFixedModuleConfigId)}
+        onClose={() => setActiveFixedModuleConfigId(null)}
+        moduleId={activeFixedModuleConfigId}
+        card={customCardData || buildCardFromCurrentState()}
+        onSaveCard={handleSaveFixedModuleConfig}
+      />
+
+      {/* 8. AUTH GUARD OVERLAY FOR STUDIO CANVAS */}
       {isClientMounted && !isAuthenticated && (
         <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 text-center shadow-2xl border border-gray-100 animate-scale-up">
