@@ -149,19 +149,20 @@ export default function FallingPetals({
         };
       }
 
-      // Default: rose petals
-      const size = Math.random() * 12 + 10; // 10px to 22px
+      // Default: rose petals (Thanh thoát, kích thước tinh tế trên mobile)
+      const isMobile = width < 640;
+      const basePetalSize = Math.random() * (isMobile ? 7 : 12) + (isMobile ? 7 : 10);
       return {
         x: Math.random() * width,
         y: startY !== undefined ? startY : Math.random() * height - height,
-        size,
-        speedY: Math.random() * 1.4 + 0.8,
-        speedX: (Math.random() - 0.5) * 0.9,
+        size: basePetalSize,
+        speedY: Math.random() * 1.2 + 0.6,
+        speedX: (Math.random() - 0.5) * 0.7,
         rotation: Math.random() * Math.PI * 2,
         rotationSpeed: (Math.random() - 0.5) * 0.02,
         flip: Math.random() * Math.PI,
         flipSpeed: Math.random() * 0.03 + 0.015,
-        opacity: Math.random() * 0.4 + 0.55,
+        opacity: Math.random() * 0.3 + (isMobile ? 0.4 : 0.55),
         color: petalColors[Math.floor(Math.random() * petalColors.length)],
         type: "petal",
       };

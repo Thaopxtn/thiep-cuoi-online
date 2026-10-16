@@ -262,18 +262,21 @@ export default function CardNodeRenderer({
       ? rawBg
       : DEFAULT_WEDDING_BACKGROUND;
 
-  // Responsive scale factor calculation to fit any mobile viewport perfectly
+  const [containerWidth, setContainerWidth] = useState(500);
+
+  // Responsive scale factor calculation to fit any mobile viewport perfectly without clipping
   useEffect(() => {
-    const updateScale = () => {
+    const updateDimensions = () => {
       if (!containerRef.current) return;
       const parentWidth = containerRef.current.parentElement?.clientWidth || window.innerWidth;
-      const targetWidth = Math.min(parentWidth, 500);
-      setScale(targetWidth / baseWidth);
+      const availableWidth = Math.min(parentWidth, 500);
+      setContainerWidth(parentWidth);
+      setScale(availableWidth / baseWidth);
     };
 
-    updateScale();
-    window.addEventListener("resize", updateScale);
-    return () => window.removeEventListener("resize", updateScale);
+    updateDimensions();
+    window.addEventListener("resize", updateDimensions);
+    return () => window.removeEventListener("resize", updateDimensions);
   }, [baseWidth]);
 
   // Extract all child node entries in proper z-order
@@ -305,17 +308,21 @@ export default function CardNodeRenderer({
     return getSafeImageUrl(key, "");
   };
 
+  const targetScaledWidth = baseWidth * scale;
+  const offsetX = Math.max(0, Math.round((containerWidth - targetScaledWidth) / 2));
+
   return (
     <div
       ref={containerRef}
-      className="w-full flex justify-center overflow-hidden"
+      className="w-full relative overflow-hidden"
       style={{
         height: `${effectiveBaseHeight * scale}px`,
       }}
     >
       <div
-        className="relative origin-top transition-transform duration-150"
+        className="absolute top-0 transition-transform duration-150 origin-top-left"
         style={{
+          left: `${offsetX}px`,
           width: `${baseWidth}px`,
           height: `${effectiveBaseHeight}px`,
           backgroundColor: backgroundColor,

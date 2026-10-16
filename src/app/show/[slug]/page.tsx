@@ -574,6 +574,17 @@ export default function ShowInvitationPage() {
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
+  // Adaptive particle density for mobile vs desktop
+  const [ambientDensity, setAmbientDensity] = useState(12);
+  useEffect(() => {
+    const updateDensity = () => {
+      setAmbientDensity(typeof window !== "undefined" && window.innerWidth < 640 ? 12 : 26);
+    };
+    updateDensity();
+    window.addEventListener("resize", updateDensity);
+    return () => window.removeEventListener("resize", updateDensity);
+  }, []);
+
   // Read guest name from query parameters
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -763,29 +774,29 @@ export default function ShowInvitationPage() {
       />
 
       {/* Universal Ambient Canvas Engine (Petals / Sparkles / Hearts / Confetti) */}
-      <FallingPetals density={28} active={petalsEnabled} effectType={ambientEffect} />
+      <FallingPetals density={ambientDensity} active={petalsEnabled} effectType={ambientEffect} />
 
-      {/* Floating Vinyl Record Audio Player + SFX & Petals Toggle */}
-      <div className="fixed top-4 right-4 z-40 flex items-center gap-2">
+      {/* Floating Vinyl Record Audio Player + SFX & Petals Toggle (Right) */}
+      <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-40 flex items-center gap-1.5 sm:gap-2 select-none">
         {/* Interactive Sound Effects (SFX) Toggle */}
         <button
           type="button"
           onClick={toggleSfx}
-          className={`p-2 rounded-full backdrop-blur-md border shadow-lg transition-all ${
+          className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md border shadow-md transition-all ${
             sfxEnabled
               ? "bg-amber-50 text-amber-700 border-amber-300 hover:bg-amber-100 shadow-amber-900/10"
               : "bg-white/80 text-gray-400 border-gray-200 hover:bg-white"
           }`}
           title={sfxEnabled ? "Tắt âm thanh tương tác (SFX)" : "Bật âm thanh tương tác (SFX)"}
         >
-          {sfxEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+          {sfxEnabled ? <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
         </button>
 
         {/* Universal Ambient Particle Switcher Button */}
         <button
           type="button"
           onClick={cycleAmbientEffect}
-          className={`p-2 rounded-full backdrop-blur-md border shadow-lg transition-all ${
+          className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md border shadow-md transition-all ${
             petalsEnabled
               ? ambientEffect === "sparkles"
                 ? "bg-amber-50 text-amber-600 border-amber-300 hover:bg-amber-100"
@@ -810,18 +821,19 @@ export default function ShowInvitationPage() {
               : "Bật hiệu ứng hạt rơi"
           }
         >
-          <Sparkles className={`w-4 h-4 ${petalsEnabled ? "animate-spin" : ""}`} />
+          <Sparkles className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${petalsEnabled ? "animate-spin" : ""}`} />
         </button>
 
         {/* Vinyl Record Player Card */}
         <div
           onClick={toggleAudio}
-          className="bg-white/90 backdrop-blur-md pl-1.5 pr-3 py-1.5 rounded-full border border-amber-900/15 shadow-xl flex items-center gap-2.5 cursor-pointer hover:bg-white transition-all group select-none relative"
+          className="bg-white/90 backdrop-blur-md p-1 sm:pl-1.5 sm:pr-3 sm:py-1.5 rounded-full border border-amber-900/15 shadow-md flex items-center gap-2 cursor-pointer hover:bg-white transition-all group select-none relative"
+          title={isPlayingAudio ? "Bấm để tạm dừng nhạc" : "Bấm để phát nhạc"}
         >
           {/* Spinning Vinyl Record Disk */}
-          <div className="relative w-9 h-9 shrink-0 flex items-center justify-center">
+          <div className="relative w-8 h-8 sm:w-9 sm:h-9 shrink-0 flex items-center justify-center">
             <div
-              className={`w-9 h-9 rounded-full bg-[#111111] border border-amber-500/40 shadow-md flex items-center justify-center transition-all ${
+              className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-[#111111] border border-amber-500/40 shadow-xs flex items-center justify-center transition-all ${
                 isPlayingAudio ? "animate-vinyl-spin" : ""
               }`}
               style={{
@@ -831,21 +843,21 @@ export default function ShowInvitationPage() {
               }}
             >
               {/* Center Album Label */}
-              <div className="w-4 h-4 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 border border-white flex items-center justify-center">
+              <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full bg-gradient-to-br from-amber-400 to-amber-700 border border-white flex items-center justify-center">
                 <div className="w-1 h-1 rounded-full bg-black"></div>
               </div>
             </div>
 
             {/* Tonearm needle indicator */}
             <div
-              className={`absolute top-0 -right-0.5 w-1 h-4 bg-amber-400 origin-top rounded-full shadow-xs transition-transform duration-500 ${
+              className={`absolute top-0 -right-0.5 w-1 h-3.5 sm:h-4 bg-amber-400 origin-top rounded-full shadow-xs transition-transform duration-500 ${
                 isPlayingAudio ? "rotate-25" : "-rotate-45 opacity-60"
               }`}
             />
           </div>
 
-          {/* Dancing Equalizer Bars + Title */}
-          <div className="flex flex-col min-w-0 pr-1">
+          {/* Dancing Equalizer Bars + Title (Ẩn text trên mobile để chống tràn đè) */}
+          <div className="hidden sm:flex flex-col min-w-0 pr-1">
             <span className="text-[11px] font-bold text-gray-800 truncate max-w-[100px] leading-tight">
               {isPlayingAudio ? (card.musicTitle || "Nhạc cưới") : "Phát nhạc"}
             </span>
@@ -867,14 +879,15 @@ export default function ShowInvitationPage() {
         </div>
       </div>
 
-      {/* Top Floating Buttons (Home + Personalized Guest Link Generator) */}
-      <div className="fixed top-4 left-4 z-40 flex items-center gap-2">
+      {/* Top Floating Buttons (Home + Personalized Guest Link Generator - Left) */}
+      <div className="fixed top-3 left-3 sm:top-4 sm:left-4 z-40 flex items-center gap-2 select-none">
         <Link
           href="/"
-          className="px-3.5 py-1.5 rounded-full bg-white/85 backdrop-blur-md border border-gray-200 shadow-sm flex items-center gap-1.5 text-xs font-bold text-gray-800 hover:text-zen-primary transition-colors"
+          className="p-1.5 sm:px-3 sm:py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-gray-200 shadow-md flex items-center gap-1.5 text-xs font-bold text-gray-800 hover:text-zen-primary transition-all hover:scale-105"
+          title="Về trang chủ ZenLove"
         >
-          <span className="w-2 h-2 rounded-full bg-zen-primary"></span>
-          <span>ZenLove</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-zen-primary shrink-0"></span>
+          <span className="hidden sm:inline">ZenLove</span>
         </Link>
         <button
           type="button"
@@ -882,20 +895,20 @@ export default function ShowInvitationPage() {
             setCustomGuestInput(guestNameParam || "");
             setIsShareGuestModalOpen(true);
           }}
-          className="px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-md flex items-center gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          className="hidden sm:inline-flex px-3 py-1.5 rounded-full bg-rose-600 hover:bg-rose-700 text-white shadow-md items-center gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer"
           title="Tạo link thiệp mời riêng cho từng khách mời"
         >
           <Share2 className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Mời khách riêng</span>
+          <span>Mời khách riêng</span>
         </button>
-        {/* Nút Chỉnh sửa thiệp cho chủ sở hữu / người dùng */}
+        {/* Nút Chỉnh sửa thiệp cho chủ sở hữu (chỉ hiện trên màn hình lớn) */}
         <Link
           href={`/design-template/${card.id}`}
-          className="px-3 py-1.5 rounded-full bg-stone-900/85 hover:bg-black text-amber-200 border border-amber-400/40 backdrop-blur-md shadow-md flex items-center gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95"
+          className="hidden sm:inline-flex px-3 py-1.5 rounded-full bg-stone-900/85 hover:bg-black text-amber-200 border border-amber-400/40 backdrop-blur-md shadow-md items-center gap-1.5 text-xs font-bold transition-all hover:scale-105 active:scale-95"
           title="Chỉnh sửa nội dung thiệp & thông tin sơ đồ tại Studio"
         >
           <Settings className="w-3.5 h-3.5 text-amber-300" />
-          <span className="hidden sm:inline">Sửa thiệp</span>
+          <span>Sửa thiệp</span>
         </Link>
       </div>
 
@@ -914,7 +927,7 @@ export default function ShowInvitationPage() {
       />
 
       {/* ================= MAIN MOBILE INVITATION CONTAINER ================= */}
-      <main className="w-full max-w-[480px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-32">
+      <main className="w-full max-w-[500px] bg-white shadow-2xl min-h-screen relative flex flex-col overflow-hidden pb-20 sm:pb-28">
         {/* Personalized Welcome Banner if guest param exists */}
         {guestNameParam && (
           <div className="w-full bg-gradient-to-r from-[#511419] via-[#6d1a21] to-[#511419] text-white py-2.5 px-4 shadow-md flex items-center justify-between text-xs z-30 shrink-0">
@@ -1604,8 +1617,8 @@ export default function ShowInvitationPage() {
           </div>
         </AnimatedReveal>
 
-        {/* Bottom Floating Share / Action Bar */}
-        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white/95 backdrop-blur-md border-t border-gray-200 py-1.5 px-3 z-40 shadow-xl flex items-center justify-around gap-1">
+        {/* Bottom Floating Share / Action Bar (Tối ưu siêu gọn, 100% hiển thị 6 nút trên 1 hàng không tràn) */}
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[500px] bg-white/95 backdrop-blur-md border-t border-gray-200/90 py-1 px-1 pb-[max(env(safe-area-inset-bottom),0.35rem)] z-40 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] flex items-center justify-around gap-0.5 select-none">
           {card.showRsvp !== false && (
             <button
               type="button"
@@ -1614,10 +1627,10 @@ export default function ShowInvitationPage() {
                 const el = document.getElementById("rsvp-section");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
-              className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+              className="flex-1 py-0.5 px-0.5 rounded-lg flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer active:scale-95"
             >
-              <CheckCircle className="w-4 h-4 text-zen-primary" />
-              <span className="text-[10px] font-bold mt-0.5">RSVP</span>
+              <CheckCircle className="w-3.5 h-3.5 text-zen-primary" />
+              <span className="text-[9px] font-bold mt-0.5 leading-none">RSVP</span>
             </button>
           )}
 
@@ -1628,10 +1641,10 @@ export default function ShowInvitationPage() {
                 if (sfxEnabled) weddingSounds.playSwoosh();
                 setIsGiftModalOpen(true);
               }}
-              className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+              className="flex-1 py-0.5 px-0.5 rounded-lg flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer active:scale-95"
             >
-              <Gift className="w-4 h-4 text-amber-600" />
-              <span className="text-[10px] font-bold mt-0.5">Mừng cưới</span>
+              <Gift className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-[9px] font-bold mt-0.5 leading-none">Mừng cưới</span>
             </button>
           )}
 
@@ -1643,10 +1656,10 @@ export default function ShowInvitationPage() {
                 const el = document.getElementById("wishes-section");
                 if (el) el.scrollIntoView({ behavior: "smooth" });
               }}
-              className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+              className="flex-1 py-0.5 px-0.5 rounded-lg flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer active:scale-95"
             >
-              <MessageCircle className="w-4 h-4 text-rose-500" />
-              <span className="text-[10px] font-bold mt-0.5">Lời chúc</span>
+              <MessageCircle className="w-3.5 h-3.5 text-rose-500" />
+              <span className="text-[9px] font-bold mt-0.5 leading-none">Lời chúc</span>
             </button>
           )}
 
@@ -1657,10 +1670,10 @@ export default function ShowInvitationPage() {
             onClick={() => {
               if (sfxEnabled) weddingSounds.playSoftClick();
             }}
-            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+            className="flex-1 py-0.5 px-0.5 rounded-lg flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer active:scale-95"
           >
-            <Navigation className="w-4 h-4 text-blue-600" />
-            <span className="text-[10px] font-bold mt-0.5">Chỉ đường</span>
+            <Navigation className="w-3.5 h-3.5 text-blue-600" />
+            <span className="text-[9px] font-bold mt-0.5 leading-none">Chỉ đường</span>
           </a>
 
           <button
@@ -1670,11 +1683,11 @@ export default function ShowInvitationPage() {
               handleDownloadCardPng();
             }}
             disabled={isExportingImage}
-            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-purple-700 hover:bg-purple-50/60 transition-colors cursor-pointer"
+            className="flex-1 py-0.5 px-0.5 rounded-lg flex flex-col items-center justify-center text-gray-700 hover:text-purple-700 hover:bg-purple-50/60 transition-colors cursor-pointer active:scale-95"
             title="Tải ảnh thiệp cưới HD gửi Zalo"
           >
-            <Camera className="w-4 h-4 text-purple-600" />
-            <span className="text-[10px] font-bold mt-0.5">{isExportingImage ? "Đang tải" : "Tải ảnh"}</span>
+            <Camera className="w-3.5 h-3.5 text-purple-600" />
+            <span className="text-[9px] font-bold mt-0.5 leading-none">{isExportingImage ? "Đang tải" : "Tải ảnh"}</span>
           </button>
 
           <button
@@ -1685,10 +1698,10 @@ export default function ShowInvitationPage() {
               setToastMessage("Đã sao chép link thiệp cưới!");
               setTimeout(() => setToastMessage(null), 2500);
             }}
-            className="flex-1 py-1 px-1 rounded-xl flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+            className="flex-1 py-0.5 px-0.5 rounded-lg flex flex-col items-center justify-center text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer active:scale-95"
           >
-            {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4 text-purple-600" />}
-            <span className="text-[10px] font-bold mt-0.5">{copiedLink ? "Đã chép" : "Chia sẻ"}</span>
+            {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5 text-purple-600" />}
+            <span className="text-[9px] font-bold mt-0.5 leading-none">{copiedLink ? "Đã chép" : "Chia sẻ"}</span>
           </button>
         </div>
       </main>
