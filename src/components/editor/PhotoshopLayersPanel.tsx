@@ -518,10 +518,38 @@ export default function PhotoshopLayersPanel({
                         <span className="text-indigo-600 font-medium">{item.props.blendMode}</span>
                       </>
                     )}
-                    {isDecorative && (
-                      <span className="text-[9px] text-amber-700 bg-amber-50 px-1 rounded ml-auto">
-                        Mẫu
-                      </span>
+                    {item.type === "PhotoBox" && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDecorative) {
+                            onUpdateElementProps(item.id, {
+                              isDecorative: false,
+                              isReplaceable: true,
+                              locked: false,
+                            });
+                          } else {
+                            onUpdateElementProps(item.id, {
+                              isDecorative: true,
+                              isReplaceable: false,
+                              locked: true,
+                            });
+                          }
+                        }}
+                        className={`text-[9px] px-1.5 py-0.2 rounded ml-auto font-semibold transition-colors cursor-pointer border ${
+                          isDecorative
+                            ? "bg-amber-50 hover:bg-rose-50 text-amber-700 hover:text-rose-700 border-amber-200"
+                            : "bg-rose-50 hover:bg-amber-50 text-rose-700 hover:text-amber-800 border-rose-200"
+                        }`}
+                        title={
+                          isDecorative
+                            ? "Đang là Họa tiết mẫu. Nhấp để chuyển thành Ảnh cưới dâu rể"
+                            : "Đang là Ảnh cưới dâu rể. Nhấp để chuyển thành Họa tiết trang trí mẫu"
+                        }
+                      >
+                        {isDecorative ? "🎨 Họa tiết" : "🖼️ Ảnh cưới"}
+                      </button>
                     )}
                   </div>
                 </div>

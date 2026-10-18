@@ -42,6 +42,7 @@ import {
   incrementCardViews,
   parseWeddingTimestamp,
   WeddingCard,
+  INITIAL_CARDS,
 } from "@/lib/weddingCardService";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
@@ -328,7 +329,7 @@ export default function ShowInvitationPage() {
 
     if (found) {
       if (!found.fixedModuleStyles) {
-        const initCard = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug || c.id === found?.id);
+        const initCard = INITIAL_CARDS.find((c: WeddingCard) => c.slug === slug || c.id === slug || c.id === found?.id);
         if (initCard?.fixedModuleStyles) {
           found.fixedModuleStyles = initCard.fixedModuleStyles;
         }

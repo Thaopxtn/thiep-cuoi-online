@@ -400,6 +400,7 @@ export default function EditorRightInspector({
 
   const { id, type, props } = selectedElement;
   const isLocked = isElementLocked(id, { props, type });
+  const isDecorative = isDecorativeNode(id, { props, type });
   const isImage = type === "PhotoBox" || (!props.text && !!props.imgKey);
   const isShape = type === "GeometricBox" || type === "LineBox";
   const isCountdown = type === "CountdownBoxV2" || type === "CountdownBox" || id.includes("countdown");
@@ -520,6 +521,69 @@ export default function EditorRightInspector({
         {/* ================= TAB: CÀI ĐẶT (SETTINGS) ================= */}
         {activeTab === "settings" && (
           <div className="space-y-4">
+            {/* Bộ công cụ Phân loại Thành phần: Họa tiết mẫu vs Ảnh cưới dâu rể */}
+            {isImage && (
+              <div className="p-3 bg-stone-50 border border-stone-200/90 rounded-2xl shadow-2xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Phân loại thành phần</span>
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      isDecorative
+                        ? "bg-amber-100 text-amber-800 border border-amber-300"
+                        : "bg-rose-100 text-rose-800 border border-rose-300"
+                    }`}
+                  >
+                    {isDecorative ? "Họa tiết trang trí" : "Ảnh cưới dâu rể"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 bg-gray-200/70 p-1 rounded-xl text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateProps(id, {
+                        isDecorative: false,
+                        isReplaceable: true,
+                        locked: false,
+                      });
+                    }}
+                    className={`py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      !isDecorative
+                        ? "bg-white text-rose-700 shadow-xs"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    title="Đặt thành Ảnh cưới thay thế được (cho phép đổi ảnh, cắt ảnh, tách nền)"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>Ảnh cưới</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateProps(id, {
+                        isDecorative: true,
+                        isReplaceable: false,
+                        locked: true,
+                      });
+                    }}
+                    className={`py-1.5 px-2 rounded-lg font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      isDecorative
+                        ? "bg-white text-amber-800 shadow-xs"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                    title="Đặt thành Họa tiết trang trí mẫu (khóa vị trí cố định để bảo toàn bố cục)"
+                  >
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>Họa tiết mẫu</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Banner nếu phần tử bị khóa cố định */}
             {isLocked && (
               <div className="p-3 bg-amber-50 border border-amber-200/90 rounded-2xl text-amber-900 shadow-2xs space-y-2">

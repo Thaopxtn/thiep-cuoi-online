@@ -505,47 +505,62 @@ export function isDecorativeNode(nodeId: string, node?: any, templateIdOrSlug?: 
   const props = node?.props || {};
   const type = node?.type?.resolvedName || "";
 
-  // Nếu là khung ảnh cưới thực sự hoặc có cờ isReplaceable: true -> KHÔNG PHẢI họa tiết trang trí
+  // 1. Ưu tiên cao nhất cờ cấu hình thủ công props.isDecorative
+  if (props.isDecorative === false) {
+    return false;
+  }
+  if (props.isDecorative === true) {
+    return true;
+  }
+
+  // 2. Nếu là ảnh do người dùng tải lên (data:, blob:, uploads/) -> Không bao giờ là họa tiết
+  const key = (props.imgKey || props.src || "").toLowerCase();
+  if (key.startsWith("data:") || key.startsWith("blob:") || key.includes("/uploads/")) {
+    return false;
+  }
+
+  // 3. Nếu là khung ảnh cưới thực sự hoặc có cờ isReplaceable: true -> KHÔNG PHẢI họa tiết trang trí
   if (props.isReplaceable === true || REAL_WEDDING_PHOTO_IDS.has(nodeId)) {
     return false;
   }
 
-  // Nếu là mẫu Hồng Phong và nằm trong danh sách họa tiết đặc thù của Hồng Phong
+  // 4. Nếu là mẫu Hồng Phong và nằm trong danh sách họa tiết đặc thù của Hồng Phong
   if (isHongPhongTemplate(templateIdOrSlug) && HONG_PHONG_DECORATIVE_NODE_IDS.has(nodeId)) {
     return true;
   }
 
-  // Các GeometricBox và LineBox trang trí
+  // 5. Các GeometricBox và LineBox trang trí
   if (type === "LineBox" || (type === "GeometricBox" && !props.isCustomUserBox)) {
     return true;
   }
 
-  // Kiểm tra đường dẫn ảnh của PhotoBox (chỉ các file họa tiết trang trí đặc thù, KHÔNG BAO GỒM /templates/)
-  const key = (props.imgKey || props.src || "").toLowerCase();
+  // 6. Kiểm tra đường dẫn ảnh của PhotoBox (chỉ các file họa tiết trang trí đặc thù)
   if (
     key.includes("resources/background") ||
     key.includes("resources/heartelements") ||
-    key.includes("envelope-") ||
-    key.includes("castle-") ||
-    key.includes("flower2-") ||
+    key.includes("envelope-background") ||
+    key.includes("envelope-cover") ||
+    key.includes("castle-background") ||
+    key.includes("flower2-decoration") ||
     key.includes("wax-seal") ||
-    key.includes("decoration") ||
-    props.isDecorative === true
+    key.includes("sticker") ||
+    key.includes("decoration")
   ) {
     return true;
   }
 
-  // Nếu là file minh họa đồ họa PNG của template (không có cờ isReplaceable hay previewKey)
+  // 7. Nếu là file minh họa đồ họa PNG mẫu có sẵn của template (không có cờ isReplaceable hay previewKey)
   if (
     !props.isReplaceable &&
     !props.previewKey &&
+    key.includes("/templates/") &&
     (key.includes("/images/") || key.endsWith(".png") || key.includes(".png?"))
   ) {
     return true;
   }
 
-  // Nếu node bị locked và không có quyền thay thế ảnh
-  if (props.locked === true && !props.isReplaceable) {
+  // 8. Nếu node bị locked và không có quyền thay thế ảnh
+  if (props.locked === true && props.isReplaceable === false) {
     return true;
   }
 

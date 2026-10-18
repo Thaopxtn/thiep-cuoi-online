@@ -19,16 +19,18 @@ export function isDecorativeAsset(key?: string): boolean {
   if (!key || typeof key !== "string") return false;
   const k = key.toLowerCase();
   return (
-    k.includes("/templates/") ||
-    k.includes("resources/") ||
-    k.includes("flower") ||
-    k.includes("envelope") ||
-    k.includes("castle") ||
-    k.includes("heart") ||
+    k.includes("resources/background") ||
+    k.includes("resources/heartelements") ||
+    k.includes("flower2-decoration") ||
+    k.includes("envelope-background") ||
+    k.includes("envelope-cover") ||
+    k.includes("castle-background") ||
+    k.includes("wax-seal") ||
+    k.includes("/stickers/") ||
     k.includes("sticker") ||
     k.includes("decoration") ||
-    k.includes("bg") ||
-    k.includes("background")
+    k.includes("ornament") ||
+    k.includes("/background/")
   );
 }
 
