@@ -202,6 +202,12 @@ export async function GET(request: NextRequest, { params }: Params) {
           );
         }
       }
+      // Kế thừa fixedModuleStyles từ mẫu mặc định nếu DB chưa lưu cấu hình này
+      const initialMatch = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug || c.id === dbCard.id);
+      if (initialMatch?.fixedModuleStyles && !dbCard.fixedModuleStyles) {
+        dbCard.fixedModuleStyles = initialMatch.fixedModuleStyles;
+      }
+
       return NextResponse.json({
         success: true,
         source: "database",

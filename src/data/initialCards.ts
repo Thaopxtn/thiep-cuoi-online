@@ -217,6 +217,14 @@ export const INITIAL_CARDS: WeddingCard[] = [
       },
     ],
     nodes: hongPhongNodes,
+    fixedModuleStyles: {
+      calendar: "luxury-gold",
+      events: "vertical-timeline",
+      album: "polaroid-scrapbook",
+      rsvp: "red-velvet",
+      giftBox: "red-envelope",
+      wishes: "vintage-card",
+    },
   },
   {
     id: "4e91a4ea-9e62-43d8-bf37-34e2eef30e2e",

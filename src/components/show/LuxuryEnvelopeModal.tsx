@@ -93,6 +93,29 @@ export default function LuxuryEnvelopeModal({
         symbol: "sparkle",
       };
 
+  // Extract monogram initial from guest name if provided (e.g. "Anh Tuấn VIP" -> "T", "Chị Mai" -> "M")
+  const getGuestInitial = (name?: string): string | null => {
+    if (!name) return null;
+    let clean = name.trim();
+    if (!clean) return null;
+
+    // Remove common suffixes like VIP, Pro, etc.
+    clean = clean.replace(/\b(vip|pro|plus|\(vip\)|\(pro\))\b/gi, "").trim();
+
+    // Split words
+    const words = clean.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return name.trim()[0]?.toUpperCase() || null;
+
+    // Filter out common Vietnamese title prefixes if more words exist
+    const prefixes = /^(anh|chị|chi|em|bạn|ban|bác|bac|chú|chu|cô|co|dì|di|gia\s*đình|gđ|gd|mr|ms|mrs)$/i;
+    const meaningfulWords = words.filter((w, i) => (i === 0 && words.length > 1 ? !prefixes.test(w) : true));
+
+    const targetWord = meaningfulWords[meaningfulWords.length - 1] || words[words.length - 1];
+    const initial = targetWord ? targetWord[0].toUpperCase() : null;
+    return initial && /^[A-ZÀ-Ỹ0-9]$/i.test(initial) ? initial : null;
+  };
+  const guestInitial = getGuestInitial(guestName);
+
   return (
     <div
       className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-4 transition-all duration-700 select-none ${
@@ -213,7 +236,7 @@ export default function LuxuryEnvelopeModal({
                 className={`absolute px-3.5 py-1 rounded-full ${colors.tagBg} ${colors.tagBorder} border shadow-md flex items-center gap-1.5`}
               >
                 <Sparkles className="w-3 h-3 text-amber-500 animate-pulse shrink-0" />
-                <span className={`text-[11px] font-bold font-serif tracking-wide ${colors.tagText}`}>
+                <span className={`text-[12px] font-bold font-cormorant font-serif ${colors.tagText}`}>
                   {guestName ? `Kính mời: ${guestName}` : "Trân trọng kính mời"}
                 </span>
               </div>
@@ -286,7 +309,11 @@ export default function LuxuryEnvelopeModal({
                 <div
                   className={`w-11 h-11 rounded-[47%_53%_50%_50%_/_52%_48%_53%_47%] bg-gradient-to-br ${colors.sealInner} border border-amber-300/50 flex items-center justify-center shadow-[inset_0_3px_6px_rgba(0,0,0,0.5)]`}
                 >
-                  {colors.symbol === "囍" ? (
+                  {guestInitial ? (
+                    <span className="text-xl font-bold font-serif text-amber-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] tracking-tight">
+                      {guestInitial}
+                    </span>
+                  ) : colors.symbol === "囍" ? (
                     <span className="text-2xl font-bold font-serif text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                       囍
                     </span>

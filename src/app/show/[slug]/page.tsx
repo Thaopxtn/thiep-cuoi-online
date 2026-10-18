@@ -327,6 +327,12 @@ export default function ShowInvitationPage() {
     }
 
     if (found) {
+      if (!found.fixedModuleStyles) {
+        const initCard = INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug || c.id === found?.id);
+        if (initCard?.fixedModuleStyles) {
+          found.fixedModuleStyles = initCard.fixedModuleStyles;
+        }
+      }
       setCard(found);
       setupCountdown(found);
       if (found.nodes && Object.keys(found.nodes).length > 2) {
@@ -480,6 +486,7 @@ export default function ShowInvitationPage() {
                 loveStory: prev?.loveStory,
                 showCalendar: prev?.showCalendar,
                 showLoveStory: prev?.showLoveStory,
+                fixedModuleStyles: prev?.fixedModuleStyles,
                 nodes,
               };
 
@@ -756,6 +763,22 @@ export default function ShowInvitationPage() {
     card.groom.accountName || cleanDisplayName(card.groom.name) || cleanDisplayName(groomName) || "CHÚ RỂ";
   const brideBankOwner =
     card.bride.accountName || cleanDisplayName(card.bride.name) || cleanDisplayName(brideName) || "CÔ DÂU";
+
+  // Selected Style Variants from card.fixedModuleStyles
+  const styles = card.fixedModuleStyles || {};
+  const calendarStyle = styles.calendar || "classic-cream";
+  const eventsStyle = styles.events || "timeline-cards";
+  const albumStyle = styles.album || "grid-modern";
+  const rsvpStyle = styles.rsvp || "clean-rounded";
+  const giftBoxStyle = styles.giftBox || "dual-bank-cards";
+  const wishesStyle = styles.wishes || "stream-bubble";
+
+  const hasCanvasCalendarNode = Boolean(
+    activeNodes &&
+    Object.values(activeNodes).some(
+      (n: any) => n.type?.resolvedName === "CalendarBoxV2" || n.type?.resolvedName === "CountdownBoxV2"
+    )
+  );
 
   return (
     <div className="min-h-screen bg-[#f3efe6] flex flex-col items-center justify-start relative text-gray-800 selection:bg-rose-100 selection:text-zen-primary">
@@ -1040,11 +1063,39 @@ export default function ShowInvitationPage() {
               </div>
             </AnimatedReveal>
 
+          </>
+        )}
+
+        {/* ================= SAVE THE DATE & COUNTDOWN (Đồng bộ Style Variants) ================= */}
+        {card.showCalendar !== false && (
+          <div id="calendar-section" className="py-2">
             {/* Countdown Timer */}
             <AnimatedReveal animation="zoom-in" delay={100}>
-              <section className="px-6 py-6 bg-gradient-to-b from-[#fbf6f0] to-white mx-4 rounded-2xl border border-amber-900/10 shadow-xs relative z-10 text-center">
-                <h3 className="text-xs font-bold uppercase tracking-wider text-amber-800 mb-3">
-                  Đếm ngược ngày chung đôi
+              <section
+                className={`px-6 py-6 mx-4 rounded-2xl border shadow-xs relative z-10 text-center transition-all ${
+                  calendarStyle === "luxury-gold"
+                    ? "bg-gradient-to-b from-[#1a120b] via-[#2a1d13] to-[#1a120b] border-amber-500/40 text-amber-200 shadow-xl"
+                    : calendarStyle === "traditional-red"
+                    ? "bg-gradient-to-b from-[#8b0000] to-[#700000] border-2 border-amber-400/40 text-amber-100 shadow-xl"
+                    : calendarStyle === "modern-minimal"
+                    ? "bg-white border-gray-200 text-gray-900"
+                    : "bg-gradient-to-b from-[#fbf6f0] to-white border-amber-900/10 text-gray-800"
+                }`}
+              >
+                <h3
+                  className={`text-xs font-bold uppercase tracking-wider mb-3 ${
+                    calendarStyle === "luxury-gold"
+                      ? "text-amber-300"
+                      : calendarStyle === "traditional-red"
+                      ? "text-amber-200"
+                      : calendarStyle === "modern-minimal"
+                      ? "text-gray-600"
+                      : "text-amber-800"
+                  }`}
+                >
+                  {calendarStyle === "traditional-red"
+                    ? "囍 Đếm ngược ngày thành hôn 囍"
+                    : "Đếm ngược ngày chung đôi"}
                 </h3>
                 <div className="grid grid-cols-4 gap-2">
                   {[
@@ -1055,12 +1106,24 @@ export default function ShowInvitationPage() {
                   ].map((t, idx) => (
                     <div
                       key={idx}
-                      className="bg-white rounded-xl py-2 px-1 shadow-xs border border-gray-100 flex flex-col items-center"
+                      className={`rounded-xl py-2 px-1 border flex flex-col items-center shadow-2xs transition-all ${
+                        calendarStyle === "luxury-gold"
+                          ? "bg-[#160d07] border-amber-500/40 text-amber-300"
+                          : calendarStyle === "traditional-red"
+                          ? "bg-[#7d0000] border-amber-300/40 text-amber-200"
+                          : calendarStyle === "modern-minimal"
+                          ? "bg-white border-gray-300 text-black font-mono"
+                          : "bg-white border-gray-100 text-[#511419]"
+                      }`}
                     >
-                      <span className="text-xl sm:text-2xl font-bold font-cormorant text-[#511419]">
+                      <span
+                        className={`text-xl sm:text-2xl font-bold ${
+                          calendarStyle === "modern-minimal" ? "font-mono" : "font-cormorant"
+                        }`}
+                      >
                         {String(t.val).padStart(2, "0")}
                       </span>
-                      <span className="text-[10px] text-gray-500 uppercase font-semibold">
+                      <span className="text-[10px] uppercase font-semibold opacity-75">
                         {t.label}
                       </span>
                     </div>
@@ -1070,26 +1133,39 @@ export default function ShowInvitationPage() {
             </AnimatedReveal>
 
             {/* Save The Date Calendar with Add-to-Calendar */}
-            {card.showCalendar !== false && (
-              <AnimatedReveal animation="fade-up" delay={120}>
-                <section className="px-4 py-1">
-                  <WeddingCalendarCard
-                    weddingDate={card.weddingDate}
-                    weddingTime={card.weddingTime}
-                    title={card.name}
-                    venue={card.events?.[0]?.venue || "Trung tâm tiệc cưới"}
-                  />
-                </section>
-              </AnimatedReveal>
-            )}
-
-          </>
+            <AnimatedReveal animation="fade-up" delay={120}>
+              <section className="px-4 py-1">
+                <WeddingCalendarCard
+                  weddingDate={card.weddingDate}
+                  weddingTime={card.weddingTime}
+                  title={card.name}
+                  venue={card.events?.[0]?.venue || "Trung tâm tiệc cưới"}
+                  themeStyle={
+                    calendarStyle === "luxury-gold"
+                      ? "luxury"
+                      : calendarStyle === "traditional-red"
+                      ? "traditional"
+                      : "default"
+                  }
+                />
+              </section>
+            </AnimatedReveal>
+          </div>
         )}
 
         {/* ================= EVENT SCHEDULE & MAP (Chương trình hôn lễ & Sơ đồ chỉ đường) ================= */}
         {card.showEvents !== false && card.events && card.events.length > 0 && (
           <AnimatedReveal animation="fade-up" delay={120}>
-            <section id="events-section" className="px-6 py-8 relative z-10 space-y-6 bg-white border-t border-amber-900/10">
+            <section
+              id="events-section"
+              className={`px-6 py-8 relative z-10 space-y-6 border-t ${
+                eventsStyle === "traditional-red"
+                  ? "bg-gradient-to-b from-[#8b0000]/10 via-white to-[#8b0000]/5 border-rose-200"
+                  : eventsStyle === "vertical-timeline"
+                  ? "bg-gradient-to-b from-[#faf7f2] to-white border-amber-900/10"
+                  : "bg-white border-amber-900/10"
+              }`}
+            >
               <div className="text-center">
                 <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
                   Thông Tin Hôn Lễ & Sơ Đồ
@@ -1100,45 +1176,89 @@ export default function ShowInvitationPage() {
                 <div className="w-10 h-0.5 bg-amber-700/40 mx-auto mt-2"></div>
               </div>
 
-              <div className="space-y-4">
-                {card.events.map((evt, idx) => (
-                  <div
-                    key={evt.id || `evt-${idx}`}
-                    className="bg-[#fbf9f5] rounded-2xl border border-amber-900/15 p-5 shadow-xs relative overflow-hidden"
-                  >
-                    <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
-                      <Clock className="w-4 h-4" />
-                      <span>{evt.time}</span>
-                    </div>
-                    <h4 className="font-bold text-gray-900 text-base">
-                      {evt.title}
-                    </h4>
-                    <div className="mt-1 text-xs font-semibold text-amber-900">
-                      {evt.venue}
-                    </div>
-                    {evt.address && (
-                      <div className="mt-1 flex items-start gap-2 text-xs text-gray-600">
-                        <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
-                        <span>{evt.address}</span>
+              {/* DẠNG 1: TIMELINE DỌC (vertical-timeline) */}
+              {eventsStyle === "vertical-timeline" ? (
+                <div className="relative pl-6 space-y-5 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-rose-500 before:via-amber-400 before:to-rose-600">
+                  {card.events.map((evt, idx) => (
+                    <div key={evt.id || idx} className="relative group/step">
+                      <div className="absolute -left-6 top-1 w-3.5 h-3.5 rounded-full bg-rose-600 border-2 border-white shadow-sm ring-2 ring-rose-200 animate-pulse" />
+                      <div className="bg-white rounded-xl border border-rose-100 p-4 shadow-xs">
+                        <span className="text-xs font-bold text-rose-700 uppercase flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{evt.time}</span>
+                        </span>
+                        <h4 className="font-bold text-gray-900 text-base mt-1">{evt.title}</h4>
+                        <p className="text-xs text-amber-900 font-semibold mt-0.5">{evt.venue}</p>
+                        {evt.address && (
+                          <div className="mt-1 flex items-start gap-1.5 text-xs text-gray-600">
+                            <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                            <span>{evt.address}</span>
+                          </div>
+                        )}
+                        {evt.mapUrl && (
+                          <a
+                            href={evt.mapUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => {
+                              if (sfxEnabled) weddingSounds.playSoftClick();
+                            }}
+                            className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-rose-50 text-zen-primary hover:bg-rose-100 border border-rose-200/60 text-xs font-bold transition-all shadow-2xs hover:scale-105 active:scale-95"
+                          >
+                            <Navigation className="w-3.5 h-3.5" />
+                            <span>Chỉ đường Google Maps ↗</span>
+                          </a>
+                        )}
                       </div>
-                    )}
-                    {evt.mapUrl && (
-                      <a
-                        href={evt.mapUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={() => {
-                          if (sfxEnabled) weddingSounds.playSoftClick();
-                        }}
-                        className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-50 text-zen-primary hover:bg-rose-100 border border-rose-200/60 text-xs font-bold transition-all shadow-2xs hover:scale-105 active:scale-95"
-                      >
-                        <Navigation className="w-3.5 h-3.5" />
-                        <span>Chỉ đường Google Maps ↗</span>
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                /* DẠNG 2 & 3: THẺ CARD ĐỘC LẬP HOẶC THIỆP HỒNG TRUYỀN THỐNG */
+                <div className="space-y-4">
+                  {card.events.map((evt, idx) => (
+                    <div
+                      key={evt.id || `evt-${idx}`}
+                      className={`rounded-2xl border p-5 shadow-xs relative overflow-hidden transition-all ${
+                        eventsStyle === "traditional-red"
+                          ? "bg-[#fffaf7] border-rose-300 shadow-rose-900/5"
+                          : "bg-[#fbf9f5] border-amber-900/15"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-zen-primary text-xs font-bold uppercase tracking-wider mb-2">
+                        <Clock className="w-4 h-4" />
+                        <span>{evt.time}</span>
+                      </div>
+                      <h4 className="font-bold text-gray-900 text-base">
+                        {evt.title}
+                      </h4>
+                      <div className="mt-1 text-xs font-semibold text-amber-900">
+                        {evt.venue}
+                      </div>
+                      {evt.address && (
+                        <div className="mt-1 flex items-start gap-2 text-xs text-gray-600">
+                          <MapPin className="w-4 h-4 text-gray-400 shrink-0 mt-0.5" />
+                          <span>{evt.address}</span>
+                        </div>
+                      )}
+                      {evt.mapUrl && (
+                        <a
+                          href={evt.mapUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            if (sfxEnabled) weddingSounds.playSoftClick();
+                          }}
+                          className="mt-3.5 inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-rose-50 text-zen-primary hover:bg-rose-100 border border-rose-200/60 text-xs font-bold transition-all shadow-2xs hover:scale-105 active:scale-95"
+                        >
+                          <Navigation className="w-3.5 h-3.5" />
+                          <span>Chỉ đường Google Maps ↗</span>
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </AnimatedReveal>
         )}
@@ -1168,50 +1288,83 @@ export default function ShowInvitationPage() {
                 </p>
               </div>
 
-              {/* Photo Grid */}
-              <div className="grid grid-cols-2 gap-3">
-                {galleryPhotos.map((photoUrl, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
+              {/* Photo Display by Album Style */}
+              {albumStyle === "polaroid-scrapbook" ? (
+                <div className="pt-2">
+                  <PolaroidGallery
+                    photos={galleryPhotos}
+                    onPhotoClick={(idx) => {
                       if (sfxEnabled) weddingSounds.playSoftClick();
                       setLightboxIndex(idx);
                     }}
-                    className={`group relative overflow-hidden rounded-2xl cursor-pointer shadow-2xs border border-gray-100 hover:shadow-lg transition-all duration-300 ${
-                      idx === 0 ? "col-span-2 aspect-[16/9]" : "aspect-[4/5]"
-                    }`}
-                  >
-                    <img
-                      src={photoUrl}
-                      alt={`Ảnh cưới ${idx + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        (e.target as HTMLElement).setAttribute(
-                          "src",
-                          "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop"
-                        );
+                  />
+                </div>
+              ) : albumStyle === "masonry-chic" ? (
+                <div className="columns-2 gap-3 space-y-3">
+                  {galleryPhotos.map((photoUrl, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        if (sfxEnabled) weddingSounds.playSoftClick();
+                        setLightboxIndex(idx);
                       }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
-                      <span className="text-[11px] font-medium text-white flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                        <span>Xem ảnh lớn #{idx + 1}</span>
-                      </span>
+                      className="group relative overflow-hidden rounded-2xl cursor-pointer shadow-2xs border border-gray-100 hover:shadow-lg transition-all duration-300 break-inside-avoid"
+                    >
+                      <img
+                        src={photoUrl}
+                        alt={`Ảnh cưới ${idx + 1}`}
+                        className="w-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-2xl"
+                        onError={(e) => {
+                          (e.target as HTMLElement).setAttribute(
+                            "src",
+                            "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop"
+                          );
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3 rounded-2xl">
+                        <span className="text-[11px] font-medium text-white flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Xem ảnh #{idx + 1}</span>
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Polaroid Memories Scrapbook Showcase */}
-              <div className="mt-8 border-t border-amber-900/10 pt-6">
-                <PolaroidGallery
-                  photos={galleryPhotos}
-                  onPhotoClick={(idx) => {
-                    if (sfxEnabled) weddingSounds.playSoftClick();
-                    setLightboxIndex(idx);
-                  }}
-                />
-              </div>
+                  ))}
+                </div>
+              ) : (
+                /* grid-modern (Mặc định) */
+                <div className="grid grid-cols-2 gap-3">
+                  {galleryPhotos.map((photoUrl, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        if (sfxEnabled) weddingSounds.playSoftClick();
+                        setLightboxIndex(idx);
+                      }}
+                      className={`group relative overflow-hidden rounded-2xl cursor-pointer shadow-2xs border border-gray-100 hover:shadow-lg transition-all duration-300 ${
+                        idx === 0 ? "col-span-2 aspect-[16/9]" : "aspect-[4/5]"
+                      }`}
+                    >
+                      <img
+                        src={photoUrl}
+                        alt={`Ảnh cưới ${idx + 1}`}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        onError={(e) => {
+                          (e.target as HTMLElement).setAttribute(
+                            "src",
+                            "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=800&auto=format&fit=crop"
+                          );
+                        }}
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-3">
+                        <span className="text-[11px] font-medium text-white flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                          <span>Xem ảnh lớn #{idx + 1}</span>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </section>
           </AnimatedReveal>
         )}
@@ -1219,26 +1372,51 @@ export default function ShowInvitationPage() {
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
         {card.showRsvp !== false && (
           <AnimatedReveal animation="reveal" delay={100}>
-            <section id="rsvp-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-y border-amber-900/10">
+            <section
+              id="rsvp-section"
+              className={`px-6 py-8 relative z-10 border-y transition-all ${
+                rsvpStyle === "red-velvet"
+                  ? "bg-gradient-to-b from-[#380211] via-[#4d0418] to-[#26010b] text-white border-amber-400/30"
+                  : "bg-[#faf7f2] border-amber-900/10 text-gray-800"
+              }`}
+            >
               <div className="text-center mb-6">
-                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-widest ${
+                    rsvpStyle === "red-velvet" ? "text-amber-300" : "text-amber-800"
+                  }`}
+                >
                   Xác Nhận Tham Dự
                 </span>
-                <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                <h2
+                  className={`text-2xl font-cormorant font-bold mt-1 ${
+                    rsvpStyle === "red-velvet" ? "text-white" : "text-[#511419]"
+                  }`}
+                >
                   Lời Hẹn Chung Vui
                 </h2>
-                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                <p
+                  className={`text-xs mt-1 max-w-xs mx-auto ${
+                    rsvpStyle === "red-velvet" ? "text-amber-200/80" : "text-gray-500"
+                  }`}
+                >
                   Sự hiện diện của bạn là niềm hạnh phúc lớn nhất của chúng mình!
                 </p>
               </div>
 
               {rsvpSubmitted ? (
-                <div className="bg-white rounded-2xl p-6 text-center border border-emerald-200 shadow-xs animate-scale-in">
-                  <CheckCircle className="w-12 h-12 text-emerald-500 mx-auto mb-2" />
-                  <h4 className="font-bold text-gray-900 text-sm">
+                <div
+                  className={`rounded-2xl p-6 text-center border shadow-xs animate-scale-in ${
+                    rsvpStyle === "red-velvet"
+                      ? "bg-[#450719] border-amber-400/40 text-white"
+                      : "bg-white border-emerald-200"
+                  }`}
+                >
+                  <CheckCircle className={`w-12 h-12 mx-auto mb-2 ${rsvpStyle === "red-velvet" ? "text-amber-400" : "text-emerald-500"}`} />
+                  <h4 className="font-bold text-sm">
                     Đã gửi xác nhận thành công!
                   </h4>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className={`text-xs mt-1 ${rsvpStyle === "red-velvet" ? "text-amber-200/80" : "text-gray-500"}`}>
                     Cảm ơn bạn đã phản hồi. Hẹn gặp bạn trong ngày hạnh phúc của chúng mình nhé!
                   </p>
                   <button
@@ -1247,13 +1425,20 @@ export default function ShowInvitationPage() {
                       setRsvpSubmitted(false);
                       if (sfxEnabled) weddingSounds.playSoftClick();
                     }}
-                    className="mt-3 text-xs text-zen-primary font-semibold hover:underline"
+                    className={`mt-3 text-xs font-semibold hover:underline ${rsvpStyle === "red-velvet" ? "text-amber-300" : "text-zen-primary"}`}
                   >
                     Gửi lại thông tin khác
                   </button>
                 </div>
               ) : (
-                <form onSubmit={handleSendRsvp} className="bg-white rounded-2xl p-5 shadow-xs border border-gray-100 space-y-3.5">
+                <form
+                  onSubmit={handleSendRsvp}
+                  className={`rounded-2xl p-5 shadow-xs border space-y-3.5 transition-all ${
+                    rsvpStyle === "red-velvet"
+                      ? "bg-[#450719]/90 border-amber-400/30 text-white shadow-xl"
+                      : "bg-white border-gray-100 text-gray-700"
+                  }`}
+                >
                   {/* Anti-bot Honeypot field (hidden from genuine users) */}
                   <input
                     type="text"
@@ -1267,41 +1452,61 @@ export default function ShowInvitationPage() {
                     style={{ position: "absolute", left: "-9999px" }}
                   />
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        rsvpStyle === "red-velvet" ? "text-amber-200" : "text-gray-700"
+                      }`}
+                    >
                       Họ và tên của bạn:
                     </label>
                     <div className="relative">
-                      <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <User className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${rsvpStyle === "red-velvet" ? "text-amber-300/70" : "text-gray-400"}`} />
                       <input
                         type="text"
                         required
                         placeholder="Nhập tên của bạn..."
                         value={rsvpName}
                         onChange={(e) => setRsvpName(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
+                        className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border focus:outline-none ${
+                          rsvpStyle === "red-velvet"
+                            ? "bg-[#2b030e] border-amber-400/30 text-white placeholder-amber-200/40 focus:border-amber-400"
+                            : "border-gray-200 focus:border-zen-primary bg-white text-gray-800"
+                        }`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        rsvpStyle === "red-velvet" ? "text-amber-200" : "text-gray-700"
+                      }`}
+                    >
                       Số điện thoại:
                     </label>
                     <div className="relative">
-                      <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                      <Phone className={`w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 ${rsvpStyle === "red-velvet" ? "text-amber-300/70" : "text-gray-400"}`} />
                       <input
                         type="tel"
                         required
                         placeholder="0912..."
                         value={rsvpPhone}
                         onChange={(e) => setRsvpPhone(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary"
+                        className={`w-full pl-9 pr-3 py-2 text-xs rounded-xl border focus:outline-none ${
+                          rsvpStyle === "red-velvet"
+                            ? "bg-[#2b030e] border-amber-400/30 text-white placeholder-amber-200/40 focus:border-amber-400"
+                            : "border-gray-200 focus:border-zen-primary bg-white text-gray-800"
+                        }`}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-gray-700 mb-1">
+                    <label
+                      className={`block text-xs font-semibold mb-1 ${
+                        rsvpStyle === "red-velvet" ? "text-amber-200" : "text-gray-700"
+                      }`}
+                    >
                       Bạn sẽ tham dự chứ?
                     </label>
                     <div className="grid grid-cols-2 gap-2">
@@ -1313,7 +1518,11 @@ export default function ShowInvitationPage() {
                         }}
                         className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
                           rsvpAttending === "yes"
-                            ? "border-zen-primary bg-rose-50 text-zen-primary"
+                            ? rsvpStyle === "red-velvet"
+                              ? "border-amber-400 bg-amber-400/25 text-amber-300 font-bold shadow-xs"
+                              : "border-zen-primary bg-rose-50 text-zen-primary"
+                            : rsvpStyle === "red-velvet"
+                            ? "border-amber-900/40 bg-black/30 text-amber-100/60 hover:bg-black/40"
                             : "border-gray-200 text-gray-600 hover:bg-gray-50"
                         }`}
                       >
@@ -1327,7 +1536,11 @@ export default function ShowInvitationPage() {
                         }}
                         className={`py-2 px-3 rounded-xl border text-xs font-medium transition-all ${
                           rsvpAttending === "no"
-                            ? "border-gray-400 bg-gray-100 text-gray-800"
+                            ? rsvpStyle === "red-velvet"
+                              ? "border-amber-400 bg-amber-400/25 text-amber-300 font-bold"
+                              : "border-gray-400 bg-gray-100 text-gray-800"
+                            : rsvpStyle === "red-velvet"
+                            ? "border-amber-900/40 bg-black/30 text-amber-100/60 hover:bg-black/40"
                             : "border-gray-200 text-gray-600 hover:bg-gray-50"
                         }`}
                       >
@@ -1338,7 +1551,11 @@ export default function ShowInvitationPage() {
 
                   {rsvpAttending === "yes" && (
                     <div>
-                      <label className="block text-xs font-semibold text-gray-700 mb-1">
+                      <label
+                        className={`block text-xs font-semibold mb-1 ${
+                          rsvpStyle === "red-velvet" ? "text-amber-200" : "text-gray-700"
+                        }`}
+                      >
                         Số người cùng tham dự:
                       </label>
                       <div className="flex items-center gap-2">
@@ -1352,7 +1569,11 @@ export default function ShowInvitationPage() {
                             }}
                             className={`flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
                               rsvpGuestsCount === num
-                                ? "border-zen-primary bg-rose-50 text-zen-primary font-bold"
+                                ? rsvpStyle === "red-velvet"
+                                  ? "border-amber-400 bg-amber-400/30 text-amber-300 font-bold"
+                                  : "border-zen-primary bg-rose-50 text-zen-primary font-bold"
+                                : rsvpStyle === "red-velvet"
+                                ? "border-amber-900/40 bg-black/20 text-amber-100/60 hover:bg-black/30"
                                 : "border-gray-200 text-gray-600 hover:bg-gray-50"
                             }`}
                           >
@@ -1365,7 +1586,11 @@ export default function ShowInvitationPage() {
 
                   <button
                     type="submit"
-                    className="w-full py-2.5 rounded-xl bg-zen-primary text-white text-xs font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                    className={`w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] ${
+                      rsvpStyle === "red-velvet"
+                        ? "bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#4c0519] font-bold shadow-amber-950/40"
+                        : "bg-zen-primary hover:bg-[#d93849] text-white"
+                    }`}
                   >
                     <span>Xác nhận tham dự</span>
                     <Send className="w-3.5 h-3.5" />
@@ -1379,15 +1604,46 @@ export default function ShowInvitationPage() {
         {/* ================= BANKING GIFT QR BOX (Hộp mừng cưới online) ================= */}
         {card.showGiftBox !== false && (Boolean(card.groom.accountNumber) || Boolean(card.bride.accountNumber)) && (
           <AnimatedReveal animation="fade-up" delay={150}>
-            <section id="gift-section" className="px-6 py-8 relative z-10">
+            <section
+              id="gift-section"
+              className={`px-6 py-8 relative z-10 transition-colors ${
+                giftBoxStyle === "red-envelope"
+                  ? "bg-gradient-to-b from-[#8b0000] via-[#a11212] to-[#700000] text-amber-100"
+                  : giftBoxStyle === "luxury-gold"
+                  ? "bg-gradient-to-b from-[#18181b] via-[#27272a] to-[#09090b] text-amber-200"
+                  : "bg-transparent"
+              }`}
+            >
               <div className="text-center mb-6">
-                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
-                  Hộp Mừng Cưới Online
+                <span
+                  className={`text-[10px] font-bold uppercase tracking-widest ${
+                    giftBoxStyle === "red-envelope" || giftBoxStyle === "luxury-gold"
+                      ? "text-amber-300"
+                      : "text-amber-800"
+                  }`}
+                >
+                  {giftBoxStyle === "red-envelope" ? "囍 Bao Lì Xì Mừng Cưới 囍" : "Hộp Mừng Cưới Online"}
                 </span>
-                <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
+                <h2
+                  className={`text-2xl font-cormorant font-bold mt-1 ${
+                    giftBoxStyle === "red-envelope"
+                      ? "text-white"
+                      : giftBoxStyle === "luxury-gold"
+                      ? "text-amber-100"
+                      : "text-[#511419]"
+                  }`}
+                >
                   Gửi Quà Mừng Cưới
                 </h2>
-                <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                <p
+                  className={`text-xs mt-1 max-w-xs mx-auto ${
+                    giftBoxStyle === "red-envelope"
+                      ? "text-amber-200/80"
+                      : giftBoxStyle === "luxury-gold"
+                      ? "text-amber-300/70"
+                      : "text-gray-500"
+                  }`}
+                >
                   Dành cho bạn bè, người thân ở xa muốn gửi lời chúc và món quà mừng đến đôi uyên ương.
                 </p>
               </div>
@@ -1395,8 +1651,16 @@ export default function ShowInvitationPage() {
               <div className="space-y-4">
                 {/* Chú rể */}
                 {card.groom.accountNumber && (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
-                    <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
+                  <div
+                    className={`rounded-2xl p-4 shadow-xs flex items-center gap-4 transition-all ${
+                      giftBoxStyle === "red-envelope"
+                        ? "bg-[#6b0b0b] border border-amber-400/40 text-white shadow-lg"
+                        : giftBoxStyle === "luxury-gold"
+                        ? "bg-[#1c1917] border border-amber-500/40 text-amber-200 shadow-xl"
+                        : "bg-white rounded-2xl border border-gray-200"
+                    }`}
+                  >
+                    <div className="w-20 h-20 bg-white rounded-xl overflow-hidden shrink-0 border border-amber-900/10 p-1 flex items-center justify-center shadow-xs">
                       <img
                         src={getVietQrUrl(card.groom.bankName, card.groom.accountNumber, groomBankOwner, card.groom.qrCode)}
                         alt={`QR ${groomBankOwner}`}
@@ -1404,24 +1668,50 @@ export default function ShowInvitationPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase">
+                      <p
+                        className={`text-[11px] font-bold uppercase ${
+                          giftBoxStyle === "red-envelope" || giftBoxStyle === "luxury-gold"
+                            ? "text-amber-300"
+                            : "text-gray-400"
+                        }`}
+                      >
                         Mừng Chú Rể {groomBankOwner && groomBankOwner !== "CHÚ RỂ" ? `(${groomBankOwner})` : ""}
                       </p>
-                      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                      <p
+                        className={`text-xs font-bold mt-0.5 truncate ${
+                          giftBoxStyle === "red-envelope" || giftBoxStyle === "luxury-gold"
+                            ? "text-white"
+                            : "text-gray-800"
+                        }`}
+                      >
                         {card.groom.bankName || "MB BANK"} • {card.groom.accountNumber}
                       </p>
-                      <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
+                      <p
+                        className={`text-[10px] truncate font-semibold uppercase ${
+                          giftBoxStyle === "red-envelope"
+                            ? "text-amber-200/80"
+                            : giftBoxStyle === "luxury-gold"
+                            ? "text-amber-400/80"
+                            : "text-gray-500"
+                        }`}
+                      >
                         Chủ TK: {groomBankOwner}
                       </p>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(card.groom.accountNumber!, "groom")}
-                        className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        className={`mt-2 text-[11px] px-2.5 py-1 rounded-lg font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                          giftBoxStyle === "red-envelope"
+                            ? "bg-black/25 hover:bg-black/40 text-amber-200 border border-amber-400/30"
+                            : giftBoxStyle === "luxury-gold"
+                            ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        }`}
                       >
                         {copiedBank === "groom" ? (
                           <>
-                            <Check className="w-3 h-3 text-emerald-600" />
-                            <span className="text-emerald-600">Đã sao chép</span>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Đã sao chép</span>
                           </>
                         ) : (
                           <>
@@ -1436,8 +1726,16 @@ export default function ShowInvitationPage() {
 
                 {/* Cô dâu */}
                 {card.bride.accountNumber && (
-                  <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex items-center gap-4">
-                    <div className="w-20 h-20 bg-gray-100 rounded-xl overflow-hidden shrink-0 border border-gray-200 p-1 flex items-center justify-center">
+                  <div
+                    className={`rounded-2xl p-4 shadow-xs flex items-center gap-4 transition-all ${
+                      giftBoxStyle === "red-envelope"
+                        ? "bg-[#6b0b0b] border border-amber-400/40 text-white shadow-lg"
+                        : giftBoxStyle === "luxury-gold"
+                        ? "bg-[#1c1917] border border-amber-500/40 text-amber-200 shadow-xl"
+                        : "bg-white rounded-2xl border border-gray-200"
+                    }`}
+                  >
+                    <div className="w-20 h-20 bg-white rounded-xl overflow-hidden shrink-0 border border-amber-900/10 p-1 flex items-center justify-center shadow-xs">
                       <img
                         src={getVietQrUrl(card.bride.bankName, card.bride.accountNumber, brideBankOwner, card.bride.qrCode)}
                         alt={`QR ${brideBankOwner}`}
@@ -1445,24 +1743,50 @@ export default function ShowInvitationPage() {
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[11px] font-bold text-gray-400 uppercase">
+                      <p
+                        className={`text-[11px] font-bold uppercase ${
+                          giftBoxStyle === "red-envelope" || giftBoxStyle === "luxury-gold"
+                            ? "text-amber-300"
+                            : "text-gray-400"
+                        }`}
+                      >
                         Mừng Cô Dâu {brideBankOwner && brideBankOwner !== "CÔ DÂU" ? `(${brideBankOwner})` : ""}
                       </p>
-                      <p className="text-xs font-bold text-gray-800 mt-0.5 truncate">
+                      <p
+                        className={`text-xs font-bold mt-0.5 truncate ${
+                          giftBoxStyle === "red-envelope" || giftBoxStyle === "luxury-gold"
+                            ? "text-white"
+                            : "text-gray-800"
+                        }`}
+                      >
                         {card.bride.bankName || "TECHCOMBANK"} • {card.bride.accountNumber}
                       </p>
-                      <p className="text-[10px] text-gray-500 truncate font-semibold uppercase">
+                      <p
+                        className={`text-[10px] truncate font-semibold uppercase ${
+                          giftBoxStyle === "red-envelope"
+                            ? "text-amber-200/80"
+                            : giftBoxStyle === "luxury-gold"
+                            ? "text-amber-400/80"
+                            : "text-gray-500"
+                        }`}
+                      >
                         Chủ TK: {brideBankOwner}
                       </p>
                       <button
                         type="button"
                         onClick={() => copyToClipboard(card.bride.accountNumber!, "bride")}
-                        className="mt-2 text-[11px] px-2.5 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        className={`mt-2 text-[11px] px-2.5 py-1 rounded-lg font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer ${
+                          giftBoxStyle === "red-envelope"
+                            ? "bg-black/25 hover:bg-black/40 text-amber-200 border border-amber-400/30"
+                            : giftBoxStyle === "luxury-gold"
+                            ? "bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40"
+                            : "bg-gray-100 hover:bg-gray-200 text-gray-700"
+                        }`}
                       >
                         {copiedBank === "bride" ? (
                           <>
-                            <Check className="w-3 h-3 text-emerald-600" />
-                            <span className="text-emerald-600">Đã sao chép</span>
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span className="text-emerald-400">Đã sao chép</span>
                           </>
                         ) : (
                           <>
@@ -1482,7 +1806,14 @@ export default function ShowInvitationPage() {
         {/* ================= GUESTBOOK WISHES (Sổ lưu bút) ================= */}
         {card.showWishes !== false && (
           <AnimatedReveal animation="fade-up" delay={150}>
-            <section id="wishes-section" className="px-6 py-8 bg-[#faf7f2] relative z-10 border-t border-amber-900/10">
+            <section
+              id="wishes-section"
+              className={`px-6 py-8 relative z-10 border-t transition-colors ${
+                wishesStyle === "vintage-card"
+                  ? "bg-[#fbf7ee] text-amber-950 border-amber-900/15"
+                  : "bg-[#faf7f2] text-gray-800 border-amber-900/10"
+              }`}
+            >
               <div className="text-center mb-6">
                 <span className="text-[10px] font-bold text-amber-800 uppercase tracking-widest">
                   Sổ Lưu Bút
@@ -1511,7 +1842,11 @@ export default function ShowInvitationPage() {
                   placeholder="Tên của bạn..."
                   value={guestName}
                   onChange={(e) => setGuestName(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary"
+                  className={`w-full px-3.5 py-2 text-xs rounded-xl border focus:outline-none ${
+                    wishesStyle === "vintage-card"
+                      ? "border-amber-900/20 bg-[#fffdfa] text-amber-950 focus:border-amber-800 font-serif"
+                      : "border-gray-200 bg-white focus:border-zen-primary"
+                  }`}
                 />
                 <textarea
                   required
@@ -1519,11 +1854,19 @@ export default function ShowInvitationPage() {
                   placeholder="Gửi lời chúc phúc tốt đẹp nhất đến cặp đôi..."
                   value={guestWish}
                   onChange={(e) => setGuestWish(e.target.value)}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary resize-none"
+                  className={`w-full px-3.5 py-2 text-xs rounded-xl border focus:outline-none resize-none ${
+                    wishesStyle === "vintage-card"
+                      ? "border-amber-900/20 bg-[#fffdfa] text-amber-950 focus:border-amber-800 font-serif"
+                      : "border-gray-200 bg-white focus:border-zen-primary"
+                  }`}
                 />
                 <button
                   type="submit"
-                  className="w-full py-2.5 rounded-xl bg-[#511419] text-amber-50 text-xs font-bold shadow-md hover:bg-[#3d0f13] transition-colors flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98]"
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] ${
+                    wishesStyle === "vintage-card"
+                      ? "bg-gradient-to-r from-amber-700 to-[#511419] hover:from-amber-800 hover:to-[#3d0f13] text-amber-50 shadow-amber-900/20"
+                      : "bg-[#511419] text-amber-50 hover:bg-[#3d0f13]"
+                  }`}
                 >
                   <span>Gửi lời chúc</span>
                   <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
@@ -1536,21 +1879,37 @@ export default function ShowInvitationPage() {
                   card.wishes.map((w) => (
                     <div
                       key={w.id}
-                      className="bg-white rounded-xl p-3.5 border border-gray-100 shadow-2xs space-y-1.5"
+                      className={`rounded-xl p-3.5 border shadow-2xs space-y-1.5 transition-all ${
+                        wishesStyle === "vintage-card"
+                          ? "bg-[#f4ebd0] border-amber-900/20 font-serif"
+                          : "bg-white border-gray-100"
+                      }`}
                     >
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-bold text-gray-900">{w.name}</span>
-                        <span className="text-gray-400">{w.createdAt}</span>
+                        <span className={`font-bold ${wishesStyle === "vintage-card" ? "text-amber-950" : "text-gray-900"}`}>
+                          {w.name}
+                        </span>
+                        <span className={wishesStyle === "vintage-card" ? "text-amber-800/60" : "text-gray-400"}>
+                          {w.createdAt}
+                        </span>
                       </div>
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs text-gray-600 leading-relaxed flex-1">{w.content}</p>
+                        <p className={`text-xs leading-relaxed flex-1 ${
+                          wishesStyle === "vintage-card" ? "text-amber-900" : "text-gray-600"
+                        }`}>
+                          {w.content}
+                        </p>
                         <button
                           type="button"
                           onClick={() => handleLikeWish(w.id)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-600 text-[10px] font-bold border border-rose-200/70 transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold border transition-all hover:scale-105 active:scale-95 cursor-pointer shrink-0 ${
+                            wishesStyle === "vintage-card"
+                              ? "bg-amber-200/50 hover:bg-amber-200 text-amber-900 border-amber-400/50"
+                              : "bg-rose-50 hover:bg-rose-100 text-rose-600 border-rose-200/70"
+                          }`}
                           title="Thả tim lời chúc này"
                         >
-                          <Heart className="w-3 h-3 text-rose-500 fill-rose-500" />
+                          <Heart className={`w-3 h-3 ${wishesStyle === "vintage-card" ? "text-amber-700 fill-amber-700" : "text-rose-500 fill-rose-500"}`} />
                           <span>{w.likes || 0}</span>
                         </button>
                       </div>

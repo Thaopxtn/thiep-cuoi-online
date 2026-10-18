@@ -97,34 +97,91 @@ export function WeddingCalendarCard({
     downloadIcsFile(eventDetails, `thiep-cuoi-${targetDay}-${targetMonth}-${targetYear}.ics`);
   };
 
+  const isLuxury = themeStyle === "luxury";
+  const isTraditional = themeStyle === "traditional";
+
+  const cardBg = isLuxury
+    ? "bg-gradient-to-b from-[#1a120b] via-[#24170d] to-[#1a120b] border-amber-500/40 text-amber-200 shadow-2xl"
+    : isTraditional
+    ? "bg-gradient-to-b from-[#8b0000] to-[#700000] border-2 border-amber-400/50 text-amber-100 shadow-2xl"
+    : "bg-white/95 backdrop-blur-md border border-amber-200/80 shadow-xl text-gray-900";
+
+  const titleColor = isLuxury
+    ? "text-amber-300"
+    : isTraditional
+    ? "text-amber-200"
+    : "text-gray-900";
+
+  const subColor = isLuxury
+    ? "text-amber-200/70"
+    : isTraditional
+    ? "text-amber-100/80"
+    : "text-gray-500";
+
+  const headerDayColor = isLuxury
+    ? "text-amber-400/80 border-amber-500/20"
+    : isTraditional
+    ? "text-amber-200/80 border-amber-400/20"
+    : "text-gray-400 border-gray-100";
+
+  const dayNormalColor = isLuxury
+    ? "text-amber-100/90 hover:bg-amber-400/10"
+    : isTraditional
+    ? "text-white/95 hover:bg-amber-400/15"
+    : "text-gray-700 hover:bg-gray-100/70";
+
+  const targetDayStyle = isLuxury
+    ? "bg-gradient-to-br from-amber-400 via-amber-500 to-amber-700 text-amber-950 font-bold shadow-md scale-105 z-10 animate-pulse"
+    : isTraditional
+    ? "bg-gradient-to-br from-amber-300 via-amber-400 to-yellow-500 text-[#700000] font-bold shadow-md scale-105 z-10 animate-pulse"
+    : "bg-gradient-to-br from-rose-500 via-rose-600 to-amber-700 text-white font-bold shadow-md scale-105 z-10 animate-pulse";
+
+  const targetHeartColor = isLuxury
+    ? "bg-amber-200 text-amber-950"
+    : isTraditional
+    ? "bg-red-700 text-yellow-300"
+    : "bg-amber-400 text-amber-950";
+
+  const googleBtnStyle = isLuxury
+    ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-amber-950 font-bold shadow-md shadow-amber-900/30"
+    : isTraditional
+    ? "bg-gradient-to-r from-amber-400 to-yellow-500 hover:from-amber-300 hover:to-yellow-400 text-[#700000] font-bold shadow-md shadow-black/30"
+    : "bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white font-bold shadow-md shadow-rose-900/10";
+
+  const icsBtnStyle = isLuxury
+    ? "bg-black/40 hover:bg-black/60 text-amber-200 border border-amber-500/40"
+    : isTraditional
+    ? "bg-[#550000] hover:bg-[#400000] text-amber-200 border border-amber-400/40"
+    : "bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200";
+
   return (
-    <div className="w-full max-w-md mx-auto my-6 p-6 rounded-3xl bg-white/95 backdrop-blur-md border border-amber-200/80 shadow-xl text-center relative overflow-hidden group">
+    <div className={`w-full max-w-md mx-auto my-6 p-6 rounded-3xl text-center relative overflow-hidden group ${cardBg}`}>
       {/* Background soft ornamentation */}
       <div className="absolute -top-12 -right-12 w-32 h-32 rounded-full bg-rose-100/50 blur-2xl pointer-events-none" />
       <div className="absolute -bottom-12 -left-12 w-32 h-32 rounded-full bg-amber-100/50 blur-2xl pointer-events-none" />
 
       {/* Header Month / Year */}
       <div className="mb-4">
-        <span className="text-[10px] tracking-widest uppercase font-serif text-amber-800 font-bold block">
+        <span className={`text-[10px] tracking-widest uppercase font-serif font-bold block ${isLuxury ? "text-amber-400" : isTraditional ? "text-amber-200" : "text-amber-800"}`}>
           SAVE THE DATE
         </span>
-        <h3 className="text-xl font-bold font-serif text-gray-900 mt-1">
+        <h3 className={`text-xl font-bold font-serif mt-1 ${titleColor}`}>
           Tháng {targetMonth} / {targetYear}
         </h3>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className={`text-xs mt-0.5 ${subColor}`}>
           {weddingTime ? `Thời gian: ${weddingTime}` : ""} • {venue}
         </p>
       </div>
 
       {/* Days of week header */}
-      <div className="grid grid-cols-7 gap-1 text-[11px] font-semibold text-gray-400 mb-2 border-b border-gray-100 pb-2">
+      <div className={`grid grid-cols-7 gap-1 text-[11px] font-semibold mb-2 border-b pb-2 ${headerDayColor}`}>
         <span>T2</span>
         <span>T3</span>
         <span>T4</span>
         <span>T5</span>
         <span>T6</span>
         <span>T7</span>
-        <span className="text-rose-500">CN</span>
+        <span className={isLuxury ? "text-amber-300" : isTraditional ? "text-yellow-300" : "text-rose-500"}>CN</span>
       </div>
 
       {/* Calendar Days Grid */}
@@ -140,14 +197,12 @@ export function WeddingCalendarCard({
             <div
               key={`day-${dayNum}`}
               className={`h-9 flex items-center justify-center relative rounded-full transition-all ${
-                isTarget
-                  ? "bg-gradient-to-br from-rose-500 via-rose-600 to-amber-700 text-white font-bold shadow-md scale-105 z-10 animate-pulse"
-                  : "text-gray-700 hover:bg-gray-100/70"
+                isTarget ? targetDayStyle : dayNormalColor
               }`}
             >
               <span>{dayNum}</span>
               {isTarget && (
-                <span className="absolute -top-1.5 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-amber-400 text-[8px] text-amber-950 shadow-xs">
+                <span className={`absolute -top-1.5 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] shadow-xs ${targetHeartColor}`}>
                   ♥
                 </span>
               )}
@@ -157,11 +212,11 @@ export function WeddingCalendarCard({
       </div>
 
       {/* Action Buttons to Add into Calendar */}
-      <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-4 border-t border-gray-100">
+      <div className={`mt-6 flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-4 border-t ${isLuxury ? "border-amber-500/20" : isTraditional ? "border-amber-400/20" : "border-gray-100"}`}>
         <button
           type="button"
           onClick={handleGoogleCalendar}
-          className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-700 hover:to-rose-800 text-white text-xs font-bold shadow-md shadow-rose-900/10 flex items-center justify-center gap-1.5 transition-all hover:scale-102 active:scale-98 cursor-pointer"
+          className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all hover:scale-102 active:scale-98 cursor-pointer ${googleBtnStyle}`}
         >
           <CalendarIcon className="w-3.5 h-3.5" />
           <span>Thêm vào Google Calendar</span>
@@ -171,10 +226,10 @@ export function WeddingCalendarCard({
         <button
           type="button"
           onClick={handleDownloadIcs}
-          className="w-full sm:w-auto px-4 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all hover:scale-102 active:scale-98 cursor-pointer"
+          className={`w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 transition-all hover:scale-102 active:scale-98 cursor-pointer ${icsBtnStyle}`}
           title="Tải file .ics cho Apple Calendar / Outlook"
         >
-          <Download className="w-3.5 h-3.5 text-gray-500" />
+          <Download className="w-3.5 h-3.5" />
           <span>Lưu vào máy (.ics)</span>
         </button>
       </div>

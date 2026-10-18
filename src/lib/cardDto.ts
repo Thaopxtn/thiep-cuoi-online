@@ -63,6 +63,9 @@ export interface PublicCardDTO {
   showWishes?: boolean;
   showRsvp?: boolean;
   showEvents?: boolean;
+  showCalendar?: boolean;
+  showLoveStory?: boolean;
+  fixedModuleStyles?: Record<string, string>;
 }
 
 /**
@@ -138,5 +141,8 @@ export function toPublicCardDTO(card: WeddingCard): PublicCardDTO {
     showWishes: card.showWishes,
     showRsvp: card.showRsvp,
     showEvents: card.showEvents,
+    showCalendar: card.showCalendar,
+    showLoveStory: card.showLoveStory,
+    fixedModuleStyles: card.fixedModuleStyles,
   };
 }
