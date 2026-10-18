@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -65,7 +65,17 @@ export default function EditorFixedModulesCanvas({
     Boolean(card.album && card.album.length > 0),
   ].filter(Boolean).length;
 
-  const countdown = calculateCountdown(card.weddingDate, card.weddingTime);
+  const [countdown, setCountdown] = useState(() =>
+    calculateCountdown(card.weddingDate, card.weddingTime)
+  );
+
+  useEffect(() => {
+    setCountdown(calculateCountdown(card.weddingDate, card.weddingTime));
+    const timer = setInterval(() => {
+      setCountdown(calculateCountdown(card.weddingDate, card.weddingTime));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [card.weddingDate, card.weddingTime]);
 
   const copyToClipboard = (text: string, type: string) => {
     try {
@@ -241,7 +251,7 @@ export default function EditorFixedModulesCanvas({
               {calendarStyle === "traditional-red" ? "囍 Đếm ngược ngày thành hôn 囍" : "Đếm ngược ngày chung đôi"}
             </span>
 
-            <div className="grid grid-cols-4 gap-2 mt-2.5">
+            <div className="grid grid-cols-4 gap-2 mt-2.5" suppressHydrationWarning>
               {[
                 { val: countdown.days, label: "Ngày" },
                 { val: countdown.hours, label: "Giờ" },
@@ -250,6 +260,7 @@ export default function EditorFixedModulesCanvas({
               ].map((t, idx) => (
                 <div
                   key={idx}
+                  suppressHydrationWarning
                   className={`rounded-xl py-2 px-1 border flex flex-col items-center shadow-2xs ${
                     calendarStyle === "luxury-gold"
                       ? "bg-[#160d07] border-amber-500/40"
@@ -260,9 +271,12 @@ export default function EditorFixedModulesCanvas({
                       : "bg-[#fcfaf7] border-amber-900/10"
                   }`}
                 >
-                  <span className={`text-xl font-bold font-cormorant ${
-                    calendarStyle === "luxury-gold" ? "text-amber-300" : calendarStyle === "traditional-red" ? "text-amber-200" : "text-[#511419]"
-                  }`}>
+                  <span
+                    suppressHydrationWarning
+                    className={`text-xl font-bold font-cormorant ${
+                      calendarStyle === "luxury-gold" ? "text-amber-300" : calendarStyle === "traditional-red" ? "text-amber-200" : "text-[#511419]"
+                    }`}
+                  >
                     {String(t.val).padStart(2, "0")}
                   </span>
                   <span className="text-[9px] uppercase font-semibold opacity-75">

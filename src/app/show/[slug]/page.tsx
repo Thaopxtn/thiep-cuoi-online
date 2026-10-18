@@ -1098,7 +1098,7 @@ export default function ShowInvitationPage() {
                     ? "囍 Đếm ngược ngày thành hôn 囍"
                     : "Đếm ngược ngày chung đôi"}
                 </h3>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-4 gap-2" suppressHydrationWarning>
                   {[
                     { val: timeLeft.days, label: "Ngày" },
                     { val: timeLeft.hours, label: "Giờ" },
@@ -1107,6 +1107,7 @@ export default function ShowInvitationPage() {
                   ].map((t, idx) => (
                     <div
                       key={idx}
+                      suppressHydrationWarning
                       className={`rounded-xl py-2 px-1 border flex flex-col items-center shadow-2xs transition-all ${
                         calendarStyle === "luxury-gold"
                           ? "bg-[#160d07] border-amber-500/40 text-amber-300"
@@ -1118,6 +1119,7 @@ export default function ShowInvitationPage() {
                       }`}
                     >
                       <span
+                        suppressHydrationWarning
                         className={`text-xl sm:text-2xl font-bold ${
                           calendarStyle === "modern-minimal" ? "font-mono" : "font-cormorant"
                         }`}

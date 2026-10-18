@@ -1208,16 +1208,16 @@ export default function EditorCanvas({
                         <span className="font-bold text-slate-300 tracking-wider">ĐẾM NGƯỢC NGÀY CHUNG ĐÔI</span>
                         <span className="text-rose-400 font-bold font-mono">FLIP CLOCK</span>
                       </div>
-                      <div className="grid grid-cols-4 gap-2 my-auto">
+                      <div className="grid grid-cols-4 gap-2 my-auto" suppressHydrationWarning>
                         {[
                           { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
                           { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
                           { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
                           { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
                         ].map((item, i) => (
-                          <div key={i} className="bg-slate-800 border border-slate-700 rounded-xl p-1.5 relative overflow-hidden flex flex-col items-center shadow-inner">
+                          <div key={i} suppressHydrationWarning className="bg-slate-800 border border-slate-700 rounded-xl p-1.5 relative overflow-hidden flex flex-col items-center shadow-inner">
                             <div className="absolute top-1/2 left-0 right-0 h-px bg-slate-950/80 z-10" />
-                            <span className="text-xl sm:text-2xl font-black font-mono text-cyan-300 z-0">
+                            <span suppressHydrationWarning className="text-xl sm:text-2xl font-black font-mono text-cyan-300 z-0">
                               {item.val}
                             </span>
                             <span className="text-[9px] uppercase font-bold text-slate-400 mt-0.5">
@@ -1240,15 +1240,15 @@ export default function EditorCanvas({
                         </span>
                         <span className="text-rose-600 font-bold text-[9px]">Chung Đôi</span>
                       </div>
-                      <div className="grid grid-cols-4 gap-2 my-auto">
+                      <div className="grid grid-cols-4 gap-2 my-auto" suppressHydrationWarning>
                         {[
                           { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
                           { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
                           { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
                           { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
                         ].map((item, i) => (
-                          <div key={i} className="bg-white border border-rose-200/80 rounded-xl p-1.5 flex flex-col items-center shadow-2xs">
-                            <span className="text-xl sm:text-2xl font-black font-serif text-rose-600">
+                          <div key={i} suppressHydrationWarning className="bg-white border border-rose-200/80 rounded-xl p-1.5 flex flex-col items-center shadow-2xs">
+                            <span suppressHydrationWarning className="text-xl sm:text-2xl font-black font-serif text-rose-600">
                               {item.val}
                             </span>
                             <span className="text-[9px] uppercase font-bold text-rose-400 mt-0.5">
@@ -1263,15 +1263,16 @@ export default function EditorCanvas({
                 }
 
                 return (
-                  <div className="w-full h-full flex items-center justify-around p-3 bg-white/20 backdrop-blur-xs rounded-xl border border-stone-200/50 text-center select-none">
+                  <div className="w-full h-full flex items-center justify-around p-3 bg-white/20 backdrop-blur-xs rounded-xl border border-stone-200/50 text-center select-none" suppressHydrationWarning>
                     {[
                       { val: String(cd.days).padStart(2, "0"), label: "Ngày" },
                       { val: String(cd.hours).padStart(2, "0"), label: "Giờ" },
                       { val: String(cd.minutes).padStart(2, "0"), label: "Phút" },
                       { val: String(cd.seconds).padStart(2, "0"), label: "Giây" },
                     ].map((item, i) => (
-                      <div key={i} className="flex flex-col items-center">
+                      <div key={i} suppressHydrationWarning className="flex flex-col items-center">
                         <span
+                          suppressHydrationWarning
                           className="text-xl font-black font-serif"
                           style={{ color: textColor }}
                         >
