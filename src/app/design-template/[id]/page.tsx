@@ -1529,6 +1529,19 @@ export default function DesignTemplatePage() {
     showToast("✨ Đã cập nhật thông tin & kiểu mẫu khối cố định!");
   };
 
+  if (!isClientMounted) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#18181b] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-9 h-9 border-3 border-rose-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-zinc-400 font-medium tracking-wide">
+            Đang khởi tạo ZenLove Studio...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans relative">
       {/* ================= 1. TOP HEADER (Exact match to screenshot!) ================= */}

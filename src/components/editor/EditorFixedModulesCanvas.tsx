@@ -65,9 +65,13 @@ export default function EditorFixedModulesCanvas({
     Boolean(card.album && card.album.length > 0),
   ].filter(Boolean).length;
 
-  const [countdown, setCountdown] = useState(() =>
-    calculateCountdown(card.weddingDate, card.weddingTime)
-  );
+  // Countdown timer state - initialized with a deterministic placeholder to avoid SSR hydration mismatch
+  const [countdown, setCountdown] = useState({
+    days: 30,
+    hours: 12,
+    minutes: 0,
+    seconds: 0,
+  });
 
   useEffect(() => {
     setCountdown(calculateCountdown(card.weddingDate, card.weddingTime));
