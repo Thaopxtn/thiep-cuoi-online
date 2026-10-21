@@ -58,6 +58,7 @@ interface CardScrollAnimatedNodeProps {
     hoverEffect?: string;
   };
   hoverClass?: string;
+  continuousClass?: string;
   children: React.ReactNode;
 }
 
@@ -72,6 +73,7 @@ function CardScrollAnimatedNode({
   zIndex,
   transition,
   hoverClass = "",
+  continuousClass = "",
   children,
 }: CardScrollAnimatedNodeProps) {
   const domRef = useRef<HTMLDivElement>(null);
@@ -146,7 +148,9 @@ function CardScrollAnimatedNode({
           zIndex: zIndex,
         }}
       >
-        {children}
+        <div className={`w-full h-full ${continuousClass}`}>
+          {children}
+        </div>
       </div>
     );
   }
@@ -219,6 +223,7 @@ function CardScrollAnimatedNode({
       <div
         key={isInView ? `enter-${runCount}` : `exit-${runCount}`}
         style={innerStyle}
+        className={`w-full h-full ${continuousClass}`}
       >
         {children}
       </div>
@@ -386,11 +391,12 @@ export default function CardNodeRenderer({
               zIndex={zIndex}
               transition={transition}
               hoverClass={hoverClass}
+              continuousClass={animClass}
             >
               {/* Photo Box */}
               {type === "PhotoBox" && props.imgKey && (
                 <div
-                  className={`w-full h-full overflow-hidden ${animClass}`}
+                  className="w-full h-full overflow-hidden"
                   style={{
                     borderRadius: props.borderRadius
                       ? Array.isArray(props.borderRadius)
@@ -433,7 +439,7 @@ export default function CardNodeRenderer({
                 type === "FamilyInfoBox" ||
                 type === "BankCardBox") && (
                 <div
-                  className={`w-full h-full select-none ${animClass} ${
+                  className={`w-full h-full select-none ${
                     props.fontFamily && props.fontFamily.startsWith("font-")
                       ? props.fontFamily
                       : ""
@@ -463,7 +469,7 @@ export default function CardNodeRenderer({
               {/* Geometric Box (Card panels, colored backgrounds) */}
               {type === "GeometricBox" && (
                 <div
-                  className={`w-full h-full ${animClass}`}
+                  className="w-full h-full"
                   style={{
                     backgroundColor: props.fill || props.backgroundColor || "transparent",
                     borderRadius: props.borderRadius
@@ -487,7 +493,7 @@ export default function CardNodeRenderer({
               {/* Carousel Box (Photo Gallery) */}
               {type === "CarouselBox" && (
                 <div
-                  className={`w-full h-full overflow-hidden relative shadow-lg ${animClass}`}
+                  className="w-full h-full overflow-hidden relative shadow-lg"
                   style={{
                     borderRadius: props.borderRadius
                       ? Array.isArray(props.borderRadius)
@@ -630,6 +636,30 @@ export default function CardNodeRenderer({
                 const themeColor = props.themeColor || "#590310";
                 const variant = props.styleVariant;
 
+                if (variant === "handcrafted_grid") {
+                  return (
+                    <div className="w-full h-full p-3 rounded-2xl bg-[#590310] text-[#ece4d8] border border-[#ecd4a6]/40 shadow-md flex flex-col justify-between items-center text-center select-none font-serif">
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-[#ecd4a6]">
+                        VÀO LÚC {cal.time}
+                      </div>
+                      <div className="flex items-center justify-center gap-3 my-0.5">
+                        <span className="text-[11px] font-bold uppercase border-y border-[#ecd4a6]/40 px-2 py-0.5">
+                          {cal.dayOfWeek}
+                        </span>
+                        <span className="text-4xl font-black text-[#ffd700] leading-none drop-shadow-xs">
+                          {cal.day}
+                        </span>
+                        <span className="text-[11px] font-bold uppercase border-y border-[#ecd4a6]/40 px-2 py-0.5">
+                          THÁNG {cal.month}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[#ece4d8]/80 font-sans italic">
+                        NĂM {cal.year} • (Tức ngày 11 tháng 11 năm Bính Ngọ)
+                      </div>
+                    </div>
+                  );
+                }
+
                 if (variant === "royal") {
                   return (
                     <div className="w-full h-full p-3.5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100/50 border-2 border-amber-300 shadow-md flex flex-col justify-between items-center text-center select-none">
@@ -716,6 +746,88 @@ export default function CardNodeRenderer({
               {type === "GiftQrBox" && (() => {
                 const variant = props.styleVariant || "minimal";
                 const modalTitle = props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)";
+
+                // 0. GIAO DIỆN THỦ CÔNG: PHONG BÌ ĐỎ SONG HỶ KÉP VIETQR (red_envelope_pair)
+                if (variant === "red_envelope_pair") {
+                  const gBank = props.groomBank || props.bankName || "MB BANK";
+                  const gAcc = props.groomAccount || props.accountNumber || "999988882026";
+                  const gName = props.groomName || props.accountName || "LÊ ĐỨC MẠNH";
+                  const gQr = generateVietQrUrl(gBank, gAcc, gName, undefined, "Mung cuoi Chu Re");
+
+                  const bBank = props.brideBank || "VIETCOMBANK";
+                  const bAcc = props.brideAccount || "1028492049";
+                  const bName = props.brideName || "TRẦN LỆ QUYÊN";
+                  const bQr = generateVietQrUrl(bBank, bAcc, bName, undefined, "Mung cuoi Co Dau");
+
+                  return (
+                    <div
+                      onClick={() => {
+                        weddingSounds.playChime();
+                        onOpenGiftQr?.();
+                      }}
+                      className="w-full h-full bg-gradient-to-br from-[#881337] via-[#9f1239] to-[#881337] text-amber-100 rounded-2xl p-3 border-2 border-amber-400/80 shadow-xl flex flex-col justify-between cursor-pointer group hover:shadow-2xl transition-all select-none hover:scale-[1.01]"
+                      title="Chạm để mở Hộp Quà Mừng Cưới"
+                    >
+                      <div className="flex items-center justify-between border-b border-amber-300/30 pb-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-200">
+                          <span className="text-sm">🧧</span>
+                          <span className="font-serif font-bold uppercase tracking-wider">{modalTitle}</span>
+                        </div>
+                        <span className="text-[10px] font-bold font-serif text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-400/60">
+                          囍 Song Hỷ Lâm Môn
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+                        {/* Phong Bì Nhà Trai */}
+                        <div className="bg-gradient-to-b from-[#700f2d] to-[#500b20] rounded-xl p-2 border border-amber-400/50 flex flex-col items-center justify-between text-center shadow-md">
+                          <div className="w-full flex items-center justify-between text-[9px] font-bold text-amber-200 border-b border-amber-400/20 pb-1">
+                            <span className="bg-amber-400/20 text-amber-200 px-1.5 py-0.2 rounded font-mono">{gBank}</span>
+                            <span>🤵 Nhà Trai</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-amber-300 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
+                            {gQr ? (
+                              <img src={gQr} alt="QR Nhà Trai" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-amber-100 truncate">{gName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-amber-300 bg-black/30 py-0.5 px-1 rounded truncate border border-amber-400/20">
+                              STK: {gAcc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Phong Bì Nhà Gái */}
+                        <div className="bg-gradient-to-b from-[#700f2d] to-[#500b20] rounded-xl p-2 border border-amber-400/50 flex flex-col items-center justify-between text-center shadow-md">
+                          <div className="w-full flex items-center justify-between text-[9px] font-bold text-amber-200 border-b border-amber-400/20 pb-1">
+                            <span className="bg-amber-400/20 text-amber-200 px-1.5 py-0.2 rounded font-mono">{bBank}</span>
+                            <span>👰 Nhà Gái</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-amber-300 shadow-inner flex items-center justify-center my-1 group-hover:scale-105 transition-transform overflow-hidden">
+                            {bQr ? (
+                              <img src={bQr} alt="QR Nhà Gái" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-amber-100 truncate">{bName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-amber-300 bg-black/30 py-0.5 px-1 rounded truncate border border-amber-400/20">
+                              STK: {bAcc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-center text-[9px] text-amber-200/90 pt-1.5 flex items-center justify-center gap-1 font-serif">
+                        <span>Chuyển khoản mừng cưới Napas 24/7 tiện lợi & chúc phúc đôi uyên ương</span>
+                      </div>
+                    </div>
+                  );
+                }
 
                 // 1. GIAO DIỆN 1: CẢ NHÀ TRAI & NHÀ GÁI (dual_accounts)
                 if (variant === "dual_accounts") {

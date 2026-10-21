@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import EditorHeader from "@/components/editor/EditorHeader";
@@ -8,18 +8,22 @@ import EditorLeftRail, { EditorToolTab } from "@/components/editor/EditorLeftRai
 import EditorLeftDrawer from "@/components/editor/EditorLeftDrawer";
 import EditorCanvas from "@/components/editor/EditorCanvas";
 import EditorRightInspector, { SelectedElementData } from "@/components/editor/EditorRightInspector";
-import EditorPublishModal from "@/components/editor/EditorPublishModal";
-import EditorShortcutsModal from "@/components/editor/EditorShortcutsModal";
-import EditorLivePreviewModal from "@/components/editor/EditorLivePreviewModal";
-import EditorWeddingSettingsModal from "@/components/editor/EditorWeddingSettingsModal";
-import EditorAutoFillModal from "@/components/editor/EditorAutoFillModal";
-import EditorPublishWarningModal from "@/components/editor/EditorPublishWarningModal";
-import EditorBackgroundCutoutModal from "@/components/editor/EditorBackgroundCutoutModal";
-import EditorFixedModuleEditModal, { FixedModuleId } from "@/components/editor/EditorFixedModuleEditModal";
-import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
+import dynamic from "next/dynamic";
+import type { FixedModuleId } from "@/components/editor/EditorFixedModuleEditModal";
+
+const EditorPublishModal = dynamic(() => import("@/components/editor/EditorPublishModal"), { ssr: false });
+const EditorShortcutsModal = dynamic(() => import("@/components/editor/EditorShortcutsModal"), { ssr: false });
+const EditorLivePreviewModal = dynamic(() => import("@/components/editor/EditorLivePreviewModal"), { ssr: false });
+const EditorWeddingSettingsModal = dynamic(() => import("@/components/editor/EditorWeddingSettingsModal"), { ssr: false });
+const EditorAutoFillModal = dynamic(() => import("@/components/editor/EditorAutoFillModal"), { ssr: false });
+const EditorPublishWarningModal = dynamic(() => import("@/components/editor/EditorPublishWarningModal"), { ssr: false });
+const EditorBackgroundCutoutModal = dynamic(() => import("@/components/editor/EditorBackgroundCutoutModal"), { ssr: false });
+const EditorFixedModuleEditModal = dynamic(() => import("@/components/editor/EditorFixedModuleEditModal"), { ssr: false });
+const ZenlovePreviewModal = dynamic(() => import("@/components/templates/ZenlovePreviewModal"), { ssr: false });
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate, findZenloveTemplate } from "@/data/zenloveTemplates";
 import { saveCard, saveCardAsync, getCardByIdOrSlug, WeddingCard } from "@/lib/weddingCardService";
+import { DEFAULT_LOVE_STORY } from "@/components/show/InteractiveSections";
 import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
 import { useAuth } from "@/context/AuthContext";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
@@ -50,12 +54,23 @@ import {
 } from "@/lib/moduleHelpers";
 import { ModulePresetItem } from "@/lib/modulePresetsCatalog";
 import { applyComboToNodes, applyStaggerToNodes, AnimationCombo } from "@/lib/animationCatalog";
+import FallingPetals from "@/components/FallingPetals";
+import { EffectConfig } from "@/lib/effectsCatalog";
+import { weddingSounds } from "@/lib/soundEffects";
 
 export default function DesignTemplatePage() {
   const params = useParams();
   const router = useRouter();
-  const templateId =
-    (params?.id as string) || "8c5055d8-30db-4b38-8831-e11063e3d352";
+  const routeTemplateId = (params?.id as string) || "8c5055d8-30db-4b38-8831-e11063e3d352";
+  const [templateId, setTemplateId] = useState<string>(routeTemplateId);
+  const [isLoadingTemplate, setIsLoadingTemplate] = useState<boolean>(false);
+
+  // Sync state if route params change externally
+  useEffect(() => {
+    if (params?.id && params.id !== templateId) {
+      setTemplateId(params.id as string);
+    }
+  }, [params?.id]);
   const { user, isLoggedIn, openLoginModal } = useAuth();
 
   // Template info
@@ -72,7 +87,7 @@ export default function DesignTemplatePage() {
 
   // Left tools state
   const [activeLeftTab, setActiveLeftTab] = useState<EditorToolTab>("image");
-  const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(true);
+  const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(false);
 
   // Zoom controls
   const [zoomLevel, setZoomLevel] = useState(0.85);
@@ -93,7 +108,20 @@ export default function DesignTemplatePage() {
   const [customCardData, setCustomCardData] = useState<WeddingCard | null>(null);
   const [cardAlbum, setCardAlbum] = useState<string[]>([]);
   const [activeFixedModuleConfigId, setActiveFixedModuleConfigId] = useState<FixedModuleId | null>(null);
-  const [isSaved, setIsSaved] = useState(true);
+  const [selectedFixedModuleId, setSelectedFixedModuleId] = useState<FixedModuleId | null>(null);
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "offline" | "error">("saved");
+  const [isPublishing, setIsPublishing] = useState(false);
+  const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSaved = saveStatus === "saved" || saveStatus === "offline";
+  const [effectConfig, setEffectConfig] = useState<EffectConfig>({
+    type: "petals",
+    enabled: true,
+    density: 28,
+    speed: 1.0,
+    size: 1.0,
+    opacity: 0.85,
+    direction: "down",
+  });
 
   // Persistent music and toast state
   const [currentMusic, setCurrentMusic] = useState<{ title: string; url: string }>({
@@ -104,6 +132,7 @@ export default function DesignTemplatePage() {
   const [isRemovingBg, setIsRemovingBg] = useState(false);
   const [isClientMounted, setIsClientMounted] = useState(false);
   const [hasLocalSession, setHasLocalSession] = useState(false);
+  const [hasDismissedAuthGuard, setHasDismissedAuthGuard] = useState(false);
 
   useEffect(() => {
     setIsClientMounted(true);
@@ -132,6 +161,47 @@ export default function DesignTemplatePage() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  const handleSelectFixedModule = (moduleId: FixedModuleId | null) => {
+    setSelectedElement(null);
+    setSelectedFixedModuleId(moduleId);
+  };
+
+  const handleSelectElement = (el: SelectedElementData | null) => {
+    setSelectedElement(el);
+    if (el) {
+      setSelectedFixedModuleId(null);
+    }
+  };
+
+  // Kích hoạt cơ chế tự động lưu ngầm (Real Debounced Autosave)
+  const triggerDebouncedAutosave = useCallback(
+    (customNodes?: Record<string, any>) => {
+      setSaveStatus("saving");
+      if (autosaveTimerRef.current) {
+        clearTimeout(autosaveTimerRef.current);
+      }
+      autosaveTimerRef.current = setTimeout(async () => {
+        try {
+          const card = buildCardFromCurrentState(customNodes);
+          // 1. Lưu đồng bộ tức thì vào Local Cache
+          saveCard(card);
+
+          // 2. Nếu đã đăng nhập, đồng bộ ngầm lên máy chủ Supabase
+          if (isAuthenticated) {
+            const res = await saveCardAsync(card);
+            setSaveStatus(res.success ? "saved" : "offline");
+          } else {
+            setSaveStatus("offline");
+          }
+        } catch (e) {
+          console.error("Autosave error:", e);
+          setSaveStatus("offline");
+        }
+      }, 1500);
+    },
+    [isAuthenticated, nodes, customCardData, cardAlbum, currentMusic, effectConfig, templateName, templateId]
+  );
+
   // Push new state to history
   const pushHistory = useCallback(
     (newNodes: Record<string, any>) => {
@@ -140,22 +210,37 @@ export default function DesignTemplatePage() {
         return [...sliced, newNodes];
       });
       setHistoryIndex((prev) => prev + 1);
-      setIsSaved(false);
-      setTimeout(() => setIsSaved(true), 1200);
+      triggerDebouncedAutosave(newNodes);
     },
-    [historyIndex]
+    [historyIndex, triggerDebouncedAutosave]
   );
+
+  // Cảnh báo người dùng nếu rời trang khi có thay đổi chưa lưu an toàn
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === "saving" || saveStatus === "error") {
+        e.preventDefault();
+        e.returnValue = "Bạn có thay đổi chưa được lưu an toàn. Bạn có chắc muốn rời trang?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [saveStatus]);
 
   // Tự động tối ưu giao diện trên thiết bị di động (Mobile Responsive Initialization)
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (typeof window === "undefined") return;
+    const handleResize = () => {
       const isMobile = window.innerWidth < 768;
       if (isMobile) {
-        setIsLeftDrawerOpen(false);
-        const mobileZoom = Number(Math.max(0.55, Math.min(0.85, (window.innerWidth - 24) / 500)).toFixed(2));
+        const mobileZoom = Number(Math.max(0.5, Math.min(0.85, (window.innerWidth - 24) / 500)).toFixed(2));
         setZoomLevel(mobileZoom);
       }
-    }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Fetch real template nodes from API
@@ -163,122 +248,62 @@ export default function DesignTemplatePage() {
     let isMounted = true;
 
     async function loadTemplate() {
-      // 1. Kiểm tra thiệp cưới đã clone / tùy biến trong weddingCardService
-      const existingCard = getCardByIdOrSlug(templateId);
-      if (existingCard) {
-        setCustomCardData(existingCard);
-        if (existingCard.album && Array.isArray(existingCard.album) && existingCard.album.length > 0) {
-          setCardAlbum(existingCard.album);
-        } else {
-          const initialPhotos = Array.from(
-            new Set(
-              [
-                existingCard.coverImage,
-                ...extractImagesFromNodes(existingCard.nodes || {}),
-                ...getSavedUploadedImages(),
-              ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
-            )
-          );
-          if (initialPhotos.length > 0) setCardAlbum(initialPhotos);
-        }
-        if (existingCard.templateName) setTemplateName(existingCard.templateName);
-        if (existingCard.musicUrl) {
-          setCurrentMusic({
-            title: existingCard.musicTitle || "Bản nhạc cưới",
-            url: existingCard.musicUrl,
-          });
-        }
-        if (existingCard.nodes && Object.keys(existingCard.nodes).length > 2) {
-          if (!isMounted) return;
-          let cardNodes = existingCard.nodes;
-          if (!cardNodes.ROOT) {
-            cardNodes = convertFormTemplateToCanvasNodes(cardNodes, existingCard);
+      setIsLoadingTemplate(true);
+      try {
+        // 1. Kiểm tra thiệp cưới đã clone / tùy biến trong weddingCardService
+        const existingCard = getCardByIdOrSlug(templateId);
+        if (existingCard) {
+          setCustomCardData(existingCard);
+          if (existingCard.album && Array.isArray(existingCard.album) && existingCard.album.length > 0) {
+            setCardAlbum(existingCard.album);
+          } else {
+            const initialPhotos = Array.from(
+              new Set(
+                [
+                  existingCard.coverImage,
+                  ...extractImagesFromNodes(existingCard.nodes || {}),
+                  ...getSavedUploadedImages(),
+                ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
+              )
+            );
+            if (initialPhotos.length > 0) setCardAlbum(initialPhotos);
           }
-          // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp các node ngoại lai cho mẫu khác)
-          const targetTplId = existingCard.templateId || templateId;
-          const { repairedNodes: repairedCardNodes } = repairAndLockDecorativeNodes(cardNodes, targetTplId);
-          cardNodes = repairedCardNodes;
-          setNodes(cardNodes);
-          setHistory([cardNodes]);
-          setHistoryIndex(0);
-
-          // Select initial photo - ưu tiên ảnh cưới đầu tiên từ trên xuống của chính mẫu
-          const realSlots = getRealWeddingPhotoSlots(cardNodes, targetTplId);
-          const targetPhotoNode = realSlots[0]
-            ? [realSlots[0].id, cardNodes[realSlots[0].id]]
-            : Object.entries(cardNodes).find(
-                ([, n]: [string, any]) =>
-                  n.type?.resolvedName === "PhotoBox" &&
-                  (n.props?.isReplaceable || n.props?.previewKey)
-              );
-
-          if (targetPhotoNode) {
-            const [id, node] = targetPhotoNode as [string, any];
-            setSelectedElement({
-              id,
-              type: "PhotoBox",
-              props: node.props || {},
+          if (existingCard.templateName) setTemplateName(existingCard.templateName);
+          if (existingCard.musicUrl) {
+            setCurrentMusic({
+              title: existingCard.musicTitle || "Bản nhạc cưới",
+              url: existingCard.musicUrl,
             });
           }
-          showToast(`✨ Đã mở thiệp cưới: "${existingCard.name}"`);
-          return;
-        }
-      }
-
-      // 2. Tìm template meta trong ZENLOVE_TEMPLATES
-      const foundMeta = ZENLOVE_TEMPLATES.find(
-        (t) => t.id === templateId || t.slug === templateId
-      );
-      if (foundMeta) {
-        setTemplateName(foundMeta.name);
-        setCurrentZenloveTemplate(foundMeta);
-      }
-
-      try {
-        const res = await fetch(`/api/zenlove-template/${templateId}`);
-        if (res.ok) {
-          const json = await res.json();
-          if (json.success && json.data?.parsedNodes) {
+          if (existingCard.effectConfig) {
+            setEffectConfig(existingCard.effectConfig);
+          } else if (existingCard.ambientEffect) {
+            setEffectConfig((prev) => ({
+              ...prev,
+              type: existingCard.ambientEffect as any,
+              enabled: true,
+            }));
+          }
+          if (existingCard.nodes && Object.keys(existingCard.nodes).length > 2) {
             if (!isMounted) return;
-            let fetchedNodes = json.data.parsedNodes;
-            if (!fetchedNodes.ROOT) {
-              fetchedNodes = convertFormTemplateToCanvasNodes(fetchedNodes, foundMeta || json.data);
+            let cardNodes = existingCard.nodes;
+            if (!cardNodes.ROOT) {
+              cardNodes = convertFormTemplateToCanvasNodes(cardNodes, existingCard);
             }
-            // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp cho mẫu khác)
-            const { repairedNodes: repairedFetchedNodes } = repairAndLockDecorativeNodes(fetchedNodes, templateId);
-            fetchedNodes = repairedFetchedNodes;
-            setNodes(fetchedNodes);
-            setHistory([fetchedNodes]);
+            // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp các node ngoại lai cho mẫu khác)
+            const targetTplId = existingCard.templateId || templateId;
+            const { repairedNodes: repairedCardNodes } = repairAndLockDecorativeNodes(cardNodes, targetTplId);
+            cardNodes = repairedCardNodes;
+            setNodes(cardNodes);
+            setHistory([cardNodes]);
             setHistoryIndex(0);
 
-            if (json.data?.name) {
-              setTemplateName(json.data.name);
-            }
-
-            // Sync music from audioSettings, template nodes or metadata
-            if (json.data?.audioSettings?.fileUrl) {
-              setCurrentMusic({
-                title: json.data.audioSettings.musicTitle || "Bản nhạc cưới",
-                url: json.data.audioSettings.fileUrl,
-              });
-            } else if (fetchedNodes["ROOT"]?.props?.musicUrl) {
-              setCurrentMusic({
-                title: fetchedNodes["ROOT"].props.musicTitle || "Bản nhạc cưới",
-                url: fetchedNodes["ROOT"].props.musicUrl,
-              });
-            } else if (foundMeta?.musicUrl) {
-              setCurrentMusic({
-                title: foundMeta.musicName || "Thiên đường với người thương",
-                url: foundMeta.musicUrl,
-              });
-            }
-
-            // Select initial photo element - chọn đúng ảnh chân dung đầu tiên từ trên xuống của chính template
-            const realSlots = getRealWeddingPhotoSlots(fetchedNodes, templateId);
+            // Select initial photo - ưu tiên ảnh cưới đầu tiên từ trên xuống của chính mẫu
+            const realSlots = getRealWeddingPhotoSlots(cardNodes, targetTplId);
             const targetPhotoNode = realSlots[0]
-              ? [realSlots[0].id, fetchedNodes[realSlots[0].id]]
-              : Object.entries(fetchedNodes).find(
-                  ([id, n]: [string, any]) =>
+              ? [realSlots[0].id, cardNodes[realSlots[0].id]]
+              : Object.entries(cardNodes).find(
+                  ([, n]: [string, any]) =>
                     n.type?.resolvedName === "PhotoBox" &&
                     (n.props?.isReplaceable || n.props?.previewKey)
                 );
@@ -291,76 +316,155 @@ export default function DesignTemplatePage() {
                 props: node.props || {},
               });
             }
-
-            const initialPhotos = Array.from(
-              new Set(
-                [
-                  foundMeta?.imageUrl || json.data?.thumbnail || "",
-                  ...extractImagesFromNodes(fetchedNodes),
-                  ...getSavedUploadedImages(),
-                ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
-              )
-            );
-            if (initialPhotos.length > 0) {
-              setCardAlbum((prev) => (prev && prev.length > 0 ? prev : initialPhotos));
-            }
+            showToast(`✨ Đã mở thiệp cưới: "${existingCard.name}"`);
             return;
           }
+        } else {
+          setCustomCardData(null);
         }
-      } catch (err) {
-        console.warn("Failed to fetch template API, using fallback preset:", err);
-      }
 
-      // Fallback: check stored or presets
-      const local = getStoredTemplateById(templateId) || getTemplateById(templateId);
-      if (local && isMounted) {
-        setTemplateName(local.title);
-        // Create basic nodes tree
-        const initialNodes: Record<string, any> = {
-          ROOT: {
-            type: { resolvedName: "Container" },
-            props: {
-              width: 500,
-              height: 4800,
-              backgroundColor: "#fffbfa",
+        // 2. Tìm template meta trong ZENLOVE_TEMPLATES
+        const foundMeta = ZENLOVE_TEMPLATES.find(
+          (t) => t.id === templateId || t.slug === templateId
+        );
+        if (foundMeta) {
+          setTemplateName(foundMeta.name);
+          setCurrentZenloveTemplate(foundMeta);
+        }
+
+        try {
+          const res = await fetch(`/api/zenlove-template/${templateId}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.success && json.data?.parsedNodes) {
+              if (!isMounted) return;
+              let fetchedNodes = json.data.parsedNodes;
+              if (!fetchedNodes.ROOT) {
+                fetchedNodes = convertFormTemplateToCanvasNodes(fetchedNodes, foundMeta || json.data);
+              }
+              // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp cho mẫu khác)
+              const { repairedNodes: repairedFetchedNodes } = repairAndLockDecorativeNodes(fetchedNodes, templateId);
+              fetchedNodes = repairedFetchedNodes;
+              setNodes(fetchedNodes);
+              setHistory([fetchedNodes]);
+              setHistoryIndex(0);
+
+              if (json.data?.name) {
+                setTemplateName(json.data.name);
+              }
+
+              // Sync music from audioSettings, template nodes or metadata
+              if (json.data?.audioSettings?.fileUrl) {
+                setCurrentMusic({
+                  title: json.data.audioSettings.musicTitle || "Bản nhạc cưới",
+                  url: json.data.audioSettings.fileUrl,
+                });
+              } else if (fetchedNodes["ROOT"]?.props?.musicUrl) {
+                setCurrentMusic({
+                  title: fetchedNodes["ROOT"].props.musicTitle || "Bản nhạc cưới",
+                  url: fetchedNodes["ROOT"].props.musicUrl,
+                });
+              } else if (foundMeta?.musicUrl) {
+                setCurrentMusic({
+                  title: foundMeta.musicName || "Thiên đường với người thương",
+                  url: foundMeta.musicUrl,
+                });
+              }
+
+              // Select initial photo element - chọn đúng ảnh chân dung đầu tiên từ trên xuống của chính template
+              const realSlots = getRealWeddingPhotoSlots(fetchedNodes, templateId);
+              const targetPhotoNode = realSlots[0]
+                ? [realSlots[0].id, fetchedNodes[realSlots[0].id]]
+                : Object.entries(fetchedNodes).find(
+                    ([id, n]: [string, any]) =>
+                      n.type?.resolvedName === "PhotoBox" &&
+                      (n.props?.isReplaceable || n.props?.previewKey)
+                  );
+
+              if (targetPhotoNode) {
+                const [id, node] = targetPhotoNode as [string, any];
+                setSelectedElement({
+                  id,
+                  type: "PhotoBox",
+                  props: node.props || {},
+                });
+              }
+
+              const initialPhotos = Array.from(
+                new Set(
+                  [
+                    foundMeta?.imageUrl || json.data?.thumbnail || "",
+                    ...extractImagesFromNodes(fetchedNodes),
+                    ...getSavedUploadedImages(),
+                  ].filter((u): u is string => Boolean(u) && typeof u === "string" && u.trim().length > 0)
+                )
+              );
+              if (initialPhotos.length > 0) {
+                setCardAlbum((prev) => (prev && prev.length > 0 ? prev : initialPhotos));
+              }
+              showToast(`✨ Đã nạp mẫu: "${foundMeta?.name || json.data?.name || templateName}"`);
+              return;
+            }
+          }
+        } catch (err) {
+          console.warn("Failed to fetch template API, using fallback preset:", err);
+        }
+
+        // Fallback: check stored or presets
+        const local = getStoredTemplateById(templateId) || getTemplateById(templateId);
+        if (local && isMounted) {
+          setTemplateName(local.title);
+          // Create basic nodes tree
+          const initialNodes: Record<string, any> = {
+            ROOT: {
+              type: { resolvedName: "Container" },
+              props: {
+                width: 500,
+                height: 4800,
+                backgroundColor: "#fffbfa",
+              },
             },
-          },
-          photo_hero: {
-            type: { resolvedName: "PhotoBox" },
-            props: {
-              top: 180,
-              left: 120,
-              width: 260,
-              height: 350,
-              imgKey: local.image,
-              isReplaceable: true,
-              zIndex: 10,
-              borderRadius: [16, 16, 16, 16],
+            photo_hero: {
+              type: { resolvedName: "PhotoBox" },
+              props: {
+                top: 180,
+                left: 120,
+                width: 260,
+                height: 350,
+                imgKey: local.image,
+                isReplaceable: true,
+                zIndex: 10,
+                borderRadius: [16, 16, 16, 16],
+              },
             },
-          },
-          text_title: {
-            type: { resolvedName: "TextBox" },
-            props: {
-              top: 560,
-              left: 50,
-              width: 400,
-              height: 60,
-              text: local.title,
-              fontSize: 36,
-              color: "#1c171a",
-              textAlign: "center",
-              zIndex: 12,
+            text_title: {
+              type: { resolvedName: "TextBox" },
+              props: {
+                top: 560,
+                left: 50,
+                width: 400,
+                height: 60,
+                text: local.title,
+                fontSize: 36,
+                color: "#1c171a",
+                textAlign: "center",
+                zIndex: 12,
+              },
             },
-          },
-        };
-        setNodes(initialNodes);
-        setHistory([initialNodes]);
-        setHistoryIndex(0);
-        setSelectedElement({
-          id: "photo_hero",
-          type: "PhotoBox",
-          props: initialNodes.photo_hero.props,
-        });
+          };
+          setNodes(initialNodes);
+          setHistory([initialNodes]);
+          setHistoryIndex(0);
+          setSelectedElement({
+            id: "photo_hero",
+            type: "PhotoBox",
+            props: initialNodes.photo_hero.props,
+          });
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingTemplate(false);
+        }
       }
     }
 
@@ -369,6 +473,21 @@ export default function DesignTemplatePage() {
     return () => {
       isMounted = false;
     };
+  }, [templateId]);
+
+  // Support browser Back/Forward navigation without full reload
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== "undefined") {
+        const segments = window.location.pathname.split("/").filter(Boolean);
+        const last = segments[segments.length - 1];
+        if (last && last !== templateId && last !== "design-template") {
+          setTemplateId(last);
+        }
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
   }, [templateId]);
 
   // Undo / Redo handlers
@@ -952,54 +1071,91 @@ export default function DesignTemplatePage() {
     const shiftAmount = widgetHeight + gap;
 
     let targetTop: number;
-    let shiftThresholdY: number | null = null;
+    let shiftThresholdY: number;
     const selectedNode = selectedElement ? nodes[selectedElement.id] : null;
 
     if (selectedNode) {
+      // 1. Có phần tử đang chọn: Chèn ngay bên dưới phần tử đang chọn
       const selTop = Number(selectedNode.props?.top ?? 0);
       const selHeight = Number(selectedNode.props?.height ?? 100);
       targetTop = selTop + selHeight + gap;
-      shiftThresholdY = selTop + (selHeight / 2);
+      shiftThresholdY = selTop + selHeight;
     } else {
-      const nonDecorativeNodes = Object.entries(nodes).filter(
-        ([id]) => id !== "ROOT" && !isDecorativeNode(id, nodes[id])
-      );
-      const maxBottom = nonDecorativeNodes.reduce((max, [, node]: [string, any]) => {
-        const top = Number(node?.props?.top ?? 0);
-        const h = Number(node?.props?.height ?? 100);
-        return Math.max(max, top + h);
-      }, 450);
-      targetTop = maxBottom + gap;
-    }
+      // 2. Không có phần tử nào đang chọn: Chèn vào vị trí trọng tâm hiện tại người dùng đang nhìn trên Canvas
+      let viewportCenterY = 400;
+      if (typeof document !== "undefined") {
+        const scrollArea = document.getElementById("canvas-main-scroll-area");
+        if (scrollArea) {
+          const currentZoom = zoomLevel || 1;
+          const visibleCenter = (scrollArea.scrollTop + (scrollArea.clientHeight / 2) - 80) / currentZoom;
+          if (visibleCenter > 50) {
+            viewportCenterY = Math.round(visibleCenter);
+          }
+        }
+      }
 
-    defaultProps.top = targetTop;
-    defaultProps.left = Math.max(0, Math.round((500 - (defaultProps.width || 420)) / 2));
+      const nonDecorativeNodes = Object.entries(nodes).filter(
+        ([id, n]) => id !== "ROOT" && !isDecorativeNode(id, n)
+      );
+
+      const coveringNode = nonDecorativeNodes.find(([, n]) => {
+        const t = Number(n?.props?.top ?? 0);
+        const h = Number(n?.props?.height ?? 100);
+        return t <= viewportCenterY && (t + h) >= viewportCenterY;
+      });
+
+      if (coveringNode) {
+        const covTop = Number(coveringNode[1]?.props?.top ?? 0);
+        const covHeight = Number(coveringNode[1]?.props?.height ?? 100);
+        targetTop = covTop + covHeight + gap;
+        shiftThresholdY = covTop + covHeight;
+      } else {
+        const nodesAboveCenter = nonDecorativeNodes.filter(
+          ([, n]) => Number(n.props?.top ?? 0) + Number(n.props?.height ?? 100) <= viewportCenterY
+        );
+
+        if (nodesAboveCenter.length > 0) {
+          const maxBottomAbove = nodesAboveCenter.reduce((max, [, n]) => {
+            const b = Number(n.props?.top ?? 0) + Number(n.props?.height ?? 100);
+            return Math.max(max, b);
+          }, 0);
+          targetTop = Math.max(viewportCenterY - Math.round(widgetHeight / 2), maxBottomAbove + gap);
+        } else {
+          targetTop = Math.max(100, viewportCenterY - Math.round(widgetHeight / 2));
+        }
+        shiftThresholdY = targetTop;
+      }
+    }
 
     const newNode = {
       type: { resolvedName: widgetType },
-      props: { ...defaultProps, ...(customProps || {}) },
+      props: {
+        ...defaultProps,
+        ...(customProps || {}),
+        top: targetTop,
+        left: Math.max(0, Math.round((500 - (defaultProps.width || 420)) / 2)),
+      },
     };
 
     setNodes((prev) => {
       const newNodes = { ...prev };
 
-      // Đẩy tất cả các phần tử ở phía dưới xuống dưới
-      if (shiftThresholdY !== null) {
-        Object.keys(newNodes).forEach((id) => {
-          if (id === "ROOT") return;
-          const node = newNodes[id];
-          const top = Number(node.props?.top ?? 0);
-          if (top >= shiftThresholdY!) {
-            newNodes[id] = {
-              ...node,
-              props: {
-                ...node.props,
-                top: top + shiftAmount,
-              },
-            };
-          }
-        });
-      }
+      // Tự động đẩy tất cả các phần tử ở phía dưới xuống dưới
+      Object.keys(newNodes).forEach((id) => {
+        if (id === "ROOT") return;
+        if (selectedElement && id === selectedElement.id) return;
+        const node = newNodes[id];
+        const top = Number(node.props?.top ?? 0);
+        if (top >= shiftThresholdY) {
+          newNodes[id] = {
+            ...node,
+            props: {
+              ...node.props,
+              top: top + shiftAmount,
+            },
+          };
+        }
+      });
 
       // Nới rộng chiều cao tổng của Canvas (ROOT)
       if (newNodes["ROOT"]) {
@@ -1016,13 +1172,14 @@ export default function DesignTemplatePage() {
       newNodes[newId] = newNode;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: widgetType, props: newNode.props });
+      setSelectedFixedModuleId(null);
       return newNodes;
     });
 
     if (selectedNode) {
-      showToast(`✨ Đã chèn tiện ích bên dưới và tự động đẩy bố cục phía sau xuống!`);
+      showToast(`✨ Đã chèn tiện ích bên dưới phần tử đang chọn và tự động đẩy bố cục phía sau xuống!`);
     } else {
-      showToast(`✨ Đã chèn tiện ích vào thiệp!`);
+      showToast(`✨ Đã chèn tiện ích vào vị trí đang xem và tự động đẩy bố cục phía dưới xuống!`);
     }
 
     setTimeout(() => {
@@ -1030,7 +1187,7 @@ export default function DesignTemplatePage() {
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 100);
+    }, 120);
   };
 
   // Add styled module preset with smart magnetic alignment & vertical layout reflow
@@ -1045,32 +1202,88 @@ export default function DesignTemplatePage() {
     const targetLeft = Math.max(0, Math.round((500 - width) / 2));
 
     // Smart positioning & vertical reflow:
-    // Nếu có phần tử đang chọn: chèn ngay bên dưới phần tử đó, đẩy toàn bộ các phần tử phía sau xuống dưới!
+    // 1. Nếu có phần tử đang chọn: chèn ngay bên dưới phần tử đó, đẩy toàn bộ các phần tử phía sau xuống dưới!
+    // 2. Nếu không có phần tử đang chọn: chèn vào vị trí trọng tâm hiện tại người dùng đang nhìn trên Canvas!
     let targetTop: number;
-    let shiftThresholdY: number | null = null;
+    let shiftThresholdY: number;
     const selectedNode = selectedElement ? nodes[selectedElement.id] : null;
 
     if (selectedNode) {
       const selTop = Number(selectedNode.props?.top ?? 0);
       const selHeight = Number(selectedNode.props?.height ?? 100);
       targetTop = selTop + selHeight + gap;
-      shiftThresholdY = selTop + (selHeight / 2);
+      shiftThresholdY = selTop + selHeight;
     } else {
+      let viewportCenterY = 400;
+      if (typeof document !== "undefined") {
+        const scrollArea = document.getElementById("canvas-main-scroll-area");
+        if (scrollArea) {
+          const currentZoom = zoomLevel || 1;
+          const visibleCenter = (scrollArea.scrollTop + (scrollArea.clientHeight / 2) - 80) / currentZoom;
+          if (visibleCenter > 50) {
+            viewportCenterY = Math.round(visibleCenter);
+          }
+        }
+      }
+
       const nonDecorativeNodes = Object.entries(nodes).filter(
-        ([id]) => id !== "ROOT" && !isDecorativeNode(id, nodes[id])
+        ([id, n]) => id !== "ROOT" && !isDecorativeNode(id, n)
       );
-      const maxBottom = nonDecorativeNodes.reduce((max, [, node]: [string, any]) => {
-        const top = Number(node?.props?.top ?? 0);
-        const h = Number(node?.props?.height ?? 100);
-        return Math.max(max, top + h);
-      }, 450);
-      targetTop = maxBottom + gap;
+
+      const coveringNode = nonDecorativeNodes.find(([, n]) => {
+        const t = Number(n?.props?.top ?? 0);
+        const h = Number(n?.props?.height ?? 100);
+        return t <= viewportCenterY && (t + h) >= viewportCenterY;
+      });
+
+      if (coveringNode) {
+        const covTop = Number(coveringNode[1]?.props?.top ?? 0);
+        const covHeight = Number(coveringNode[1]?.props?.height ?? 100);
+        targetTop = covTop + covHeight + gap;
+        shiftThresholdY = covTop + covHeight;
+      } else {
+        const nodesAboveCenter = nonDecorativeNodes.filter(
+          ([, n]) => Number(n.props?.top ?? 0) + Number(n.props?.height ?? 100) <= viewportCenterY
+        );
+
+        if (nodesAboveCenter.length > 0) {
+          const maxBottomAbove = nodesAboveCenter.reduce((max, [, n]) => {
+            const b = Number(n.props?.top ?? 0) + Number(n.props?.height ?? 100);
+            return Math.max(max, b);
+          }, 0);
+          targetTop = Math.max(viewportCenterY - Math.round(height / 2), maxBottomAbove + gap);
+        } else {
+          targetTop = Math.max(100, viewportCenterY - Math.round(height / 2));
+        }
+        shiftThresholdY = targetTop;
+      }
     }
+
+    const effect = preset.blockEffect;
+    const defaultTransition = effect
+      ? {
+          effectEnabled: true,
+          effectType: effect.entranceEffect,
+          effectDuration: effect.entranceDuration,
+          effectDelay: effect.entranceDelay || 0,
+          effectEasing: "cubic-bezier(0.16, 1, 0.3, 1)",
+        }
+      : { effectEnabled: true, effectType: "fadeInUp", effectDuration: 1.2 };
+
+    const defaultContinuous = effect
+      ? {
+          type: effect.continuousEffect,
+          duration: effect.continuousDuration || 3.0,
+          delay: 0,
+        }
+      : { type: "none", duration: 3, delay: 0 };
 
     const newNode = {
       type: { resolvedName: preset.type },
       props: {
         ...preset.defaultProps,
+        transition: preset.defaultProps?.transition || defaultTransition,
+        continuousAnimation: preset.defaultProps?.continuousAnimation || defaultContinuous,
         left: targetLeft,
         top: targetTop,
         width,
@@ -1083,22 +1296,21 @@ export default function DesignTemplatePage() {
       const newNodes = { ...prev };
 
       // Tự động đẩy tất cả các layout/phần tử nằm phía dưới xuống dưới
-      if (shiftThresholdY !== null) {
-        Object.keys(newNodes).forEach((id) => {
-          if (id === "ROOT") return;
-          const node = newNodes[id];
-          const top = Number(node.props?.top ?? 0);
-          if (top >= shiftThresholdY!) {
-            newNodes[id] = {
-              ...node,
-              props: {
-                ...node.props,
-                top: top + shiftAmount,
-              },
-            };
-          }
-        });
-      }
+      Object.keys(newNodes).forEach((id) => {
+        if (id === "ROOT") return;
+        if (selectedElement && id === selectedElement.id) return;
+        const node = newNodes[id];
+        const top = Number(node.props?.top ?? 0);
+        if (top >= shiftThresholdY) {
+          newNodes[id] = {
+            ...node,
+            props: {
+              ...node.props,
+              top: top + shiftAmount,
+            },
+          };
+        }
+      });
 
       // Nới rộng chiều cao tổng của Canvas (ROOT) để không bị cắt cụt
       if (newNodes["ROOT"]) {
@@ -1115,13 +1327,14 @@ export default function DesignTemplatePage() {
       newNodes[newId] = newNode;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: preset.type, props: newNode.props });
+      setSelectedFixedModuleId(null);
       return newNodes;
     });
 
     if (selectedNode) {
-      showToast(`✨ Đã chèn khối "${preset.name}" bên dưới và tự động đẩy bố cục phía sau xuống!`);
+      showToast(`✨ Đã chèn khối "${preset.name}" bên dưới phần tử đang chọn và tự động đẩy bố cục phía sau xuống!`);
     } else {
-      showToast(`✨ Đã chèn khối "${preset.name}" vào thiệp!`);
+      showToast(`✨ Đã chèn khối "${preset.name}" vào vị trí đang xem và tự động đẩy bố cục phía dưới xuống!`);
     }
 
     setTimeout(() => {
@@ -1129,7 +1342,7 @@ export default function DesignTemplatePage() {
       if (element) {
         element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
-    }, 100);
+    }, 120);
   };
 
   // 1-Click theme preset applicator
@@ -1169,9 +1382,33 @@ export default function DesignTemplatePage() {
     });
   };
 
-  // Switch template
+  // Switch template in-place without reloading the entire page
   const handleSelectTemplate = (tpl: ZenLoveTemplate) => {
-    router.push(`/design-template/${tpl.id}`);
+    try {
+      weddingSounds.playSoftClick();
+    } catch {}
+
+    if (tpl.id === templateId) {
+      showToast(`Mẫu "${tpl.name}" đang được mở`);
+      return;
+    }
+
+    // 1. Cập nhật URL trình duyệt (SPA Navigation) mà không reload toàn bộ trang
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", `/design-template/${tpl.id}`);
+    }
+
+    // 2. Kích hoạt state templateId để nạp dữ liệu template mới
+    setTemplateId(tpl.id);
+    setCurrentZenloveTemplate(tpl);
+    setTemplateName(tpl.name);
+    setSelectedFixedModuleId(null);
+
+    // 3. Giữ nguyên tab "Mẫu thiệp" và mở Left Drawer
+    setActiveLeftTab("templates");
+    setIsLeftDrawerOpen(true);
+
+    showToast(`✨ Đang nạp mẫu: "${tpl.name}"...`);
   };
 
   // Quick replace photo from floating bottom bar
@@ -1188,12 +1425,13 @@ export default function DesignTemplatePage() {
   };
 
   // Operational Card Builder - Extract couple info, photos, and current customized canvas nodes
-  const buildCardFromCurrentState = () => {
+  function buildCardFromCurrentState(customNodesOverride?: Record<string, any>) {
     const slug = templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId;
     const existing = getCardByIdOrSlug(templateId) || getCardByIdOrSlug(slug);
+    const activeNodes = customNodesOverride || nodes;
 
     // Trích xuất thông tin thực tế từ template nodes và metadata
-    const extracted = extractWeddingDetailsFromTemplate(nodes, currentZenloveTemplate);
+    const extracted = extractWeddingDetailsFromTemplate(activeNodes, currentZenloveTemplate);
 
     let groomName = existing?.groom?.name || extracted.groomName;
     let brideName = existing?.bride?.name || extracted.brideName;
@@ -1210,7 +1448,7 @@ export default function DesignTemplatePage() {
       extracted.coverImage ||
       "";
 
-    const photoNodes = Object.values(nodes).filter(
+    const photoNodes = Object.values(activeNodes).filter(
       (n: any) => n.type?.resolvedName === "PhotoBox" && n.props?.imgKey
     );
     if (photoNodes.length > 0) {
@@ -1290,6 +1528,8 @@ export default function DesignTemplatePage() {
       showCalendar: base?.showCalendar !== undefined ? base.showCalendar : (existing?.showCalendar !== undefined ? existing.showCalendar : true),
       showEvents: base?.showEvents !== undefined ? base.showEvents : (existing?.showEvents !== undefined ? existing.showEvents : true),
       showLoveStory: base?.showLoveStory !== undefined ? base.showLoveStory : (existing?.showLoveStory !== undefined ? existing.showLoveStory : true),
+      showAlbum: base?.showAlbum !== undefined ? base.showAlbum : (existing?.showAlbum !== undefined ? existing.showAlbum : true),
+      loveStory: base?.loveStory || existing?.loveStory || DEFAULT_LOVE_STORY,
       groom: {
         userId: currentUserId,
         name: base?.groom?.name || groomName,
@@ -1350,7 +1590,9 @@ export default function DesignTemplatePage() {
       rsvps: existing?.rsvps || [],
       wishes: existing?.wishes || [],
       fixedModuleStyles: base?.fixedModuleStyles || existing?.fixedModuleStyles,
-      nodes,
+      ambientEffect: effectConfig.type,
+      effectConfig: effectConfig,
+      nodes: activeNodes,
     };
 
     return cardToSave;
@@ -1367,26 +1609,31 @@ export default function DesignTemplatePage() {
         coverImage: newAlbum[0] || base.coverImage,
       };
     });
-    setIsSaved(false);
+    triggerDebouncedAutosave();
   };
 
   // Manual Save Handler - Saves current state and syncs to Supabase server
   const handleManualSave = async () => {
-    if (!isAuthenticated) {
-      openLoginModal("Vui lòng đăng nhập để lưu bản thiết kế thiệp cưới", {
-        type: "clone_template",
-        templateId,
-      });
-      return;
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
     }
     const card = buildCardFromCurrentState();
-    setIsSaved(false);
+    setSaveStatus("saving");
+    saveCard(card);
+
+    if (!isAuthenticated) {
+      setSaveStatus("offline");
+      showToast("💾 Đã lưu cục bộ trên thiết bị của bạn!");
+      return;
+    }
+
     showToast("⏳ Đang lưu bản thiết kế lên máy chủ...");
     const res = await saveCardAsync(card);
-    setIsSaved(true);
     if (res.success) {
+      setSaveStatus("saved");
       showToast("💾 Đã lưu và đồng bộ lên máy chủ thành công!");
     } else {
+      setSaveStatus("offline");
       showToast("💾 Đã lưu tạm thời trên máy (Ngoại tuyến)!");
     }
   };
@@ -1405,13 +1652,13 @@ export default function DesignTemplatePage() {
       setNodes(updatedCard.nodes);
       pushHistory(updatedCard.nodes);
     }
-    setIsSaved(false);
+    setSaveStatus("saving");
     showToast("⏳ Đang lưu cài đặt lên máy chủ...");
     if (updatedCard.templateName) {
       setTemplateName(updatedCard.templateName);
     }
     const res = await saveCardAsync(updatedCard);
-    setIsSaved(true);
+    setSaveStatus(res.success ? "saved" : "offline");
     if (res.success) {
       showToast("⚙️ Đã lưu cài đặt thông tin thiệp & Hộp mừng lên máy chủ!");
     } else {
@@ -1424,12 +1671,12 @@ export default function DesignTemplatePage() {
     const card = buildCardFromCurrentState();
     saveCard(card);
     saveCardAsync(card).catch(() => {});
-    setIsSaved(true);
     setIsLivePreviewOpen(true);
   };
 
   // Publish Handler - Saves card, syncs to server and opens shareable QR code publish modal
   const handlePublish = async () => {
+    if (isPublishing) return;
     if (!isAuthenticated) {
       openLoginModal("Vui lòng đăng nhập để xuất bản và chia sẻ thiệp cưới", {
         type: "clone_template",
@@ -1451,15 +1698,21 @@ export default function DesignTemplatePage() {
   };
 
   const proceedPublish = async (cardToPublish?: WeddingCard) => {
+    if (isPublishing) return;
+    setIsPublishing(true);
     const card = cardToPublish || buildCardFromCurrentState();
     setCustomCardData(card);
-    setIsSaved(false);
+    setSaveStatus("saving");
     showToast("⏳ Đang chuẩn bị xuất bản thiệp...");
     setIsPublishModalOpen(true);
-    const res = await saveCardAsync(card);
-    setIsSaved(true);
-    if (res.success) {
-      showToast("🚀 Thiệp đã sẵn sàng chia sẻ trực tuyến!");
+    try {
+      const res = await saveCardAsync(card);
+      setSaveStatus(res.success ? "saved" : "offline");
+      if (res.success) {
+        showToast("🚀 Thiệp đã sẵn sàng chia sẻ trực tuyến!");
+      }
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -1511,6 +1764,60 @@ export default function DesignTemplatePage() {
     }
   };
 
+  // Export JSON backup for design preservation
+  const handleExportJsonBackup = () => {
+    try {
+      const currentCard = buildCardFromCurrentState();
+      const backupData = {
+        version: "zenlove-v1",
+        exportedAt: new Date().toISOString(),
+        templateId,
+        templateName,
+        card: currentCard,
+        nodes,
+      };
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `zenlove-backup-${(templateName || "thiep-cuoi").replace(/\s+/g, "-")}-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast("💾 Đã tải file sao lưu thiết kế (.json) thành công!");
+    } catch (err) {
+      console.error(err);
+      showToast("Không thể tải file sao lưu, vui lòng thử lại.");
+    }
+  };
+
+  // Restore design from JSON backup
+  const handleImportJsonBackup = (jsonData: any) => {
+    try {
+      if (!jsonData || typeof jsonData !== "object") {
+        throw new Error("Dữ liệu sao lưu không hợp lệ");
+      }
+      const importedNodes = jsonData.nodes || jsonData.card?.nodes;
+      if (importedNodes && typeof importedNodes === "object") {
+        setNodes(importedNodes);
+        pushHistory(importedNodes);
+      }
+      if (jsonData.card) {
+        setCustomCardData(jsonData.card);
+      }
+      if (jsonData.templateName) {
+        setTemplateName(jsonData.templateName);
+      }
+      triggerDebouncedAutosave();
+      showToast("✨ Đã khôi phục thiết kế từ file sao lưu thành công!");
+    } catch (err) {
+      console.error(err);
+      showToast("Lỗi: File JSON không đúng định dạng sao lưu ZenLove!");
+    }
+  };
+
   const handleToggleFixedModuleCanvas = (key: keyof WeddingCard, value: boolean) => {
     setCustomCardData((prev) => {
       const base = prev || buildCardFromCurrentState();
@@ -1559,6 +1866,9 @@ export default function DesignTemplatePage() {
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
         onOpenSettings={() => setIsSettingsModalOpen(true)}
         isSaved={isSaved}
+        saveStatus={saveStatus}
+        isPublishing={isPublishing}
+        onRetrySave={handleManualSave}
       />
 
       {/* ================= 2. WORKSPACE BODY (Rail + Drawer + Canvas + Inspector) ================= */}
@@ -1589,7 +1899,7 @@ export default function DesignTemplatePage() {
           }}
           onOpenAutoFillModal={() => setIsAutoFillModalOpen(true)}
           onApplyAutoFill={handleApplyAutoFill}
-          onSelectElement={(el) => setSelectedElement(el)}
+          onSelectElement={handleSelectElement}
           onRepairDecorations={handleRepairDecorations}
           onDuplicateElement={handleDuplicateElement}
           onDeleteElement={handleDeleteElement}
@@ -1607,24 +1917,51 @@ export default function DesignTemplatePage() {
           onRemoveBackground={handleRemoveBackground}
           onOpenManualCutout={handleOpenManualCutout}
           isRemovingBackground={isRemovingBg}
+          onExportPng={handleExportCardImage}
+          onExportJson={handleExportJsonBackup}
+          onImportJson={handleImportJsonBackup}
           currentMusic={currentMusic}
           onChangeMusic={handleChangeMusic}
           onAddWidget={handleAddWidget}
           onAddModulePreset={handleAddModulePreset}
+          currentTemplateId={templateId}
+          isLoadingTemplate={isLoadingTemplate}
           onSelectTemplate={handleSelectTemplate}
           onApplyThemePreset={handleApplyThemePreset}
           onOpenSettings={() => {
             setActiveLeftTab("widgets");
             setIsLeftDrawerOpen(true);
           }}
-          onOpenModuleConfig={(modId) => setActiveFixedModuleConfigId(modId as FixedModuleId)}
+          onOpenModuleConfig={handleSelectFixedModule}
+          onSelectFixedModule={handleSelectFixedModule}
+          currentEffectConfig={effectConfig}
+          onChangeEffectConfig={(newConf) => {
+            setEffectConfig(newConf);
+            setCustomCardData((prev) => {
+              const base = prev || buildCardFromCurrentState();
+              return {
+                ...base,
+                ambientEffect: newConf.type,
+                effectConfig: newConf,
+              };
+            });
+            triggerDebouncedAutosave();
+          }}
+          onToggleEffect={(effName) => {
+            setEffectConfig((prev) => ({
+              ...prev,
+              type: effName as any,
+              enabled: true,
+            }));
+            triggerDebouncedAutosave();
+          }}
         />
 
         {/* Center Canvas (Blueprint Grid + Mobile Viewport + Bounding Box) */}
         <EditorCanvas
           nodes={nodes}
           selectedElement={selectedElement}
-          onSelectElement={(el) => setSelectedElement(el)}
+          onSelectElement={handleSelectElement}
           onUpdateElementProps={handleUpdateProps}
           onDeleteElement={handleDeleteElement}
           onDuplicateElement={handleDuplicateElement}
@@ -1651,13 +1988,28 @@ export default function DesignTemplatePage() {
           }}
           onToggleFixedModule={handleToggleFixedModuleCanvas}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
-          onOpenModuleConfig={(modId) => setActiveFixedModuleConfigId(modId)}
+          onOpenModuleConfig={handleSelectFixedModule}
+          selectedFixedModuleId={selectedFixedModuleId}
+          onSelectFixedModule={handleSelectFixedModule}
+          effectConfig={effectConfig}
         />
 
         {/* Right Properties Inspector (Settings & Effects tabs) */}
         <EditorRightInspector
           selectedElement={selectedElement}
           onUpdateProps={handleUpdateProps}
+          selectedFixedModuleId={selectedFixedModuleId}
+          card={customCardData || buildCardFromCurrentState()}
+          onUpdateCard={(updated) => {
+            setCustomCardData(updated);
+            triggerDebouncedAutosave();
+          }}
+          onToggleFixedModule={handleToggleFixedModuleCanvas}
+          onCloseFixedModule={() => setSelectedFixedModuleId(null)}
+          onOpenAlbumDrawer={() => {
+            setActiveLeftTab("image");
+            setIsLeftDrawerOpen(true);
+          }}
           onReplaceImage={() => {
             setActiveLeftTab("image");
             setIsLeftDrawerOpen(true);
@@ -1680,6 +2032,17 @@ export default function DesignTemplatePage() {
               return next;
             });
             showToast(`🌊 Đã tạo hiệu ứng so le (${stepDelay}s) cho toàn bộ thiệp!`);
+          }}
+          onOpenTab={(tab) => {
+            setActiveLeftTab(tab);
+            setIsLeftDrawerOpen(true);
+          }}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenPreview={handlePreview}
+          onPublish={handlePublish}
+          onDeselectElement={() => {
+            setSelectedElement(null);
+            setSelectedFixedModuleId(null);
           }}
         />
       </div>
@@ -1747,6 +2110,17 @@ export default function DesignTemplatePage() {
         warnings={publishWarnings}
         onOpenAutoFill={() => setIsAutoFillModalOpen(true)}
         onProceedPublish={() => proceedPublish()}
+        onFixWarning={(type) => {
+          if (type === "photo") {
+            setActiveLeftTab("image");
+            setIsLeftDrawerOpen(true);
+          } else if (type === "qr") {
+            setIsSettingsModalOpen(true);
+          } else {
+            setActiveLeftTab("autofill");
+            setIsLeftDrawerOpen(true);
+          }
+        }}
       />
 
       {/* 6. MANUAL BACKGROUND CUTOUT & REFINEMENT MODAL */}
@@ -1768,7 +2142,7 @@ export default function DesignTemplatePage() {
       />
 
       {/* 8. AUTH GUARD OVERLAY FOR STUDIO CANVAS */}
-      {isClientMounted && !isAuthenticated && (
+      {isClientMounted && !isAuthenticated && !hasDismissedAuthGuard && (
         <div className="fixed inset-0 z-[99999] bg-black/80 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
           <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 text-center shadow-2xl border border-gray-100 animate-scale-up">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-rose-100 to-rose-50 text-zen-primary flex items-center justify-center mx-auto mb-4 text-3xl shadow-inner font-bold">
@@ -1798,8 +2172,16 @@ export default function DesignTemplatePage() {
 
               <button
                 type="button"
+                onClick={() => setHasDismissedAuthGuard(true)}
+                className="w-full py-3 px-6 rounded-full bg-rose-50 hover:bg-rose-100 text-zen-primary font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <span>✨ Trải nghiệm thiết kế thử ngay</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => router.push("/templates")}
-                className="w-full py-3 px-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs transition-colors cursor-pointer"
+                className="w-full py-2.5 px-6 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold text-xs transition-colors cursor-pointer"
               >
                 Quay lại kho mẫu thiệp
               </button>

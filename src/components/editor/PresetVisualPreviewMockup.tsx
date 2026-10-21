@@ -27,15 +27,38 @@ interface PresetVisualPreviewMockupProps {
 }
 
 export default function PresetVisualPreviewMockup({ preset }: PresetVisualPreviewMockupProps) {
+  const continuousAnim = preset.blockEffect?.continuousEffect;
+  const hoverAnimClass =
+    continuousAnim === "float"
+      ? "group-hover:animate-zen-float"
+      : continuousAnim === "pulse"
+      ? "group-hover:animate-zen-pulse"
+      : continuousAnim === "shake"
+      ? "group-hover:animate-zen-shake"
+      : continuousAnim === "wobble"
+      ? "group-hover:animate-zen-wobble"
+      : continuousAnim === "bounce"
+      ? "group-hover:animate-zen-bounce"
+      : continuousAnim === "wiggle"
+      ? "group-hover:animate-zen-wiggle"
+      : "";
+
   // 1. Nếu preset có ảnh preview URL trực tiếp
   if (preset.previewImage) {
     return (
-      <div className="w-full h-26 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 relative group-hover:border-rose-400 transition-all">
+      <div className={`w-full h-26 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 relative group-hover:border-rose-400 transition-all ${hoverAnimClass}`}>
         <img
           src={preset.previewImage}
           alt={preset.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
+        {/* Badge hiệu ứng của khối riêng */}
+        {preset.blockEffect && (
+          <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xs text-white text-[9px] font-medium px-2 py-0.5 rounded-full shadow-xs border border-white/20 pointer-events-none">
+            <Sparkles className="w-2.5 h-2.5 text-amber-300 animate-pulse shrink-0" />
+            <span className="truncate max-w-[150px]">{preset.blockEffect.badgeLabel}</span>
+          </div>
+        )}
       </div>
     );
   }
@@ -43,9 +66,16 @@ export default function PresetVisualPreviewMockup({ preset }: PresetVisualPrevie
   // 2. Render Mockup đồ họa trực quan theo từng Category & ID
   return (
     <div
-      className="w-full h-26 rounded-xl overflow-hidden border border-gray-200/90 relative bg-white flex flex-col justify-between shadow-2xs group-hover:border-rose-400 group-hover:shadow-xs transition-all select-none"
+      className={`w-full h-26 rounded-xl overflow-hidden border border-gray-200/90 relative bg-white flex flex-col justify-between shadow-2xs group-hover:border-rose-400 group-hover:shadow-xs transition-all select-none ${hoverAnimClass}`}
       title={preset.description || preset.name}
     >
+      {/* Badge hiệu ứng của khối riêng */}
+      {preset.blockEffect && (
+        <div className="absolute top-1.5 right-1.5 z-20 flex items-center gap-1 bg-black/70 backdrop-blur-xs text-white text-[9px] font-medium px-2 py-0.5 rounded-full shadow-xs border border-white/20 pointer-events-none">
+          <Sparkles className="w-2.5 h-2.5 text-amber-300 animate-pulse shrink-0" />
+          <span className="truncate max-w-[150px]">{preset.blockEffect.badgeLabel}</span>
+        </div>
+      )}
       {renderCategoryMockup(preset)}
     </div>
   );
@@ -67,6 +97,8 @@ function renderCategoryMockup(preset: ModulePresetItem) {
       return renderRsvpMockup(preset);
     case "dresscode":
       return renderDresscodeMockup(preset);
+    case "lovestory":
+      return renderLoveStoryMockup(preset);
     case "intro":
       return renderIntroMockup(preset);
     default:
@@ -383,6 +415,20 @@ function renderCalendarMockup(preset: ModulePresetItem) {
     );
   }
 
+  if (preset.id === "calendar_style_handcrafted_grid") {
+    return (
+      <div className="w-full h-full p-2 bg-[#590310] text-[#ece4d8] rounded-xl flex flex-col justify-between items-center text-center border border-[#ecd4a6]/40 select-none">
+        <span className="text-[8px] font-bold tracking-widest text-[#ecd4a6] uppercase">VÀO LÚC 11:30</span>
+        <div className="flex items-center justify-center gap-2 my-auto">
+          <span className="text-[9px] font-bold uppercase border-y border-[#ecd4a6]/30 px-1 py-0.5">CHỦ NHẬT</span>
+          <span className="text-3xl font-black font-serif text-[#ffd700] leading-none">29</span>
+          <span className="text-[9px] font-bold uppercase border-y border-[#ecd4a6]/30 px-1 py-0.5">THÁNG 12</span>
+        </div>
+        <span className="text-[7.5px] text-[#ece4d8]/80 italic">NĂM 2026 • (Tức ngày 11.11 âm lịch)</span>
+      </div>
+    );
+  }
+
   if (preset.id === "calendar_style_stamp") {
     return (
       <div className="w-full h-full bg-amber-50/40 p-2 border-2 border-dashed border-amber-400 rounded-xl flex items-center justify-between gap-2">
@@ -432,6 +478,49 @@ function renderCalendarMockup(preset: ModulePresetItem) {
 // C. HÔN LỄ & TIMELINE MOCKUPS
 // ==========================================
 function renderCeremonyMockup(preset: ModulePresetItem) {
+  if (preset.id === "ceremony_style_handcrafted_velvet") {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-[#590310] to-[#3a020a] text-[#ece4d8] p-2 rounded-xl flex flex-col justify-between text-center border border-[#ecd4a6]/40 select-none font-serif">
+        <div className="text-[8px] font-bold tracking-widest text-[#ecd4a6] uppercase">✦ THÔNG TIN LỄ CƯỚI ✦</div>
+        <div className="text-[10px] font-bold text-white">Đức Mạnh <span className="font-sans text-rose-300">&</span> Lệ Quyên</div>
+        <div className="grid grid-cols-3 items-center gap-1 bg-black/20 rounded-lg p-1 border border-white/10 my-auto text-[8px]">
+          <span className="font-semibold text-gray-200">CHỦ NHẬT</span>
+          <span className="text-xl font-black text-amber-300">29</span>
+          <span className="font-semibold text-gray-200">THÁNG 12</span>
+        </div>
+        <div className="text-[7.5px] text-[#ecd4a6]/80 truncate">Tư gia • 11:30 Trưa</div>
+      </div>
+    );
+  }
+
+  if (preset.id === "ceremony_style_banquet_reception") {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-slate-900 to-gray-950 text-white p-2 rounded-xl flex flex-col justify-between text-center border border-amber-400/40 select-none font-serif">
+        <div className="text-[8px] font-bold tracking-widest text-amber-300 uppercase">✦ TIỆC MỪNG HÔN LỄ ✦</div>
+        <div className="text-[9px] font-bold text-gray-200">ĐÓN KHÁCH: 16:30 • KHAI TIỆC: 17:30</div>
+        <div className="flex items-center justify-center gap-2 my-auto">
+          <span className="text-[8px] border-y border-amber-300/30 px-1 text-gray-300">CHỦ NHẬT</span>
+          <span className="text-2xl font-black text-amber-400">29</span>
+          <span className="text-[8px] border-y border-amber-300/30 px-1 text-gray-300">THÁNG 12</span>
+        </div>
+        <div className="text-[7.5px] text-amber-200/80 truncate">Trống Đồng Palace • Sảnh Diamond</div>
+      </div>
+    );
+  }
+
+  if (preset.id === "ceremony_style_artisan_parchment") {
+    return (
+      <div className="w-full h-full bg-[#fbf9f4] text-[#2c2420] p-2 rounded-xl flex flex-col justify-between text-center border-2 border-[#d4af37] select-none font-serif">
+        <div className="text-[8px] font-bold tracking-widest text-rose-800 uppercase">TRÂN TRỌNG KÍNH MỜI</div>
+        <div className="text-[11px] font-bold text-[#781d29]">Đức Mạnh & Lệ Quyên</div>
+        <div className="text-[9px] font-semibold text-gray-700 bg-white rounded border border-amber-200 py-0.5 px-2 mx-auto">
+          11:30 • 29.12.2026 (11.11 Âm lịch)
+        </div>
+        <div className="text-[7.5px] text-gray-600 truncate">Tại Trung Tâm Tiệc Cưới Trống Đồng Palace</div>
+      </div>
+    );
+  }
+
   if (preset.id === "ceremony_style_timeline" || preset.id === "ceremony_style_steps") {
     return (
       <div className="w-full h-full bg-gray-50/50 p-2 flex flex-col justify-between">
@@ -512,6 +601,29 @@ function renderCeremonyMockup(preset: ModulePresetItem) {
 // D. THÔNG TIN HAI HỌ MOCKUPS
 // ==========================================
 function renderFamilyMockup(preset: ModulePresetItem) {
+  if (preset.id === "family_style_handcrafted_linebox") {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-white to-amber-50/30 p-2 rounded-xl border border-amber-300/60 flex flex-col justify-between text-center select-none font-serif">
+        <div className="text-[8px] font-bold text-[#881337] tracking-widest uppercase">✦ ĐẠI DIỆN HAI DÒNG HỌ ✦</div>
+        <div className="grid grid-cols-2 divide-x divide-amber-300/40 text-[8px] my-auto">
+          <div className="px-1 text-left space-y-0.5">
+            <span className="font-bold text-blue-900 text-[8.5px]">NHÀ TRAI</span>
+            <p className="text-gray-600 truncate">Lê Văn Thắng</p>
+            <p className="text-gray-600 truncate">Ngô Thị Ân</p>
+            <p className="font-bold text-rose-800 truncate">CR: Đức Mạnh</p>
+          </div>
+          <div className="px-1 text-right space-y-0.5">
+            <span className="font-bold text-rose-900 text-[8.5px]">NHÀ GÁI</span>
+            <p className="text-gray-600 truncate">Trần Đức Tuấn</p>
+            <p className="text-gray-600 truncate">Trần Thị Nga</p>
+            <p className="font-bold text-rose-800 truncate">CD: Lệ Quyên</p>
+          </div>
+        </div>
+        <div className="text-[7.5px] text-gray-500 font-sans">Nghệ An • Trân trọng kính báo</div>
+      </div>
+    );
+  }
+
   const isTraditional = preset.id === "family_style_traditional";
 
   return (
@@ -562,6 +674,34 @@ function renderFamilyMockup(preset: ModulePresetItem) {
 // E. MỪNG CƯỚI & VIETQR MOCKUPS
 // ==========================================
 function renderBankingMockup(preset: ModulePresetItem) {
+  if (preset.id === "banking_style_red_envelope_pair") {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-[#881337] via-[#9f1239] to-[#881337] text-amber-100 p-2 rounded-xl border-2 border-amber-400 flex flex-col justify-between select-none">
+        <div className="flex items-center justify-between text-[8px] border-b border-amber-400/30 pb-0.5 font-bold font-serif">
+          <span>🧧 HỘP MỪNG CƯỚI SONG HỶ</span>
+          <span className="text-amber-300 bg-black/30 px-1 rounded">囍</span>
+        </div>
+        <div className="grid grid-cols-2 gap-1.5 my-auto">
+          <div className="bg-[#590310] border border-amber-400/40 rounded p-1 flex items-center gap-1">
+            <QrCode className="w-5 h-5 text-amber-300 shrink-0" />
+            <div className="min-w-0 text-[7px]">
+              <p className="font-bold text-white truncate">Nhà Trai (MB)</p>
+              <p className="font-mono text-amber-200 truncate">999988882026</p>
+            </div>
+          </div>
+          <div className="bg-[#590310] border border-amber-400/40 rounded p-1 flex items-center gap-1">
+            <QrCode className="w-5 h-5 text-amber-300 shrink-0" />
+            <div className="min-w-0 text-[7px]">
+              <p className="font-bold text-white truncate">Nhà Gái (VCB)</p>
+              <p className="font-mono text-amber-200 truncate">1028492049</p>
+            </div>
+          </div>
+        </div>
+        <div className="text-[7px] text-center text-amber-200/90 font-serif">VietQR Napas 24/7 tiện lợi</div>
+      </div>
+    );
+  }
+
   if (preset.id === "banking_style_card") {
     return (
       <div className="w-full h-full bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 p-2 text-amber-950 flex flex-col justify-between rounded-xl relative overflow-hidden shadow-2xs border border-amber-300">
@@ -702,6 +842,28 @@ function renderRsvpMockup(preset: ModulePresetItem) {
 // G. TRANG PHỤC CƯỚI DRESSCODE MOCKUPS
 // ==========================================
 function renderDresscodeMockup(preset: ModulePresetItem) {
+  if (preset.id === "dresscode_style_handcrafted_chic") {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-white to-amber-50/40 p-2 rounded-xl border border-amber-300/60 flex flex-col justify-between text-center select-none font-serif">
+        <div className="text-[8px] font-bold text-rose-900 tracking-wider uppercase">✦ QUY ĐỊNH TRANG PHỤC ✦</div>
+        <div className="flex items-center justify-center gap-2 my-auto">
+          {[
+            { c: "#D4AF37", l: "Gold" },
+            { c: "#511419", l: "Đỏ Đô" },
+            { c: "#D7CCB8", l: "Nude" },
+            { c: "#F5EBE6", l: "Ngà" },
+          ].map((item, i) => (
+            <div key={i} className="flex flex-col items-center gap-0.5">
+              <span className="w-4 h-4 rounded-full border border-gray-300 shadow-2xs" style={{ backgroundColor: item.c }} />
+              <span className="text-[7px] text-gray-600 font-sans">{item.l}</span>
+            </div>
+          ))}
+        </div>
+        <div className="text-[7.5px] text-gray-500 font-sans italic truncate">Nam: Suit/Sơ mi • Nữ: Váy dạ hội</div>
+      </div>
+    );
+  }
+
   if (preset.id === "dresscode_style_bw") {
     return (
       <div className="w-full h-full bg-slate-900 text-white p-2 flex flex-col justify-between">
@@ -767,9 +929,66 @@ function renderDresscodeMockup(preset: ModulePresetItem) {
 }
 
 // ==========================================
-// H. LỜI NGỎ & GIỚI THIỆU MOCKUPS
+// H. CHUYỆN TÌNH YÊU (LOVE STORY) MOCKUPS
+// ==========================================
+function renderLoveStoryMockup(preset: ModulePresetItem) {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-rose-50/80 via-white to-pink-50/80 p-2 rounded-xl border border-rose-200 flex flex-col justify-between select-none">
+      <div className="flex items-center justify-between text-[8px] font-bold text-rose-800 border-b border-rose-100 pb-0.5 font-serif">
+        <span className="flex items-center gap-1">
+          <Heart className="w-2.5 h-2.5 text-rose-500 fill-rose-500" />
+          <span>CHUYỆN TÌNH YÊU</span>
+        </span>
+        <span className="text-[7.5px] bg-rose-100 text-rose-700 px-1 rounded">4 Cột Mốc</span>
+      </div>
+      <div className="grid grid-cols-4 gap-1 my-auto text-center text-[7.5px]">
+        <div className="bg-white/90 border border-rose-100 rounded p-1 shadow-2xs">
+          <span className="font-bold text-rose-600">2023</span>
+          <p className="text-gray-600 truncate mt-0.5">Gặp gỡ</p>
+        </div>
+        <div className="bg-white/90 border border-rose-100 rounded p-1 shadow-2xs">
+          <span className="font-bold text-rose-600">2024</span>
+          <p className="text-gray-600 truncate mt-0.5">Hẹn ước</p>
+        </div>
+        <div className="bg-white/90 border border-rose-100 rounded p-1 shadow-2xs">
+          <span className="font-bold text-rose-600">2025</span>
+          <p className="text-gray-600 truncate mt-0.5">Cầu hôn</p>
+        </div>
+        <div className="bg-white/90 border border-rose-100 rounded p-1 shadow-2xs">
+          <span className="font-bold text-rose-600">2026</span>
+          <p className="text-gray-600 truncate mt-0.5">Chung đôi</p>
+        </div>
+      </div>
+      <div className="text-[7.5px] text-center text-rose-600 font-serif">Cùng nhau viết tiếp câu chuyện trăm năm</div>
+    </div>
+  );
+}
+
+// ==========================================
+// I. LỜI NGỎ & GIỚI THIỆU MOCKUPS
 // ==========================================
 function renderIntroMockup(preset: ModulePresetItem) {
+  if (preset.id === "intro_style_wax_envelope_hero") {
+    return (
+      <div className="w-full h-full bg-gradient-to-br from-[#700f2d] to-[#4a0519] text-[#ece4d8] p-2 rounded-xl border border-amber-300/40 flex flex-col justify-between text-center select-none font-serif">
+        <div className="text-[7.5px] font-bold tracking-widest text-[#ecd4a6] uppercase">✦ SAVE THE DATE ✦</div>
+        <div className="text-sm font-bold text-white">Đức Mạnh &amp; Lệ Quyên</div>
+        <div className="text-[8px] text-amber-200/90 italic my-auto">Bì thư sáp đỏ dập hoa hồng nổi</div>
+        <div className="text-[7.5px] text-amber-300/80">Trân trọng kính gửi quý quan khách</div>
+      </div>
+    );
+  }
+
+  if (preset.id === "intro_style_thankyou_handwritten") {
+    return (
+      <div className="w-full h-full bg-white p-2 rounded-xl border border-amber-200 flex flex-col justify-between text-center select-none font-serif">
+        <div className="font-serif text-lg font-bold text-[#881337] italic">Thank You</div>
+        <div className="text-[8px] text-gray-600 my-auto line-clamp-2">Cảm ơn Quý Khách đã đến chung vui cùng gia đình chúng tôi!</div>
+        <div className="text-[8px] font-bold text-[#881337] font-sans">Đức Mạnh &amp; Lệ Quyên</div>
+      </div>
+    );
+  }
+
   if (preset.id === "intro_style_monogram") {
     return (
       <div className="w-full h-full bg-gradient-to-br from-amber-50 to-white p-2 border border-amber-200 rounded-xl flex items-center justify-between gap-2">

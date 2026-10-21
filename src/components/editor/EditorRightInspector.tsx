@@ -10,6 +10,7 @@ import {
   RotateCw,
   Crop,
   Wand2,
+  X,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -70,6 +71,7 @@ import { compressImageToWebP } from "@/lib/imageCompression";
 import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import { getSafeImageUrl } from "@/lib/imageUtils";
 import { isDecorativeNode, isElementLocked } from "@/lib/decorativeLockService";
+import ModuleStyleVisualPreview from "./ModuleStyleVisualPreview";
 import {
   parseTimelineItems,
   generateTimelineHtml,
@@ -90,6 +92,10 @@ import {
   BankCardData,
 } from "@/lib/moduleHelpers";
 import { generateVietQrUrl, resolveBankCode } from "@/lib/vietQrBankCodes";
+import { WeddingCard } from "@/data/initialCards";
+import { FixedModuleId } from "./EditorFixedModuleEditModal";
+import FixedModuleInspector from "./FixedModuleInspector";
+import { UNIFIED_WEDDING_MODULES } from "@/lib/unifiedModulesRegistry";
 
 export interface SelectedElementData {
   id: string;
@@ -106,6 +112,17 @@ interface EditorRightInspectorProps {
   isRemovingBackground?: boolean;
   onApplyComboToAll?: (combo: AnimationCombo) => void;
   onApplyStaggerAll?: (stepDelay: number) => void;
+  selectedFixedModuleId?: FixedModuleId | null;
+  card?: WeddingCard | null;
+  onUpdateCard?: (updatedCard: WeddingCard) => void;
+  onToggleFixedModule?: (key: any, value: boolean) => void;
+  onCloseFixedModule?: () => void;
+  onOpenAlbumDrawer?: () => void;
+  onOpenTab?: (tab: import("./EditorLeftRail").EditorToolTab) => void;
+  onOpenSettings?: () => void;
+  onOpenPreview?: () => void;
+  onPublish?: () => void;
+  onDeselectElement?: () => void;
 }
 
 export default function EditorRightInspector({
@@ -117,8 +134,20 @@ export default function EditorRightInspector({
   isRemovingBackground = false,
   onApplyComboToAll,
   onApplyStaggerAll,
+  selectedFixedModuleId,
+  card,
+  onUpdateCard,
+  onToggleFixedModule,
+  onCloseFixedModule,
+  onOpenAlbumDrawer,
+  onOpenTab,
+  onOpenSettings,
+  onOpenPreview,
+  onPublish,
+  onDeselectElement,
 }: EditorRightInspectorProps) {
   const [activeTab, setActiveTab] = useState<"settings" | "effects">("settings");
+  const [widgetSubTab, setWidgetSubTab] = useState<"styles" | "content">("styles");
   const [effectGroup, setEffectGroup] = useState<AnimationGroup>("entrance");
   const [animMode, setAnimMode] = useState<AnimationMode>("entrance");
   const [animCategory, setAnimCategory] = useState<AnimationCategory>("all");
@@ -384,16 +413,206 @@ export default function EditorRightInspector({
     onUpdateProps(selectedElement.id, { imgList: currentList });
   };
 
-  if (!selectedElement) {
+  if (selectedFixedModuleId && card && onUpdateCard) {
     return (
-      <aside className="w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex flex-col z-30 select-none shrink-0 shadow-xs p-5 text-center justify-center">
-        <div className="w-12 h-12 rounded-2xl bg-gray-50 text-gray-400 flex items-center justify-center mx-auto mb-3">
-          <Settings className="w-6 h-6" />
+      <FixedModuleInspector
+        moduleId={selectedFixedModuleId}
+        card={card}
+        onUpdateCard={onUpdateCard}
+        onToggleModule={onToggleFixedModule}
+        onClose={onCloseFixedModule || (() => {})}
+        onOpenAlbumDrawer={onOpenAlbumDrawer}
+      />
+    );
+  }
+
+  if (!selectedElement) {
+    const groomName = card?.groom?.name || "";
+    const brideName = card?.bride?.name || "";
+    const hasInfo = Boolean(groomName && brideName && !groomName.toLowerCase().includes("chú rể"));
+    const hasAlbum = Boolean(card?.album && card.album.length > 0);
+    const hasMusic = Boolean(card?.musicUrl);
+
+    // Tính toán số bước đã hoàn thành (1 đến 5)
+    let completedSteps = 1; // 1. Mẫu đã chọn
+    if (hasInfo) completedSteps++;
+    if (hasAlbum) completedSteps++;
+    if (card?.groom?.bankName || card?.bride?.bankName) completedSteps++;
+    if (hasMusic) completedSteps++;
+    const progressPercent = Math.round((completedSteps / 5) * 100);
+
+    return (
+      <aside className="hidden lg:flex w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex-col z-30 select-none shrink-0 shadow-xs overflow-y-auto">
+        {/* Header Tổng quan thiệp cưới */}
+        <div className="p-4 border-b border-gray-100 bg-gradient-to-br from-rose-50/60 via-pink-50/30 to-white">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-[#e54153] flex items-center justify-center text-white shadow-2xs">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-xs font-bold text-gray-900 truncate">
+                {card?.name || card?.templateName || "Thiệp Cưới Tinh Tế"}
+              </h3>
+              <p className="text-[10px] text-gray-500">Trung tâm thiết kế & xuất bản</p>
+            </div>
+          </div>
+
+          {/* Thanh tiến độ hoàn thiện thiệp */}
+          <div className="mt-3 p-2.5 rounded-xl bg-white border border-rose-100 shadow-2xs">
+            <div className="flex items-center justify-between text-[11px] mb-1.5">
+              <span className="font-semibold text-gray-700">Tiến độ thiệp:</span>
+              <span className="font-bold text-[#e54153]">{progressPercent}%</span>
+            </div>
+            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-[#e54153] to-rose-400 rounded-full transition-all duration-500"
+                style={{ width: `${progressPercent}%` }}
+              />
+            </div>
+            <p className="text-[10px] text-gray-500 mt-1.5 leading-tight">
+              {progressPercent >= 80
+                ? "✨ Thiệp đã gần hoàn thiện! Hãy xem thử và xuất bản."
+                : "💡 Nhấn các nút bên dưới để nhanh chóng hoàn thành thiệp."}
+            </p>
+          </div>
         </div>
-        <h4 className="text-xs font-bold text-gray-800">Chưa chọn phần tử nào</h4>
-        <p className="text-[11px] text-gray-500 mt-1 max-w-[200px] mx-auto leading-relaxed">
-          Nhấn vào bất kỳ ảnh, chữ, khối hình hoặc tiện ích trên thiệp để tùy chỉnh chi tiết.
-        </p>
+
+        {/* Danh sách hành động ưu tiên (Quick Action Cards) */}
+        <div className="p-4 space-y-2.5 flex-1">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+            Các bước tạo thiệp nhanh
+          </span>
+
+          {/* Bước 1: Thông tin cưới */}
+          <button
+            type="button"
+            onClick={() => onOpenTab?.("autofill")}
+            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
+          >
+            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Users className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-800">1. Thông tin cưới</span>
+                {hasInfo ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <span className="text-[9px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded">Cần điền</span>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                {hasInfo ? `${groomName} & ${brideName}` : "Tên dâu rể, ngày cưới, địa điểm"}
+              </p>
+            </div>
+          </button>
+
+          {/* Bước 2: Thay ảnh cưới & Album */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenAlbumDrawer) onOpenAlbumDrawer();
+              else onOpenTab?.("image");
+            }}
+            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
+          >
+            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <ImageIcon className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-800">2. Thay ảnh & Album</span>
+                {hasAlbum ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                ) : (
+                  <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Gợi ý</span>
+                )}
+              </div>
+              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                {hasAlbum ? `Đã có ${card?.album?.length || 1} ảnh cưới` : "Tải ảnh thật lên thay ảnh mẫu"}
+              </p>
+            </div>
+          </button>
+
+          {/* Bước 3: Hộp mừng cưới VietQR */}
+          <button
+            type="button"
+            onClick={() => {
+              if (onOpenSettings) onOpenSettings();
+              else onOpenTab?.("widgets");
+            }}
+            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
+          >
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <QrCode className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-800">3. Hộp mừng VietQR</span>
+                <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Tự động QR</span>
+              </div>
+              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                Tài khoản ngân hàng mừng cưới 2 nhà
+              </p>
+            </div>
+          </button>
+
+          {/* Bước 4: Nhạc nền & Cánh hoa rơi */}
+          <button
+            type="button"
+            onClick={() => onOpenTab?.("effects")}
+            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
+          >
+            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-gray-800">4. Nhạc & Cánh hoa</span>
+                {hasMusic && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+              </div>
+              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+                {card?.musicTitle || "Bản nhạc cưới lãng mạn"}
+              </p>
+            </div>
+          </button>
+
+          {/* Mẹo hữu ích */}
+          <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100 text-gray-600 text-[11px] space-y-1 mt-4">
+            <span className="font-bold text-gray-800 flex items-center gap-1">
+              <span>💡</span>
+              <span>Mẹo thiết kế nhanh:</span>
+            </span>
+            <p className="text-[10px] text-gray-500 leading-relaxed">
+              Bạn có thể nhấp chuột trực tiếp vào bất kỳ dòng chữ hoặc bức ảnh nào trên thiệp để sửa nhanh font chữ, cỡ chữ hoặc thay thế ảnh ngay lập tức.
+            </p>
+          </div>
+        </div>
+
+        {/* Footer Actions: Xem thử & Xuất bản */}
+        <div className="p-4 border-t border-gray-100 bg-white space-y-2">
+          {onOpenPreview && (
+            <button
+              type="button"
+              onClick={onOpenPreview}
+              className="w-full py-2.5 px-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+            >
+              <Eye className="w-4 h-4 text-gray-500" />
+              <span>Xem Thử Thiệp (Điện Thoại)</span>
+            </button>
+          )}
+
+          {onPublish && (
+            <button
+              type="button"
+              onClick={onPublish}
+              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5268] hover:from-[#d93849] hover:to-[#e54153] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Xuất Bản Thiệp Cưới Ngay</span>
+            </button>
+          )}
+        </div>
       </aside>
     );
   }
@@ -487,7 +706,8 @@ export default function EditorRightInspector({
   };
 
   return (
-    <aside className="hidden lg:flex w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex-col z-30 select-none shrink-0 shadow-xs">
+    <>
+      <aside className="hidden lg:flex w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex-col z-30 select-none shrink-0 shadow-xs">
       {/* Top Tabs: Cài đặt | Hiệu ứng */}
       <div className="flex border-b border-gray-200 bg-gray-50/50 p-1 shrink-0">
         <button
@@ -521,6 +741,68 @@ export default function EditorRightInspector({
         {/* ================= TAB: CÀI ĐẶT (SETTINGS) ================= */}
         {activeTab === "settings" && (
           <div className="space-y-4">
+            {/* Thẻ hiển thị & Chạy thử Hiệu ứng của khối riêng */}
+            <div className="p-3 bg-gradient-to-br from-amber-50/80 via-rose-50/40 to-white border border-amber-200/80 rounded-2xl shadow-2xs space-y-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
+                  <span className="text-[11px] font-bold text-gray-800 uppercase tracking-wider">
+                    Hiệu ứng của khối
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("effects")}
+                  className="text-[10px] font-bold text-[#e54153] hover:text-rose-700 flex items-center gap-0.5 cursor-pointer"
+                >
+                  <span>Tùy biến</span>
+                  <ChevronRight className="w-3 h-3" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[10px]">
+                <div className="p-2 rounded-xl bg-white/90 border border-amber-100 flex flex-col gap-0.5 shadow-2xs">
+                  <span className="text-gray-400 font-medium">Xuất hiện:</span>
+                  <span className="font-bold text-gray-800 truncate">
+                    {props.transition?.effectType && props.transition.effectType !== "none"
+                      ? `${props.transition.effectType} (${props.transition.effectDuration || 1.2}s)`
+                      : "Mặc định (fadeInUp)"}
+                  </span>
+                </div>
+                <div className="p-2 rounded-xl bg-white/90 border border-amber-100 flex flex-col gap-0.5 shadow-2xs">
+                  <span className="text-gray-400 font-medium">Vòng lặp:</span>
+                  <span className="font-bold text-gray-800 truncate">
+                    {props.continuousAnimation?.type && props.continuousAnimation.type !== "none"
+                      ? `${props.continuousAnimation.type} (${props.continuousAnimation.duration || 3}s)`
+                      : "Tĩnh (None)"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateProps(id, { _previewKey: Date.now() });
+                    setIsPlayingPreview(true);
+                    setTimeout(() => setIsPlayingPreview(false), 900);
+                  }}
+                  className="flex-1 py-1.5 px-2.5 rounded-xl bg-white hover:bg-amber-50/80 border border-amber-200 text-amber-900 text-[11px] font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer active:scale-98"
+                >
+                  <Play className={`w-3 h-3 text-amber-600 fill-current ${isPlayingPreview ? "animate-spin" : ""}`} />
+                  <span>{isPlayingPreview ? "Đang chạy thử..." : "Xem trước hiệu ứng"}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("effects")}
+                  className="py-1.5 px-3 rounded-xl bg-[#e54153] hover:bg-rose-600 text-white text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-98 shrink-0"
+                >
+                  <SlidersHorizontal className="w-3 h-3" />
+                  <span>Đổi hiệu ứng</span>
+                </button>
+              </div>
+            </div>
             {/* Bộ công cụ Phân loại Thành phần: Họa tiết mẫu vs Ảnh cưới dâu rể */}
             {isImage && (
               <div className="p-3 bg-stone-50 border border-stone-200/90 rounded-2xl shadow-2xs space-y-2">
@@ -1182,8 +1464,12 @@ export default function EditorRightInspector({
               );
             })()}
 
-            {/* 5. DRESS CODE INSPECTOR */}
+            {/* 5. DRESS CODE INSPECTOR (2-TAB UNIFIED) */}
             {isDressCode && (() => {
+              const dressModule = UNIFIED_WEDDING_MODULES.find((m) => m.id === "dresscode");
+              const styles = dressModule?.styles || [];
+              const activeStyle = props.styleVariant || "pastel_romance";
+
               const parsed = parseDressCode(props.text, props.colors, props.description);
               const colors = parsed.colors;
               const description = parsed.description;
@@ -1224,82 +1510,179 @@ export default function EditorRightInspector({
                     <span>Quy định trang phục (Dress Code)</span>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-gray-700">Tiêu đề:</label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => handleUpdateDressCode(colors, description, e.target.value)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white font-semibold"
-                    />
+                  {/* Tab Switcher: Kiểu dáng vs Nội dung */}
+                  <div className="flex bg-gray-100/80 p-0.5 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSubTab("styles")}
+                      className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        widgetSubTab === "styles"
+                          ? "bg-white text-gray-900 shadow-2xs font-bold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      <Palette className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Kiểu dáng ({styles.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSubTab("content")}
+                      className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        widgetSubTab === "content"
+                          ? "bg-white text-gray-900 shadow-2xs font-bold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Nội dung</span>
+                    </button>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-semibold text-gray-700">Lời nhắn dặn dò:</label>
-                    <textarea
-                      rows={2}
-                      value={description}
-                      onChange={(e) => handleUpdateDressCode(colors, e.target.value, title)}
-                      className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
-                    />
-                  </div>
+                  {/* TAB 1: KIỂU DÁNG */}
+                  {widgetSubTab === "styles" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                          Chọn mẫu hiển thị trang phục:
+                        </span>
+                        <span className="text-[10px] text-gray-400">1-chạm đổi tức thì</span>
+                      </div>
 
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
-                      <span>Tông màu trang phục ({colors.length}):</span>
+                      <div className="space-y-2.5">
+                        {styles.map((s) => {
+                          const isSelected = activeStyle === s.id;
+                          return (
+                            <div
+                              key={s.id}
+                              onClick={() => {
+                                handlePropChange("styleVariant", s.id);
+                                weddingSounds.playChime();
+                              }}
+                              className={`p-2.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden group ${
+                                isSelected
+                                  ? "border-[#e54153] ring-2 ring-rose-300 bg-rose-50/15 shadow-xs"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 bg-white"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-base shrink-0">{s.icon}</span>
+                                  <h4
+                                    className={`text-xs font-bold truncate ${
+                                      isSelected ? "text-zen-primary" : "text-gray-900"
+                                    }`}
+                                  >
+                                    {s.name}
+                                  </h4>
+                                  {s.badge && (
+                                    <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 text-[9px] font-bold shrink-0">
+                                      {s.badge}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="shrink-0">
+                                  <div
+                                    className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border transition-all ${
+                                      isSelected
+                                        ? "bg-zen-primary border-zen-primary text-white"
+                                        : "border-gray-300 bg-white group-hover:border-gray-400"
+                                    }`}
+                                  >
+                                    {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <ModuleStyleVisualPreview moduleId="dresscode" styleId={s.id} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: NỘI DUNG */}
+                  {widgetSubTab === "content" && (
+                    <div className="space-y-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-gray-700">Tiêu đề:</label>
+                        <input
+                          type="text"
+                          value={title}
+                          onChange={(e) => handleUpdateDressCode(colors, description, e.target.value)}
+                          className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white font-semibold"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-gray-700">Lời nhắn dặn dò:</label>
+                        <textarea
+                          rows={2}
+                          value={description}
+                          onChange={(e) => handleUpdateDressCode(colors, e.target.value, title)}
+                          className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs font-semibold text-gray-700">
+                          <span>Tông màu trang phục ({colors.length}):</span>
+                          <button
+                            type="button"
+                            onClick={handleAddColor}
+                            className="text-[11px] text-zen-primary hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Thêm màu</span>
+                          </button>
+                        </div>
+
+                        <div className="space-y-2">
+                          {colors.map((c, idx) => (
+                            <div
+                              key={idx}
+                              className="p-2 rounded-xl bg-gray-50 border border-gray-200 flex items-center gap-2 group hover:border-gray-300 transition-colors"
+                            >
+                              <input
+                                type="color"
+                                value={toHexColor(c.color)}
+                                onChange={(e) => handleColorChange(idx, "color", e.target.value)}
+                                className="w-7 h-7 rounded-lg cursor-pointer border-0 shrink-0 p-0"
+                                title="Chọn màu"
+                              />
+                              <input
+                                type="text"
+                                value={c.label}
+                                onChange={(e) => handleColorChange(idx, "label", e.target.value)}
+                                placeholder="Tên màu (VD: Be, Trắng)"
+                                className="flex-1 p-1.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-zen-primary font-medium"
+                              />
+                              {colors.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteColor(idx)}
+                                  className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
+                                  title="Xóa màu này"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       <button
                         type="button"
                         onClick={handleAddColor}
-                        className="text-[11px] text-zen-primary hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                        className="w-full py-2 rounded-xl border border-dashed border-rose-300 text-zen-primary hover:bg-rose-50 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
                         <Plus className="w-3.5 h-3.5" />
-                        <span>Thêm màu</span>
+                        <span>+ Thêm màu trang phục</span>
                       </button>
                     </div>
-
-                    <div className="space-y-2">
-                      {colors.map((c, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2 rounded-xl bg-gray-50 border border-gray-200 flex items-center gap-2 group hover:border-gray-300 transition-colors"
-                        >
-                          <input
-                            type="color"
-                            value={toHexColor(c.color)}
-                            onChange={(e) => handleColorChange(idx, "color", e.target.value)}
-                            className="w-7 h-7 rounded-lg cursor-pointer border-0 shrink-0 p-0"
-                            title="Chọn màu"
-                          />
-                          <input
-                            type="text"
-                            value={c.label}
-                            onChange={(e) => handleColorChange(idx, "label", e.target.value)}
-                            placeholder="Tên màu (VD: Be, Trắng)"
-                            className="flex-1 p-1.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:border-zen-primary font-medium"
-                          />
-                          {colors.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteColor(idx)}
-                              className="p-1.5 text-gray-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors shrink-0 cursor-pointer"
-                              title="Xóa màu này"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleAddColor}
-                    className="w-full py-2 rounded-xl border border-dashed border-rose-300 text-zen-primary hover:bg-rose-50 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>+ Thêm màu trang phục</span>
-                  </button>
+                  )}
                 </div>
               );
             })()}
@@ -1385,8 +1768,12 @@ export default function EditorRightInspector({
               );
             })()}
 
-            {/* 7. FAMILY INFO INSPECTOR */}
+            {/* 7. FAMILY INFO INSPECTOR (2-TAB UNIFIED) */}
             {isFamilyInfo && (() => {
+              const familyModule = UNIFIED_WEDDING_MODULES.find((m) => m.id === "family");
+              const styles = familyModule?.styles || [];
+              const activeStyle = props.styleVariant || "songhy";
+
               const data = parseFamilyInfo(props.text, props);
 
               const handleUpdate = (patch: Partial<FamilyInfoData>) => {
@@ -1404,72 +1791,169 @@ export default function EditorRightInspector({
                 <div className="space-y-4">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
                     <Users className="w-4 h-4 text-zen-primary" />
-                    <span>Thông tin gia đình hai họ</span>
+                    <span>Đại diện gia đình hai họ</span>
                   </div>
 
-                  {/* NHÀ TRAI */}
-                  <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100 space-y-2">
-                    <span className="text-[11px] font-bold text-blue-900 uppercase">Khối Nhà Trai</span>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-gray-600">Thân phụ (Bố):</label>
-                      <input
-                        type="text"
-                        value={data.groomFather}
-                        onChange={(e) => handleUpdate({ groomFather: e.target.value })}
-                        className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-gray-600">Thân mẫu (Mẹ):</label>
-                      <input
-                        type="text"
-                        value={data.groomMother}
-                        onChange={(e) => handleUpdate({ groomMother: e.target.value })}
-                        className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-gray-600 font-bold text-blue-900">Tên Chú Rể:</label>
-                      <input
-                        type="text"
-                        value={data.groomName}
-                        onChange={(e) => handleUpdate({ groomName: e.target.value })}
-                        className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white font-bold"
-                      />
-                    </div>
+                  {/* Tab Switcher: Kiểu dáng vs Nội dung */}
+                  <div className="flex bg-gray-100/80 p-0.5 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSubTab("styles")}
+                      className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        widgetSubTab === "styles"
+                          ? "bg-white text-gray-900 shadow-2xs font-bold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      <Palette className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Kiểu dáng ({styles.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSubTab("content")}
+                      className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        widgetSubTab === "content"
+                          ? "bg-white text-gray-900 shadow-2xs font-bold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Nội dung</span>
+                    </button>
                   </div>
 
-                  {/* NHÀ GÁI */}
-                  <div className="p-3 rounded-xl bg-rose-50/50 border border-rose-100 space-y-2">
-                    <span className="text-[11px] font-bold text-rose-900 uppercase">Khối Nhà Gái</span>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-gray-600">Thân phụ (Bố):</label>
-                      <input
-                        type="text"
-                        value={data.brideFather}
-                        onChange={(e) => handleUpdate({ brideFather: e.target.value })}
-                        className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
-                      />
+                  {/* TAB 1: KIỂU DÁNG */}
+                  {widgetSubTab === "styles" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                          Chọn mẫu hai họ:
+                        </span>
+                        <span className="text-[10px] text-gray-400">1-chạm đổi tức thì</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {styles.map((s) => {
+                          const isSelected = activeStyle === s.id;
+                          return (
+                            <div
+                              key={s.id}
+                              onClick={() => {
+                                handlePropChange("styleVariant", s.id);
+                                weddingSounds.playChime();
+                              }}
+                              className={`p-2.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden group ${
+                                isSelected
+                                  ? "border-[#e54153] ring-2 ring-rose-300 bg-rose-50/15 shadow-xs"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 bg-white"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-base shrink-0">{s.icon}</span>
+                                  <h4
+                                    className={`text-xs font-bold truncate ${
+                                      isSelected ? "text-zen-primary" : "text-gray-900"
+                                    }`}
+                                  >
+                                    {s.name}
+                                  </h4>
+                                  {s.badge && (
+                                    <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 text-[9px] font-bold shrink-0">
+                                      {s.badge}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="shrink-0">
+                                  <div
+                                    className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border transition-all ${
+                                      isSelected
+                                        ? "bg-zen-primary border-zen-primary text-white"
+                                        : "border-gray-300 bg-white group-hover:border-gray-400"
+                                    }`}
+                                  >
+                                    {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <ModuleStyleVisualPreview moduleId="family" styleId={s.id} />
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-gray-600">Thân mẫu (Mẹ):</label>
-                      <input
-                        type="text"
-                        value={data.brideMother}
-                        onChange={(e) => handleUpdate({ brideMother: e.target.value })}
-                        className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
-                      />
+                  )}
+
+                  {/* TAB 2: NỘI DUNG */}
+                  {widgetSubTab === "content" && (
+                    <div className="space-y-4">
+                      {/* NHÀ TRAI */}
+                      <div className="p-3 rounded-xl bg-blue-50/50 border border-blue-100 space-y-2">
+                        <span className="text-[11px] font-bold text-blue-900 uppercase">Khối Nhà Trai</span>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-600">Thân phụ (Bố):</label>
+                          <input
+                            type="text"
+                            value={data.groomFather}
+                            onChange={(e) => handleUpdate({ groomFather: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-600">Thân mẫu (Mẹ):</label>
+                          <input
+                            type="text"
+                            value={data.groomMother}
+                            onChange={(e) => handleUpdate({ groomMother: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-600 font-bold text-blue-900">Tên Chú Rể:</label>
+                          <input
+                            type="text"
+                            value={data.groomName}
+                            onChange={(e) => handleUpdate({ groomName: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* NHÀ GÁI */}
+                      <div className="p-3 rounded-xl bg-rose-50/50 border border-rose-100 space-y-2">
+                        <span className="text-[11px] font-bold text-rose-900 uppercase">Khối Nhà Gái</span>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-600">Thân phụ (Bố):</label>
+                          <input
+                            type="text"
+                            value={data.brideFather}
+                            onChange={(e) => handleUpdate({ brideFather: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-600">Thân mẫu (Mẹ):</label>
+                          <input
+                            type="text"
+                            value={data.brideMother}
+                            onChange={(e) => handleUpdate({ brideMother: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-600 font-bold text-rose-900">Tên Cô Dâu:</label>
+                          <input
+                            type="text"
+                            value={data.brideName}
+                            onChange={(e) => handleUpdate({ brideName: e.target.value })}
+                            className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white font-bold"
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] text-gray-600 font-bold text-rose-900">Tên Cô Dâu:</label>
-                      <input
-                        type="text"
-                        value={data.brideName}
-                        onChange={(e) => handleUpdate({ brideName: e.target.value })}
-                        className="w-full text-xs p-2 rounded-lg border border-gray-200 bg-white font-bold"
-                      />
-                    </div>
-                  </div>
+                  )}
                 </div>
               );
             })()}
@@ -1779,74 +2263,178 @@ export default function EditorRightInspector({
             })()}
 
             {/* 11. MAP BOX INSPECTOR */}
-            {isMap && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
-                  <MapPin className="w-4 h-4 text-zen-primary" />
-                  <span>Bản đồ & Địa điểm cưới</span>
-                </div>
+            {/* 11. MAP BOX INSPECTOR (2-TAB UNIFIED) */}
+            {isMap && (() => {
+              const mapModule = UNIFIED_WEDDING_MODULES.find((m) => m.id === "map");
+              const styles = mapModule?.styles || [];
+              const activeStyle = props.styleVariant || "minimal";
 
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-700">Tên địa điểm:</label>
-                  <input
-                    type="text"
-                    value={props.title || props.venueName || "Trung tâm Tiệc cưới Trống Đồng"}
-                    onChange={(e) => {
-                      handlePropChange("title", e.target.value);
-                      handlePropChange("venueName", e.target.value);
-                    }}
-                    className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white font-semibold"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-700">Địa chỉ chi tiết:</label>
-                  <textarea
-                    rows={2}
-                    value={props.address || "Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội"}
-                    onChange={(e) => handlePropChange("address", e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-semibold text-gray-700">Link Google Maps:</label>
-                    {props.mapUrl && (
-                      <a
-                        href={props.mapUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-[10px] text-zen-primary hover:underline font-bold flex items-center gap-0.5"
-                      >
-                        <span>Mở bản đồ</span>
-                        <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
+              return (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-gray-900 border-b border-gray-100 pb-2">
+                    <MapPin className="w-4 h-4 text-zen-primary" />
+                    <span>Bản đồ & Địa điểm cưới</span>
                   </div>
-                  <input
-                    type="text"
-                    placeholder="https://maps.google.com/..."
-                    value={props.mapUrl || ""}
-                    onChange={(e) => handlePropChange("mapUrl", e.target.value)}
-                    className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
-                  />
-                </div>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    const query = encodeURIComponent(`${props.venueName || props.title || ""} ${props.address || ""}`);
-                    const newUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
-                    handlePropChange("mapUrl", newUrl);
-                  }}
-                  className="w-full py-1.5 px-2 rounded-lg border border-gray-200 hover:border-gray-300 text-gray-700 text-[11px] font-medium flex items-center justify-center gap-1 bg-gray-50"
-                >
-                  <MapPin className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Tự động tạo link Google Maps từ địa chỉ</span>
-                </button>
-              </div>
-            )}
+                  {/* Tab Switcher: Kiểu dáng vs Nội dung */}
+                  <div className="flex bg-gray-100/80 p-0.5 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSubTab("styles")}
+                      className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        widgetSubTab === "styles"
+                          ? "bg-white text-gray-900 shadow-2xs font-bold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      <Palette className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Kiểu dáng ({styles.length})</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWidgetSubTab("content")}
+                      className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        widgetSubTab === "content"
+                          ? "bg-white text-gray-900 shadow-2xs font-bold"
+                          : "text-gray-500 hover:text-gray-800"
+                      }`}
+                    >
+                      <Sliders className="w-3.5 h-3.5 text-blue-500" />
+                      <span>Nội dung</span>
+                    </button>
+                  </div>
+
+                  {/* TAB 1: KIỂU DÁNG */}
+                  {widgetSubTab === "styles" && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                          Chọn mẫu giao diện bản đồ:
+                        </span>
+                        <span className="text-[10px] text-gray-400">1-chạm đổi tức thì</span>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        {styles.map((s) => {
+                          const isSelected = activeStyle === s.id;
+                          return (
+                            <div
+                              key={s.id}
+                              onClick={() => {
+                                handlePropChange("styleVariant", s.id);
+                                weddingSounds.playChime();
+                              }}
+                              className={`p-2.5 rounded-2xl border transition-all cursor-pointer text-left relative overflow-hidden group ${
+                                isSelected
+                                  ? "border-[#e54153] ring-2 ring-rose-300 bg-rose-50/15 shadow-xs"
+                                  : "border-gray-200 hover:border-gray-300 hover:bg-gray-50/50 bg-white"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="text-base shrink-0">{s.icon}</span>
+                                  <h4
+                                    className={`text-xs font-bold truncate ${
+                                      isSelected ? "text-zen-primary" : "text-gray-900"
+                                    }`}
+                                  >
+                                    {s.name}
+                                  </h4>
+                                  {s.badge && (
+                                    <span className="px-1.5 py-0.2 rounded-md bg-amber-100 text-amber-800 text-[9px] font-bold shrink-0">
+                                      {s.badge}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="shrink-0">
+                                  <div
+                                    className={`w-4.5 h-4.5 rounded-full flex items-center justify-center border transition-all ${
+                                      isSelected
+                                        ? "bg-zen-primary border-zen-primary text-white"
+                                        : "border-gray-300 bg-white group-hover:border-gray-400"
+                                    }`}
+                                  >
+                                    {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                                  </div>
+                                </div>
+                              </div>
+
+                              <ModuleStyleVisualPreview moduleId="map" styleId={s.id} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* TAB 2: NỘI DUNG */}
+                  {widgetSubTab === "content" && (
+                    <div className="space-y-3.5">
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-gray-700">Tên địa điểm:</label>
+                        <input
+                          type="text"
+                          value={props.title || props.venueName || "Trung tâm Tiệc cưới Trống Đồng"}
+                          onChange={(e) => {
+                            handlePropChange("title", e.target.value);
+                            handlePropChange("venueName", e.target.value);
+                          }}
+                          className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white font-semibold"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="text-[11px] font-semibold text-gray-700">Địa chỉ chi tiết:</label>
+                        <textarea
+                          rows={2}
+                          value={props.address || "Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội"}
+                          onChange={(e) => handlePropChange("address", e.target.value)}
+                          className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <label className="text-[11px] font-semibold text-gray-700">Link Google Maps:</label>
+                          {props.mapUrl && (
+                            <a
+                              href={props.mapUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-[10px] text-zen-primary hover:underline font-bold flex items-center gap-0.5"
+                            >
+                              <span>Mở bản đồ</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="https://maps.google.com/..."
+                          value={props.mapUrl || ""}
+                          onChange={(e) => handlePropChange("mapUrl", e.target.value)}
+                          className="w-full text-xs p-2.5 rounded-xl border border-gray-200 focus:outline-none focus:border-zen-primary bg-white"
+                        />
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const query = encodeURIComponent(`${props.venueName || props.title || ""} ${props.address || ""}`);
+                          const newUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
+                          handlePropChange("mapUrl", newUrl);
+                        }}
+                        className="w-full py-1.5 px-2 rounded-lg border border-gray-200 hover:border-gray-300 text-gray-700 text-[11px] font-medium flex items-center justify-center gap-1 bg-gray-50"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Tự động tạo link Google Maps từ địa chỉ</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* 12. GIFT QR BOX INSPECTOR */}
             {isGift && (() => {
@@ -3008,5 +3596,131 @@ export default function EditorRightInspector({
         )}
       </div>
     </aside>
+
+    {/* ================= MOBILE BOTTOM SHEET INSPECTOR (< lg) ================= */}
+    <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-white border-t border-gray-200/90 rounded-t-3xl shadow-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[55vh] overflow-y-auto animate-slide-up select-none">
+      <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
+      <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-gray-800">
+            {isImage ? "🖼️ Tùy Chỉnh Ảnh Cưới" : isText ? "✏️ Chỉnh Sửa Chữ" : "⚙️ Tùy Chỉnh Phần Tử"}
+          </span>
+          {isLocked && (
+            <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <Lock className="w-3 h-3" /> Đang khóa
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => onDeselectElement?.()}
+          className="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer"
+          title="Đóng chỉnh sửa"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Điều khiển Mobile cho Chữ */}
+      {isText && (
+        <div className="space-y-3 text-xs">
+          <div>
+            <label className="text-[10px] font-bold text-gray-500 uppercase">Nội dung văn bản:</label>
+            <textarea
+              value={props.text || ""}
+              onChange={(e) => onUpdateProps(id, { text: e.target.value })}
+              rows={2}
+              className="w-full mt-1 p-2 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-[#e54153]"
+              placeholder="Nhập nội dung chữ..."
+            />
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-gray-600">Cỡ chữ:</span>
+            <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200">
+              <button
+                type="button"
+                onClick={() => {
+                  const sz = parseInt(props.fontSize) || 16;
+                  onUpdateProps(id, { fontSize: Math.max(8, sz - 2) });
+                }}
+                className="w-7 h-7 rounded-lg bg-white shadow-2xs font-bold text-gray-700 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
+              >
+                -
+              </button>
+              <span className="text-xs font-bold px-2">{props.fontSize || 16}px</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const sz = parseInt(props.fontSize) || 16;
+                  onUpdateProps(id, { fontSize: Math.min(120, sz + 2) });
+                }}
+                className="w-7 h-7 rounded-lg bg-white shadow-2xs font-bold text-gray-700 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
+              >
+                +
+              </button>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold text-gray-600">Màu chữ:</span>
+            <div className="flex items-center gap-1.5">
+              {["#780405", "#e54153", "#d4af37", "#1c171a", "#4a3b32", "#ffffff"].map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  onClick={() => onUpdateProps(id, { color })}
+                  className="w-6 h-6 rounded-full border border-gray-300 shadow-2xs transition-transform active:scale-90 cursor-pointer"
+                  style={{ backgroundColor: color }}
+                  title={color}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Điều khiển Mobile cho Ảnh */}
+      {isImage && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            {onReplaceImage && (
+              <button
+                type="button"
+                onClick={onReplaceImage}
+                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5268] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span>Thay Ảnh Cưới</span>
+              </button>
+            )}
+
+            {onRemoveBackground && !isDecorative && (
+              <button
+                type="button"
+                onClick={onRemoveBackground}
+                disabled={isRemovingBackground}
+                className="py-2.5 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+              >
+                <Wand2 className="w-4 h-4 text-purple-600" />
+                <span>Tách Nền</span>
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => onUpdateProps(id, { locked: !isLocked })}
+              className="text-xs text-gray-600 flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+            >
+              {isLocked ? <Unlock className="w-3.5 h-3.5 text-amber-600" /> : <Lock className="w-3.5 h-3.5" />}
+              <span>{isLocked ? "Mở khóa ảnh" : "Khóa vị trí ảnh"}</span>
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+    </>
   );
 }

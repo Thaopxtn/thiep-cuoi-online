@@ -33,11 +33,15 @@ import {
   Phone,
   MessageCircle,
   Crown,
+  FileText,
+  Eye,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
 import EditorTopContextualBar from "./EditorTopContextualBar";
 import EditorContextMenu from "./EditorContextMenu";
 import EditorBottomBar from "./EditorBottomBar";
+import FallingPetals from "@/components/FallingPetals";
+import { EffectConfig } from "@/lib/effectsCatalog";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
 import {
@@ -81,6 +85,9 @@ interface EditorCanvasProps {
   onToggleFixedModule?: (key: keyof WeddingCard, value: boolean) => void;
   onOpenSettings?: () => void;
   onOpenModuleConfig?: (moduleId: FixedModuleId) => void;
+  selectedFixedModuleId?: FixedModuleId | null;
+  onSelectFixedModule?: (moduleId: FixedModuleId | null) => void;
+  effectConfig?: EffectConfig | null;
 }
 
 export default function EditorCanvas({
@@ -108,6 +115,9 @@ export default function EditorCanvas({
   onToggleFixedModule,
   onOpenSettings,
   onOpenModuleConfig,
+  selectedFixedModuleId,
+  onSelectFixedModule,
+  effectConfig,
 }: EditorCanvasProps) {
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
@@ -844,10 +854,12 @@ export default function EditorCanvas({
 
   return (
     <div
-      className="flex-1 h-full overflow-auto relative flex flex-col items-center p-2 sm:p-8 pb-32 sm:pb-48 select-none bg-[#dedfe2] touch-pan-y"
+      id="canvas-main-scroll-area"
+      className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col items-center p-1 sm:p-8 pb-32 sm:pb-48 select-none bg-[#dedfe2] touch-pan-y"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onSelectElement(null);
+          onSelectFixedModule?.(null);
           setContextMenu(null);
         }
       }}
@@ -860,7 +872,7 @@ export default function EditorCanvas({
     >
       {/* ================= CANVA-STYLE TOP CONTEXTUAL FORMATTING BAR (OUTSIDE CANVAS CARD) ================= */}
       {selectedElement && (
-        <div className="sticky top-2 z-50 mb-3 shrink-0 pointer-events-auto overflow-visible">
+        <div className="hidden sm:block sticky top-2 z-50 mb-3 shrink-0 pointer-events-auto overflow-visible">
           <EditorTopContextualBar
             selectedElement={selectedElement}
             onUpdateProps={onUpdateElementProps}
@@ -874,6 +886,53 @@ export default function EditorCanvas({
         </div>
       )}
 
+      {/* ================= MOBILE-SPECIFIC QUICK ACTION BAR (< sm) ================= */}
+      <div className="sm:hidden sticky top-1.5 z-40 mb-2.5 px-2 flex items-center justify-center gap-1.5 overflow-x-auto max-w-full no-scrollbar select-none pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => onOpenFixedModulesTab?.()}
+          className="shrink-0 px-2.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-gray-200/90 text-gray-800 text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+        >
+          <FileText className="w-3.5 h-3.5 text-[#e54153]" />
+          <span>Sửa nhanh</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onOpenImageDrawer?.()}
+          className="shrink-0 px-2.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-gray-200/90 text-gray-800 text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+        >
+          <ImageIcon className="w-3.5 h-3.5 text-indigo-500" />
+          <span>Đổi ảnh</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onOpenSettings?.()}
+          className="shrink-0 px-2.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-gray-200/90 text-gray-800 text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>Nhạc & Hiệu ứng</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onOpenPreview?.()}
+          className="shrink-0 px-3 py-1.5 rounded-full bg-[#e54153] hover:bg-[#d93849] text-white text-[11px] font-bold shadow-sm flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+        >
+          <Eye className="w-3.5 h-3.5 text-white" />
+          <span>Xem thử</span>
+        </button>
+      </div>
+
+      {/* Outer Scaled Wrapper to prevent horizontal overflow on mobile screens */}
+      <div
+        className="shrink-0 flex items-start justify-center transition-all duration-100 mb-16 sm:mb-20 overflow-visible"
+        style={{
+          width: `${Math.round(canvasWidth * zoomLevel)}px`,
+          minHeight: `${Math.round((canvasHeight + 40) * zoomLevel)}px`,
+        }}
+      >
       {/* ================= INVITATION CANVAS CONTAINER ================= */}
       <div
         className="relative bg-[#fbf8f2] shadow-[0_20px_50px_rgba(0,0,0,0.18)] rounded-xs overflow-hidden transition-transform duration-100 origin-top shrink-0 mb-20 flex flex-col"
@@ -887,8 +946,23 @@ export default function EditorCanvas({
           backgroundSize: "100% auto",
           backgroundRepeat: "repeat-y",
           transform: `scale(${zoomLevel})`,
+          transformOrigin: "top left",
         }}
       >
+        {/* LIVE AMBIENT CANVAS EFFECT CONFINED TO MOBILE CARD */}
+        {effectConfig && effectConfig.enabled && (
+          <FallingPetals
+            isContainerRelative={true}
+            effectType={effectConfig.type}
+            density={effectConfig.density}
+            speed={effectConfig.speed}
+            size={effectConfig.size}
+            opacity={effectConfig.opacity}
+            direction={effectConfig.direction}
+            active={effectConfig.enabled}
+            className="absolute inset-0 pointer-events-none z-20 overflow-hidden"
+          />
+        )}
         {/* Upper custom design nodes area */}
         <div
           className="relative w-full shrink-0"
@@ -1052,10 +1126,11 @@ export default function EditorCanvas({
                 ...transitionStyle,
               }}
             >
-              {/* Element Content by Type */}
-              {type === "PhotoBox" && props.imgKey && (
-                <div
-                  className={`w-full h-full overflow-hidden ${animClass}`}
+              <div className={`w-full h-full ${animClass}`}>
+                {/* Element Content by Type */}
+                {type === "PhotoBox" && props.imgKey && (
+                  <div
+                    className="w-full h-full overflow-hidden"
                   style={{
                     borderRadius: props.borderRadius
                       ? `${props.borderRadius[0]}px`
@@ -1097,7 +1172,7 @@ export default function EditorCanvas({
                 type === "FamilyInfoBox" ||
                 type === "BankCardBox") && (
                 <div
-                  className={`w-full h-full select-none ${animClass} ${
+                  className={`w-full h-full select-none ${
                     props.fontFamily && props.fontFamily.startsWith("font-")
                       ? props.fontFamily
                       : ""
@@ -1126,7 +1201,7 @@ export default function EditorCanvas({
 
               {type === "GeometricBox" && (
                 <div
-                  className={`w-full h-full ${animClass}`}
+                  className="w-full h-full"
                   style={{
                     backgroundColor: props.fill || props.backgroundColor || "transparent",
                     borderRadius: props.borderRadius
@@ -1149,7 +1224,7 @@ export default function EditorCanvas({
 
               {type === "CarouselBox" && (
                 <div
-                  className={`w-full h-full overflow-hidden relative shadow-lg ${animClass}`}
+                  className="w-full h-full overflow-hidden relative shadow-lg"
                   style={{
                     borderRadius: props.borderRadius
                       ? Array.isArray(props.borderRadius)
@@ -1292,6 +1367,30 @@ export default function EditorCanvas({
                 const themeColor = props.themeColor || "#590310";
                 const variant = props.styleVariant;
 
+                if (variant === "handcrafted_grid") {
+                  return (
+                    <div className="w-full h-full p-3 rounded-2xl bg-[#590310] text-[#ece4d8] border border-[#ecd4a6]/40 shadow-md flex flex-col justify-between items-center text-center select-none font-serif">
+                      <div className="text-[10px] uppercase font-bold tracking-widest text-[#ecd4a6]">
+                        VÀO LÚC {cal.time}
+                      </div>
+                      <div className="flex items-center justify-center gap-3 my-0.5">
+                        <span className="text-[11px] font-bold uppercase border-y border-[#ecd4a6]/40 px-2 py-0.5">
+                          {cal.dayOfWeek}
+                        </span>
+                        <span className="text-4xl font-black text-[#ffd700] leading-none drop-shadow-xs">
+                          {cal.day}
+                        </span>
+                        <span className="text-[11px] font-bold uppercase border-y border-[#ecd4a6]/40 px-2 py-0.5">
+                          THÁNG {cal.month}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[#ece4d8]/80 font-sans italic">
+                        NĂM {cal.year} • (Tức ngày 11 tháng 11 năm Bính Ngọ)
+                      </div>
+                    </div>
+                  );
+                }
+
                 if (variant === "royal") {
                   return (
                     <div className="w-full h-full p-3.5 rounded-3xl bg-gradient-to-br from-amber-50 via-white to-amber-100/50 border-2 border-amber-300 shadow-md flex flex-col justify-between items-center text-center select-none">
@@ -1362,6 +1461,81 @@ export default function EditorCanvas({
               {type === "GiftQrBox" && (() => {
                 const variant = props.styleVariant || "minimal";
                 const modalTitle = props.modalTitle || "Hộp Quà Mừng Cưới (VietQR)";
+
+                // 0. GIAO DIỆN THỦ CÔNG: PHONG BÌ ĐỎ SONG HỶ KÉP VIETQR (red_envelope_pair)
+                if (variant === "red_envelope_pair") {
+                  const gBank = props.groomBank || props.bankName || "MB BANK";
+                  const gAcc = props.groomAccount || props.accountNumber || "999988882026";
+                  const gName = props.groomName || props.accountName || "LÊ ĐỨC MẠNH";
+                  const gQr = generateVietQrUrl(gBank, gAcc, gName, undefined, "Mung cuoi Chu Re");
+
+                  const bBank = props.brideBank || "VIETCOMBANK";
+                  const bAcc = props.brideAccount || "1028492049";
+                  const bName = props.brideName || "TRẦN LỆ QUYÊN";
+                  const bQr = generateVietQrUrl(bBank, bAcc, bName, undefined, "Mung cuoi Co Dau");
+
+                  return (
+                    <div className="w-full h-full bg-gradient-to-br from-[#881337] via-[#9f1239] to-[#881337] text-amber-100 rounded-2xl p-3 border-2 border-amber-400/80 shadow-xl flex flex-col justify-between select-none">
+                      <div className="flex items-center justify-between border-b border-amber-300/30 pb-1.5 mb-1.5">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-amber-200">
+                          <span className="text-sm">🧧</span>
+                          <span className="font-serif font-bold uppercase tracking-wider">{modalTitle}</span>
+                        </div>
+                        <span className="text-[10px] font-bold font-serif text-amber-300 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-400/60">
+                          囍 Song Hỷ Lâm Môn
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
+                        {/* Phong Bì Nhà Trai */}
+                        <div className="bg-gradient-to-b from-[#700f2d] to-[#500b20] rounded-xl p-2 border border-amber-400/50 flex flex-col items-center justify-between text-center shadow-md">
+                          <div className="w-full flex items-center justify-between text-[9px] font-bold text-amber-200 border-b border-amber-400/20 pb-1">
+                            <span className="bg-amber-400/20 text-amber-200 px-1.5 py-0.2 rounded font-mono">{gBank}</span>
+                            <span>🤵 Nhà Trai</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-amber-300 shadow-inner flex items-center justify-center my-1 overflow-hidden">
+                            {gQr ? (
+                              <img src={gQr} alt="QR Nhà Trai" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-amber-100 truncate">{gName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-amber-300 bg-black/30 py-0.5 px-1 rounded truncate border border-amber-400/20">
+                              STK: {gAcc}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Phong Bì Nhà Gái */}
+                        <div className="bg-gradient-to-b from-[#700f2d] to-[#500b20] rounded-xl p-2 border border-amber-400/50 flex flex-col items-center justify-between text-center shadow-md">
+                          <div className="w-full flex items-center justify-between text-[9px] font-bold text-amber-200 border-b border-amber-400/20 pb-1">
+                            <span className="bg-amber-400/20 text-amber-200 px-1.5 py-0.2 rounded font-mono">{bBank}</span>
+                            <span>👰 Nhà Gái</span>
+                          </div>
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 p-1 bg-white rounded-lg border border-amber-300 shadow-inner flex items-center justify-center my-1 overflow-hidden">
+                            {bQr ? (
+                              <img src={bQr} alt="QR Nhà Gái" className="w-full h-full object-contain" onError={(e) => handleImageFallback(e, undefined, false)} />
+                            ) : (
+                              <span className="text-[9px] text-gray-400">Chưa có mã QR</span>
+                            )}
+                          </div>
+                          <div className="w-full space-y-0.5">
+                            <p className="text-[10px] font-bold text-amber-100 truncate">{bName}</p>
+                            <p className="text-[9px] font-mono font-semibold text-amber-300 bg-black/30 py-0.5 px-1 rounded truncate border border-amber-400/20">
+                              STK: {bAcc}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="text-center text-[9px] text-amber-200/90 pt-1.5 flex items-center justify-center gap-1 font-serif">
+                        <span>Chuyển khoản mừng cưới Napas 24/7 tiện lợi & chúc phúc đôi uyên ương</span>
+                      </div>
+                    </div>
+                  );
+                }
 
                 // 1. GIAO DIỆN 1: CẢ NHÀ TRAI & NHÀ GÁI (dual_accounts)
                 if (variant === "dual_accounts") {
@@ -2030,6 +2204,7 @@ export default function EditorCanvas({
                   </div>
                 );
               })()}
+              </div>
             </div>
           );
         })}
@@ -2215,7 +2390,10 @@ export default function EditorCanvas({
           onOpenAlbumDrawer={onOpenImageDrawer}
           onOpenSettings={onOpenSettings}
           onOpenModuleConfig={onOpenModuleConfig}
+          selectedFixedModuleId={selectedFixedModuleId}
+          onSelectFixedModule={onSelectFixedModule}
         />
+        </div>
       </div>
 
       {/* ================= CANVA BOTTOM CONTROL BAR ================= */}
@@ -2245,8 +2423,8 @@ export default function EditorCanvas({
       {/* ================= FIXED BOTTOM-LEFT: THAY ẢNH NHANH TOÀN BỘ TEMPLATE ================= */}
       {photoSlots.length > 0 && !isQuickPanelCollapsed ? (
         <div
-          className={`fixed bottom-16 sm:bottom-5 z-30 max-w-[calc(100vw-24px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
-            isLeftDrawerOpen ? "hidden md:block md:left-[395px]" : "left-3 right-3 sm:right-auto sm:left-24"
+          className={`fixed bottom-16 sm:bottom-5 z-30 max-w-[calc(100vw-16px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
+            isLeftDrawerOpen ? "hidden md:block md:left-[395px]" : "left-2 right-2 sm:right-auto sm:left-24"
           }`}
           onClick={(e) => e.stopPropagation()}
         >

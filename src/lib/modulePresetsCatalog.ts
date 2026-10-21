@@ -11,7 +11,18 @@ export type ModuleCategoryId =
   | "banking"
   | "rsvp"
   | "dresscode"
+  | "lovestory"
   | "intro";
+
+export interface ModuleBlockEffect {
+  entranceEffect: string;
+  entranceDuration: number;
+  entranceDelay?: number;
+  continuousEffect: "float" | "pulse" | "bounce" | "wobble" | "wiggle" | "shake" | "none";
+  continuousDuration?: number;
+  badgeLabel: string;
+  description?: string;
+}
 
 export interface ModulePresetItem {
   id: string;
@@ -26,6 +37,7 @@ export interface ModulePresetItem {
   defaultWidth: number;
   defaultHeight: number;
   defaultProps: Record<string, any>;
+  blockEffect?: ModuleBlockEffect;
 }
 
 export interface ModuleCategoryFolder {
@@ -103,6 +115,15 @@ export const MODULE_CATEGORIES: ModuleCategoryFolder[] = [
     accentBg: "from-pink-500/10 to-rose-500/10",
   },
   {
+    id: "lovestory",
+    name: "Chuyện tình yêu",
+    folderTitle: "Chủ đề: Dòng Thời Gian Tình Yêu (Love Story)",
+    description: "Các mẫu dòng thời gian kỷ niệm: 4 cột mốc tình yêu, nhật ký hẹn hò vintage, thẻ cột mốc bo góc và album câu chuyện tình.",
+    icon: "💍",
+    badgeColor: "text-rose-700 bg-rose-50 border-rose-200",
+    accentBg: "from-rose-500/10 to-pink-500/10",
+  },
+  {
     id: "intro",
     name: "Lời ngỏ & Cảm ơn",
     folderTitle: "Chủ đề: Lời Ngỏ, Cảm Ơn & Love Story",
@@ -113,7 +134,643 @@ export const MODULE_CATEGORIES: ModuleCategoryFolder[] = [
   },
 ];
 
-export const MODULE_PRESETS: ModulePresetItem[] = [
+/**
+ * Hiệu ứng mặc định theo từng nhóm chủ đề
+ */
+export function getDefaultBlockEffect(category: ModuleCategoryId): ModuleBlockEffect {
+  switch (category) {
+    case "ceremony":
+      return {
+        entranceEffect: "doorOpen",
+        entranceDuration: 1.4,
+        continuousEffect: "float",
+        continuousDuration: 3.8,
+        badgeLabel: "✨ Mở cánh 3D • 🕊️ Lơ lửng",
+        description: "Hiệu ứng mở cánh thiệp 3D kết hợp chuyển động lơ lửng êm ái.",
+      };
+    case "calendar":
+      return {
+        entranceEffect: "zoomIn",
+        entranceDuration: 1.0,
+        continuousEffect: "pulse",
+        continuousDuration: 2.2,
+        badgeLabel: "✨ Phóng to • 💓 Nhịp đếm ngược",
+        description: "Phóng to từ tâm và nhịp đập đếm ngược tình yêu.",
+      };
+    case "banking":
+      return {
+        entranceEffect: "flipInY",
+        entranceDuration: 1.2,
+        continuousEffect: "shake",
+        continuousDuration: 3.2,
+        badgeLabel: "✨ Lật 3D • 🔔 Rung chuông ngân",
+        description: "Lật mở 3D cùng hiệu ứng rung chuông ngân tài lộc may mắn.",
+      };
+    case "dresscode":
+      return {
+        entranceEffect: "fadeInDown",
+        entranceDuration: 1.2,
+        continuousEffect: "wobble",
+        continuousDuration: 3.6,
+        badgeLabel: "✨ Rơi êm ái • 🎈 Lắc lư đón gió",
+        description: "Rơi nhẹ nhàng từ trên cao và đung đưa uyển chuyển như dải lụa.",
+      };
+    case "lovestory":
+      return {
+        entranceEffect: "floatIn",
+        entranceDuration: 1.4,
+        continuousEffect: "float",
+        continuousDuration: 3.5,
+        badgeLabel: "✨ Bay lơ lửng vào • 🕊️ Bồng bềnh",
+        description: "Chao lượn mềm mại như bồ câu kể lại câu chuyện tình yêu.",
+      };
+    case "family":
+      return {
+        entranceEffect: "fadeInUp",
+        entranceDuration: 1.2,
+        continuousEffect: "none",
+        continuousDuration: 3.0,
+        badgeLabel: "✨ Lướt lên trang trọng",
+        description: "Lướt từ dưới lên trang nghiêm tôn vinh đại diện hai họ.",
+      };
+    case "map":
+      return {
+        entranceEffect: "zoomIn",
+        entranceDuration: 1.1,
+        continuousEffect: "none",
+        continuousDuration: 3.0,
+        badgeLabel: "✨ Phóng to định vị",
+        description: "Phóng to rõ ràng chỉ đường tiện lợi cho khách mời.",
+      };
+    case "rsvp":
+      return {
+        entranceEffect: "bounceInUp",
+        entranceDuration: 1.1,
+        continuousEffect: "pulse",
+        continuousDuration: 2.4,
+        badgeLabel: "✨ Bật nảy đón khách • 💓 Nhịp tim",
+        description: "Bật nảy tươi vui kết hợp nhịp tim đón mừng lời phúc chúc.",
+      };
+    case "intro":
+      return {
+        entranceEffect: "doorOpen",
+        entranceDuration: 1.5,
+        continuousEffect: "float",
+        continuousDuration: 4.0,
+        badgeLabel: "✨ Mở cánh thiệp 3D • 🕊️ Lãng mạn",
+        description: "Mở nắp bì thư trang trọng cùng hiệu ứng bồng bềnh lãng mạn.",
+      };
+    default:
+      return {
+        entranceEffect: "fadeInUp",
+        entranceDuration: 1.2,
+        continuousEffect: "none",
+        continuousDuration: 3.0,
+        badgeLabel: "✨ Mờ dần vào êm ái",
+        description: "Hiệu ứng xuất hiện êm ái mượt mà.",
+      };
+  }
+}
+
+/**
+ * Danh mục hiệu ứng riêng biệt cho từng Khối Mẫu (Tailored Block Visual Effects)
+ */
+export const PRESET_BLOCK_EFFECTS: Record<string, ModuleBlockEffect> = {
+  // --- 1. CEREMONY (Hôn lễ & Timeline) ---
+  ceremony_style_handcrafted_velvet: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Mở cánh 3D • 🕊️ Lơ lửng",
+    description: "Mở cánh thiệp hôn lễ hoàng gia 3D kết hợp bồng bềnh lơ lửng quý phái.",
+  },
+  ceremony_style_banquet_reception: {
+    entranceEffect: "flipInY",
+    entranceDuration: 1.3,
+    continuousEffect: "pulse",
+    continuousDuration: 2.4,
+    badgeLabel: "✨ Lật thẻ 3D • 💓 Nhịp đập",
+    description: "Lật mở thẻ bài 3D đón khách và nhịp đập chào mừng tưng bừng.",
+  },
+  ceremony_style_timeline_vertical: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.2,
+    continuousEffect: "float",
+    continuousDuration: 4.0,
+    badgeLabel: "✨ Trượt êm ái • 🕊️ Lơ lửng",
+    description: "Dòng thời gian trượt từ dưới lên kèm chuyển động bồng bềnh nhẹ.",
+  },
+  ceremony_style_wedding_program: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.4,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Mở cánh thiệp 3D",
+    description: "Mở nắp chương trình hôn lễ trang trọng.",
+  },
+  ceremony_style_dual_party: {
+    entranceEffect: "flipInX",
+    entranceDuration: 1.2,
+    continuousEffect: "float",
+    continuousDuration: 3.5,
+    badgeLabel: "✨ Lật mở 3D • 🕊️ Bồng bềnh",
+    description: "Lật thẻ ngang đôi tiệc và trôi nổi nhẹ nhàng.",
+  },
+  ceremony_style_cards: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.0,
+    continuousEffect: "wobble",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Phóng to • 🎈 Đung đưa",
+    description: "Từng phân đoạn sự kiện phóng to và đung đưa bắt mắt.",
+  },
+  ceremony_style_minimal_badge: {
+    entranceEffect: "bounceInUp",
+    entranceDuration: 1.1,
+    continuousEffect: "pulse",
+    continuousDuration: 2.2,
+    badgeLabel: "✨ Bật nảy • 💓 Nhịp tim",
+    description: "Huy hiệu bật nảy lên và nhịp tim đập ấm áp.",
+  },
+
+  // --- 2. CALENDAR (Lịch & Đếm ngược) ---
+  calendar_style_handcrafted_grid: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.0,
+    continuousEffect: "pulse",
+    continuousDuration: 2.2,
+    badgeLabel: "✨ Phóng to • 💓 Nhịp đếm ngược",
+    description: "Phóng to bảng lịch thủ công và nhịp tim đếm ngược từng giây.",
+  },
+  calendar_style_artisan_parchment: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 4.2,
+    badgeLabel: "✨ Mở cuộn 3D • 🕊️ Lơ lửng",
+    description: "Mở cuộn giấy dó cổ điển 3D và bồng bềnh lơ lửng vintage.",
+  },
+  calendar_style_classic_grid: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.0,
+    continuousEffect: "pulse",
+    continuousDuration: 2.0,
+    badgeLabel: "✨ Phóng to • 💓 Nhịp đếm",
+    description: "Lịch tháng phóng to với trái tim đỏ phập phồng ấm áp.",
+  },
+  calendar_style_countdown_minimal: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.2,
+    continuousEffect: "pulse",
+    continuousDuration: 1.8,
+    badgeLabel: "✨ Lướt lên • 💓 Đếm nhịp",
+    description: "Số đếm ngược lướt lên và đập theo từng giây thời gian.",
+  },
+  calendar_style_retro_badge: {
+    entranceEffect: "elasticIn",
+    entranceDuration: 1.2,
+    continuousEffect: "wobble",
+    continuousDuration: 3.2,
+    badgeLabel: "✨ Đàn hồi • 🎈 Đung đưa",
+    description: "Huy hiệu ngày cưới co giãn đàn hồi và đung đưa trong gió.",
+  },
+  calendar_style_lunar_solar: {
+    entranceEffect: "flipInY",
+    entranceDuration: 1.2,
+    continuousEffect: "float",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Lật 3D • 🕊️ Bồng bềnh",
+    description: "Lật mở 2 mặt Dương Lịch & Âm Lịch song hành.",
+  },
+  calendar_style_flip_clock: {
+    entranceEffect: "flipInX",
+    entranceDuration: 1.1,
+    continuousEffect: "shake",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Lật thẻ Flip • 🔔 Rung ngân",
+    description: "Thẻ lật đồng hồ cơ học flip clock kết hợp rung chuông ngân.",
+  },
+
+  // --- 3. BANKING (Hộp mừng cưới & VietQR) ---
+  banking_style_red_envelope_pair: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.4,
+    continuousEffect: "shake",
+    continuousDuration: 3.2,
+    badgeLabel: "✨ Mở nắp phong bì 3D • 🔔 Rung ngân",
+    description: "Mở nắp bì thư phong bì đỏ Song Hỷ và rung ngân tài lộc.",
+  },
+  banking_style_dual_account: {
+    entranceEffect: "flipInY",
+    entranceDuration: 1.2,
+    continuousEffect: "pulse",
+    continuousDuration: 2.5,
+    badgeLabel: "✨ Lật đôi 3D • 💓 Nhịp đập",
+    description: "Lật thẻ đôi hai họ 3D kèm nhịp tim ấm áp tiện lợi.",
+  },
+  banking_style_qr_only: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 0.9,
+    continuousEffect: "pulse",
+    continuousDuration: 2.0,
+    badgeLabel: "✨ Phóng to QR • 💓 Nhấp nháy",
+    description: "Mã QR phóng to bắt mắt và nhịp đập kích thích quét nhanh.",
+  },
+  banking_style_red_packet: {
+    entranceEffect: "bounceInUp",
+    entranceDuration: 1.1,
+    continuousEffect: "shake",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Bật nảy bao đỏ • 🔔 Rung chuông",
+    description: "Phong bao lì xì đỏ bật nảy lên và rung chuông may mắn.",
+  },
+  banking_style_golden_card: {
+    entranceEffect: "shimmerIn",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.6,
+    badgeLabel: "✨ Ánh kim tỏa sáng • 🕊️ Lơ lửng",
+    description: "Thẻ vàng ánh kim phát quang rực rỡ và lơ lửng sang trọng.",
+  },
+  banking_style_minimal_copy: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.0,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Trượt mượt tối giản",
+    description: "Trượt vào êm dịu, sẵn sàng sao chép số tài khoản 1 chạm.",
+  },
+  banking_style_glassmorphism: {
+    entranceEffect: "blurReveal",
+    entranceDuration: 1.3,
+    continuousEffect: "float",
+    continuousDuration: 3.5,
+    badgeLabel: "✨ Sương mờ kính • 🕊️ Bồng bềnh",
+    description: "Lớp kính mờ tan sương mờ ảo và trôi nổi nhẹ nhàng.",
+  },
+
+  // --- 4. DRESSCODE (Trang phục) ---
+  dresscode_style_handcrafted_chic: {
+    entranceEffect: "fadeInDown",
+    entranceDuration: 1.2,
+    continuousEffect: "wobble",
+    continuousDuration: 3.6,
+    badgeLabel: "✨ Rơi nhẹ nhàng • 🎈 Lắc lư đón gió",
+    description: "Bảng gợi ý trang phục rơi nhẹ nhàng và đung đưa mềm mại.",
+  },
+  dresscode_style_modern_palette: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.0,
+    continuousEffect: "pulse",
+    continuousDuration: 2.4,
+    badgeLabel: "✨ Phóng to sắc màu • 💓 Nhịp đập",
+    description: "Các hạt màu phóng to đồng điệu nhịp đập tinh tế.",
+  },
+  dresscode_style_swatches: {
+    entranceEffect: "floatIn",
+    entranceDuration: 1.3,
+    continuousEffect: "wobble",
+    continuousDuration: 3.4,
+    badgeLabel: "✨ Thẻ vải bay vào • 🎈 Rung rinh",
+    description: "Mẫu thẻ vải bay vào khung hình và rung rinh như treo kẹp.",
+  },
+  dresscode_style_illustrative: {
+    entranceEffect: "swirlIn",
+    entranceDuration: 1.3,
+    continuousEffect: "float",
+    continuousDuration: 3.2,
+    badgeLabel: "✨ Xoay lướt uyển chuyển • 🕊️ Lơ lửng",
+    description: "Minh họa váy cưới chú rể xoay lướt mềm mại vào trung tâm.",
+  },
+  dresscode_style_golden_luxury: {
+    entranceEffect: "shimmerIn",
+    entranceDuration: 1.4,
+    continuousEffect: "pulse",
+    continuousDuration: 2.2,
+    badgeLabel: "✨ Tỏa sáng ánh kim • 💓 Nhịp tim",
+    description: "Gam màu dạ tiệc quý tộc phát quang ánh kim lộng lẫy.",
+  },
+  dresscode_style_pastel_blooms: {
+    entranceEffect: "petalDrop",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.4,
+    badgeLabel: "✨ Cánh hoa rơi rụng • 🕊️ Bồng bềnh",
+    description: "Cánh hoa rơi bồng bềnh mang hơi thở thanh xuân tươi mát.",
+  },
+
+  // --- 5. LOVESTORY (Chuyện tình yêu) ---
+  lovestory_style_timeline: {
+    entranceEffect: "floatIn",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.4,
+    badgeLabel: "✨ Bay lơ lửng vào • 🕊️ Bồng bềnh",
+    description: "4 cột mốc tình yêu bay nhẹ vào màn hình và lơ lửng lãng mạn.",
+  },
+  lovestory_style_milestones: {
+    entranceEffect: "rotate3dIn",
+    entranceDuration: 1.3,
+    continuousEffect: "wobble",
+    continuousDuration: 3.6,
+    badgeLabel: "✨ Thẻ mốc 3D • 🎈 Đung đưa",
+    description: "Bộ 4 thẻ cột mốc tình yêu xoay nghiêng 3D và đung đưa kỷ niệm.",
+  },
+  lovestory_style_journal: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.5,
+    continuousEffect: "float",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Mở cuộn nhật ký 3D • 🕊️ Lơ lửng",
+    description: "Mở cuộn nhật ký hẹn hò 3D và bồng bềnh retro đầy chất thơ.",
+  },
+  lovestory_handcrafted_milestones: {
+    entranceEffect: "floatIn",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.4,
+    badgeLabel: "✨ Bay lơ lửng vào • 🕊️ Bồng bềnh",
+    description: "4 cột mốc tình yêu bay nhẹ vào màn hình và lơ lửng lãng mạn.",
+  },
+
+  // --- 6. FAMILY (Thông tin hai họ) ---
+  family_style_handcrafted_linebox: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.2,
+    continuousEffect: "float",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Lướt lên trang trọng • 🕊️ Bồng bềnh",
+    description: "Viền họa tiết nâu thủ công lướt lên trang trọng và trôi nổi nhẹ.",
+  },
+  family_style_traditional_double_joy: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.4,
+    continuousEffect: "pulse",
+    continuousDuration: 2.4,
+    badgeLabel: "✨ Mở cửa Song Hỷ 3D • 💓 Nhịp ấm áp",
+    description: "Mở cánh cửa chữ Song Hỷ 3D và nhịp đập sum vầy hai họ.",
+  },
+  family_style_modern_split: {
+    entranceEffect: "flipInY",
+    entranceDuration: 1.2,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Lật đối xứng 3D",
+    description: "Hai cột đối xứng lật mở 3D trang nhã và hiện đại.",
+  },
+  family_style_circle_portraits: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.1,
+    continuousEffect: "float",
+    continuousDuration: 3.5,
+    badgeLabel: "✨ Zoom khung chân dung • 🕊️ Lơ lửng",
+    description: "Chân dung phụ mẫu hai nhà phóng to êm ái và lơ lửng.",
+  },
+  family_style_royal_crest: {
+    entranceEffect: "shimmerIn",
+    entranceDuration: 1.4,
+    continuousEffect: "pulse",
+    continuousDuration: 2.2,
+    badgeLabel: "✨ Ánh kim gia tộc • 💓 Nhịp đập",
+    description: "Huy hiệu hoàng gia tỏa sáng mạ vàng và nhịp tim vương giả.",
+  },
+  family_style_compact_card: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.0,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Lướt êm gọn gàng",
+    description: "Thẻ giới thiệu lướt từ dưới lên nhanh gọn gàng.",
+  },
+
+  // --- 7. MAP (Bản đồ & chỉ đường) ---
+  map_style_handdrawn: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.3,
+    continuousEffect: "float",
+    continuousDuration: 4.0,
+    badgeLabel: "✨ Mở phác họa 3D • 🕊️ Bồng bềnh",
+    description: "Mở bức tranh phác họa nét mực vintage 3D và lơ lửng mộc mạc.",
+  },
+  map_style_dark_luxury: {
+    entranceEffect: "shimmerIn",
+    entranceDuration: 1.4,
+    continuousEffect: "pulse",
+    continuousDuration: 2.5,
+    badgeLabel: "✨ Tỏa sáng dạ tiệc • 💓 Nhịp đập",
+    description: "Bản đồ dạ tiệc Dark Gold phát quang ánh kim sang trọng.",
+  },
+  map_style_royal: {
+    entranceEffect: "flipInX",
+    entranceDuration: 1.2,
+    continuousEffect: "float",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Lật khung vàng 3D • 🕊️ Bồng bềnh",
+    description: "Lật khung viền vàng 3D và trôi nổi nhẹ nhàng.",
+  },
+  map_style_preview: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.0,
+    continuousEffect: "pulse",
+    continuousDuration: 2.0,
+    badgeLabel: "✨ Phóng to vệ tinh • 💓 Ghim nhấp nháy",
+    description: "Bản đồ ảnh vệ tinh phóng to với ghim đỏ đập nhịp trực quan.",
+  },
+  map_style_qr: {
+    entranceEffect: "elasticIn",
+    entranceDuration: 1.1,
+    continuousEffect: "pulse",
+    continuousDuration: 2.2,
+    badgeLabel: "✨ Đàn hồi mở QR • 💓 Nhịp đập",
+    description: "Mã QR mở bản đồ đàn hồi bật ra kèm nhịp đập công nghệ.",
+  },
+  map_style_minimal: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.0,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Trượt êm tối giản",
+    description: "Nút bấm 1 chạm trượt mượt mà trực quan.",
+  },
+  map_style_dual: {
+    entranceEffect: "flipInY",
+    entranceDuration: 1.2,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Lật mở 2 địa điểm 3D",
+    description: "Hai điểm đến Nhà Trai - Nhà Gái lật mở đối xứng 3D.",
+  },
+  map_style_roadmap: {
+    entranceEffect: "fadeInUp",
+    entranceDuration: 1.1,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Lướt chỉ dẫn bãi đỗ xe",
+    description: "Sơ đồ bãi xe và hướng rẽ trượt lên chu đáo.",
+  },
+
+  // --- 8. RSVP (Xác nhận tham dự) ---
+  rsvp_style_classic_card: {
+    entranceEffect: "bounceInUp",
+    entranceDuration: 1.2,
+    continuousEffect: "pulse",
+    continuousDuration: 2.4,
+    badgeLabel: "✨ Bật nảy đón khách • 💓 Nhịp tim",
+    description: "Phiếu hồi báo bật nảy đón mừng với nhịp tim ấm áp.",
+  },
+  rsvp_style_quick_chips: {
+    entranceEffect: "zoomIn",
+    entranceDuration: 1.0,
+    continuousEffect: "wobble",
+    continuousDuration: 3.2,
+    badgeLabel: "✨ Thu phóng • 🎈 Đung đưa vui vẻ",
+    description: "Nút chọn số lượng khách phóng to và đung đưa năng động.",
+  },
+  rsvp_style_wishes_box: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.6,
+    badgeLabel: "✨ Mở hòm thư 3D • 🕊️ Lơ lửng",
+    description: "Mở nắp hòm thư chúc phúc 3D và bồng bềnh lãng mạn.",
+  },
+  rsvp_style_dietary_pref: {
+    entranceEffect: "fadeInDown",
+    entranceDuration: 1.1,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Trượt êm chu đáo",
+    description: "Bảng khẩu vị ăn kiêng trượt nhẹ xuống ân cần.",
+  },
+  rsvp_style_vip_guest: {
+    entranceEffect: "shimmerIn",
+    entranceDuration: 1.3,
+    continuousEffect: "pulse",
+    continuousDuration: 2.2,
+    badgeLabel: "✨ Ánh kim VIP • 💓 Nhịp tim",
+    description: "Phiếu khách VIP tỏa sáng ánh kim tôn vinh người tham dự.",
+  },
+
+  // --- 9. INTRO (Lời ngỏ & Cảm ơn) ---
+  intro_style_wax_envelope_hero: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.6,
+    continuousEffect: "float",
+    continuousDuration: 4.2,
+    badgeLabel: "✨ Mở bì thư sáp 3D • 🕊️ Lơ lửng",
+    description: "Mở nắp bì thư sáp đỏ hoàng gia 3D và bồng bềnh quý phái.",
+  },
+  intro_style_thankyou_handwritten: {
+    entranceEffect: "blurReveal",
+    entranceDuration: 1.5,
+    continuousEffect: "pulse",
+    continuousDuration: 2.8,
+    badgeLabel: "✨ Sương mờ tỏ hiện • 💓 Nhịp tim ấm áp",
+    description: "Làn sương mờ tan hiện lời tri ân xúc động cùng nhịp tim ấm áp.",
+  },
+  intro_style_romantic: {
+    entranceEffect: "floatIn",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.6,
+    badgeLabel: "✨ Bay lơ lửng • 🕊️ Lãng mạn",
+    description: "Câu danh ngôn bay lượn mềm mại như thơ ca lãng mạn.",
+  },
+  intro_style_quote: {
+    entranceEffect: "curtainUnveil",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 4.0,
+    badgeLabel: "✨ Kéo rèm lễ đường • 🕊️ Bồng bềnh",
+    description: "Kéo rèm lễ đường mở ra lời tự sự chân thành.",
+  },
+  intro_style_thanks: {
+    entranceEffect: "blurReveal",
+    entranceDuration: 1.4,
+    continuousEffect: "pulse",
+    continuousDuration: 2.5,
+    badgeLabel: "✨ Sương mờ tri ân • 💓 Nhịp đập",
+    description: "Lời cảm ơn cuối thiệp tỏ hiện sâu sắc.",
+  },
+  intro_wax_seal_luxury: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.6,
+    continuousEffect: "float",
+    continuousDuration: 4.2,
+    badgeLabel: "✨ Mở bì thư sáp 3D • 🕊️ Lơ lửng",
+    description: "Mở nắp bì thư sáp đỏ hoàng gia 3D và bồng bềnh quý phái.",
+  },
+  intro_thankyou_warmth: {
+    entranceEffect: "blurReveal",
+    entranceDuration: 1.5,
+    continuousEffect: "pulse",
+    continuousDuration: 2.8,
+    badgeLabel: "✨ Sương mờ tỏ hiện • 💓 Nhịp tim ấm áp",
+    description: "Làn sương mờ tan hiện lời tri ân xúc động cùng nhịp tim ấm áp.",
+  },
+  intro_style_romantic_quote: {
+    entranceEffect: "floatIn",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 3.6,
+    badgeLabel: "✨ Bay lơ lửng • 🕊️ Lãng mạn",
+    description: "Câu danh ngôn bay lượn mềm mại như thơ ca lãng mạn.",
+  },
+  intro_style_prose: {
+    entranceEffect: "curtainUnveil",
+    entranceDuration: 1.4,
+    continuousEffect: "float",
+    continuousDuration: 4.0,
+    badgeLabel: "✨ Kéo rèm lễ đường • 🕊️ Bồng bềnh",
+    description: "Kéo rèm lễ đường mở ra lời tự sự chân thành.",
+  },
+  intro_style_invitation_formal: {
+    entranceEffect: "doorOpen",
+    entranceDuration: 1.5,
+    continuousEffect: "none",
+    continuousDuration: 3.0,
+    badgeLabel: "✨ Mở cánh thư 3D",
+    description: "Mở cánh thư mời tiệc cưới trang nghiêm 3D.",
+  },
+  intro_style_signatures: {
+    entranceEffect: "swirlIn",
+    entranceDuration: 1.2,
+    continuousEffect: "pulse",
+    continuousDuration: 2.0,
+    badgeLabel: "✨ Nét bút xoay tròn • 💓 Nhịp tim",
+    description: "Chữ ký đôi dâu rể xoay lướt mềm mại và đập nhịp yêu thương.",
+  },
+  intro_style_monogram: {
+    entranceEffect: "shimmerIn",
+    entranceDuration: 1.5,
+    continuousEffect: "float",
+    continuousDuration: 3.8,
+    badgeLabel: "✨ Tỏa sáng Monogram • 🕊️ Lơ lửng",
+    description: "Chữ cái lồng ghép hoàng gia phát quang ánh vàng rực rỡ.",
+  },
+};
+
+/**
+ * Lấy hiệu ứng riêng của một khối mẫu
+ */
+export function getBlockEffectForPreset(presetOrId: ModulePresetItem | string, category?: ModuleCategoryId): ModuleBlockEffect {
+  if (typeof presetOrId === "string") {
+    if (PRESET_BLOCK_EFFECTS[presetOrId]) {
+      return PRESET_BLOCK_EFFECTS[presetOrId];
+    }
+    return getDefaultBlockEffect(category || "ceremony");
+  }
+  if (presetOrId.blockEffect) {
+    return presetOrId.blockEffect;
+  }
+  if (PRESET_BLOCK_EFFECTS[presetOrId.id]) {
+    return PRESET_BLOCK_EFFECTS[presetOrId.id];
+  }
+  return getDefaultBlockEffect(presetOrId.category);
+}
+
+const RAW_MODULE_PRESETS: ModulePresetItem[] = [
   // ================= 1. CHỦ ĐỀ: BẢN ĐỒ & CHỈ ĐƯỜNG (6 GIAO DIỆN BẢN ĐỒ KHÁC NHAU) =================
   {
     id: "map_style_minimal",
@@ -397,8 +1054,86 @@ export const MODULE_PRESETS: ModulePresetItem[] = [
       styleVariant: "hearts",
     },
   },
+  {
+    id: "calendar_style_handcrafted_grid",
+    category: "calendar",
+    name: "Cụm Lịch & Giờ Cưới Nghệ Thuật Đa Thành Phần",
+    styleName: "Giao diện 8: Cụm ngày giờ nghệ thuật",
+    description: "Học hỏi từ mẫu Hồng Phong: Cụm ngày to bản trung tâm được ôm trọn bởi Thứ & Tháng đối xứng, năm cưới và ngày âm lịch in nghiêng trang trọng.",
+    previewIcon: "🗓️",
+    badge: "Thủ công VIP",
+    type: "CalendarBoxV2",
+    defaultWidth: 440,
+    defaultHeight: 150,
+    defaultProps: {
+      selectedDate: "2026-12-29",
+      targetTime: "11:30",
+      themeColor: "#590310",
+      styleVariant: "handcrafted_grid",
+    },
+  },
 
-  // ================= 3. CHỦ ĐỀ: HÔN LỄ & TIMELINE (5 GIAO DIỆN KHÁC NHAU) =================
+  // ================= 3. CHỦ ĐỀ: HÔN LỄ & TIMELINE (NHIỀU GIAO DIỆN KHÁC NHAU) =================
+  {
+    id: "ceremony_style_handcrafted_velvet",
+    category: "ceremony",
+    name: "Thẻ Lễ Thành Hôn Hoàng Gia Nền Nhung Đỏ Bo Góc",
+    styleName: "Giao diện Thủ Công: Nền nhung đỏ bo góc 30px",
+    description: "Học hỏi từ mẫu thiệp Hồng Phong: Nền nhung đỏ rượu vang, tứ thân phụ mẫu chia 2 cột đối xứng, lời kính báo trang trọng và cụm ngày giờ nghệ thuật đa thành phần kèm âm lịch.",
+    previewIcon: "🏛️",
+    badge: "Thủ công VIP",
+    type: "CeremonyBox",
+    defaultWidth: 440,
+    defaultHeight: 330,
+    defaultProps: {
+      styleVariant: "handcrafted_velvet",
+      ceremonyName: "LỄ THÀNH HÔN",
+      time: "11:30",
+      date: "2026-12-29",
+      lunarDate: "(Tức ngày 11 tháng 11 năm Bính Ngọ)",
+      location: "TẠI TƯ GIA NHÀ TRAI",
+    },
+  },
+  {
+    id: "ceremony_style_banquet_reception",
+    category: "ceremony",
+    name: "Thẻ Tiệc Cưới & Đếm Ngược Hoàng Gia",
+    styleName: "Giao diện Thủ Công: Tiệc mừng hôn lễ",
+    description: "Thẻ tiệc cưới riêng biệt: Giờ đón khách & khai tiệc, sảnh tiệc, ngày tháng đối xứng và địa chỉ trung tâm tiệc cưới.",
+    previewIcon: "🥂",
+    badge: "Tiệc mừng",
+    type: "CeremonyBox",
+    defaultWidth: 440,
+    defaultHeight: 240,
+    defaultProps: {
+      styleVariant: "banquet_reception",
+      ceremonyName: "TIỆC MỪNG HÔN LỄ",
+      time: "17:30",
+      date: "2026-12-29",
+      lunarDate: "(Tức ngày 11 tháng 11 năm Bính Ngọ)",
+      location: "TRUNG TÂM TIỆC CƯỚI TRỐNG ĐỒNG PALACE - SẢNH DIAMOND",
+    },
+  },
+  {
+    id: "ceremony_style_artisan_parchment",
+    category: "ceremony",
+    name: "Thẻ Báo Hỷ Giấy Dó Cổ Điển",
+    styleName: "Giao diện Thủ Công: Giấy kem vintage dát vàng",
+    description: "Phong cách bưu thiếp giấy Dó thủ công cao cấp viền chỉ vàng hoàng gia.",
+    previewIcon: "📜",
+    badge: "Vintage",
+    type: "CeremonyBox",
+    defaultWidth: 440,
+    defaultHeight: 210,
+    defaultProps: {
+      styleVariant: "artisan_parchment",
+      ceremonyName: "THƯ MỜI BÁO HỶ",
+      time: "11:30",
+      date: "2026-12-29",
+      lunarDate: "(Tức ngày 11 tháng 11 năm Bính Ngọ)",
+      location: "TRUNG TÂM TIỆC CƯỚI TRỐNG ĐỒNG PALACE",
+    },
+  },
   {
     id: "ceremony_style_classic",
     category: "ceremony",
@@ -639,8 +1374,51 @@ export const MODULE_PRESETS: ModulePresetItem[] = [
       styleVariant: "full",
     },
   },
+  {
+    id: "family_style_handcrafted_linebox",
+    category: "family",
+    name: "Đại Diện Hai Họ Tứ Thân Phụ Mẫu Kèm Vạch Ngăn LineBox",
+    styleName: "Giao diện Thủ Công: Hai cột vạch ngăn vàng",
+    description: "Học hỏi từ mẫu Hồng Phong: Bố cục 2 cột cân xứng Nhà Trai & Nhà Gái, vạch ngăn cách LineBox sang trọng, hiển thị chi tiết thân phụ mẫu và quê quán.",
+    previewIcon: "👥",
+    badge: "Thủ công VIP",
+    type: "FamilyInfoBox",
+    defaultWidth: 440,
+    defaultHeight: 190,
+    defaultProps: {
+      styleVariant: "handcrafted_linebox",
+      groomFather: "Lê Văn Thắng",
+      groomMother: "Ngô Thị Ân",
+      groomName: "Lê Đức Mạnh",
+      brideFather: "Trần Đức Tuấn",
+      brideMother: "Trần Thị Nga",
+      brideName: "Trần Lệ Quyên",
+    },
+  },
 
-  // ================= 5. CHỦ ĐỀ: HỘP MỪNG CƯỚI & VIETQR (6 GIAO DIỆN KHÁC NHAU) =================
+  // ================= 5. CHỦ ĐỀ: HỘP MỪNG CƯỚI & VIETQR (NHIỀU GIAO DIỆN KHÁC NHAU) =================
+  {
+    id: "banking_style_red_envelope_pair",
+    category: "banking",
+    name: "Phong Bì Đỏ Song Hỷ Kép VietQR",
+    styleName: "Giao diện Thủ Công: 2 Bao lì xì Song Hỷ may mắn",
+    description: "Học hỏi từ phong thư cưới truyền thống: 2 Bao lì xì đỏ nhung dập nổi Song Hỷ vàng kim kết nối hai họ, tích hợp mã VietQR Napas 24/7.",
+    previewIcon: "🧧",
+    badge: "Song Hỷ VIP",
+    type: "GiftQrBox",
+    defaultWidth: 440,
+    defaultHeight: 260,
+    defaultProps: {
+      styleVariant: "red_envelope_pair",
+      modalTitle: "Hộp Quà Mừng Cưới (VietQR)",
+      groomBank: "MB BANK",
+      groomAccount: "999988882026",
+      groomName: "LÊ ĐỨC MẠNH",
+      brideBank: "VIETCOMBANK",
+      brideAccount: "1028492049",
+      brideName: "TRẦN LỆ QUYÊN",
+    },
+  },
   {
     id: "banking_style_dual",
     category: "banking",
@@ -937,8 +1715,129 @@ export const MODULE_PRESETS: ModulePresetItem[] = [
       colors: ["#faf7f2", "#e2d4c0", "#bfa07a", "#8c6b4f", "#2b2621"],
     },
   },
+  {
+    id: "dresscode_style_handcrafted_chic",
+    category: "dresscode",
+    name: "Quy Định Trang Phục Dạ Tiệc Kèm Gợi Ý & Lưu Ý",
+    styleName: "Giao diện Thủ Công: Bảng 4 màu & hướng dẫn trang nhã",
+    description: "Học hỏi từ mẫu Hồng Phong: Bảng 4 màu chuẩn tiệc cưới (Champagne, Đỏ Burgundy, Nude, Trắng ngà) kèm hướng dẫn đồ Nam & Nữ và lưu ý tránh mặc màu trắng.",
+    previewIcon: "👗",
+    badge: "Tinh tế",
+    type: "DressCodeBox",
+    defaultWidth: 440,
+    defaultHeight: 230,
+    defaultProps: {
+      colors: [
+        { color: "#D4AF37", label: "Champagne" },
+        { color: "#511419", label: "Burgundy" },
+        { color: "#D7CCB8", label: "Nude Be" },
+        { color: "#F5EBE6", label: "Trắng Ngà" },
+      ],
+      description: "Để những bức hình kỷ niệm thêm phần trang nhã và đồng điệu, kính mời quý khách lựa chọn trang phục theo tông màu:",
+    },
+  },
 
-  // ================= 8. CHỦ ĐỀ: LỜI NGỎ & CẢM ƠN (5 GIAO DIỆN KHÁC NHAU) =================
+  // ================= 7.5. CHỦ ĐỀ: CHUYỆN TÌNH YÊU (LOVE STORY) =================
+  {
+    id: "lovestory_style_timeline",
+    category: "lovestory",
+    name: "Dòng Thời Gian Tình Yêu 4 Cột Mốc",
+    styleName: "Giao diện 1: Dòng thời gian 4 mốc kỷ niệm",
+    description: "Học hỏi từ mẫu Chung Đôi Son Sắt: Trục dọc lãng mạn kết nối 4 cột mốc: Lần đầu gặp gỡ, Lời hẹn ước, Khoảnh khắc cầu hôn và Ngày chung đôi hạnh phúc.",
+    previewIcon: "⏳",
+    badge: "Lãng mạn",
+    type: "TimelineBox",
+    defaultWidth: 440,
+    defaultHeight: 250,
+    defaultProps: {
+      items: [
+        { id: "1", time: "15.08.2023", title: "Lần đầu gặp gỡ chạm ánh mắt" },
+        { id: "2", time: "20.10.2023", title: "Lời hẹn ước chính thức" },
+        { id: "3", time: "14.02.2026", title: "Khoảnh khắc cầu hôn ngọt ngào" },
+        { id: "4", time: "20.11.2026", title: "Ngày chung đôi trăm năm" },
+      ],
+      primaryColor: "#e11d48",
+      textColor: "#1f2937",
+    },
+  },
+  {
+    id: "lovestory_style_milestones",
+    category: "lovestory",
+    name: "Bộ 4 Thẻ Cột Mốc Tình Yêu Bo Góc",
+    styleName: "Giao diện 2: Thẻ cột mốc kỷ niệm",
+    description: "Các thẻ kỷ niệm bo góc mềm mại, hiển thị ngày tháng nổi bật kèm ảnh chụp từng cột mốc.",
+    previewIcon: "💍",
+    badge: "Ngọt ngào",
+    type: "TimelineBox",
+    defaultWidth: 440,
+    defaultHeight: 260,
+    defaultProps: {
+      items: [
+        { id: "1", time: "2023", title: "Ánh mắt đầu tiên tìm thấy nhau" },
+        { id: "2", time: "2024", title: "Những chuyến đi đong đầy kỷ niệm" },
+        { id: "3", time: "2025", title: "Em gật đầu đồng ý lời cầu hôn" },
+        { id: "4", time: "2026", title: "Lễ đường hạnh phúc vẹn tròn" },
+      ],
+      primaryColor: "#be123c",
+      textColor: "#1f2937",
+    },
+  },
+  {
+    id: "lovestory_style_journal",
+    category: "lovestory",
+    name: "Trang Nhật Ký Tình Yêu Vintage",
+    styleName: "Giao diện 3: Giấy ngà phong cách hoài niệm",
+    description: "Trình bày như những trang nhật ký cổ điển lưu giữ trọn vẹn từng khoảnh khắc rung động tình yêu.",
+    previewIcon: "📖",
+    badge: "Hoài niệm",
+    type: "TimelineBox",
+    defaultWidth: 440,
+    defaultHeight: 240,
+    defaultProps: {
+      items: [
+        { id: "1", time: "MÙA THU 2023", title: "Khởi đầu câu chuyện tình yêu" },
+        { id: "2", time: "MÙA ĐÔNG 2024", title: "Cái nắm tay ấm áp trao trọn niềm tin" },
+        { id: "3", time: "MÙA XUÂN 2026", title: "Chiếc nhẫn ước hẹn trọn đời" },
+        { id: "4", time: "HÔM NAY", title: "Cùng nhau về chung một nhà" },
+      ],
+      primaryColor: "#9a3412",
+      textColor: "#3f2d20",
+    },
+  },
+
+  // ================= 8. CHỦ ĐỀ: LỜI NGỎ & CẢM ƠN (NHIỀU GIAO DIỆN KHÁC NHAU) =================
+  {
+    id: "intro_style_wax_envelope_hero",
+    category: "intro",
+    name: "Bì Thư Sáp Đỏ Dập Hoa Hồng & Chân Dung Nổi",
+    styleName: "Giao diện Thủ Công: Bì thư sáp đỏ dập hoa hồng",
+    description: "Học hỏi từ mẫu Hồng Phong: Bì thư nhung đỏ cổ điển, con dấu sáp vàng hoa hồng 3D và chữ Save The Date thư pháp.",
+    previewIcon: "💌",
+    badge: "Bì thư sáp",
+    type: "TextBox",
+    defaultWidth: 440,
+    defaultHeight: 180,
+    defaultProps: {
+      text: "<div style='text-align:center; padding:18px; background:linear-gradient(145deg, #700f2d 0%, #4a0519 100%); border-radius:24px; border:1px solid rgba(236,228,216,0.3); color:#ece4d8; font-family:serif;'><div style='font-size:11px; letter-spacing:3px; text-transform:uppercase; color:#ecd4a6; margin-bottom:8px;'>✦ SAVE THE DATE ✦</div><div style='font-size:28px; font-weight:bold; color:#fff; letter-spacing:1px; margin-bottom:4px;'>Đức Mạnh <span style='font-family:cursive; font-size:32px; color:#ecd4a6;'>&amp;</span> Lệ Quyên</div><div style='font-size:12px; color:#ecd4a6; font-style:italic;'>Thư mời hôn lễ trân trọng kính gửi quý quan khách</div></div>",
+      fontSize: 16,
+    },
+  },
+  {
+    id: "intro_style_thankyou_handwritten",
+    category: "intro",
+    name: "Lời Cảm Ơn Cuối Thiệp & Ký Tên Nghệ Thuật",
+    styleName: "Giao diện Thủ Công: Thank You thư pháp & chữ ký đôi",
+    description: "Học hỏi từ mẫu Hồng Phong & Châu Âu: Chữ Thank You phóng khoáng, lời tri ân sâu sắc và chữ ký tay đôi uyên ương.",
+    previewIcon: "✍️",
+    badge: "Tri ân",
+    type: "TextBox",
+    defaultWidth: 440,
+    defaultHeight: 160,
+    defaultProps: {
+      text: "<div style='text-align:center; padding:18px; background:#fff; border-radius:20px; border:1px solid rgba(212,175,55,0.25); box-shadow:0 6px 20px rgba(0,0,0,0.03); font-family:serif;'><div style='font-family:cursive; font-size:36px; color:#881337; margin-bottom:4px;'>Thank You</div><div style='font-size:12.5px; color:#4b5563; line-height:1.6; margin-bottom:10px;'>Cảm ơn Quý Khách đã dành tình cảm và thời gian quý báu đến chung vui cùng gia đình chúng tôi!</div><div style='font-size:14px; font-weight:bold; color:#881337; font-style:italic;'>Đức Mạnh &amp; Lệ Quyên</div></div>",
+      fontSize: 16,
+    },
+  },
   {
     id: "intro_style_romantic",
     category: "intro",
@@ -1036,6 +1935,32 @@ export const MODULE_PRESETS: ModulePresetItem[] = [
     },
   },
 ];
+
+/**
+ * Danh sách toàn bộ các khối mẫu với hiệu ứng khối riêng được tích hợp sẵn (Enriched Module Presets with Block Effects)
+ */
+export const MODULE_PRESETS: ModulePresetItem[] = RAW_MODULE_PRESETS.map((preset) => {
+  const effect = preset.blockEffect || getBlockEffectForPreset(preset);
+  return {
+    ...preset,
+    blockEffect: effect,
+    defaultProps: {
+      ...preset.defaultProps,
+      transition: preset.defaultProps.transition || {
+        effectEnabled: true,
+        effectType: effect.entranceEffect,
+        effectDuration: effect.entranceDuration,
+        effectDelay: effect.entranceDelay || 0,
+        effectEasing: "cubic-bezier(0.16, 1, 0.3, 1)",
+      },
+      continuousAnimation: preset.defaultProps.continuousAnimation || {
+        type: effect.continuousEffect,
+        duration: effect.continuousDuration || 3.0,
+        delay: 0,
+      },
+    },
+  };
+});
 
 /**
  * Lấy danh sách các khối mẫu theo danh mục / chủ đề

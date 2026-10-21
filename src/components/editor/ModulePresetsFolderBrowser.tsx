@@ -208,6 +208,15 @@ export default function ModulePresetsFolderBrowser({
                     <div className="w-full">
                       <PresetVisualPreviewMockup preset={preset} />
                     </div>
+
+                    {/* Hiệu ứng chuyển động của khối riêng */}
+                    {preset.blockEffect && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-amber-800 bg-gradient-to-r from-amber-50/95 to-orange-50/95 border border-amber-200/70 rounded-lg px-2.5 py-1">
+                        <Sparkles className="w-3 h-3 text-amber-600 shrink-0 animate-pulse" />
+                        <span className="font-bold text-amber-900 shrink-0">Hiệu ứng riêng:</span>
+                        <span className="truncate">{preset.blockEffect.badgeLabel}</span>
+                      </div>
+                    )}
                   </div>
                 );
               })
@@ -342,6 +351,15 @@ export default function ModulePresetsFolderBrowser({
                     <div className="w-full">
                       <PresetVisualPreviewMockup preset={preset} />
                     </div>
+
+                    {/* Hiệu ứng chuyển động của khối riêng */}
+                    {preset.blockEffect && (
+                      <div className="flex items-center gap-1.5 text-[10px] font-medium text-amber-800 bg-gradient-to-r from-amber-50/95 to-orange-50/95 border border-amber-200/70 rounded-lg px-2.5 py-1">
+                        <Sparkles className="w-3 h-3 text-amber-600 shrink-0 animate-pulse" />
+                        <span className="font-bold text-amber-900 shrink-0">Hiệu ứng riêng:</span>
+                        <span className="truncate">{preset.blockEffect.badgeLabel}</span>
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2 text-[9px] text-gray-400 font-mono">
                       <span>Kích thước: {preset.defaultWidth} × {preset.defaultHeight}px</span>
