@@ -10,7 +10,8 @@ export type ActivityType =
   | "card_view"       // Khách truy cập xem thiệp
   | "rsvp_submit"     // Khách gửi xác nhận tham dự
   | "wish_submit"     // Khách gửi lời chúc mừng
-  | "template_view";  // Khách xem mẫu trong kho
+  | "template_view"   // Khách xem mẫu trong kho
+  | "partner_registration"; // Đối tác đăng ký hợp tác
 
 export interface SystemActivity {
   id: string;

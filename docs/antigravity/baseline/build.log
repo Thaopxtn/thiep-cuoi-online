@@ -1,0 +1,97 @@
+
+> thiep-cuoi-zenlove@1.0.0 build
+> node --max-old-space-size=4096 ./node_modules/next/dist/bin/next build
+
+  ▲ Next.js 14.2.35
+  - Environments: .env.local
+  - Experiments (use with caution):
+    · cpus
+
+   Creating an optimized production build ...
+ ✓ Compiled successfully
+   Skipping linting
+   Checking validity of types ...
+   Collecting page data ...
+   Generating static pages (0/349) ...
+   Generating static pages (87/349) 
+   Generating static pages (174/349) 
+   Generating static pages (261/349) 
+ ✓ Generating static pages (349/349)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                              Size     First Load JS
+┌ ○ /                                    16.4 kB         197 kB
+├ ○ /_not-found                          161 B          87.7 kB
+├ ○ /admin                               24.1 kB         159 kB
+├ ƒ /api/admin/activities                0 B                0 B
+├ ƒ /api/admin/cards                     0 B                0 B
+├ ƒ /api/admin/health                    0 B                0 B
+├ ƒ /api/admin/logout                    0 B                0 B
+├ ƒ /api/admin/rsvps                     0 B                0 B
+├ ƒ /api/admin/stats                     0 B                0 B
+├ ƒ /api/admin/users                     0 B                0 B
+├ ƒ /api/admin/verify                    0 B                0 B
+├ ƒ /api/admin/wishes                    0 B                0 B
+├ ƒ /api/auth/google                     0 B                0 B
+├ ƒ /api/auth/login                      0 B                0 B
+├ ƒ /api/auth/refresh                    0 B                0 B
+├ ƒ /api/auth/register                   0 B                0 B
+├ ƒ /api/auth/update-password            0 B                0 B
+├ ƒ /api/cards                           0 B                0 B
+├ ƒ /api/cards/[id]                      0 B                0 B
+├ ƒ /api/cards/[id]/export               0 B                0 B
+├ ƒ /api/cards/[id]/publish              0 B                0 B
+├ ƒ /api/cards/[id]/vip-status           0 B                0 B
+├ ƒ /api/cards/clone                     0 B                0 B
+├ ƒ /api/cards/export-all                0 B                0 B
+├ ƒ /api/colors                          0 B                0 B
+├ ƒ /api/health                          0 B                0 B
+├ ƒ /api/og/[slug]                       0 B                0 B
+├ ƒ /api/partners                        0 B                0 B
+├ ƒ /api/proxy-image                     0 B                0 B
+├ ƒ /api/show/[slug]                     0 B                0 B
+├ ƒ /api/show/[slug]/photos              0 B                0 B
+├ ƒ /api/show/[slug]/rsvp                0 B                0 B
+├ ƒ /api/show/[slug]/view                0 B                0 B
+├ ƒ /api/show/[slug]/wishes              0 B                0 B
+├ ƒ /api/templates                       0 B                0 B
+├ ƒ /api/templates/[id]                  0 B                0 B
+├ ƒ /api/tools/remove-bg                 0 B                0 B
+├ ƒ /api/tools/vietqr                    0 B                0 B
+├ ƒ /api/upload                          0 B                0 B
+├ ƒ /api/upload/list                     0 B                0 B
+├ ƒ /api/webhook/payment                 0 B                0 B
+├ ƒ /api/zenlove-template/[id]           0 B                0 B
+├ ○ /auth/callback                       1.83 kB         157 kB
+├ ƒ /checkin/[slug]                      7.48 kB         172 kB
+├ ○ /chinh-sach                          7.78 kB         120 kB
+├ ○ /dashboard                           37.1 kB         221 kB
+├ ƒ /design-template/[id]                174 kB          378 kB
+├ ○ /doi-tac-cuoi                        9.07 kB         121 kB
+├ ○ /kho-template                        161 B          87.7 kB
+├ ○ /manifest.webmanifest                0 B                0 B
+├ ○ /robots.txt                          0 B                0 B
+├ ƒ /show/[slug]                         30.4 kB         223 kB
+├ ƒ /show/[slug]/live                    6 kB            175 kB
+├ ○ /sitemap.xml                         0 B                0 B
+├ ○ /tao-thiep-cuoi-online               7.24 kB         191 kB
+├ ○ /template-builder                    161 B          87.7 kB
+├ ○ /templates                           10.1 kB         206 kB
+├ ● /templates/[slug]                    27.7 kB         223 kB
+├   ├ /templates/aurora-luxury
+├   ├ /templates/chung-doi-son-sat
+├   ├ /templates/pure-romance
+├   └ [+328 more paths]
+├ ○ /thiep-online                        161 B          87.7 kB
+└ ○ /thiep-online/khach-hang             7.27 kB         187 kB
++ First Load JS shared by all            87.5 kB
+  ├ chunks/2117-071c6f93e2ce7397.js      31.7 kB
+  ├ chunks/fd9d1056-7d85a885c4ad02b5.js  53.6 kB
+  └ other shared chunks (total)          2.16 kB
+
+
+○  (Static)   prerendered as static content
+●  (SSG)      prerendered as static HTML (uses getStaticProps)
+ƒ  (Dynamic)  server-rendered on demand
+

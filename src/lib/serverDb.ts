@@ -12,14 +12,33 @@ import { WeddingCard, WeddingRsvp, WeddingWish } from "@/data/initialCards";
 
 const LOCAL_CARDS_FILE = path.join(process.cwd(), "src", "data", "cards-local-db.json");
 
+let localCardsCache: WeddingCard[] | null = null;
+let lastMtimeMs = 0;
+
 function readLocalCards(): WeddingCard[] {
   try {
     if (fs.existsSync(LOCAL_CARDS_FILE)) {
+      const stat = fs.statSync(LOCAL_CARDS_FILE);
+      if (localCardsCache && stat.mtimeMs === lastMtimeMs) {
+        return localCardsCache;
+      }
       const raw = fs.readFileSync(LOCAL_CARDS_FILE, "utf8");
-      return JSON.parse(raw);
+      localCardsCache = JSON.parse(raw);
+      lastMtimeMs = stat.mtimeMs;
+      return localCardsCache || [];
     }
   } catch {}
-  return [];
+  return localCardsCache || [];
+}
+
+
+function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 2500): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, {
+    ...init,
+    signal: init.signal || controller.signal,
+  }).finally(() => clearTimeout(timer));
 }
 
 function writeLocalCard(card: any) {
@@ -31,9 +50,14 @@ function writeLocalCard(card: any) {
     } else {
       cards.unshift(card);
     }
+    localCardsCache = cards;
     const dir = path.dirname(LOCAL_CARDS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(LOCAL_CARDS_FILE, JSON.stringify(cards), "utf8");
+    try {
+      const stat = fs.statSync(LOCAL_CARDS_FILE);
+      lastMtimeMs = stat.mtimeMs;
+    } catch {}
   } catch (err) {
     console.warn("Lỗi ghi cards-local-db.json:", err);
   }
@@ -102,7 +126,11 @@ function mapDbToCard(row: any): WeddingCard {
   let nodes: Record<string, any> | undefined = undefined;
   if (row.pageData) {
     nodes = decompressNodes(row.pageData) || undefined;
+  } else if (row.nodes) {
+    nodes = row.nodes;
   }
+
+  const groomMeta = row.groom || {};
 
   return {
     id: row.id,
@@ -133,26 +161,58 @@ function mapDbToCard(row: any): WeddingCard {
     rsvps: Array.isArray(row.rsvps) ? row.rsvps : [],
     wishes: Array.isArray(row.wishes) ? row.wishes : [],
     nodes,
-    userId: row.user_id || row.userId || row.groom?.userId || undefined,
+    userId: row.user_id || row.userId || groomMeta.userId || undefined,
     showGiftBox:
       row.showGiftBox !== undefined
         ? Boolean(row.showGiftBox)
-        : (row.groom?.showGiftBox !== undefined ? Boolean(row.groom.showGiftBox) : true),
+        : (groomMeta.showGiftBox !== undefined ? Boolean(groomMeta.showGiftBox) : true),
     showWishes:
       row.showWishes !== undefined
         ? Boolean(row.showWishes)
-        : (row.groom?.showWishes !== undefined ? Boolean(row.groom.showWishes) : true),
+        : (groomMeta.showWishes !== undefined ? Boolean(groomMeta.showWishes) : true),
     showRsvp:
       row.showRsvp !== undefined
         ? Boolean(row.showRsvp)
-        : (row.groom?.showRsvp !== undefined ? Boolean(row.groom.showRsvp) : true),
-    isVip: Boolean(row.isVip ?? row.groom?.isVip ?? false),
-    plan: row.plan || row.groom?.plan || (row.isVip ? "vip" : "free"),
-    vipUnlockedAt: row.vipUnlockedAt || row.groom?.vipUnlockedAt,
+        : (groomMeta.showRsvp !== undefined ? Boolean(groomMeta.showRsvp) : true),
+    showEvents:
+      row.showEvents !== undefined
+        ? Boolean(row.showEvents)
+        : (groomMeta.showEvents !== undefined ? Boolean(groomMeta.showEvents) : true),
+    showCalendar:
+      row.showCalendar !== undefined
+        ? Boolean(row.showCalendar)
+        : (groomMeta.showCalendar !== undefined ? Boolean(groomMeta.showCalendar) : true),
+    showLoveStory:
+      row.showLoveStory !== undefined
+        ? Boolean(row.showLoveStory)
+        : (groomMeta.showLoveStory !== undefined ? Boolean(groomMeta.showLoveStory) : true),
+    showAlbum:
+      row.showAlbum !== undefined
+        ? Boolean(row.showAlbum)
+        : (groomMeta.showAlbum !== undefined ? Boolean(groomMeta.showAlbum) : true),
+    envelopeTheme: row.envelopeTheme || groomMeta.envelopeTheme || "traditional",
+    ambientEffect: row.ambientEffect || groomMeta.ambientEffect,
+    effectConfig: row.effectConfig || groomMeta.effectConfig,
+    cinematicFx: row.cinematicFx || groomMeta.cinematicFx,
+    loveStory: Array.isArray(row.loveStory)
+      ? row.loveStory
+      : Array.isArray(groomMeta.loveStory)
+      ? groomMeta.loveStory
+      : undefined,
+    fixedModuleStyles: row.fixedModuleStyles || groomMeta.fixedModuleStyles,
+    rsvpTitle: row.rsvpTitle !== undefined ? row.rsvpTitle : groomMeta.rsvpTitle,
+    rsvpMessage: row.rsvpMessage !== undefined ? row.rsvpMessage : groomMeta.rsvpMessage,
+    wishesTitle: row.wishesTitle !== undefined ? row.wishesTitle : groomMeta.wishesTitle,
+    wishesDescription: row.wishesDescription !== undefined ? row.wishesDescription : groomMeta.wishesDescription,
+    isVip: Boolean(row.isVip ?? groomMeta.isVip ?? false),
+    plan: row.plan || groomMeta.plan || (row.isVip || groomMeta.isVip ? "vip" : "free"),
+    vipUnlockedAt: row.vipUnlockedAt || groomMeta.vipUnlockedAt,
     showWatermark:
       row.showWatermark !== undefined
         ? Boolean(row.showWatermark)
-        : !Boolean(row.isVip ?? row.groom?.isVip),
+        : (groomMeta.showWatermark !== undefined
+          ? Boolean(groomMeta.showWatermark)
+          : !Boolean(row.isVip ?? groomMeta.isVip)),
   };
 }
 
@@ -169,7 +229,7 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
     const query = userId
       ? `${SUPABASE_URL}/rest/v1/cards?user_id=eq.${encodeURIComponent(userId)}&select=*,rsvps(*),wishes(*)&order=updatedAt.desc`
       : `${SUPABASE_URL}/rest/v1/cards?select=*,rsvps(*),wishes(*)&order=updatedAt.desc`;
-    const res = await fetch(query, {
+    const res = await fetchWithTimeout(query, {
       headers: getDbHeaders(token),
       cache: "no-store",
     });
@@ -209,11 +269,11 @@ export async function getCardByIdOrSlugFromDb(idOrSlug: string): Promise<Wedding
         cache: "no-store",
       }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return localFound || null;
     const cards = await res.json();
-    return cards.length > 0 ? mapDbToCard(cards[0]) : null;
+    return cards.length > 0 ? mapDbToCard(cards[0]) : (localFound || null);
   } catch (err) {
-    return null;
+    return localFound || null;
   }
 }
 
@@ -263,6 +323,24 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
         showGiftBox: card.showGiftBox,
         showWishes: card.showWishes,
         showRsvp: card.showRsvp,
+        showEvents: card.showEvents,
+        showCalendar: card.showCalendar,
+        showLoveStory: card.showLoveStory,
+        showAlbum: card.showAlbum,
+        envelopeTheme: card.envelopeTheme,
+        ambientEffect: card.ambientEffect,
+        effectConfig: card.effectConfig,
+        cinematicFx: card.cinematicFx,
+        loveStory: card.loveStory,
+        fixedModuleStyles: card.fixedModuleStyles,
+        rsvpTitle: card.rsvpTitle,
+        rsvpMessage: card.rsvpMessage,
+        wishesTitle: card.wishesTitle,
+        wishesDescription: card.wishesDescription,
+        isVip: card.isVip,
+        plan: card.plan,
+        vipUnlockedAt: card.vipUnlockedAt,
+        showWatermark: card.showWatermark,
       },
       bride: {
         ...(card.bride || {}),
@@ -278,7 +356,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       payload.pageData = pageData;
     }
 
-    let res = await fetch(`${SUPABASE_URL}/rest/v1/cards`, {
+    let res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards`, {
       method: "POST",
       headers: {
         ...getDbHeaders(),
@@ -293,7 +371,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       if (payload.user_id && (errText.includes("user_id") || errText.includes("PGRST204"))) {
         console.warn("Cột user_id chưa có trong schema cache Supabase, thử lại lưu qua groom metadata...");
         delete payload.user_id;
-        res = await fetch(`${SUPABASE_URL}/rest/v1/cards`, {
+        res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards`, {
           method: "POST",
           headers: {
             ...getDbHeaders(),
@@ -305,21 +383,23 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
 
       if (!res.ok) {
         console.error("Lỗi upsertCardToDb HTTP:", res.status, errText);
-        return null;
+        writeLocalCard(card as any);
+        return card as any;
       }
     }
 
     const result = await res.json();
     if (result && result.length > 0) {
       const saved = mapDbToCard(result[0]);
-      // Chỉ đồng bộ cache sau khi database đã xác nhận lưu thành công
       writeLocalCard(saved);
       return saved;
     }
-    return null;
+    writeLocalCard(card as any);
+    return card as any;
   } catch (err) {
     console.error("Lỗi upsertCardToDb:", err);
-    return null;
+    writeLocalCard(card as any);
+    return card as any;
   }
 }
 
@@ -329,7 +409,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
 export async function deleteCardFromDb(id: string, token?: string): Promise<boolean> {
   if (!isDbConfigured) return false;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
       method: "DELETE",
       headers: {
         ...getDbHeaders(token),
@@ -353,7 +433,7 @@ export async function incrementCardViewsInDb(idOrSlug: string): Promise<boolean>
   if (!isDbConfigured) return false;
   try {
     // Tăng trực tiếp trong DB để tránh mất lượt xem khi có nhiều request đồng thời.
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/increment_card_views`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rpc/increment_card_views`, {
       method: "POST",
       headers: getDbHeaders(),
       body: JSON.stringify({ card_key: idOrSlug }),
@@ -391,7 +471,7 @@ export async function createRsvpInDb(rsvp: {
       createdAt: new Date().toISOString(),
     };
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rsvps`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rsvps`, {
       method: "POST",
       headers: getDbHeaders(),
       body: JSON.stringify(payload),
@@ -449,7 +529,7 @@ export async function createWishInDb(wish: {
       createdAt: new Date().toISOString(),
     };
 
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/wishes`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/wishes`, {
       method: "POST",
       headers: getDbHeaders(),
       body: JSON.stringify(payload),
@@ -537,7 +617,7 @@ export async function getAllWishesFromDb(): Promise<WeddingWish[]> {
 export async function deleteRsvpFromDb(id: string): Promise<boolean> {
   if (!isDbConfigured) return false;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/rsvps?id=eq.${id}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rsvps?id=eq.${id}`, {
       method: "DELETE",
       headers: getDbHeaders(),
     });
@@ -554,7 +634,7 @@ export async function deleteRsvpFromDb(id: string): Promise<boolean> {
 export async function deleteWishFromDb(id: string): Promise<boolean> {
   if (!isDbConfigured) return false;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/wishes?id=eq.${id}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/wishes?id=eq.${id}`, {
       method: "DELETE",
       headers: getDbHeaders(),
     });
@@ -571,7 +651,7 @@ export async function deleteWishFromDb(id: string): Promise<boolean> {
 export async function updateCardStatusInDb(id: string, status: "draft" | "published"): Promise<boolean> {
   if (!isDbConfigured) return false;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
       method: "PATCH",
       headers: getDbHeaders(),
       body: JSON.stringify({ status, updatedAt: new Date().toISOString() }),
@@ -605,7 +685,7 @@ export async function getUsersWithStatsFromDb(): Promise<AdminUserStats[]> {
     // 1. Lấy danh sách tài khoản từ Supabase Auth Admin API
     let authUsers: any[] = [];
     try {
-      const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+      const res = await fetchWithTimeout(`${SUPABASE_URL}/auth/v1/admin/users`, {
         headers: getDbHeaders(),
         cache: "no-store",
       });
@@ -739,7 +819,7 @@ export async function activateCardVipInDb(
       };
 
       try {
-        await fetch(`${SUPABASE_URL}/rest/v1/cards?id=eq.${encodeURIComponent(card.id)}`, {
+        await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards?id=eq.${encodeURIComponent(card.id)}`, {
           method: "PATCH",
           headers: getDbHeaders(),
           body: JSON.stringify(payload),

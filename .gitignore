@@ -47,3 +47,6 @@ scratch/
 public/uploads/*
 !public/uploads/.gitkeep
 test-reports/
+
+# Database Backups
+backups/

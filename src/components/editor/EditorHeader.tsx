@@ -33,6 +33,9 @@ interface EditorHeaderProps {
   onOpenShortcuts: () => void;
   onOpenSettings?: () => void;
   isSaved?: boolean;
+  saveStatus?: "saved" | "saving" | "offline" | "error";
+  isPublishing?: boolean;
+  onRetrySave?: () => void;
   onBackToTemplates?: () => void;
 }
 
@@ -50,6 +53,9 @@ export default function EditorHeader({
   onOpenShortcuts,
   onOpenSettings,
   isSaved = true,
+  saveStatus = isSaved ? "saved" : "saving",
+  isPublishing = false,
+  onRetrySave,
 }: EditorHeaderProps) {
   const { user, isLoggedIn, openLoginModal } = useAuth();
   const [isDark, setIsDark] = React.useState(false);
@@ -110,22 +116,40 @@ export default function EditorHeader({
 
         {/* Tên mẫu thiệp & Trạng thái lưu tinh tế chuẩn Figma/Canva (Không dùng khung viền màu sặc sỡ) */}
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-medium text-zinc-300 truncate max-w-[100px] sm:max-w-[160px] md:max-w-[220px]">
+          <span className="text-xs font-medium text-zinc-300 truncate max-w-[80px] xs:max-w-[120px] sm:max-w-[160px] md:max-w-[220px]">
             {templateName}
           </span>
 
-          {/* Trạng thái lưu: Dấu chấm và chữ tinh gọn, không viền khung */}
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] shrink-0">
-            {isSaved ? (
-              <span className="flex items-center gap-1 text-emerald-400 font-medium" title="Bản thiết kế đã được lưu tự động">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+          {/* Trạng thái lưu: Dấu chấm và chữ tinh gọn, hiển thị rõ ràng cả trên Desktop & Mobile */}
+          <div className="flex items-center gap-1.5 text-[11px] shrink-0">
+            {saveStatus === "saved" && (
+              <span className="flex items-center gap-1 text-emerald-400 font-medium" title="Bản thiết kế đã được lưu tự động an toàn">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-2xs shadow-emerald-400/50" />
                 <span className="hidden md:inline text-zinc-400">Đã lưu</span>
               </span>
-            ) : (
-              <span className="flex items-center gap-1 text-amber-400 font-medium" title="Đang lưu thay đổi...">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            )}
+            {saveStatus === "saving" && (
+              <span className="flex items-center gap-1 text-amber-400 font-medium" title="Đang tự động lưu thay đổi...">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
                 <span className="hidden md:inline text-zinc-400">Đang lưu...</span>
               </span>
+            )}
+            {saveStatus === "offline" && (
+              <span className="flex items-center gap-1 text-sky-400 font-medium" title="Đã lưu cục bộ trên thiết bị của bạn">
+                <span className="w-2 h-2 rounded-full bg-sky-400" />
+                <span className="hidden md:inline text-zinc-400">Đã lưu máy</span>
+              </span>
+            )}
+            {saveStatus === "error" && (
+              <button
+                type="button"
+                onClick={onRetrySave || onSave}
+                className="flex items-center gap-1 text-rose-400 font-medium hover:underline cursor-pointer"
+                title="Lỗi lưu! Bấm để thử lưu lại ngay"
+              >
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                <span className="hidden md:inline text-rose-300">Lỗi lưu (Thử lại)</span>
+              </button>
             )}
           </div>
         </div>
@@ -210,11 +234,11 @@ export default function EditorHeader({
         <button
           type="button"
           onClick={onPreview}
-          className="px-2 sm:px-2.5 py-1.5 rounded-lg hover:bg-zinc-800/80 text-zinc-300 hover:text-white text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer"
+          className="px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl bg-zinc-800/80 hover:bg-zinc-700/80 text-zinc-200 hover:text-white text-xs font-medium flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0"
           title="Xem thử giao diện thiệp"
         >
-          <Eye className="w-3.5 h-3.5 text-zinc-400" />
-          <span className="hidden md:inline">Xem thử</span>
+          <Eye className="w-3.5 h-3.5 text-rose-400" />
+          <span className="text-xs font-semibold">Xem thử</span>
         </button>
 
         {/* Phím tắt trợ giúp (Desktop) */}
@@ -335,10 +359,21 @@ export default function EditorHeader({
         <button
           type="button"
           onClick={onPublish}
-          className="px-3 py-1.5 rounded-lg bg-zen-primary hover:bg-[#d93849] text-xs font-bold text-white shadow-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0"
+          disabled={isPublishing}
+          className="px-3.5 py-1.5 rounded-lg bg-zen-primary hover:bg-[#d93849] disabled:bg-zinc-700 disabled:opacity-60 text-xs font-bold text-white shadow-xs flex items-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0 disabled:cursor-not-allowed"
+          title={isPublishing ? "Đang xử lý xuất bản thiệp..." : "Xuất bản thiệp cưới để chia sẻ"}
         >
-          <Upload className="w-3.5 h-3.5" />
-          <span>Xuất bản</span>
+          {isPublishing ? (
+            <>
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Đang lưu...</span>
+            </>
+          ) : (
+            <>
+              <Upload className="w-3.5 h-3.5" />
+              <span>Xuất bản</span>
+            </>
+          )}
         </button>
 
         {/* Google User Avatar / Đăng nhập */}

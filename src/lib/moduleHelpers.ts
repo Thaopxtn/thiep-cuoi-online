@@ -127,6 +127,33 @@ export function generateTimelineHtml(
     { id: "2", time: "11:00", title: "Làm lễ" },
   ];
 
+  const isLoveStory = safeItems.some(
+    (it) => it.title?.includes("gặp gỡ") || it.title?.includes("hẹn ước") || it.title?.includes("cầu hôn") || it.title?.includes("chung đôi") || it.title?.includes("Love Story")
+  );
+
+  if (isLoveStory) {
+    const milestonesHtml = safeItems
+      .map(
+        (it, idx) => `
+        <div style="position:relative; padding-bottom:${idx < safeItems.length - 1 ? "16px" : "4px"};">
+          <div style="position:absolute; left:-30px; top:2px; width:14px; height:14px; border-radius:50%; background:#e11d48; border:3px solid #fff; box-shadow:0 2px 6px rgba(225,29,72,0.4);"></div>
+          <div style="font-size:10px; font-weight:bold; color:#be123c; text-transform:uppercase; font-mono; letter-spacing:1px;">${escapeModuleHtml(it.time || "KỶ NIỆM")}</div>
+          <div style="font-size:13.5px; font-weight:bold; color:#1f2937; margin-top:1px;">${escapeModuleHtml(it.title || "Cột mốc")}</div>
+        </div>
+      `
+      )
+      .join("");
+
+    return `<div style="padding:18px 20px 14px 20px; background:linear-gradient(145deg, #ffffff 0%, #fff9f9 100%); border:1px solid rgba(244,63,94,0.25); border-radius:22px; box-shadow:0 6px 20px rgba(0,0,0,0.03); font-family:sans-serif;">
+      <div style="font-size:12px; font-weight:bold; letter-spacing:1.5px; color:#be123c; text-transform:uppercase; text-align:center; margin-bottom:14px; font-family:serif;">
+        ✦ CHUYỆN TÌNH YÊU (LOVE STORY) ✦
+      </div>
+      <div style="position:relative; padding-left:26px; border-left:2px dashed #fda4af; margin-left:14px; margin-bottom:4px;">
+        ${milestonesHtml}
+      </div>
+    </div>`;
+  }
+
   const itemsHtml = safeItems
     .map(
       (item, idx) => `
@@ -238,6 +265,25 @@ export function generateDressCodeHtml(
     )
     .join("");
 
+  const isHandcrafted = safeColors.length >= 4 || safeDesc.includes("DRESS CODE") || safeDesc.includes("QUY ĐỊNH") || safeDesc.includes("nhường sự nổi bật");
+
+  if (isHandcrafted) {
+    return `<div style="padding:18px 16px; background:linear-gradient(145deg, #ffffff 0%, #faf8f5 100%); border:1px solid rgba(212,175,55,0.3); border-radius:22px; text-align:center; box-shadow:0 6px 20px rgba(0,0,0,0.04); font-family:sans-serif;">
+      <div style="font-size:12px; font-weight:bold; letter-spacing:1.5px; color:#881337; text-transform:uppercase; margin-bottom:6px; font-family:serif;">
+        ✦ QUY ĐỊNH TRANG PHỤC (DRESS CODE) ✦
+      </div>
+      <p style="font-size:11px; color:#6b7280; margin-bottom:12px; line-height:1.5;">${escapeModuleHtml(safeDesc)}</p>
+      <div style="display:flex; justify-content:center; gap:16px; margin-bottom:12px; flex-wrap:wrap;">
+        ${colorsHtml}
+      </div>
+      <div style="background:rgba(243,244,246,0.7); border-radius:12px; padding:8px 12px; font-size:10.5px; color:#4b5563; text-align:left; line-height:1.6; border-left:3px solid #881337;">
+        <div>🤵 <b>Nam:</b> Suit, Tuxedo lịch lãm hoặc Sơ mi tone màu be/trầm</div>
+        <div>👰 <b>Nữ:</b> Váy dạ hội, Áo dài truyền thống hoặc Đầm tiệc tone màu gợi ý</div>
+        <div style="color:#b91c1c; font-style:italic; margin-top:2px;">* Quý khách vui lòng không mặc màu trắng tinh khôi</div>
+      </div>
+    </div>`;
+  }
+
   return `<div style="padding:16px; background:rgba(255,255,255,0.75); border:1px solid rgba(0,0,0,0.06); border-radius:20px; text-align:center;">
     <p style="font-size:12px; color:#666; margin-bottom:12px; line-height:1.4;">${escapeModuleHtml(safeDesc)}</p>
     <div style="display:flex; justify-content:center; gap:22px;">
@@ -285,6 +331,128 @@ export function generateCeremonyHtml(
   primaryColor = "#6b3b59",
   textColor = "#2c2420"
 ): string {
+  if (data.styleVariant === "handcrafted_velvet") {
+    const ceremonyTitle = data.ceremonyName || "LỄ THÀNH HÔN";
+    const locText = data.location || "TẠI TƯ GIA";
+    const timeText = data.time || "11:30";
+    const dateParts = (data.date || "2026-12-29").split("-");
+    const year = dateParts[0] || "2026";
+    const month = dateParts[1] || "12";
+    const day = dateParts[2] || "29";
+    const lunarText = data.lunarDate || "(Tức ngày 11 tháng 11 năm Bính Ngọ)";
+
+    return `<div style="padding:22px 18px; background:linear-gradient(145deg, #590310 0%, #3e020b 100%); border:1px solid rgba(236,228,216,0.35); border-radius:24px; text-align:center; color:#ece4d8; box-shadow:0 8px 30px rgba(0,0,0,0.25); font-family:serif;">
+      <div style="font-size:12px; letter-spacing:2px; font-weight:bold; color:#ecd4a6; text-transform:uppercase; margin-bottom:14px; border-bottom:1px solid rgba(236,228,216,0.2); padding-bottom:8px;">
+        ✦ THÔNG TIN LỄ CƯỚI ✦
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1px 1fr; gap:10px; align-items:center; font-size:11px; line-height:1.6; margin-bottom:14px;">
+        <div>
+          <div style="font-size:10px; color:#ecd4a6; font-weight:bold; text-transform:uppercase;">NHÀ TRAI</div>
+          <div style="color:rgba(236,228,216,0.85);">Ông: <b style="color:#fff;">Lê Văn Thắng</b></div>
+          <div style="color:rgba(236,228,216,0.85);">Bà: <b style="color:#fff;">Ngô Thị Ân</b></div>
+          <div style="font-size:9.5px; color:rgba(236,228,216,0.65); margin-top:1px;">Nghệ An</div>
+        </div>
+        <div style="background:rgba(236,228,216,0.3); width:1px; height:56px; margin:auto;"></div>
+        <div>
+          <div style="font-size:10px; color:#ecd4a6; font-weight:bold; text-transform:uppercase;">NHÀ GÁI</div>
+          <div style="color:rgba(236,228,216,0.85);">Ông: <b style="color:#fff;">Trần Đức Tuấn</b></div>
+          <div style="color:rgba(236,228,216,0.85);">Bà: <b style="color:#fff;">Trần Thị Nga</b></div>
+          <div style="font-size:9.5px; color:rgba(236,228,216,0.65); margin-top:1px;">Nghệ An</div>
+        </div>
+      </div>
+      <div style="font-size:10.5px; letter-spacing:1px; color:rgba(236,228,216,0.9); margin-bottom:6px;">
+        TRÂN TRỌNG BÁO TIN ${escapeModuleHtml(ceremonyTitle)} CỦA CON CHÚNG TÔI
+      </div>
+      <div style="font-size:20px; font-weight:bold; color:#fff; margin-bottom:4px;">
+        Đức Mạnh <span style="font-family:cursive; font-size:24px; color:#ecd4a6; font-weight:normal; margin:0 4px;">&amp;</span> Lệ Quyên
+      </div>
+      <div style="font-size:11px; color:#ecd4a6; margin-bottom:12px; font-style:italic;">
+        Được cử hành ${escapeModuleHtml(locText)}
+      </div>
+      <!-- Artisanal Multi-Component Date Grid -->
+      <div style="background:rgba(0,0,0,0.22); border:1px solid rgba(236,228,216,0.25); border-radius:16px; padding:10px 12px;">
+        <div style="font-size:10.5px; color:#ecd4a6; font-weight:bold; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px;">
+          VÀO LÚC ${escapeModuleHtml(timeText)}
+        </div>
+        <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin:2px 0;">
+          <div style="font-size:11px; font-weight:bold; color:#ece4d8; text-transform:uppercase; border-top:1px solid rgba(236,228,216,0.4); border-bottom:1px solid rgba(236,228,216,0.4); padding:3px 6px;">
+            CHỦ NHẬT
+          </div>
+          <div style="font-size:38px; font-weight:900; color:#ffd700; line-height:1; text-shadow:0 2px 10px rgba(255,215,0,0.3);">
+            ${escapeModuleHtml(day)}
+          </div>
+          <div style="font-size:11px; font-weight:bold; color:#ece4d8; text-transform:uppercase; border-top:1px solid rgba(236,228,216,0.4); border-bottom:1px solid rgba(236,228,216,0.4); padding:3px 6px;">
+            THÁNG ${escapeModuleHtml(month)}
+          </div>
+        </div>
+        <div style="font-size:11px; font-weight:bold; color:#ece4d8; letter-spacing:1px; margin-top:2px;">
+          NĂM ${escapeModuleHtml(year)}
+        </div>
+        <div style="font-size:10px; color:rgba(236,228,216,0.75); font-style:italic; margin-top:4px;">
+          ${escapeModuleHtml(lunarText)}
+        </div>
+      </div>
+    </div>`;
+  }
+
+  if (data.styleVariant === "banquet_reception") {
+    const timeText = data.time || "17:30";
+    const locText = data.location || "Trung tâm Tiệc cưới Trống Đồng Palace - Sảnh Diamond Tầng 2";
+    const dateParts = (data.date || "2026-12-29").split("-");
+    const year = dateParts[0] || "2026";
+    const month = dateParts[1] || "12";
+    const day = dateParts[2] || "29";
+    const lunarText = data.lunarDate || "(Tức ngày 11 tháng 11 năm Bính Ngọ)";
+
+    return `<div style="padding:20px 18px; background:linear-gradient(145deg, #1f2937 0%, #111827 100%); border:1px solid rgba(212,175,55,0.45); border-radius:24px; text-align:center; color:#f3f4f6; box-shadow:0 8px 30px rgba(0,0,0,0.3); font-family:serif;">
+      <div style="font-size:12px; letter-spacing:2px; font-weight:bold; color:#facc15; text-transform:uppercase; margin-bottom:10px; border-bottom:1px solid rgba(250,204,21,0.25); padding-bottom:6px;">
+        ✦ THÔNG TIN TIỆC CƯỚI ✦
+      </div>
+      <div style="font-size:13px; font-weight:bold; color:#fff; margin-bottom:8px;">
+        ⏰ ĐÓN KHÁCH: 16:30 • KHAI TIỆC: ${escapeModuleHtml(timeText)}
+      </div>
+      <div style="display:flex; justify-content:center; align-items:center; gap:14px; margin:8px 0;">
+        <div style="font-size:11px; font-weight:bold; color:#e5e7eb; border-top:1px solid rgba(250,204,21,0.3); border-bottom:1px solid rgba(250,204,21,0.3); padding:3px 6px;">CHỦ NHẬT</div>
+        <div style="font-size:36px; font-weight:900; color:#facc15; line-height:1;">${escapeModuleHtml(day)}</div>
+        <div style="font-size:11px; font-weight:bold; color:#e5e7eb; border-top:1px solid rgba(250,204,21,0.3); border-bottom:1px solid rgba(250,204,21,0.3); padding:3px 6px;">THÁNG ${escapeModuleHtml(month)}</div>
+      </div>
+      <div style="font-size:10.5px; color:#d1d5db; margin-bottom:10px;">NĂM ${escapeModuleHtml(year)} • ${escapeModuleHtml(lunarText)}</div>
+      <div style="background:rgba(255,255,255,0.06); border-radius:14px; padding:10px 12px; border:1px solid rgba(255,255,255,0.08);">
+        <div style="font-size:12.5px; font-weight:bold; color:#facc15;">${escapeModuleHtml(locText)}</div>
+        <div style="font-size:10.5px; color:#9ca3af; margin-top:2px;">Số 72 Quán Sứ, Hoàn Kiếm, Hà Nội</div>
+      </div>
+    </div>`;
+  }
+
+  if (data.styleVariant === "artisan_parchment") {
+    const timeText = data.time || "11:30";
+    const locText = data.location || "Trung Tâm Tiệc Cưới Trống Đồng Palace";
+    const dateParts = (data.date || "2026-12-29").split("-");
+    const year = dateParts[0] || "2026";
+    const month = dateParts[1] || "12";
+    const day = dateParts[2] || "29";
+    const lunarText = data.lunarDate || "(Tức ngày 11 tháng 11 năm Bính Ngọ)";
+
+    return `<div style="padding:22px 18px; background:#fbf9f4; border:2px solid #d4af37; border-radius:20px; text-align:center; color:#2c2420; box-shadow:0 6px 20px rgba(0,0,0,0.05); font-family:serif;">
+      <div style="font-size:11px; letter-spacing:2px; font-weight:bold; color:#991b1b; text-transform:uppercase; margin-bottom:8px;">
+        TRÂN TRỌNG KÍNH MỜI
+      </div>
+      <div style="font-size:22px; font-weight:bold; color:#781d29; margin-bottom:4px;">
+        Đức Mạnh <span style="font-family:cursive; font-size:24px; color:#d4af37; font-weight:normal;">&amp;</span> Lệ Quyên
+      </div>
+      <div style="font-size:11.5px; color:#555; margin-bottom:12px;">
+        Đến dự buổi tiệc chung vui cùng gia đình chúng tôi
+      </div>
+      <div style="background:#fff; border:1px solid #e5e0d3; border-radius:12px; padding:8px 14px; display:inline-block;">
+        <div style="font-size:12.5px; font-weight:bold; color:#991b1b;">${escapeModuleHtml(timeText)} • CHỦ NHẬT, ${escapeModuleHtml(day)}.${escapeModuleHtml(month)}.${escapeModuleHtml(year)}</div>
+        <div style="font-size:10.5px; color:#666; margin-top:2px;">${escapeModuleHtml(lunarText)}</div>
+      </div>
+      <div style="font-size:11.5px; color:#444; margin-top:10px; font-weight:600;">
+        📍 Tại ${escapeModuleHtml(locText)}
+      </div>
+    </div>`;
+  }
+
   if (data.styleVariant === "dual_party") {
     return `<div style="padding:14px 16px; background:rgba(255,255,255,0.85); border:1px solid rgba(212,175,55,0.35); border-radius:18px; box-shadow:0 4px 15px rgba(0,0,0,0.03);">
       <div style="font-size:13px; font-weight:bold; color:${escapeModuleHtml(primaryColor)}; text-align:center; letter-spacing:1px; text-transform:uppercase; margin-bottom:10px;">${escapeModuleHtml(data.ceremonyName || "Lễ Thành Hôn & Vu Quy")}</div>
@@ -361,6 +529,29 @@ export function generateFamilyInfoHtml(
   primaryColor = "#6b3b59",
   textColor = "#2c2420"
 ): string {
+  if (data.styleVariant === "handcrafted_linebox") {
+    return `<div style="padding:18px 16px; background:linear-gradient(145deg, #ffffff 0%, #fcfbf9 100%); border:1px solid rgba(212,175,55,0.35); border-radius:20px; box-shadow:0 6px 20px rgba(0,0,0,0.03); font-family:serif; text-align:center;">
+      <div style="font-size:11px; letter-spacing:2px; font-weight:bold; color:#881337; text-transform:uppercase; margin-bottom:12px; border-bottom:1px solid rgba(212,175,55,0.2); padding-bottom:6px;">
+        ✦ ĐẠI DIỆN HAI DÒNG HỌ ✦
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1px 1fr; gap:12px; align-items:center; font-size:12px; line-height:1.7;">
+        <div>
+          <div style="font-weight:bold; color:#1e3a8a; font-size:11.5px; text-transform:uppercase; margin-bottom:4px;">NHÀ TRAI</div>
+          <div style="color:#4b5563;">Ông: <b style="color:#111827;">${escapeModuleHtml(data.groomFather || "Bố Chú Rể")}</b></div>
+          <div style="color:#4b5563;">Bà: <b style="color:#111827;">${escapeModuleHtml(data.groomMother || "Mẹ Chú Rể")}</b></div>
+          <div style="margin-top:4px;"><span style="color:#881337; font-weight:bold; font-size:13px;">${escapeModuleHtml(data.groomName || "Chú Rể")}</span></div>
+        </div>
+        <div style="background:rgba(212,175,55,0.35); width:1px; height:70px; margin:auto;"></div>
+        <div>
+          <div style="font-weight:bold; color:#be123c; font-size:11.5px; text-transform:uppercase; margin-bottom:4px;">NHÀ GÁI</div>
+          <div style="color:#4b5563;">Ông: <b style="color:#111827;">${escapeModuleHtml(data.brideFather || "Bố Cô Dâu")}</b></div>
+          <div style="color:#4b5563;">Bà: <b style="color:#111827;">${escapeModuleHtml(data.brideMother || "Mẹ Cô Dâu")}</b></div>
+          <div style="margin-top:4px;"><span style="color:#881337; font-weight:bold; font-size:13px;">${escapeModuleHtml(data.brideName || "Cô Dâu")}</span></div>
+        </div>
+      </div>
+    </div>`;
+  }
+
   const songHy = data.styleVariant === "traditional"
     ? `<div style="text-align:center; font-size:24px; color:#b91c1c; font-family:serif; font-weight:bold; margin-bottom:6px;">囍</div>`
     : "";

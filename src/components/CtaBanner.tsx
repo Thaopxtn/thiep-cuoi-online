@@ -1,37 +1,65 @@
 import Link from "next/link";
-import { MousePointerClick, Send } from "lucide-react";
+import { Sparkles, Send, CheckCircle2 } from "lucide-react";
+import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
 
 export default function CtaBanner() {
   return (
-    <section className="mx-auto w-full max-w-5xl px-4 py-10">
-      <div className="slide-up relative overflow-hidden rounded-[26px] bg-white px-5 py-8 text-center sm:px-8 border border-rose-100 shadow-sm">
-        <div className="pointer-events-none absolute inset-0 opacity-70">
-          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-rose-50 to-transparent"></div>
-          <div className="absolute -left-10 top-10 h-28 w-28 rounded-full bg-rose-100/50 blur-2xl"></div>
-          <div className="absolute -right-10 bottom-10 h-28 w-28 rounded-full bg-pink-100/50 blur-2xl"></div>
-        </div>
-        <div className="relative mx-auto max-w-3xl">
-          <div className="mx-auto mb-2 inline-flex items-center gap-2 rounded-full border border-rose-100 bg-white px-3 py-1.5 text-xs font-semibold text-[#e54153]">
-            <MousePointerClick className="h-3.5 w-3.5" />
-            Tạo thiệp cưới chỉ trong vài phút
+    <section className="mx-auto w-full max-w-6xl px-4 py-16 sm:py-24" aria-label="Bắt đầu tạo thiệp">
+      <AnimateOnScroll animation="fade-up">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-b from-[#fff6f4] via-white to-[#fff8f7] px-6 py-12 text-center sm:px-12 sm:py-16 border border-rose-100 shadow-[0_20px_50px_rgba(229,65,83,0.08)]">
+          {/* Subtle Ambient Blobs */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden">
+            <div className="absolute -left-20 -top-20 size-72 rounded-full bg-rose-200/40 blur-3xl" />
+            <div className="absolute -right-20 -bottom-20 size-72 rounded-full bg-pink-200/40 blur-3xl" />
+            <div className="absolute left-1/2 top-0 -translate-x-1/2 size-96 rounded-full bg-amber-100/30 blur-3xl" />
           </div>
-          <h2 className="mx-auto mt-3 max-w-2xl text-2xl text-slate-950 font-heading sm:text-4xl">
-            Tạo thiệp cưới online dễ dàng hơn
-          </h2>
-          <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-slate-600 sm:text-base">
-            Chọn mẫu thiệp đẹp, chỉnh sửa thông tin, gửi lời mời bằng link và lưu giữ lời chúc từ khách mời.
-          </p>
-          <div className="mt-7">
-            <Link
-              className="group inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#e54153] px-7 text-sm font-semibold text-white transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#d93849] hover:text-white shadow-md hover:shadow-lg"
-              href="/templates"
-            >
-              <span>Bắt đầu tạo thiệp cưới</span>
-              <Send className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
-            </Link>
+
+          <div className="relative mx-auto max-w-3xl">
+            {/* Pill Badge */}
+            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-rose-200/80 bg-white/95 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-zen-primary shadow-2xs backdrop-blur-sm">
+              <Sparkles className="size-3.5" />
+              <span>Khởi tạo miễn phí ngay hôm nay</span>
+            </div>
+
+            {/* Heading */}
+            <h2 className="mx-auto mt-2 font-heading text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl lg:text-5xl leading-tight">
+              Sẵn sàng tạo thiệp cưới online cho ngày vui của bạn?
+            </h2>
+
+            {/* Description */}
+            <p className="mx-auto mt-4 max-w-xl text-base sm:text-lg leading-relaxed text-gray-600">
+              Chỉ mất vài phút để sở hữu tấm thiệp cưới điện tử hiện đại, tinh tế và sẵn sàng gửi lời mời trọn vẹn đến từng vị khách quý.
+            </p>
+
+            {/* Trust Points */}
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-gray-600 font-medium">
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-500" />
+                <span>Không giới hạn khách mời</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-500" />
+                <span>Không quảng cáo làm phiền</span>
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <CheckCircle2 className="size-4 text-emerald-500" />
+                <span>Hoàn toàn miễn phí</span>
+              </span>
+            </div>
+
+            {/* Action Button */}
+            <div className="mt-8 flex justify-center">
+              <Link
+                className="group inline-flex items-center justify-center gap-2.5 rounded-full bg-zen-primary px-9 py-4 text-base font-bold text-white shadow-[0_12px_32px_rgba(229,65,83,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#d93849] hover:shadow-[0_18px_42px_rgba(229,65,83,0.45)]"
+                href="/templates"
+              >
+                <span>Bắt đầu tạo thiệp cưới ngay</span>
+                <Send className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      </AnimateOnScroll>
     </section>
   );
 }

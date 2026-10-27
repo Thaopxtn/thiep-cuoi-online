@@ -55,6 +55,14 @@ import {
   ArrowDown,
   CheckCircle2,
   Edit3,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Download,
+  Upload,
+  FileJson,
+  ShieldCheck,
+  Keyboard,
 } from "lucide-react";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
@@ -74,7 +82,7 @@ import {
   TemplateElementItem,
   repairAndLockDecorativeNodes,
 } from "@/lib/decorativeLockService";
-import { POPULAR_BANKS, generateVietQrUrl } from "@/lib/vietQrBankCodes";
+import { POPULAR_BANKS } from "@/lib/vietQrBankCodes";
 import { CURATED_WEDDING_SONGS } from "@/lib/weddingMusicLibrary";
 import { syncCardDataToCanvasNodes } from "@/lib/textSyncService";
 import { SelectedElementData } from "./EditorRightInspector";
@@ -90,13 +98,32 @@ import { weddingSounds } from "@/lib/soundEffects";
 import PhotoshopLayersPanel from "./PhotoshopLayersPanel";
 import ModulePresetsFolderBrowser from "./ModulePresetsFolderBrowser";
 import { MODULE_STYLE_CATALOG, FixedModuleId } from "./EditorFixedModuleEditModal";
+import { scrollToFixedModule } from "./EditorFixedModulesCanvas";
 import PresetVisualPreviewMockup from "./PresetVisualPreviewMockup";
+import { WEDDING_FRAMES, WeddingFrameItem } from "@/lib/framesCatalog";
+import {
+  WEDDING_STICKERS,
+  STICKER_CATEGORIES,
+  getStickersByCategory,
+  WeddingStickerItem,
+} from "@/lib/stickersCatalog";
+import {
+  UNIFIED_WEDDING_MODULES,
+  UnifiedModuleDef,
+  THEME_CATEGORIES,
+  ThemeCategoryId,
+  getDefaultThemeCategory,
+  getModulesForTheme,
+} from "@/lib/unifiedModulesRegistry";
+import EffectConfigPanel from "./EffectConfigPanel";
+import { EffectConfig } from "@/lib/effectsCatalog";
 
 interface EditorLeftDrawerProps {
   activeTab: EditorToolTab;
   isOpen: boolean;
   onClose: () => void;
   onSelectTab?: (tab: EditorToolTab) => void;
+  onSelectFixedModule?: (moduleId: FixedModuleId) => void;
   onDuplicateElement?: (elementId: string) => void;
   onDeleteElement?: (elementId: string) => void;
   nodes?: Record<string, any>;
@@ -124,12 +151,18 @@ interface EditorLeftDrawerProps {
     backgroundOpacity?: number;
   };
   onChangeBackground?: (bg: { color?: string; image?: string; opacity?: number }) => void;
-  // Stock
+  // Stock & Elements & Frames
   onAddStock?: (stockUrl: string, name: string) => void;
+  onAddFrame?: (frame: WeddingFrameItem) => void;
+  onAddSpacer?: (height: number) => void;
+  onShiftElementsBelow?: (thresholdY: number, deltaY: number) => void;
   // Tools
   onRemoveBackground?: () => void;
   onOpenManualCutout?: () => void;
   isRemovingBackground?: boolean;
+  onExportPng?: () => void;
+  onExportJson?: () => void;
+  onImportJson?: (jsonData: any) => void;
   // Music
   currentMusic?: { title: string; url: string };
   onChangeMusic: (title: string, url: string) => void;
@@ -137,10 +170,17 @@ interface EditorLeftDrawerProps {
   onAddWidget?: (widgetType: string, customProps?: Record<string, any>) => void;
   onAddModulePreset?: (preset: ModulePresetItem) => void;
   // Templates
+  currentTemplateId?: string;
+  isLoadingTemplate?: boolean;
   onSelectTemplate: (template: ZenLoveTemplate) => void;
   // Effects
   onToggleEffect?: (effectName: string) => void;
   activeEffects?: string[];
+  currentEffectConfig?: EffectConfig | null;
+  onChangeEffectConfig?: (config: EffectConfig) => void;
+  onChangeEnvelopeTheme?: (theme: string) => void;
+  onChangeCinematicFx?: (fx: any) => void;
+  onPreviewEnvelope?: () => void;
   // Presets
   onApplyThemePreset?: (preset: {
     name: string;
@@ -176,27 +216,44 @@ export default function EditorLeftDrawer({
   currentBackground,
   onChangeBackground,
   onAddStock,
+  onAddFrame,
+  onAddSpacer,
+  onShiftElementsBelow,
   onRemoveBackground,
   onOpenManualCutout,
   isRemovingBackground = false,
+  onExportPng,
+  onExportJson,
+  onImportJson,
   currentMusic,
   onChangeMusic,
   onAddWidget,
   onAddModulePreset,
+  currentTemplateId,
+  isLoadingTemplate = false,
   onSelectTemplate,
   onToggleEffect,
   activeEffects = [],
+  currentEffectConfig,
+  onChangeEffectConfig,
+  onChangeEnvelopeTheme,
+  onChangeCinematicFx,
+  onPreviewEnvelope,
   onApplyThemePreset,
   onOpenSettings,
   onOpenModuleConfig,
+  onSelectFixedModule,
 }: EditorLeftDrawerProps) {
   // Module Category Filter
   const [selectedModuleCategory, setSelectedModuleCategory] = useState<string>("all");
 
   // Bộ lọc & Tìm kiếm cho bảng điều khiển Khối Mẫu thống nhất
+  const [widgetsSubTab, setWidgetsSubTab] = useState<"library" | "manage">("library");
   const [widgetsSearchQuery, setWidgetsSearchQuery] = useState("");
   const [widgetsFilterCategory, setWidgetsFilterCategory] = useState<string>("all");
-  const [fixedModuleToast, setFixedModuleToast] = useState<string | null>(null);
+  const [selectedThemeCategory, setSelectedThemeCategory] = useState<ThemeCategoryId>(() =>
+    getDefaultThemeCategory(card?.templateName || card?.templateId || card?.slug, (card as any)?.category)
+  );
 
   // Thông tin thiệp cưới toàn diện (Điền 1 lần là xong - Chuyển toàn bộ từ biểu mẫu đầy đủ & mục cố định ra ngoài)
   const [groomName, setGroomName] = useState(card?.groom?.name || "");
@@ -226,10 +283,13 @@ export default function EditorLeftDrawer({
   // Tùy chọn Bật/Tắt các mục cố định & sơ đồ hôn lễ
   const [showGiftBox, setShowGiftBox] = useState(card?.showGiftBox !== false);
   const [showMapBox, setShowMapBox] = useState(card?.showEvents !== false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showWishes, setShowWishes] = useState(card?.showWishes !== false);
   const [showRsvp, setShowRsvp] = useState(card?.showRsvp !== false);
   const [showCalendar, setShowCalendar] = useState(card?.showCalendar !== false);
   const [showEvents, setShowEvents] = useState(card?.showEvents !== false);
+  const [showAlbum, setShowAlbum] = useState(card?.showAlbum !== false);
+  const [showLoveStory, setShowLoveStory] = useState(card?.showLoveStory !== false);
 
   // Nhạc nền
   const [musicTitle, setMusicTitle] = useState(card?.musicTitle || currentMusic?.title || CURATED_WEDDING_SONGS[0].title);
@@ -280,11 +340,13 @@ export default function EditorLeftDrawer({
 
     if (card.musicTitle) setMusicTitle(card.musicTitle);
     if (card.musicUrl) setMusicUrl(card.musicUrl);
+    if (card.showAlbum !== undefined) setShowAlbum(card.showAlbum !== false);
+    if (card.showLoveStory !== undefined) setShowLoveStory(card.showLoveStory !== false);
   }, [card]);
 
   // Thao tác bật/tắt nhanh từng khối mẫu cố định với hiệu ứng âm thanh và lưu tức thì
   const handleToggleFixedModule = (
-    key: "showGiftBox" | "showMapBox" | "showRsvp" | "showWishes" | "showCalendar" | "showEvents",
+    key: "showGiftBox" | "showMapBox" | "showRsvp" | "showWishes" | "showCalendar" | "showEvents" | "showAlbum" | "showLoveStory",
     newValue: boolean,
     moduleTitle: string
   ) => {
@@ -313,11 +375,106 @@ export default function EditorLeftDrawer({
       setShowEvents(newValue);
       setShowMapBox(newValue);
       partial = { showEvents: newValue };
+    } else if (key === "showAlbum") {
+      setShowAlbum(newValue);
+      partial = { showAlbum: newValue };
+    } else if (key === "showLoveStory") {
+      setShowLoveStory(newValue);
+      partial = { showLoveStory: newValue };
     }
 
     onApplyAutoFill?.(nodes || {}, partial, { textCount: 0, photoCount: 0, widgetCount: 0 });
-    setFixedModuleToast(`${newValue ? "✓ Đã bật hiển thị" : "✕ Đã tắt"} khối ${moduleTitle}!`);
-    setTimeout(() => setFixedModuleToast(null), 3000);
+
+    if (newValue) {
+      const modIdMap: Record<string, FixedModuleId> = {
+        showGiftBox: "giftBox",
+        showMapBox: "events",
+        showEvents: "events",
+        showRsvp: "rsvp",
+        showWishes: "wishes",
+        showCalendar: "calendar",
+        showAlbum: "album",
+        showLoveStory: "loveStory",
+      };
+      const targetModId = modIdMap[key];
+      if (targetModId) {
+        scrollToFixedModule(targetModId);
+        onSelectFixedModule?.(targetModId);
+      }
+    }
+  };
+
+  const handleCustomizeUnifiedModule = (mod: UnifiedModuleDef) => {
+    try {
+      weddingSounds.playSoftClick();
+    } catch {}
+
+    if (mod.isFixed && mod.fixedModuleId) {
+      onSelectFixedModule?.(mod.fixedModuleId);
+      scrollToFixedModule(mod.fixedModuleId);
+    } else {
+      const existingNodeId = mod.findNodeId?.(nodes || {});
+      if (existingNodeId) {
+        const node = nodes?.[existingNodeId];
+        onSelectElement?.({
+          id: existingNodeId,
+          type: node?.type?.resolvedName || mod.widgetType || "Widget",
+          props: node?.props || {},
+        });
+        setTimeout(() => {
+          const el = document.getElementById(`canvas-node-${existingNodeId}`);
+          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 80);
+      } else {
+        if (mod.widgetType) {
+          onAddWidget?.(mod.widgetType, mod.defaultProps);
+        }
+      }
+    }
+  };
+
+  const handleToggleUnifiedModule = (mod: UnifiedModuleDef, newValue: boolean) => {
+    try {
+      weddingSounds.playSoftClick();
+    } catch {}
+
+    if (mod.isFixed) {
+      const fixedKeyMap: Record<string, "showGiftBox" | "showCalendar" | "showEvents" | "showRsvp" | "showWishes" | "showAlbum" | "showLoveStory"> = {
+        giftBox: "showGiftBox",
+        calendar: "showCalendar",
+        events: "showEvents",
+        rsvp: "showRsvp",
+        wishes: "showWishes",
+        album: "showAlbum",
+        loveStory: "showLoveStory",
+      };
+      const key = fixedKeyMap[mod.id];
+      if (key) {
+        handleToggleFixedModule(key, newValue, mod.name);
+      }
+    } else {
+      const existingNodeId = mod.findNodeId?.(nodes || {});
+      if (newValue) {
+        if (existingNodeId) {
+          const node = nodes?.[existingNodeId];
+          onSelectElement?.({
+            id: existingNodeId,
+            type: node?.type?.resolvedName || mod.widgetType || "Widget",
+            props: node?.props || {},
+          });
+          setTimeout(() => {
+            const el = document.getElementById(`canvas-node-${existingNodeId}`);
+            if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 80);
+        } else if (mod.widgetType) {
+          onAddWidget?.(mod.widgetType, mod.defaultProps);
+        }
+      } else {
+        if (existingNodeId) {
+          onDeleteElement?.(existingNodeId);
+        }
+      }
+    }
   };
 
   const handleSetAllFixedModules = (status: boolean) => {
@@ -330,6 +487,8 @@ export default function EditorLeftDrawer({
     setShowWishes(status);
     setShowCalendar(status);
     setShowEvents(status);
+    setShowAlbum(status);
+    setShowLoveStory(status);
 
     const partial: Partial<WeddingCard> = {
       showGiftBox: status,
@@ -337,10 +496,22 @@ export default function EditorLeftDrawer({
       showRsvp: status,
       showWishes: status,
       showCalendar: status,
+      showAlbum: status,
+      showLoveStory: status,
     };
     onApplyAutoFill?.(nodes || {}, partial, { textCount: 0, photoCount: 0, widgetCount: 0 });
-    setFixedModuleToast(status ? "✨ Đã bật toàn bộ các khối cố định trên thiệp!" : "✕ Đã tắt toàn bộ các khối cố định.");
-    setTimeout(() => setFixedModuleToast(null), 3000);
+
+    if (!status) {
+      UNIFIED_WEDDING_MODULES.filter(m => !m.isFixed).forEach(m => {
+        const nodeId = m.findNodeId?.(nodes || {});
+        if (nodeId) onDeleteElement?.(nodeId);
+      });
+    } else {
+      UNIFIED_WEDDING_MODULES.filter(m => !m.isFixed && m.widgetType).forEach(m => {
+        const nodeId = m.findNodeId?.(nodes || {});
+        if (!nodeId) onAddWidget?.(m.widgetType!, m.defaultProps);
+      });
+    }
   };
 
   const handleQuickChangeStyle = (
@@ -381,8 +552,8 @@ export default function EditorLeftDrawer({
     }
 
     onApplyAutoFill?.(nodes || {}, partial, { textCount: 0, photoCount: 0, widgetCount: 0 });
-    setFixedModuleToast(`✨ Đã đổi kiểu dáng "${styleTitle}"!`);
-    setTimeout(() => setFixedModuleToast(null), 2500);
+    scrollToFixedModule(moduleId);
+    onSelectFixedModule?.(moduleId);
   };
 
   const handleGenerateMapUrl = () => {
@@ -425,10 +596,19 @@ export default function EditorLeftDrawer({
   };
 
   const handleDrawerAutoFillApply = () => {
-    if (!groomName.trim() || !brideName.trim()) {
-      alert("Vui lòng nhập tên Chú Rể và Cô Dâu!");
+    const errs: Record<string, string> = {};
+    if (!groomName.trim()) {
+      errs.groomName = "Vui lòng nhập họ & tên Chú Rể";
+    }
+    if (!brideName.trim()) {
+      errs.brideName = "Vui lòng nhập họ & tên Cô Dâu";
+    }
+    if (Object.keys(errs).length > 0) {
+      setFieldErrors(errs);
+      setAutoFillSuccessMessage(null);
       return;
     }
+    setFieldErrors({});
 
     const cleanGroomAcc = (groomAccount || "").replace(/[^0-9]/g, "");
     const cleanBrideAcc = (brideAccount || "").replace(/[^0-9]/g, "");
@@ -623,17 +803,29 @@ export default function EditorLeftDrawer({
   const [customBgColor, setCustomBgColor] = useState("#ffffff");
   const [bgOpacity, setBgOpacity] = useState(1);
 
-  // Stock Tab state
-  const [stockCategory, setStockCategory] = useState<"flowers" | "rings" | "traditional" | "seals">("flowers");
+  // Elements Tab state (Canva-style Thành phần: Khung, Sticker, Hình khối, Khoảng trống)
+  const [elementsSubTab, setElementsSubTab] = useState<"frames" | "stickers" | "shapes" | "spacers">("frames");
+  const [stockCategory, setStockCategory] = useState<string>("all");
   const [stockSearch, setStockSearch] = useState("");
 
   // Tools Tab state
-  const [qrBank, setQrBank] = useState("MB");
-  const [qrAccount, setQrAccount] = useState("240220038888");
-  const [qrName, setQrName] = useState("NGUYEN VAN HUNG");
-  const [qrAmount, setQrAmount] = useState("");
-  const [qrMemo, setQrMemo] = useState("Mung cuoi hai ban");
-  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const jsonBackupInputRef = useRef<HTMLInputElement>(null);
+
+  const handleJsonFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target?.result as string);
+        onImportJson?.(parsed);
+      } catch (err) {
+        alert("File JSON không hợp lệ hoặc bị lỗi cú pháp!");
+      }
+    };
+    reader.readAsText(file);
+    if (jsonBackupInputRef.current) jsonBackupInputRef.current.value = "";
+  };
 
   // Music Tab state
   const [playingSongId, setPlayingSongId] = useState<string | null>(null);
@@ -762,32 +954,6 @@ export default function EditorLeftDrawer({
       setIsCompressing(false);
       if (bgFileInputRef.current) bgFileInputRef.current.value = "";
     }
-  };
-
-  // VietQR generation
-  const handleInsertVietQr = () => {
-    setIsGeneratingQr(true);
-    const cleanAccount = (qrAccount || "").replace(/[^a-zA-Z0-9]/g, "");
-    const qrUrl = generateVietQrUrl(
-      qrBank,
-      cleanAccount,
-      qrName ? qrName.toUpperCase() : undefined,
-      qrAmount ? Number(qrAmount) || undefined : undefined,
-      qrMemo || undefined
-    );
-
-    if (onAddWidget) {
-      onAddWidget("GiftQrBox", {
-        imgKey: qrUrl,
-        bankName: qrBank,
-        accountNumber: cleanAccount,
-        accountName: qrName ? qrName.toUpperCase() : "",
-        modalTitle: "Mừng Cưới Cô Dâu & Chú Rể",
-      });
-    } else {
-      onAddImage(qrUrl);
-    }
-    setTimeout(() => setIsGeneratingQr(false), 500);
   };
 
   // 10 Curated Romantic Wedding Songs
@@ -1069,7 +1235,7 @@ export default function EditorLeftDrawer({
             {activeTab === "image" && "Ảnh & Album cưới"}
             {activeTab === "text" && "Văn bản"}
             {activeTab === "background" && "Nền thiệp"}
-            {activeTab === "stock" && "Sticker & Họa tiết"}
+            {activeTab === "stock" && "Thành phần đồ họa (Khung & Họa tiết)"}
             {activeTab === "tools" && "Công cụ & AI"}
             {activeTab === "music" && "Nhạc nền"}
             {activeTab === "widgets" && "Khối mẫu"}
@@ -1161,14 +1327,27 @@ export default function EditorLeftDrawer({
                 </span>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-gray-600">Tên Chú Rể (*):</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold text-gray-700">Tên Chú Rể <span className="text-rose-500 font-bold">*</span>:</label>
+                    <span className="text-[9px] text-gray-400 font-medium">Bắt buộc</span>
+                  </div>
                   <input
                     type="text"
                     value={groomName}
-                    onChange={(e) => setGroomName(e.target.value)}
+                    onChange={(e) => {
+                      setGroomName(e.target.value);
+                      if (fieldErrors.groomName) setFieldErrors((prev) => ({ ...prev, groomName: "" }));
+                    }}
                     placeholder="VD: Trần Minh Quân"
-                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                    className={`w-full text-xs p-2 rounded-xl border bg-white font-medium focus:outline-none transition-all ${
+                      fieldErrors.groomName
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-400"
+                        : "border-gray-200 focus:border-[#e54153]"
+                    }`}
                   />
+                  {fieldErrors.groomName && (
+                    <p className="text-[10px] text-rose-500 font-semibold">{fieldErrors.groomName}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -1214,14 +1393,27 @@ export default function EditorLeftDrawer({
                 </span>
 
                 <div className="space-y-1">
-                  <label className="text-[10px] font-semibold text-gray-600">Tên Cô Dâu (*):</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-semibold text-gray-700">Tên Cô Dâu <span className="text-rose-500 font-bold">*</span>:</label>
+                    <span className="text-[9px] text-gray-400 font-medium">Bắt buộc</span>
+                  </div>
                   <input
                     type="text"
                     value={brideName}
-                    onChange={(e) => setBrideName(e.target.value)}
+                    onChange={(e) => {
+                      setBrideName(e.target.value);
+                      if (fieldErrors.brideName) setFieldErrors((prev) => ({ ...prev, brideName: "" }));
+                    }}
                     placeholder="VD: Phạm Mai Linh"
-                    className="w-full text-xs p-2 rounded-xl border border-gray-200 focus:outline-none focus:border-[#e54153] bg-white font-medium"
+                    className={`w-full text-xs p-2 rounded-xl border bg-white font-medium focus:outline-none transition-all ${
+                      fieldErrors.brideName
+                        ? "border-rose-400 bg-rose-50/20 ring-1 ring-rose-400"
+                        : "border-gray-200 focus:border-[#e54153]"
+                    }`}
                   />
+                  {fieldErrors.brideName && (
+                    <p className="text-[10px] text-rose-500 font-semibold">{fieldErrors.brideName}</p>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -2303,74 +2495,360 @@ export default function EditorLeftDrawer({
           </div>
         )}
 
-        {/* ================= 4. TAB: STOCK (KHO ẢNH & STICKER) ================= */}
+        {/* ================= 4. TAB: THÀNH PHẦN ĐỒ HỌA (CANVA-STYLE ELEMENTS) ================= */}
         {activeTab === "stock" && (
-          <div className="space-y-3">
-            {/* Category tabs */}
+          <div className="space-y-3.5 select-none">
+            {/* Elements Category Navigation (4 nhóm chính: Khung ảnh, Họa tiết, Hình khối, Khoảng trống) */}
             <div className="grid grid-cols-4 gap-1 p-1 bg-gray-100 rounded-xl text-[11px] font-bold">
               {[
-                { id: "flowers", label: "Hoa lá" },
-                { id: "rings", label: "Nhẫn" },
-                { id: "traditional", label: "Song Hỷ" },
-                { id: "seals", label: "Con dấu" },
+                { id: "frames", label: "Khung ảnh", icon: "🖼️" },
+                { id: "stickers", label: "Họa tiết", icon: "🌸" },
+                { id: "shapes", label: "Hình khối", icon: "📐" },
+                { id: "spacers", label: "Khoảng trống", icon: "↕️" },
               ].map((c) => (
                 <button
                   key={c.id}
                   type="button"
-                  onClick={() => setStockCategory(c.id as any)}
-                  className={`py-1.5 rounded-lg transition-all text-center ${
-                    stockCategory === c.id ? "bg-white text-gray-900 shadow-2xs" : "text-gray-500 hover:text-gray-800"
+                  onClick={() => setElementsSubTab(c.id as any)}
+                  className={`py-1.5 px-1 rounded-lg transition-all text-center flex items-center justify-center gap-1 ${
+                    elementsSubTab === c.id
+                      ? "bg-white text-gray-900 shadow-2xs font-extrabold"
+                      : "text-gray-500 hover:text-gray-800"
                   }`}
                 >
-                  {c.label}
+                  <span className="text-xs">{c.icon}</span>
+                  <span className="truncate">{c.label}</span>
                 </button>
               ))}
             </div>
 
-            {/* Stock Grid */}
-            <div className="grid grid-cols-2 gap-2">
-              {stockItems
-                .filter((s) => s.cat === stockCategory)
-                .map((stock) => (
-                  <div
-                    key={stock.id}
-                    onClick={() => {
-                      if (onAddStock) {
-                        onAddStock(stock.url, stock.name);
-                      } else {
-                        onAddImage(stock.url);
-                      }
-                    }}
-                    className="p-1 rounded-xl border border-gray-200 hover:border-[#e54153] bg-white cursor-pointer group shadow-2xs hover:shadow-xs transition-all text-center"
-                  >
-                    <div className="aspect-square rounded-lg overflow-hidden mb-1.5 bg-stone-50 flex items-center justify-center p-2">
-                      <img
-                        src={stock.url}
-                        alt={stock.name}
-                        className="w-full h-full object-contain group-hover:scale-110 transition-transform"
-                      />
-                    </div>
-                    <span className="text-[11px] font-semibold text-gray-700 block truncate px-1">
-                      {stock.name}
-                    </span>
-                  </div>
-                ))}
+            {/* Hint tip for Drag and Drop */}
+            <div className="px-2.5 py-1.5 rounded-lg bg-rose-50/70 border border-rose-100 text-[10px] text-rose-700 flex items-center justify-between">
+              <span>💡 Mẹo: Bấm để chèn hoặc giữ chuột kéo thả trực tiếp lên thiệp!</span>
             </div>
+
+            {/* ================= A. KHUNG ẢNH CƯỚI (FRAMES) ================= */}
+            {elementsSubTab === "frames" && (
+              <div className="space-y-2.5">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-0.5">
+                  Lựa chọn khung hình ({WEDDING_FRAMES.length} mẫu):
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {WEDDING_FRAMES.map((frame) => (
+                    <div
+                      key={frame.id}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          "application/zenlove-element",
+                          JSON.stringify({ type: "frame", frame, data: frame })
+                        );
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => {
+                        if (onAddFrame) {
+                          onAddFrame(frame);
+                        } else {
+                          onAddImage(frame.defaultImgKey);
+                        }
+                      }}
+                      className="p-2 rounded-2xl border border-gray-200/90 hover:border-rose-400 bg-white cursor-pointer group shadow-2xs hover:shadow-xs transition-all flex flex-col justify-between text-left"
+                    >
+                      <div className="aspect-[4/5] rounded-xl overflow-hidden mb-1.5 bg-stone-100 relative p-1.5 flex items-center justify-center">
+                        <img
+                          src={frame.defaultImgKey}
+                          alt={frame.name}
+                          style={{
+                            borderRadius: Array.isArray(frame.borderRadius)
+                              ? frame.borderRadius.map((r) => `${r * 0.25}px`).join(" ")
+                              : `${(frame.borderRadius as number) * 0.25}px`,
+                            border: `${frame.borderSize ? Math.min(3, frame.borderSize) : 1}px ${
+                              frame.borderStyle || "solid"
+                            } ${frame.borderColor || "#d4af37"}`,
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <span className="absolute top-1.5 right-1.5 text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-black/60 text-white backdrop-blur-xs">
+                          {frame.badge}
+                        </span>
+                      </div>
+
+                      <div className="px-0.5">
+                        <span className="text-[11px] font-bold text-gray-800 block truncate group-hover:text-rose-600 transition-colors">
+                          {frame.previewIcon} {frame.name}
+                        </span>
+                        <span className="text-[9px] text-gray-400 font-mono mt-0.5 block">
+                          {frame.defaultWidth} × {frame.defaultHeight}px
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================= B. HỌA TIẾT & STICKER ================= */}
+            {elementsSubTab === "stickers" && (
+              <div className="space-y-2.5">
+                {/* Category chips filter */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                  {STICKER_CATEGORIES.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setStockCategory(cat.id)}
+                      className={`px-2 py-1 rounded-lg text-[10px] font-bold shrink-0 transition-all ${
+                        stockCategory === cat.id
+                          ? "bg-[#e54153] text-white shadow-2xs"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                    >
+                      <span>{cat.icon}</span> <span>{cat.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Stickers Grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  {getStickersByCategory(stockCategory).map((stock) => (
+                    <div
+                      key={stock.id}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          "application/zenlove-element",
+                          JSON.stringify({ type: "sticker", stockUrl: stock.url, name: stock.name, data: stock })
+                        );
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => {
+                        if (onAddStock) {
+                          onAddStock(stock.url, stock.name);
+                        } else {
+                          onAddImage(stock.url);
+                        }
+                      }}
+                      className="p-1.5 rounded-2xl border border-gray-200 hover:border-[#e54153] bg-white cursor-pointer group shadow-2xs hover:shadow-xs transition-all text-center flex flex-col justify-between"
+                    >
+                      <div className="aspect-square rounded-xl overflow-hidden mb-1.5 bg-stone-50/80 flex items-center justify-center p-2 relative">
+                        <img
+                          src={stock.url}
+                          alt={stock.name}
+                          className="w-full h-full object-contain group-hover:scale-110 transition-transform duration-300"
+                        />
+                        {stock.badge && (
+                          <span className="absolute top-1 right-1 text-[8px] font-bold px-1.5 py-0.2 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                            {stock.badge}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-semibold text-gray-700 block truncate px-1">
+                        {stock.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ================= C. HÌNH KHỐI & ĐƯỜNG KẺ (SHAPES & LINES) ================= */}
+            {elementsSubTab === "shapes" && (
+              <div className="space-y-3">
+                <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-0.5">
+                  Hình khối trang trí & vạch kẻ:
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Shape 1: Rounded Card Panel */}
+                  <div
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/zenlove-element",
+                        JSON.stringify({
+                          type: "shape",
+                          shapeType: "rectangle",
+                          fill: "#ffffff",
+                          width: 440,
+                          height: 200,
+                          borderRadius: 24,
+                          borderSize: 1,
+                          borderColor: "#e5e7eb",
+                          opacity: 0.95,
+                        })
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => {
+                      onAddWidget?.("GeometricBox", {
+                        width: 440,
+                        height: 200,
+                        backgroundColor: "#ffffff",
+                        borderRadius: 24,
+                        borderSize: 1,
+                        borderColor: "#e5e7eb",
+                        opacity: 0.95,
+                      });
+                    }}
+                    className="p-3 rounded-2xl border border-gray-200 hover:border-rose-400 bg-white cursor-pointer group shadow-2xs text-center"
+                  >
+                    <div className="w-full h-14 rounded-xl bg-rose-50/60 border border-rose-200 mb-2 flex items-center justify-center text-rose-500 font-bold text-xs">
+                      Thẻ Nền
+                    </div>
+                    <span className="text-xs font-bold text-gray-800 block">Thẻ Bo Góc 24px</span>
+                    <span className="text-[10px] text-gray-400 font-mono">440 × 200px</span>
+                  </div>
+
+                  {/* Shape 2: Circle Badge */}
+                  <div
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/zenlove-element",
+                        JSON.stringify({
+                          type: "shape",
+                          shapeType: "circle",
+                          fill: "#780405",
+                          width: 120,
+                          height: 120,
+                          borderRadius: 999,
+                          opacity: 1,
+                        })
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => {
+                      onAddWidget?.("GeometricBox", {
+                        width: 120,
+                        height: 120,
+                        backgroundColor: "#780405",
+                        borderRadius: 999,
+                        shapeType: "circle",
+                        opacity: 1,
+                      });
+                    }}
+                    className="p-3 rounded-2xl border border-gray-200 hover:border-rose-400 bg-white cursor-pointer group shadow-2xs text-center"
+                  >
+                    <div className="w-14 h-14 mx-auto rounded-full bg-[#780405] mb-2 flex items-center justify-center text-amber-200 font-bold text-xs shadow-xs">
+                      Huy hiệu
+                    </div>
+                    <span className="text-xs font-bold text-gray-800 block">Khối Tròn Tròn</span>
+                    <span className="text-[10px] text-gray-400 font-mono">120 × 120px</span>
+                  </div>
+
+                  {/* Shape 3: Gold Divider Line */}
+                  <div
+                    draggable={true}
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(
+                        "application/zenlove-element",
+                        JSON.stringify({
+                          type: "shape",
+                          shapeType: "line",
+                          fill: "#d4af37",
+                          width: 360,
+                          height: 2,
+                          borderColor: "#d4af37",
+                        })
+                      );
+                      e.dataTransfer.effectAllowed = "copy";
+                    }}
+                    onClick={() => {
+                      onAddWidget?.("LineBox", {
+                        width: 360,
+                        height: 2,
+                        backgroundColor: "#d4af37",
+                        borderColor: "#d4af37",
+                        borderSize: 2,
+                      });
+                    }}
+                    className="col-span-2 p-3 rounded-2xl border border-gray-200 hover:border-rose-400 bg-white cursor-pointer group shadow-2xs flex items-center justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-gray-800 block">Vạch Ngăn Mạ Vàng</span>
+                      <span className="text-[10px] text-gray-400 font-mono">360 × 2px</span>
+                    </div>
+                    <div className="w-36 h-0.5 bg-gradient-to-r from-transparent via-[#d4af37] to-transparent rounded-full" />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ================= D. KHOẢNG TRỐNG BỐ CỤC (SPACERS) ================= */}
+            {elementsSubTab === "spacers" && (
+              <div className="space-y-3">
+                <div className="p-3 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 leading-relaxed">
+                  <span className="font-bold">✨ Co dãn & Chèn khoảng trống:</span> Bấm chọn một mức khoảng trống bên dưới để tự động đẩy toàn bộ nội dung phía sau xuống dưới!
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { height: 40, label: "Nhỏ (+40px)", desc: "Giãn nhẹ giữa 2 dòng" },
+                    { height: 80, label: "Vừa (+80px)", desc: "Khoảng cách chuẩn khối" },
+                    { height: 120, label: "Lớn (+120px)", desc: "Phân tách rõ phân đoạn" },
+                    { height: 200, label: "Trang (+200px)", desc: "Tạo trang màn hình mới" },
+                  ].map((sp) => (
+                    <button
+                      key={sp.height}
+                      type="button"
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData(
+                          "application/zenlove-element",
+                          JSON.stringify({ type: "spacer", height: sp.height, data: sp })
+                        );
+                        e.dataTransfer.effectAllowed = "copy";
+                      }}
+                      onClick={() => onAddSpacer?.(sp.height)}
+                      className="p-3 rounded-2xl border border-gray-200 hover:border-[#e54153] bg-white hover:bg-rose-50/20 text-left transition-all group shadow-2xs cursor-pointer flex flex-col justify-between"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-base font-bold text-gray-900 group-hover:text-rose-600">
+                          ↕️ {sp.label}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-500">{sp.desc}</p>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="pt-2 border-t border-gray-100 flex items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-gray-600">Hoặc kéo thước dời trực tiếp trên Canvas:</span>
+                  <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                    ↕️ Thanh dời bố cục
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
-        {/* ================= 5. TAB: CÔNG CỤ & AI ================= */}
+        {/* ================= 5. TAB: CÔNG CỤ & TIỆN ÍCH THIẾT KẾ ================= */}
         {activeTab === "tools" && (
           <div className="space-y-4">
+            {/* Header giới thiệu chức năng */}
+            <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50/60 to-rose-50/60 border border-purple-100 shadow-2xs">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow-xs">
+                  <Wrench className="w-3.5 h-3.5" />
+                </div>
+                <h4 className="text-xs font-bold text-gray-900">Bộ công cụ Studio đồ họa</h4>
+              </div>
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                Tích hợp AI xử lý ảnh cưới, căn chỉnh vị trí thông minh, bảo vệ họa tiết mẫu và sao lưu thiết kế dự phòng.
+              </p>
+            </div>
+
             {/* 1. AI Background Removal */}
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-purple-50/50 to-pink-50/80 border border-indigo-100/60 shadow-2xs space-y-2">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-indigo-50/80 via-purple-50/50 to-pink-50/80 border border-indigo-100/60 shadow-2xs space-y-2.5">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center shadow-xs">
                   <Wand2 className="w-4 h-4 text-amber-300" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-900">✨ AI Xóa phông thông minh</h4>
-                  <p className="text-[10px] text-gray-500">Tách nền ảnh cưới chỉ trong 1 giây</p>
+                  <h4 className="text-xs font-bold text-gray-900">✨ AI Tách phông & Xử lý ảnh</h4>
+                  <p className="text-[10px] text-gray-500">Tự động tách nền cô dâu chú rể hoặc chỉnh tay</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -2387,7 +2865,10 @@ export default function EditorLeftDrawer({
                       <span>Đang xử lý...</span>
                     </>
                   ) : (
-                    <span>Tự động AI</span>
+                    <>
+                      <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                      <span>Tự động AI</span>
+                    </>
                   )}
                 </button>
                 <button
@@ -2397,96 +2878,283 @@ export default function EditorLeftDrawer({
                   title="Chỉnh sửa cọ tẩy và khôi phục nhân vật thủ công"
                 >
                   <Eraser className="w-3.5 h-3.5" />
-                  <span>Chỉnh tay</span>
+                  <span>Cọ tẩy thủ công</span>
+                </button>
+              </div>
+              <p className="text-[10px] text-indigo-700/80 italic">
+                * Mẹo: Nhấp chọn một khung ảnh trên thiệp để thực hiện tách nền ngay.
+              </p>
+            </div>
+
+            {/* 2. Căn chỉnh & Thứ tự lớp thông minh */}
+            <div className="p-3 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                    <SlidersHorizontal className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-900">Căn chỉnh & Bố cục nhanh</h4>
+                    <p className="text-[10px] text-gray-500">Căn lề, căn giữa và điều phối lớp</p>
+                  </div>
+                </div>
+                {selectedElement && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-semibold border border-blue-200">
+                    {selectedElement.type === "TextBox"
+                      ? "Văn bản"
+                      : selectedElement.type === "PhotoBox"
+                      ? "Ảnh cưới"
+                      : selectedElement.type === "Widget"
+                      ? "Khối mẫu"
+                      : "Đối tượng"}
+                  </span>
+                )}
+              </div>
+
+              {selectedElement ? (
+                <div className="space-y-2.5">
+                  {/* Nhóm Căn lề khổ thiệp (Canvas 500px) */}
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      Căn lề trên khổ thiệp (500px):
+                    </span>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => onUpdateElementProps?.(selectedElement.id, { x: 24 })}
+                        className="py-1.5 px-2 rounded-lg bg-gray-50 hover:bg-blue-50 hover:border-blue-200 border border-gray-200 text-gray-700 hover:text-blue-700 text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                        title="Căn lề trái cách mép 24px"
+                      >
+                        <AlignLeft className="w-3.5 h-3.5" />
+                        <span>Lề trái</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const w = Number(selectedElement.props?.width || 200);
+                          const centerX = Math.max(0, Math.round((500 - w) / 2));
+                          onUpdateElementProps?.(selectedElement.id, { x: centerX });
+                        }}
+                        className="py-1.5 px-2 rounded-lg bg-blue-50 hover:bg-blue-100/80 border border-blue-200 text-blue-700 text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer shadow-2xs"
+                        title="Căn chính giữa chiều ngang thiệp"
+                      >
+                        <AlignCenter className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Căn giữa</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const w = Number(selectedElement.props?.width || 200);
+                          const rightX = Math.max(0, 500 - w - 24);
+                          onUpdateElementProps?.(selectedElement.id, { x: rightX });
+                        }}
+                        className="py-1.5 px-2 rounded-lg bg-gray-50 hover:bg-blue-50 hover:border-blue-200 border border-gray-200 text-gray-700 hover:text-blue-700 text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                        title="Căn lề phải cách mép 24px"
+                      >
+                        <AlignRight className="w-3.5 h-3.5" />
+                        <span>Lề phải</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Nhóm Thứ tự lớp & Thao tác */}
+                  <div>
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      Thứ tự lớp & Thao tác:
+                    </span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allZ = Object.values(nodes).map((n: any) => Number(n.props?.zIndex || 1));
+                          const maxZ = allZ.length > 0 ? Math.max(...allZ) : 10;
+                          onUpdateElementProps?.(selectedElement.id, { zIndex: maxZ + 1 });
+                        }}
+                        className="py-1.5 px-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5 text-gray-500" />
+                        <span>Lên trên cùng</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const allZ = Object.values(nodes).map((n: any) => Number(n.props?.zIndex || 1));
+                          const minZ = allZ.length > 0 ? Math.min(...allZ) : 1;
+                          onUpdateElementProps?.(selectedElement.id, { zIndex: Math.max(1, minZ - 1) });
+                        }}
+                        className="py-1.5 px-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5 text-gray-500" />
+                        <span>Xuống dưới cùng</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const isLocked = Boolean(selectedElement.props?.locked) || isElementLocked(selectedElement.id, selectedElement.props);
+                          onUpdateElementProps?.(selectedElement.id, { locked: !isLocked });
+                        }}
+                        className={`py-1.5 px-2 rounded-lg border text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                          Boolean(selectedElement.props?.locked) || isElementLocked(selectedElement.id, selectedElement.props)
+                            ? "bg-amber-50 border-amber-300 text-amber-800"
+                            : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {Boolean(selectedElement.props?.locked) || isElementLocked(selectedElement.id, selectedElement.props) ? (
+                          <>
+                            <Lock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Mở khóa đối tượng</span>
+                          </>
+                        ) : (
+                          <>
+                            <Unlock className="w-3.5 h-3.5 text-gray-500" />
+                            <span>Khóa vị trí</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDuplicateElement?.(selectedElement.id)}
+                        className="py-1.5 px-2 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 text-[11px] font-semibold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                      >
+                        <Copy className="w-3.5 h-3.5 text-gray-500" />
+                        <span>Nhân bản</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 rounded-xl bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800 space-y-1">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <SlidersHorizontal className="w-4 h-4 text-amber-600" />
+                    <span>Chưa chọn phần tử để căn chỉnh</span>
+                  </div>
+                  <p className="text-[11px] text-amber-700 leading-relaxed">
+                    Nhấp chọn một dòng chữ, ảnh cưới hoặc khung hình trên bảng thiết kế để sử dụng công cụ căn lề, căn giữa và điều phối lớp.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 3. Bảo vệ & Khôi phục họa tiết chuẩn của template */}
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/50 border border-emerald-200/70 shadow-2xs space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                  <ShieldCheck className="w-4 h-4 text-emerald-200" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900">Bảo vệ họa tiết mẫu độc quyền</h4>
+                  <p className="text-[10px] text-gray-500">Khóa cố định hoa văn viền và khung trang trí</p>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-600 leading-relaxed">
+                Tự động nhận diện hoa văn viền nghệ thuật và họa tiết độc quyền của mẫu để khóa vị trí cố định, tránh xê dịch ngoài ý muốn khi sửa văn bản.
+              </p>
+              <button
+                type="button"
+                onClick={onRepairDecorations}
+                className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-200" />
+                <span>Khóa cố định & Khôi phục họa tiết chuẩn</span>
+              </button>
+            </div>
+
+            {/* 4. Sao lưu & Xuất dữ liệu */}
+            <div className="p-3 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-rose-600 text-white flex items-center justify-center shadow-xs">
+                  <Download className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs font-bold text-gray-900">Sao lưu & Xuất bản thiết kế</h4>
+                  <p className="text-[10px] text-gray-500">Lưu dự phòng và xuất ảnh độ phân giải cao</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={onExportPng}
+                  className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-gray-800 hover:text-rose-700 font-semibold text-xs shadow-2xs flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer text-center"
+                >
+                  <Download className="w-4 h-4 text-rose-500" />
+                  <span>Xuất ảnh HD (PNG)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onExportJson}
+                  className="p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-200 text-gray-800 hover:text-blue-700 font-semibold text-xs shadow-2xs flex flex-col items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer text-center"
+                >
+                  <FileJson className="w-4 h-4 text-blue-500" />
+                  <span>Tải file sao lưu (.json)</span>
+                </button>
+              </div>
+
+              <div>
+                <input
+                  ref={jsonBackupInputRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={handleJsonFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => jsonBackupInputRef.current?.click()}
+                  className="w-full py-2 px-3 rounded-xl border border-dashed border-gray-300 hover:border-blue-400 bg-gray-50 hover:bg-blue-50/60 text-gray-700 hover:text-blue-700 text-xs font-semibold flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>Phục hồi từ file sao lưu (.json)</span>
                 </button>
               </div>
             </div>
 
-            {/* 2. VietQR Generator */}
-            <div className="p-3 rounded-2xl bg-white border border-gray-200 shadow-2xs space-y-3">
+            {/* 5. Tra cứu phím tắt thiết kế nhanh */}
+            <div className="p-3 rounded-2xl bg-gray-50/80 border border-gray-200 shadow-2xs space-y-2">
               <div className="flex items-center gap-2">
-                <div className="w-7 h-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                  <QrCode className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-lg bg-gray-800 text-white flex items-center justify-center shadow-xs">
+                  <Keyboard className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold text-gray-900">Tạo mã QR mừng cưới VietQR</h4>
-                  <p className="text-[10px] text-gray-500">Chuẩn liên ngân hàng Napas 247</p>
+                  <h4 className="text-xs font-bold text-gray-900">Phím tắt thao tác nhanh</h4>
+                  <p className="text-[10px] text-gray-500">Tăng tốc độ thiết kế như designer chuyên nghiệp</p>
                 </div>
               </div>
 
-              <div className="space-y-2 text-xs">
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-                    Ngân hàng thụ hưởng:
-                  </label>
-                  <select
-                    value={qrBank}
-                    onChange={(e) => setQrBank(e.target.value)}
-                    className="w-full p-2 rounded-lg border border-gray-200 text-xs font-semibold focus:border-emerald-500 focus:outline-none"
-                  >
-                    <option value="MB">MB Bank (Quân Đội)</option>
-                    <option value="VCB">Vietcombank</option>
-                    <option value="TCB">Techcombank</option>
-                    <option value="VPB">VPBank</option>
-                    <option value="ACB">ACB Á Châu</option>
-                    <option value="BIDV">BIDV</option>
-                    <option value="CTG">VietinBank</option>
-                    <option value="TPB">TPBank</option>
-                  </select>
+              <div className="grid grid-cols-2 gap-1.5 pt-1 text-[11px]">
+                <div className="p-1.5 rounded-lg bg-white border border-gray-200 flex items-center justify-between">
+                  <span className="text-gray-600">Hoàn tác:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-[10px] text-gray-800 border font-bold">
+                    Ctrl + Z
+                  </kbd>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-                    Số tài khoản:
-                  </label>
-                  <input
-                    type="text"
-                    value={qrAccount}
-                    onChange={(e) => setQrAccount(e.target.value)}
-                    placeholder="VD: 0987654321"
-                    className="w-full p-2 rounded-lg border border-gray-200 font-mono text-xs focus:border-emerald-500 focus:outline-none"
-                  />
+                <div className="p-1.5 rounded-lg bg-white border border-gray-200 flex items-center justify-between">
+                  <span className="text-gray-600">Làm lại:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-[10px] text-gray-800 border font-bold">
+                    Ctrl + Y
+                  </kbd>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-                    Tên chủ tài khoản (Viết hoa không dấu):
-                  </label>
-                  <input
-                    type="text"
-                    value={qrName}
-                    onChange={(e) => setQrName(e.target.value.toUpperCase())}
-                    placeholder="VD: NGUYEN VAN HUNG"
-                    className="w-full p-2 rounded-lg border border-gray-200 uppercase text-xs focus:border-emerald-500 focus:outline-none font-semibold"
-                  />
+                <div className="p-1.5 rounded-lg bg-white border border-gray-200 flex items-center justify-between">
+                  <span className="text-gray-600">Nhân bản:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-[10px] text-gray-800 border font-bold">
+                    Ctrl + D
+                  </kbd>
                 </div>
-
-                <div>
-                  <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-                    Nội dung mừng cưới mặc định:
-                  </label>
-                  <input
-                    type="text"
-                    value={qrMemo}
-                    onChange={(e) => setQrMemo(e.target.value)}
-                    placeholder="Mung cuoi hai ban"
-                    className="w-full p-2 rounded-lg border border-gray-200 text-xs focus:border-emerald-500 focus:outline-none"
-                  />
+                <div className="p-1.5 rounded-lg bg-white border border-gray-200 flex items-center justify-between">
+                  <span className="text-gray-600">Xóa đối tượng:</span>
+                  <kbd className="px-1.5 py-0.5 rounded bg-gray-100 font-mono text-[10px] text-gray-800 border font-bold">
+                    Del / Backspace
+                  </kbd>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={handleInsertVietQr}
-                  disabled={isGeneratingQr}
-                  className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer"
-                >
-                  {isGeneratingQr ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  ) : (
-                    <Plus className="w-3.5 h-3.5" />
-                  )}
-                  <span>Chèn mã VietQR vào thiệp</span>
-                </button>
+                <div className="p-1.5 rounded-lg bg-white border border-gray-200 flex items-center justify-between col-span-2">
+                  <span className="text-gray-600">Dịch chuyển từng pixel:</span>
+                  <div className="flex items-center gap-1">
+                    <kbd className="px-1 py-0.5 rounded bg-gray-100 font-mono text-[10px] text-gray-800 border font-bold">
+                      Phím mũi tên
+                    </kbd>
+                    <span className="text-gray-400 text-[10px]">(+Shift = 10px)</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -2639,858 +3307,272 @@ export default function EditorLeftDrawer({
           </div>
         )}
 
-        {/* ================= 7. TAB: KHỐI MẪU & TIỆN ÍCH (ALL-IN-ONE UNIFIED) ================= */}
-        {activeTab === "widgets" && (
-          <div className="space-y-3.5 select-none animate-fadeIn">
-            {/* 1. Header Banner & Bộ Điều Khiển Chung */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-br from-rose-50 via-white to-amber-50/70 border border-rose-200/80 shadow-2xs text-left">
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#e54153] to-[#ff5b70] text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <SlidersHorizontal className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
-                      <span>Khối Mẫu Toàn Diện</span>
-                      <span className="px-1.5 py-0.2 rounded-md bg-emerald-50 text-emerald-700 text-[10px] font-semibold border border-emerald-200">
-                        Tự động đồng bộ
-                      </span>
-                    </h4>
-                    <p className="text-[10px] text-gray-500 mt-0.5 leading-snug">
-                      Bật/tắt, chọn giao diện 1-chạm hoặc chèn thêm khối lên bảng thiết kế.
-                    </p>
-                  </div>
-                </div>
+        {/* ================= 7. TAB: KHỐI MẪU THEO CHỦ ĐỀ (UNIFIED ALL-IN-ONE) ================= */}
+        {activeTab === "widgets" && (() => {
+          const currentThemeDef = THEME_CATEGORIES.find((c) => c.id === selectedThemeCategory) || THEME_CATEGORIES[0];
+          const modulesForTheme = getModulesForTheme(selectedThemeCategory);
+          const activeCount = modulesForTheme.filter((m) => m.isActive(card, nodes || {})).length;
 
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-rose-600 border border-rose-200/60 shadow-2xs shrink-0">
-                  {[showGiftBox, showEvents, showRsvp, showWishes, showCalendar, effectiveAlbum.length > 0].filter(Boolean).length}/6 Đang bật
-                </span>
-              </div>
+          const filteredModules = modulesForTheme.filter((mod) => {
+            if (widgetsSearchQuery) {
+              const q = widgetsSearchQuery.toLowerCase().trim();
+              const matchName = mod.displayName.toLowerCase().includes(q) || mod.name.toLowerCase().includes(q);
+              const matchCat = mod.categoryLabel.toLowerCase().includes(q);
+              const matchSummary = mod.getSummary(card, nodes || {}, selectedThemeCategory).toLowerCase().includes(q);
+              const matchStyles = mod.styles.some(
+                (s) => s.name.toLowerCase().includes(q) || (s.description && s.description.toLowerCase().includes(q))
+              );
+              return matchName || matchCat || matchSummary || matchStyles;
+            }
+            return true;
+          });
 
-              {/* Nút bật/tắt toàn bộ nhanh */}
-              <div className="flex items-center gap-2 mt-3 pt-2.5 border-t border-rose-100">
+          return (
+            <div className="space-y-3.5 select-none animate-fadeIn">
+              {/* Segmented Switcher: Kho Khối Mẫu Thủ Công vs Quản Lý Bật/Tắt */}
+              <div className="flex items-center p-1 bg-gray-100 rounded-xl gap-1">
                 <button
                   type="button"
-                  onClick={() => handleSetAllFixedModules(true)}
-                  className="flex-1 py-1.5 px-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 shadow-2xs transition-all cursor-pointer text-center"
+                  onClick={() => {
+                    setWidgetsSubTab("library");
+                    try { weddingSounds.playSoftClick(); } catch {}
+                  }}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    widgetsSubTab === "library"
+                      ? "bg-white text-rose-600 shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
                 >
-                  ✓ Bật tất cả các khối
+                  <Layers className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Kho Khối Mẫu Thủ Công</span>
+                  <span className="text-[9px] bg-rose-50 text-rose-700 px-1.5 py-0.2 rounded-full border border-rose-200/60 font-semibold">
+                    Mới
+                  </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleSetAllFixedModules(false)}
-                  className="flex-1 py-1.5 px-2 rounded-lg bg-white hover:bg-gray-100 text-gray-600 text-[10px] font-bold border border-gray-200 shadow-2xs transition-all cursor-pointer text-center"
+                  onClick={() => {
+                    setWidgetsSubTab("manage");
+                    try { weddingSounds.playSoftClick(); } catch {}
+                  }}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                    widgetsSubTab === "manage"
+                      ? "bg-white text-rose-600 shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
                 >
-                  ✕ Tắt tất cả
+                  <SlidersHorizontal className="w-3.5 h-3.5 text-rose-500" />
+                  <span>Bật/Tắt Khối</span>
+                  <span className="text-[9px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded-full font-semibold">
+                    {activeCount}/{modulesForTheme.length}
+                  </span>
                 </button>
               </div>
-            </div>
 
-            {/* 2. Thanh tìm kiếm nhanh & Bộ lọc thông minh */}
-            <div className="space-y-2">
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm khối: Mừng cưới, Bản đồ, RSVP, Lịch, Album, Timeline..."
-                  value={widgetsSearchQuery}
-                  onChange={(e) => setWidgetsSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-7 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#e54153] bg-white placeholder-gray-400 shadow-2xs"
-                />
-                {widgetsSearchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setWidgetsSearchQuery("")}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600"
-                  >
-                    ✕
-                  </button>
-                )}
-              </div>
-
-              {/* Filter Pills */}
-              {!widgetsSearchQuery && (
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-0.5">
-                  {[
-                    { id: "all", label: "Tất cả" },
-                    { id: "active", label: "Đang bật" },
-                    { id: "giftBox", label: "Hộp mừng" },
-                    { id: "calendar", label: "Lịch cưới" },
-                    { id: "events", label: "Sự kiện & Bản đồ" },
-                    { id: "rsvp", label: "RSVP & Lời chúc" },
-                    { id: "album", label: "Album ảnh" },
-                    { id: "extensions", label: "Khối mở rộng" },
-                  ].map((f) => (
-                    <button
-                      key={f.id}
-                      type="button"
-                      onClick={() => setWidgetsFilterCategory(f.id)}
-                      className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 ${
-                        widgetsFilterCategory === f.id
-                          ? "bg-rose-600 text-white shadow-2xs"
-                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
+              {widgetsSubTab === "library" ? (
+                <div className="pt-1">
+                  <ModulePresetsFolderBrowser
+                    onAddModulePreset={(preset) => {
+                      if (onAddModulePreset) {
+                        onAddModulePreset(preset);
+                      }
+                    }}
+                    onOpenSettings={() => setWidgetsSubTab("manage")}
+                  />
                 </div>
-              )}
-            </div>
-
-            {/* Thông báo cập nhật trạng thái khối */}
-            {fixedModuleToast && (
-              <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold flex items-center gap-1.5 animate-fadeIn shadow-2xs">
-                <Check className="w-4 h-4 text-emerald-600 shrink-0 stroke-[3]" />
-                <span>{fixedModuleToast}</span>
-              </div>
-            )}
-
-            {/* 3. DANH SÁCH 6 KHỐI TƯƠNG TÁC CỐ ĐỊNH TRÊN THIỆP */}
-            <div className="space-y-3">
-              {/* KHỐI 1: HỘP MỪNG CƯỚI (VIETQR) */}
-              {(widgetsFilterCategory === "all" ||
-                (widgetsFilterCategory === "active" && showGiftBox) ||
-                widgetsFilterCategory === "giftBox" ||
-                (widgetsSearchQuery && ("hộp mừng cưới vietqr ngân hàng lì xì".includes(widgetsSearchQuery.toLowerCase())))) && (
-                <div className={`p-3.5 rounded-2xl border transition-all ${
-                  showGiftBox ? "bg-white border-amber-200 shadow-2xs" : "bg-gray-50/70 border-gray-200 opacity-75"
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        showGiftBox ? "bg-amber-50 text-amber-600" : "bg-gray-100 text-gray-400"
-                      }`}>
-                        <CreditCard className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="text-xs font-bold text-gray-900 truncate">Hộp Mừng Cưới (VietQR)</h5>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                            showGiftBox ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {showGiftBox ? "Đang bật" : "Đã tắt"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                          Quét mã VietQR mừng cưới & nhận quà trực tuyến
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFixedModule("showGiftBox", !showGiftBox, "Hộp mừng cưới")}
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
-                        showGiftBox ? "bg-emerald-600" : "bg-gray-300"
-                      }`}
-                      title={showGiftBox ? "Bấm để tắt" : "Bấm để bật"}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        showGiftBox ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  {/* Thông tin tài khoản & Nút sửa STK */}
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
-                    <span className="text-gray-500 truncate">
-                      {groomBank || "MB"} ({groomAccount ? "✓ Đã có STK" : "Chưa có STK"})
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenModuleConfig?.("giftBox")}
-                      className="px-2 py-0.5 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold shrink-0 transition-colors cursor-pointer border border-amber-200 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Sửa STK & Thông tin</span>
-                    </button>
-                  </div>
-
-                  {/* INLINE STYLE SELECTOR: Chọn giao diện Hộp Mừng Cưới 1-chạm */}
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200/80">
-                    <div className="flex items-center justify-between text-[10px] mb-1.5">
-                      <span className="font-bold text-gray-700 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-amber-600" />
-                        <span>Chọn kiểu dáng hiển thị:</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(MODULE_STYLE_CATALOG.giftBox?.styles || []).map((st) => {
-                        const isSelected = (card?.fixedModuleStyles?.giftBox || "dual-bank-cards") === st.id;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => handleQuickChangeStyle("giftBox", st.id, "showGiftBox", st.name)}
-                            className={`p-1.5 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-between relative group ${
-                              isSelected
-                                ? "bg-amber-50 border-amber-500 text-amber-950 shadow-2xs ring-1 ring-amber-400"
-                                : "bg-gray-50/80 hover:bg-white border-gray-200 text-gray-700 hover:border-amber-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-amber-600 text-white flex items-center justify-center text-[7px] font-bold shadow-xs">
-                                ✓
-                              </span>
-                            )}
-                            <span className="text-base my-0.5">{st.icon}</span>
-                            <span className="text-[10px] font-bold truncate max-w-full leading-tight">{st.name}</span>
-                            <span className={`text-[8px] font-semibold mt-1 px-1 rounded ${
-                              isSelected ? "bg-amber-200/60 text-amber-900" : "bg-gray-200/60 text-gray-500"
-                            }`}>
-                              {isSelected ? "Đang chọn" : st.badge || "Áp dụng"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Nút chèn thêm lên Canvas */}
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = MODULE_PRESETS.find((item) => item.id === "banking_1_vietqr_dual") || MODULE_PRESETS[0];
-                          if (onAddModulePreset) onAddModulePreset(p);
-                        }}
-                        className="text-[10px] text-gray-500 hover:text-amber-700 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-amber-50 transition-colors cursor-pointer"
-                        title="Chèn thêm một khối nổi VietQR lên giữa bảng thiết kế"
-                      >
-                        <Plus className="w-3 h-3 text-amber-600" />
-                        <span>+ Chèn khối lên Canvas</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* KHỐI 2: LỊCH CƯỚI & ĐẾM NGƯỢC */}
-              {(widgetsFilterCategory === "all" ||
-                (widgetsFilterCategory === "active" && showCalendar) ||
-                widgetsFilterCategory === "calendar" ||
-                (widgetsSearchQuery && ("lịch cưới đếm ngược ngày giờ save the date".includes(widgetsSearchQuery.toLowerCase())))) && (
-                <div className={`p-3.5 rounded-2xl border transition-all ${
-                  showCalendar ? "bg-white border-indigo-200 shadow-2xs" : "bg-gray-50/70 border-gray-200 opacity-75"
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        showCalendar ? "bg-indigo-50 text-indigo-600" : "bg-gray-100 text-gray-400"
-                      }`}>
-                        <Calendar className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="text-xs font-bold text-gray-900 truncate">Lịch Cưới & Đếm Ngược</h5>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                            showCalendar ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {showCalendar ? "Đang bật" : "Đã tắt"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                          Đồng hồ đếm ngược Ngày - Giờ & Lưu ngày cưới (Save The Date)
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFixedModule("showCalendar", !showCalendar, "Lịch cưới & đếm ngược")}
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
-                        showCalendar ? "bg-emerald-600" : "bg-gray-300"
-                      }`}
-                      title={showCalendar ? "Bấm để tắt" : "Bấm để bật"}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        showCalendar ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
-                    <span className="text-gray-500 truncate">
-                      {weddingDate ? weddingDate.split("-").reverse().join("/") : "20/11/2026"} • {weddingTime || "11:00"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenModuleConfig?.("calendar")}
-                      className="px-2 py-0.5 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold shrink-0 transition-colors cursor-pointer border border-indigo-200 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Sửa ngày cưới</span>
-                    </button>
-                  </div>
-
-                  {/* INLINE STYLE SELECTOR: Chọn kiểu Lịch Cưới */}
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200/80">
-                    <div className="flex items-center justify-between text-[10px] mb-1.5">
-                      <span className="font-bold text-gray-700 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-indigo-600" />
-                        <span>Chọn kiểu dáng hiển thị:</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                      {(MODULE_STYLE_CATALOG.calendar?.styles || []).map((st) => {
-                        const isSelected = (card?.fixedModuleStyles?.calendar || "classic-cream") === st.id;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => handleQuickChangeStyle("calendar", st.id, "showCalendar", st.name)}
-                            className={`p-1.5 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-between relative group ${
-                              isSelected
-                                ? "bg-indigo-50 border-indigo-500 text-indigo-950 shadow-2xs ring-1 ring-indigo-400"
-                                : "bg-gray-50/80 hover:bg-white border-gray-200 text-gray-700 hover:border-indigo-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[7px] font-bold shadow-xs">
-                                ✓
-                              </span>
-                            )}
-                            <span className="text-base my-0.5">{st.icon}</span>
-                            <span className="text-[10px] font-bold truncate max-w-full leading-tight">{st.name}</span>
-                            <span className={`text-[8px] font-semibold mt-1 px-1 rounded ${
-                              isSelected ? "bg-indigo-200/60 text-indigo-900" : "bg-gray-200/60 text-gray-500"
-                            }`}>
-                              {isSelected ? "Đang chọn" : st.badge || "Áp dụng"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = MODULE_PRESETS.find((item) => item.id === "calendar_1_classic") || MODULE_PRESETS[1];
-                          if (onAddModulePreset) onAddModulePreset(p);
-                        }}
-                        className="text-[10px] text-gray-500 hover:text-indigo-700 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-indigo-50 transition-colors cursor-pointer"
-                        title="Chèn thêm một khối đếm ngược nổi lên bảng thiết kế"
-                      >
-                        <Plus className="w-3 h-3 text-indigo-600" />
-                        <span>+ Chèn khối lên Canvas</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* KHỐI 3: CHƯƠNG TRÌNH HÔN LỄ & SỰ KIỆN */}
-              {(widgetsFilterCategory === "all" ||
-                (widgetsFilterCategory === "active" && showEvents) ||
-                widgetsFilterCategory === "events" ||
-                (widgetsSearchQuery && ("sự kiện chương trình hôn lễ timeline bản đồ chỉ đường".includes(widgetsSearchQuery.toLowerCase())))) && (
-                <div className={`p-3.5 rounded-2xl border transition-all ${
-                  showEvents ? "bg-white border-purple-200 shadow-2xs" : "bg-gray-50/70 border-gray-200 opacity-75"
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        showEvents ? "bg-purple-50 text-purple-600" : "bg-gray-100 text-gray-400"
-                      }`}>
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="text-xs font-bold text-gray-900 truncate">Sự Kiện & Lễ Cưới</h5>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                            showEvents ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {showEvents ? "Đang bật" : "Đã tắt"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                          Lịch trình chi tiết nghi lễ & vị trí bản đồ chỉ đường
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFixedModule("showEvents", !showEvents, "Chương trình hôn lễ")}
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
-                        showEvents ? "bg-emerald-600" : "bg-gray-300"
-                      }`}
-                      title={showEvents ? "Bấm để tắt" : "Bấm để bật"}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        showEvents ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
-                    <span className="text-gray-500 truncate">
-                      {venueName || "Địa điểm tiệc cưới"} ({card?.events?.length || 0} mốc sự kiện)
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenModuleConfig?.("events")}
-                      className="px-2 py-0.5 rounded-md bg-purple-50 hover:bg-purple-100 text-purple-800 font-bold shrink-0 transition-colors cursor-pointer border border-purple-200 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Sửa sự kiện & Maps</span>
-                    </button>
-                  </div>
-
-                  {/* INLINE STYLE SELECTOR: Chọn kiểu Sự Kiện */}
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200/80">
-                    <div className="flex items-center justify-between text-[10px] mb-1.5">
-                      <span className="font-bold text-gray-700 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-purple-600" />
-                        <span>Chọn kiểu dáng hiển thị:</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(MODULE_STYLE_CATALOG.events?.styles || []).map((st) => {
-                        const isSelected = (card?.fixedModuleStyles?.events || "timeline-cards") === st.id;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => handleQuickChangeStyle("events", st.id, "showEvents", st.name)}
-                            className={`p-1.5 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-between relative group ${
-                              isSelected
-                                ? "bg-purple-50 border-purple-500 text-purple-950 shadow-2xs ring-1 ring-purple-400"
-                                : "bg-gray-50/80 hover:bg-white border-gray-200 text-gray-700 hover:border-purple-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-purple-600 text-white flex items-center justify-center text-[7px] font-bold shadow-xs">
-                                ✓
-                              </span>
-                            )}
-                            <span className="text-base my-0.5">{st.icon}</span>
-                            <span className="text-[10px] font-bold truncate max-w-full leading-tight">{st.name}</span>
-                            <span className={`text-[8px] font-semibold mt-1 px-1 rounded ${
-                              isSelected ? "bg-purple-200/60 text-purple-900" : "bg-gray-200/60 text-gray-500"
-                            }`}>
-                              {isSelected ? "Đang chọn" : st.badge || "Áp dụng"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = MODULE_PRESETS.find((item) => item.id === "ceremony_1_timeline_icons") || MODULE_PRESETS[2];
-                          if (onAddModulePreset) onAddModulePreset(p);
-                        }}
-                        className="text-[10px] text-gray-500 hover:text-purple-700 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-purple-50 transition-colors cursor-pointer"
-                        title="Chèn thêm khối timeline nổi lên bảng thiết kế"
-                      >
-                        <Plus className="w-3 h-3 text-purple-600" />
-                        <span>+ Chèn khối lên Canvas</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* KHỐI 4: XÁC NHẬN THAM DỰ (RSVP) */}
-              {(widgetsFilterCategory === "all" ||
-                (widgetsFilterCategory === "active" && showRsvp) ||
-                widgetsFilterCategory === "rsvp" ||
-                (widgetsSearchQuery && ("rsvp xác nhận tham dự khách mời đi cùng".includes(widgetsSearchQuery.toLowerCase())))) && (
-                <div className={`p-3.5 rounded-2xl border transition-all ${
-                  showRsvp ? "bg-white border-blue-200 shadow-2xs" : "bg-gray-50/70 border-gray-200 opacity-75"
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        showRsvp ? "bg-blue-50 text-blue-600" : "bg-gray-100 text-gray-400"
-                      }`}>
-                        <Check className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="text-xs font-bold text-gray-900 truncate">Xác Nhận Tham Dự (RSVP)</h5>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                            showRsvp ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {showRsvp ? "Đang bật" : "Đã tắt"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                          Thu thập phản hồi khách đến dự & số người đi cùng
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFixedModule("showRsvp", !showRsvp, "Xác nhận tham dự (RSVP)")}
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
-                        showRsvp ? "bg-emerald-600" : "bg-gray-300"
-                      }`}
-                      title={showRsvp ? "Bấm để tắt" : "Bấm để bật"}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        showRsvp ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
-                    <span className="text-gray-500 truncate">
-                      Thống kê tự động khách & ước tính bàn tiệc
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenModuleConfig?.("rsvp")}
-                      className="px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold shrink-0 transition-colors cursor-pointer border border-blue-200 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Cài đặt câu hỏi RSVP</span>
-                    </button>
-                  </div>
-
-                  {/* INLINE STYLE SELECTOR: Chọn kiểu RSVP */}
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200/80">
-                    <div className="flex items-center justify-between text-[10px] mb-1.5">
-                      <span className="font-bold text-gray-700 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-blue-600" />
-                        <span>Chọn kiểu dáng hiển thị:</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(MODULE_STYLE_CATALOG.rsvp?.styles || []).map((st) => {
-                        const isSelected = (card?.fixedModuleStyles?.rsvp || "clean-rounded") === st.id;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => handleQuickChangeStyle("rsvp", st.id, "showRsvp", st.name)}
-                            className={`p-1.5 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-between relative group ${
-                              isSelected
-                                ? "bg-blue-50 border-blue-500 text-blue-950 shadow-2xs ring-1 ring-blue-400"
-                                : "bg-gray-50/80 hover:bg-white border-gray-200 text-gray-700 hover:border-blue-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-blue-600 text-white flex items-center justify-center text-[7px] font-bold shadow-xs">
-                                ✓
-                              </span>
-                            )}
-                            <span className="text-base my-0.5">{st.icon}</span>
-                            <span className="text-[10px] font-bold truncate max-w-full leading-tight">{st.name}</span>
-                            <span className={`text-[8px] font-semibold mt-1 px-1 rounded ${
-                              isSelected ? "bg-blue-200/60 text-blue-900" : "bg-gray-200/60 text-gray-500"
-                            }`}>
-                              {isSelected ? "Đang chọn" : st.badge || "Áp dụng"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-2 flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const p = MODULE_PRESETS.find((item) => item.id === "rsvp_1_clean_rounded") || MODULE_PRESETS[3];
-                          if (onAddModulePreset) onAddModulePreset(p);
-                        }}
-                        className="text-[10px] text-gray-500 hover:text-blue-700 font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md hover:bg-blue-50 transition-colors cursor-pointer"
-                        title="Chèn thêm khối form RSVP nổi lên bảng thiết kế"
-                      >
-                        <Plus className="w-3 h-3 text-blue-600" />
-                        <span>+ Chèn khối lên Canvas</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* KHỐI 5: SỔ LƯU BÚT & LỜI CHÚC */}
-              {(widgetsFilterCategory === "all" ||
-                (widgetsFilterCategory === "active" && showWishes) ||
-                widgetsFilterCategory === "rsvp" ||
-                (widgetsSearchQuery && ("sổ lưu bút lời chúc chúc mừng thả tim".includes(widgetsSearchQuery.toLowerCase())))) && (
-                <div className={`p-3.5 rounded-2xl border transition-all ${
-                  showWishes ? "bg-white border-rose-200 shadow-2xs" : "bg-gray-50/70 border-gray-200 opacity-75"
-                }`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        showWishes ? "bg-rose-50 text-rose-600" : "bg-gray-100 text-gray-400"
-                      }`}>
-                        <MessageSquare className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="text-xs font-bold text-gray-900 truncate">Sổ Lưu Bút & Lời Chúc Mừng</h5>
-                          <span className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold ${
-                            showWishes ? "bg-emerald-50 text-emerald-700" : "bg-gray-100 text-gray-500"
-                          }`}>
-                            {showWishes ? "Đang bật" : "Đã tắt"}
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                          Cho phép quan khách gửi lời chúc mừng & thả tim trực tuyến
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleToggleFixedModule("showWishes", !showWishes, "Sổ lưu bút")}
-                      className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 cursor-pointer ${
-                        showWishes ? "bg-emerald-600" : "bg-gray-300"
-                      }`}
-                      title={showWishes ? "Bấm để tắt" : "Bấm để bật"}
-                    >
-                      <div className={`w-5 h-5 rounded-full bg-white shadow-xs transition-transform ${
-                        showWishes ? "translate-x-5" : "translate-x-0"
-                      }`} />
-                    </button>
-                  </div>
-
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
-                    <span className="text-gray-500 truncate">
-                      Hiển thị trực tiếp lời nhắn yêu thương từ người thân
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenModuleConfig?.("wishes")}
-                      className="px-2 py-0.5 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-800 font-bold shrink-0 transition-colors cursor-pointer border border-rose-200 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Cài đặt lời chúc</span>
-                    </button>
-                  </div>
-
-                  {/* INLINE STYLE SELECTOR: Chọn kiểu Lời Chúc */}
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200/80">
-                    <div className="flex items-center justify-between text-[10px] mb-1.5">
-                      <span className="font-bold text-gray-700 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-rose-600" />
-                        <span>Chọn kiểu dáng hiển thị:</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(MODULE_STYLE_CATALOG.wishes?.styles || []).map((st) => {
-                        const isSelected = (card?.fixedModuleStyles?.wishes || "stream-bubble") === st.id;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => handleQuickChangeStyle("wishes", st.id, "showWishes", st.name)}
-                            className={`p-1.5 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-between relative group ${
-                              isSelected
-                                ? "bg-rose-50 border-rose-500 text-rose-950 shadow-2xs ring-1 ring-rose-400"
-                                : "bg-gray-50/80 hover:bg-white border-gray-200 text-gray-700 hover:border-rose-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-rose-600 text-white flex items-center justify-center text-[7px] font-bold shadow-xs">
-                                ✓
-                              </span>
-                            )}
-                            <span className="text-base my-0.5">{st.icon}</span>
-                            <span className="text-[10px] font-bold truncate max-w-full leading-tight">{st.name}</span>
-                            <span className={`text-[8px] font-semibold mt-1 px-1 rounded ${
-                              isSelected ? "bg-rose-200/60 text-rose-900" : "bg-gray-200/60 text-gray-500"
-                            }`}>
-                              {isSelected ? "Đang chọn" : st.badge || "Áp dụng"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* KHỐI 6: ALBUM ẢNH CƯỚI */}
-              {(widgetsFilterCategory === "all" ||
-                (widgetsFilterCategory === "active" && effectiveAlbum.length > 0) ||
-                widgetsFilterCategory === "album" ||
-                (widgetsSearchQuery && ("album ảnh cưới hình ảnh gallery polaroid".includes(widgetsSearchQuery.toLowerCase())))) && (
-                <div className="p-3.5 rounded-2xl bg-white border border-pink-200 shadow-2xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-pink-50 text-pink-600 flex items-center justify-center shrink-0">
-                        <Camera className="w-4 h-4" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h5 className="text-xs font-bold text-gray-900 truncate">Album Ảnh Cưới Trực Tuyến</h5>
-                          <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-200/60">
-                            {effectiveAlbum.length} ảnh
-                          </span>
-                        </div>
-                        <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                          Bộ sưu tập ảnh cưới chất lượng cao hiển thị ở cuối thiệp
-                        </p>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onSelectTab?.("image");
-                        setImageSubTab("album");
-                      }}
-                      className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-bold transition-colors cursor-pointer shrink-0"
-                    >
-                      Quản lý Album ↗
-                    </button>
-                  </div>
-
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between text-[10px] gap-2">
-                    <span className="text-gray-500 truncate">
-                      {card?.fixedModuleStyles?.album === "polaroid-scrapbook" ? "📸 Polaroid Scrapbook" : card?.fixedModuleStyles?.album === "masonry-chic" ? "📰 So Le Vogue" : "🖼️ Lưới 2 Cột"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onOpenModuleConfig?.("album")}
-                      className="px-2 py-0.5 rounded-md bg-pink-50 hover:bg-pink-100 text-pink-800 font-bold shrink-0 transition-colors cursor-pointer border border-pink-200 flex items-center gap-1"
-                    >
-                      <Edit3 className="w-3 h-3" />
-                      <span>Đổi kiểu Album</span>
-                    </button>
-                  </div>
-
-                  {/* INLINE STYLE SELECTOR: Chọn kiểu Album */}
-                  <div className="mt-2.5 pt-2 border-t border-dashed border-gray-200/80">
-                    <div className="flex items-center justify-between text-[10px] mb-1.5">
-                      <span className="font-bold text-gray-700 flex items-center gap-1">
-                        <Palette className="w-3 h-3 text-pink-600" />
-                        <span>Chọn kiểu dáng hiển thị:</span>
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(MODULE_STYLE_CATALOG.album?.styles || []).map((st) => {
-                        const isSelected = (card?.fixedModuleStyles?.album || "grid-modern") === st.id;
-                        return (
-                          <button
-                            key={st.id}
-                            type="button"
-                            onClick={() => handleQuickChangeStyle("album", st.id, "showEvents", st.name)}
-                            className={`p-1.5 rounded-xl text-center border transition-all cursor-pointer flex flex-col items-center justify-between relative group ${
-                              isSelected
-                                ? "bg-pink-50 border-pink-500 text-pink-950 shadow-2xs ring-1 ring-pink-400"
-                                : "bg-gray-50/80 hover:bg-white border-gray-200 text-gray-700 hover:border-pink-300"
-                            }`}
-                          >
-                            {isSelected && (
-                              <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-pink-600 text-white flex items-center justify-center text-[7px] font-bold shadow-xs">
-                                ✓
-                              </span>
-                            )}
-                            <span className="text-base my-0.5">{st.icon}</span>
-                            <span className="text-[10px] font-bold truncate max-w-full leading-tight">{st.name}</span>
-                            <span className={`text-[8px] font-semibold mt-1 px-1 rounded ${
-                              isSelected ? "bg-pink-200/60 text-pink-900" : "bg-gray-200/60 text-gray-500"
-                            }`}>
-                              {isSelected ? "Đang chọn" : st.badge || "Áp dụng"}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* 4. KHỐI TIỆN ÍCH MỞ RỘNG BỔ SUNG CHO BẢNG THIẾT KẾ (CANVAS PRESETS) */}
-            {(widgetsFilterCategory === "all" || widgetsFilterCategory === "extensions" || widgetsSearchQuery) && (
-              <div className="pt-2 border-t border-gray-200/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center">
-                      <Sparkles className="w-3.5 h-3.5" />
+              ) : (
+                <>
+                  {/* 1. Header Banner & Bộ Điều Khiển Chung */}
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-50 via-white to-amber-50/70 border border-rose-200/80 shadow-2xs text-left">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#e54153] to-[#ff5b70] text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <SlidersHorizontal className="w-4 h-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold text-gray-900">
-                        Khối Tiện Ích Mở Rộng Cho Bảng Vẽ
+                      <h4 className="text-xs font-bold text-gray-900 flex items-center gap-1.5 flex-wrap">
+                        <span>Khối Mẫu: {currentThemeDef.label}</span>
                       </h4>
-                      <p className="text-[10px] text-gray-500">
-                        Chèn 1-chạm các khối bố cục đẹp mắt lên bất kỳ vị trí nào
+                      <p className="text-[10px] text-gray-500 mt-0.5">
+                        Bấm vào khối để tùy chỉnh chi tiết ở cột phải
                       </p>
                     </div>
                   </div>
+
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white text-rose-600 border border-rose-200/60 shadow-2xs shrink-0">
+                    {activeCount}/{modulesForTheme.length} Bật
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-1 gap-2.5">
-                  {MODULE_PRESETS.filter((p) => {
-                    if (widgetsFilterCategory === "extensions") {
-                      return ["map", "family", "dresscode", "intro"].includes(p.category);
-                    }
-                    if (widgetsSearchQuery) {
-                      const q = widgetsSearchQuery.toLowerCase();
-                      return (
-                        p.name.toLowerCase().includes(q) ||
-                        p.styleName.toLowerCase().includes(q) ||
-                        (p.description && p.description.toLowerCase().includes(q))
-                      );
-                    }
-                    return ["map", "family", "dresscode", "intro"].includes(p.category);
-                  }).slice(0, widgetsSearchQuery ? 15 : 6).map((preset) => (
-                    <div
-                      key={preset.id}
-                      onClick={() => {
-                        if (onAddModulePreset) onAddModulePreset(preset);
-                        else if (onAddWidget) onAddWidget(preset.type, preset.defaultProps);
-                      }}
-                      className="p-3 rounded-2xl border border-gray-200 hover:border-purple-400 bg-white hover:bg-purple-50/15 cursor-pointer shadow-2xs hover:shadow-xs transition-all group flex flex-col gap-2"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center text-base shrink-0 group-hover:scale-105 transition-transform">
-                            {preset.previewIcon}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h5 className="text-xs font-bold text-gray-900 group-hover:text-purple-700 truncate transition-colors">
-                                {preset.name}
-                              </h5>
-                              <span className="px-1.5 py-0.2 rounded-full bg-purple-50 text-purple-700 text-[9px] font-bold border border-purple-200/60 shrink-0">
-                                {preset.badge}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                              {preset.styleName}
-                            </p>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="px-2.5 py-1 rounded-lg bg-purple-50 group-hover:bg-purple-600 text-purple-700 group-hover:text-white text-[10px] font-bold shrink-0 transition-all flex items-center gap-1 pointer-events-none shadow-2xs"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Chèn</span>
-                        </button>
-                      </div>
-
-                      {/* Mini Mockup Visual */}
-                      <div className="w-full">
-                        <PresetVisualPreviewMockup preset={preset} />
-                      </div>
-                    </div>
-                  ))}
+                {/* Nút bật/tắt toàn bộ nhanh */}
+                <div className="flex items-center gap-2 mt-2.5 pt-2 border-t border-rose-100">
+                  <button
+                    type="button"
+                    onClick={() => handleSetAllFixedModules(true)}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-white hover:bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200 shadow-2xs transition-all cursor-pointer text-center"
+                  >
+                    ✓ Bật tất cả
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSetAllFixedModules(false)}
+                    className="flex-1 py-1.5 px-2 rounded-lg bg-white hover:bg-gray-100 text-gray-600 text-[10px] font-bold border border-gray-200 shadow-2xs transition-all cursor-pointer text-center"
+                  >
+                    ✕ Tắt tất cả
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
-        )}
+
+              {/* 2. Thanh tìm kiếm & Menu chuyển 8 Thể loại chủ đề */}
+              <div className="space-y-2.5">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm nhanh khối mẫu: Mừng cưới, Bản đồ, Lịch, RSVP..."
+                    value={widgetsSearchQuery}
+                    onChange={(e) => setWidgetsSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-7 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#e54153] bg-white placeholder-gray-400 shadow-2xs"
+                  />
+                  {widgetsSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setWidgetsSearchQuery("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 hover:text-gray-600 cursor-pointer"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                {/* Dải 8 Thể loại Chủ đề: Mời cưới, Sinh nhật, Sự kiện, Hội nghị, Tốt nghiệp, Chính trị, Học tập, Đồ họa khác */}
+                {!widgetsSearchQuery && (
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-gray-500 uppercase tracking-wider px-1">
+                      <span>Chọn chủ đề khối:</span>
+                      <span className="text-rose-600 font-bold lowercase">
+                        {currentThemeDef.label} ({modulesForTheme.length} khối)
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1.5 no-scrollbar pt-0.5">
+                      {THEME_CATEGORIES.map((theme) => {
+                        const isSelected = selectedThemeCategory === theme.id;
+                        return (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedThemeCategory(theme.id);
+                              try {
+                                weddingSounds.playSoftClick();
+                              } catch {}
+                            }}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer shrink-0 flex items-center gap-1.5 border ${
+                              isSelected
+                                ? "bg-rose-600 text-white border-rose-600 shadow-2xs scale-[1.02]"
+                                : "bg-gray-50 text-gray-700 border-gray-200/80 hover:bg-gray-100 hover:border-gray-300"
+                            }`}
+                            title={theme.description}
+                          >
+                            <span className="text-sm leading-none">{theme.icon}</span>
+                            <span>{theme.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 3. DANH SÁCH CÁC KHỐI MẪU THEO CHỦ ĐỀ - BẤM TRỰC TIẾP ĐỂ TÙY CHỈNH & CÔNG TẮC CHUẨN */}
+              <div className="space-y-2.5">
+                {filteredModules.length === 0 ? (
+                  <div className="py-8 text-center text-xs text-gray-500 bg-gray-50/50 rounded-2xl border border-gray-200">
+                    Không tìm thấy khối mẫu nào trong chủ đề "{currentThemeDef.label}".
+                  </div>
+                ) : (
+                  filteredModules.map((mod) => {
+                    const isActive = mod.isActive(card, nodes || {});
+                    const summary = mod.getSummary(card, nodes || {}, selectedThemeCategory);
+                    const ModIcon = mod.Icon;
+
+                    return (
+                      <div
+                        key={mod.id}
+                        onClick={() => handleCustomizeUnifiedModule(mod)}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer select-none group relative ${
+                          isActive
+                            ? "bg-white border-rose-200 shadow-2xs hover:border-rose-400 hover:shadow-xs"
+                            : "bg-gray-50/70 border-gray-200 opacity-75 hover:opacity-100 hover:border-gray-300 hover:bg-white"
+                        }`}
+                        title="Bấm vào khối để mở tùy chỉnh kiểu dáng & nội dung ở cột phải"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          {/* Bên trái: Icon + Tiêu đề đầy đủ + Trạng thái & Tóm tắt */}
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                            <div
+                              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                                isActive ? mod.iconBgClass : "bg-gray-100 text-gray-400"
+                              }`}
+                            >
+                              <ModIcon className="w-4.5 h-4.5" />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h5 className="text-xs font-bold text-gray-900 group-hover:text-rose-600 transition-colors truncate">
+                                  {mod.displayName}
+                                </h5>
+                                <span
+                                  className={`px-1.5 py-0.2 rounded-full text-[9px] font-bold shrink-0 ${
+                                    isActive
+                                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                      : "bg-gray-100 text-gray-500"
+                                  }`}
+                                >
+                                  {isActive ? "Bật" : "Tắt"}
+                                </span>
+                              </div>
+                              <p className="text-[10.5px] text-gray-500 truncate mt-0.5 leading-tight">
+                                {summary}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Bên phải: Công tắc Switch bật/tắt đúng chuẩn iOS/Tailwind */}
+                          <div className="shrink-0 flex items-center gap-1.5 pl-1">
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={isActive}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleUnifiedModule(mod, !isActive);
+                              }}
+                              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                isActive ? "bg-emerald-500" : "bg-gray-300 hover:bg-gray-400"
+                              }`}
+                              title={isActive ? "Bấm công tắc để tắt khối này" : "Bấm công tắc để bật khối này"}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                                  isActive ? "translate-x-5" : "translate-x-0"
+                                }`}
+                              />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {/* ================= 8. TAB: MẪU ================= */}
         {activeTab === "templates" && (
@@ -3506,66 +3588,74 @@ export default function EditorLeftDrawer({
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto">
+            {isLoadingTemplate && (
+              <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center justify-center gap-2 animate-pulse">
+                <div className="w-3.5 h-3.5 border-2 border-amber-600 border-t-transparent rounded-full animate-spin shrink-0" />
+                <span className="font-semibold text-[11px]">Đang nạp mẫu thiết kế mới...</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-2 max-h-[60vh] overflow-y-auto pr-0.5">
               {ZENLOVE_TEMPLATES.filter((t) =>
                 t.name.toLowerCase().includes(searchTemplate.toLowerCase())
-              ).map((t) => (
-                <div
-                  key={t.id}
-                  onClick={() => onSelectTemplate(t)}
-                  className="group cursor-pointer rounded-xl border border-gray-200 hover:border-[#e54153] p-1.5 bg-white text-center hover:shadow-sm transition-all"
-                >
-                  <div className="aspect-[1000/1470] overflow-hidden rounded-lg bg-gray-100 mb-1">
-                    <img
-                      src={t.imageUrl}
-                      alt={t.name}
-                      className="w-full h-auto object-cover group-hover:scale-105 transition-transform"
-                    />
+              ).map((t) => {
+                const isCurrentTemplate =
+                  currentTemplateId === t.id ||
+                  currentTemplateId === t.slug ||
+                  (Boolean(t.slug) && currentTemplateId?.includes(t.slug));
+
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => onSelectTemplate(t)}
+                    className={`group cursor-pointer rounded-xl p-1.5 bg-white text-center transition-all relative ${
+                      isCurrentTemplate
+                        ? "border-2 border-[#e54153] ring-2 ring-rose-200 shadow-md bg-rose-50/20"
+                        : "border border-gray-200 hover:border-[#e54153] hover:shadow-sm"
+                    }`}
+                  >
+                    <div className="aspect-[1000/1470] overflow-hidden rounded-lg bg-gray-100 mb-1 relative">
+                      <img
+                        src={t.imageUrl}
+                        alt={t.name}
+                        className="w-full h-auto object-cover group-hover:scale-105 transition-transform"
+                        loading="lazy"
+                      />
+                      {isCurrentTemplate && (
+                        <div className="absolute top-1.5 right-1.5 bg-[#e54153] text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-xs flex items-center gap-0.5">
+                          <span>✓ Đang mở</span>
+                        </div>
+                      )}
+                    </div>
+                    <p
+                      className={`text-[11px] font-bold truncate ${
+                        isCurrentTemplate ? "text-[#e54153]" : "text-gray-900"
+                      }`}
+                    >
+                      {t.name}
+                    </p>
                   </div>
-                  <p className="text-[11px] font-bold text-gray-900 truncate">
-                    {t.name}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
 
-        {/* ================= 9. TAB: HIỆU ỨNG ================= */}
+        {/* ================= 9. TAB: HIỆU ỨNG (14 HIỆU ỨNG & CẤU HÌNH LIVE) ================= */}
         {activeTab === "effects" && (
-          <div className="space-y-2">
-            {[
-              { id: "petals", name: "Cánh hoa rơi", icon: "🌸", desc: "Cánh hoa đào hồng bay nhẹ nhàng" },
-              { id: "hearts", name: "Trái tim tình yêu bay", icon: "💖", desc: "Trái tim lãng mạn bay bổng" },
-              { id: "glitter", name: "Lấp lánh hoàng kim", icon: "✨", desc: "Bụi vàng sang trọng lung linh" },
-              { id: "snow", name: "Tuyết rơi mùa đông", icon: "❄️", desc: "Hạt tuyết rơi êm đềm ấm áp" },
-              { id: "fireworks", name: "Pháo hoa chúc mừng", icon: "🎆", desc: "Bùng nổ pháo hoa rực rỡ" },
-              { id: "butterflies", name: "Bươm bướm lượn", icon: "🦋", desc: "Đôi bướm uyên ương dập dìu" },
-            ].map((eff) => {
-              const active = activeEffects.includes(eff.id);
-              return (
-                <button
-                  key={eff.id}
-                  type="button"
-                  onClick={() => onToggleEffect?.(eff.id)}
-                  className={`w-full p-3 rounded-xl border text-xs font-bold flex items-center justify-between transition-all text-left ${
-                    active
-                      ? "border-[#e54153] bg-rose-50 text-[#e54153] shadow-2xs"
-                      : "border-gray-200 hover:border-gray-300 bg-white text-gray-700"
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-xl">{eff.icon}</span>
-                    <div>
-                      <p className="text-xs font-bold">{eff.name}</p>
-                      <p className="text-[10px] text-gray-500 font-normal">{eff.desc}</p>
-                    </div>
-                  </div>
-                  {active && <Check className="w-4 h-4 text-[#e54153]" />}
-                </button>
-              );
-            })}
-          </div>
+          <EffectConfigPanel
+            currentConfig={currentEffectConfig}
+            currentEffectType={(card?.ambientEffect as any) || currentEffectConfig?.type || "petals"}
+            onChangeConfig={(newConf) => {
+              onChangeEffectConfig?.(newConf);
+            }}
+            onToggleEffect={onToggleEffect}
+            envelopeTheme={card?.envelopeTheme}
+            cinematicFx={card?.cinematicFx}
+            onChangeEnvelopeTheme={onChangeEnvelopeTheme}
+            onChangeCinematicFx={onChangeCinematicFx}
+            onPreviewEnvelope={onPreviewEnvelope}
+          />
         )}
 
         {/* ================= 10. TAB: PRESETS ================= */}

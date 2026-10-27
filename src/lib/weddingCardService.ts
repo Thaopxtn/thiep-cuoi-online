@@ -89,10 +89,16 @@ export function getAllCards(userId?: string): WeddingCard[] {
     if (!raw) {
       // Khách vãng lai chưa đăng nhập: trả về thiệp mẫu
       // Đã đăng nhập: trả về mảng rỗng để không bị lẫn thiệp của tài khoản khác
-      return uid ? [] : INITIAL_CARDS;
+      return [];
     }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    if (!Array.isArray(parsed)) return [];
+    const INITIAL_CARD_IDS = new Set(INITIAL_CARDS.map((c) => c.id));
+    return parsed.filter(
+      (c: WeddingCard) =>
+        !INITIAL_CARD_IDS.has(c.id) &&
+        (uid ? (c.userId === uid || c.groom?.userId === uid) : true)
+    );
   } catch (e) {
     return [];
   }
@@ -108,7 +114,9 @@ export function getCardByIdOrSlug(idOrSlug: string): WeddingCard | undefined {
     } catch {}
   }
   const cards = getAllCards();
-  return cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
+  const found = cards.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
+  if (found) return found;
+  return INITIAL_CARDS.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
 }
 
 // Tự động dọn dẹp các cache thiệp cũ không hoạt động khi LocalStorage bị đầy
@@ -181,25 +189,45 @@ export function saveCard(card: WeddingCard): void {
     console.warn("LocalStorage write fallback:", e);
   }
 
-  // 2. Luôn luôn đồng bộ lên Supabase Server API độc lập, không bị chặn bởi lỗi LocalStorage
-  try {
-    fetch(`/api/cards/${card.id}`, {
-      method: "PUT",
-      headers: {
-          "Content-Type": "application/json",
-          ...(currentUid ? { "x-user-id": currentUid } : {}),
-          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
-        },
-      body: JSON.stringify(updatedCard),
-    }).catch((err) => console.warn("Lưu lên Server API thất bại:", err));
-  } catch (err) {
-    console.warn("fetch saveCard error:", err);
-  }
+
 }
 
 /**
  * Phiên bản bất đồng bộ của saveCard - đợi Server DB xác nhận lưu thành công
  */
+
+/**
+ * Lấy thiệp cưới phục vụ cho Editor (gửi Bearer token để lấy đầy đủ private DTO kể cả bản nháp)
+ */
+export async function fetchCardForEditor(id: string): Promise<{
+  success: boolean;
+  card?: WeddingCard;
+  isOwner?: boolean;
+  status?: number;
+  message?: string;
+}> {
+  try {
+    const res = await apiFetch(`/api/cards/${id}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.card) {
+        return { success: true, card: data.card, isOwner: data.isOwner };
+      }
+    }
+    const errData = await res.json().catch(() => ({}));
+    return {
+      success: false,
+      status: res.status,
+      message: errData.message || `Máy chủ trả về HTTP ${res.status}`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      message: err?.message || "Lỗi kết nối khi tải thiệp từ máy chủ",
+    };
+  }
+}
+
 export async function saveCardAsync(card: WeddingCard): Promise<{ success: boolean; message?: string }> {
   const currentUid = card.userId || getCurrentUserId();
   const cardWithUid = {
@@ -348,6 +376,43 @@ export function updateRsvpStatus(
   } catch (e) {
     console.error("updateRsvpStatus error:", e);
   }
+}
+export function toggleRsvpCheckIn(
+  cardId: string,
+  rsvpId: string,
+  tableNumber?: string | number
+): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const storageKey = getCardsStorageKey();
+    const cards = getAllCards();
+    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
+    if (card && card.rsvps) {
+      let newCheckedInState = false;
+      card.rsvps = card.rsvps.map((r) => {
+        if (r.id === rsvpId) {
+          newCheckedInState = !r.checkedIn;
+          return {
+            ...r,
+            checkedIn: newCheckedInState,
+            checkedInAt: newCheckedInState ? new Date().toISOString() : undefined,
+            ...(tableNumber !== undefined ? { tableNumber } : {}),
+          };
+        }
+        return r;
+      });
+      const existingIndex = cards.findIndex((c) => c.id === card.id);
+      if (existingIndex >= 0) {
+        cards[existingIndex] = card;
+      }
+      localStorage.setItem(storageKey, JSON.stringify(cards));
+      saveCard(card);
+      return newCheckedInState;
+    }
+  } catch (e) {
+    console.error("toggleRsvpCheckIn error:", e);
+  }
+  return false;
 }
 
 export function addWish(cardId: string, name: string, content: string): WeddingWish {

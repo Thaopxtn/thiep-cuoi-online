@@ -51,8 +51,9 @@ export async function generateMetadata({
     console.warn("Lỗi generateMetadata /show/[slug]:", err);
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thiep-cuoi-online.vercel.app";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://zenlove.me";
   const cardUrl = `${siteUrl}/show/${slug}`;
+  const ogImageUrl = `${siteUrl}/api/og/${slug}`;
 
   return {
     title: `${cardName} | Thiệp Cưới ZenLove`,
@@ -64,7 +65,7 @@ export async function generateMetadata({
       siteName: "ZenLove - Nền Tảng Thiệp Cưới Trực Tuyến",
       images: [
         {
-          url: coverImage,
+          url: ogImageUrl,
           width: 1200,
           height: 630,
           alt: cardName,
@@ -77,7 +78,7 @@ export async function generateMetadata({
       card: "summary_large_image",
       title: `${cardName} | Trân Trọng Kính Mời`,
       description: story,
-      images: [coverImage],
+      images: [ogImageUrl],
     },
   };
 }

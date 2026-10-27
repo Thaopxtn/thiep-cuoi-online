@@ -232,6 +232,105 @@ describe("Bộ công cụ thiết kế giống Canva & Tối ưu trải nghiệm
     expect(rendererContent).toContain('variant === "message_envelope"');
     expect(rendererContent).toContain('variant === "dual_vertical"');
   });
+
+  it("12. Tính năng Chọn Nhiều Đối Tượng (Multi-Selection): Shift/Ctrl click, Quét vùng (Marquee), Khung nhóm và Căn lề hàng loạt", () => {
+    const canvasContent = fs.readFileSync(canvasFile, "utf8");
+    const pageContent = fs.readFileSync(pageFile, "utf8");
+
+    // 1. Kiểm tra state và handler chọn nhiều trong trang chính
+    expect(pageContent).toContain("selectedElements");
+    expect(pageContent).toContain("handleSelectElements");
+    expect(pageContent).toContain("handleToggleSelectElement");
+    expect(pageContent).toContain("handleDuplicateMultiple");
+    expect(pageContent).toContain("handleDeleteMultiple");
+    expect(pageContent).toContain("handleAlignMultiple");
+
+    // 2. Kiểm tra EditorCanvas hỗ trợ quét vùng (Marquee / Rubberband Selection)
+    expect(canvasContent).toContain("handleMouseDownCanvasBg");
+    expect(canvasContent).toContain("marqueeBox");
+    expect(canvasContent).toContain("Chọn vùng");
+
+    // 3. Kiểm tra EditorCanvas có khung nhóm tập thể và kéo nhóm (Group Bounding Box & Group Drag)
+    expect(canvasContent).toContain("multiSelectedNodes");
+    expect(canvasContent).toContain("handleMouseDownGroup");
+    expect(canvasContent).toContain("onAlignMultipleElements");
+    expect(canvasContent).toContain("onDuplicateMultipleElements");
+    expect(canvasContent).toContain("onDeleteMultipleElements");
+  });
+
+  it("13. Tính năng Co Dãn Bảng Vẽ & Dời Bố Cục (Canvas Stretcher & Splitter): Đẩy xuống, kéo lên và chèn khoảng trống", () => {
+    const pageContent = fs.readFileSync(pageFile, "utf8");
+    const canvasContent = fs.readFileSync(canvasFile, "utf8");
+
+    // 1. Logic dời phần tử và mở rộng canvas trong page.tsx
+    expect(pageContent).toContain("handleShiftElementsBelow");
+    expect(pageContent).toContain("handleAddSpacer");
+    expect(pageContent).toContain("top >= thresholdY");
+    expect(pageContent).toContain("top + deltaY");
+
+    // 2. Thước dời bố cục trên EditorCanvas với nút +50px, +100px, -50px, -100px, Kéo dời
+    expect(canvasContent).toContain("Dời bố cục phía dưới");
+    expect(canvasContent).toContain("+50px");
+    expect(canvasContent).toContain("+100px");
+    expect(canvasContent).toContain("-50px");
+    expect(canvasContent).toContain("-100px");
+    expect(canvasContent).toContain("+Khoảng trống");
+    expect(canvasContent).toContain("handleStartStretchDrag");
+  });
+
+  it("14. Danh mục Khung Ảnh Nghệ Thuật (Frames Catalog) & PhotoBoxFrameRenderer", async () => {
+    const { WEDDING_FRAMES, getFrameById } = await import("../framesCatalog");
+    expect(WEDDING_FRAMES.length).toBeGreaterThanOrEqual(8);
+
+    // Kiểm tra các kiểu khung đặc trưng
+    const frameTypes = WEDDING_FRAMES.map((f) => f.frameType);
+    expect(frameTypes).toContain("arch");
+    expect(frameTypes).toContain("polaroid");
+    expect(frameTypes).toContain("circle_wreath");
+    expect(frameTypes).toContain("octagon");
+    expect(frameTypes).toContain("stamp");
+    expect(frameTypes).toContain("film");
+    expect(frameTypes).toContain("heart");
+    expect(frameTypes).toContain("cameo_oval");
+
+    expect(getFrameById("frame_arch_royal")?.frameType).toBe("arch");
+    expect(getFrameById("frame_polaroid_vintage")?.frameType).toBe("polaroid");
+
+    // Kiểm tra PhotoBoxFrameRenderer tồn tại và hỗ trợ các kiểu khung
+    const frameRendererFile = path.resolve("src/components/PhotoBoxFrameRenderer.tsx");
+    expect(fs.existsSync(frameRendererFile)).toBe(true);
+    const rendererContent = fs.readFileSync(frameRendererFile, "utf8");
+    expect(rendererContent).toContain('frameType === "polaroid"');
+    expect(rendererContent).toContain('frameType === "film"');
+    expect(rendererContent).toContain('frameType === "stamp"');
+    expect(rendererContent).toContain('frameType === "octagon"');
+    expect(rendererContent).toContain('frameType === "arch"');
+    expect(rendererContent).toContain('frameType === "circle_wreath"');
+    expect(rendererContent).toContain('frameType === "cameo_oval"');
+    expect(rendererContent).toContain('frameType === "heart"');
+  });
+
+  it("15. Danh mục Họa Tiết Trang Trí (Stickers) & Kéo Thả HTML5 (Canva-style Drag & Drop)", async () => {
+    const { WEDDING_STICKERS, STICKER_CATEGORIES, getStickersByCategory } = await import("../stickersCatalog");
+    expect(STICKER_CATEGORIES.length).toBeGreaterThanOrEqual(5);
+    expect(WEDDING_STICKERS.length).toBeGreaterThanOrEqual(30);
+
+    const flowers = getStickersByCategory("flowers");
+    expect(flowers.length).toBeGreaterThanOrEqual(4);
+
+    // Drawer hỗ trợ kéo thả draggable với payload application/zenlove-element
+    const drawerFile = path.resolve("src/components/editor/EditorLeftDrawer.tsx");
+    const drawerContent = fs.readFileSync(drawerFile, "utf8");
+    expect(drawerContent).toContain("draggable");
+    expect(drawerContent).toContain("application/zenlove-element");
+    expect(drawerContent).toContain("Thành phần");
+
+    // Canvas hỗ trợ onDragOver và onDrop nhận tọa độ chuẩn xác
+    const canvasContent = fs.readFileSync(canvasFile, "utf8");
+    expect(canvasContent).toContain("handleDragOver");
+    expect(canvasContent).toContain("handleDrop");
+    expect(canvasContent).toContain("Thả vào đây để chèn vào thiệp cưới");
+  });
 });
 
 

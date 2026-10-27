@@ -159,3 +159,5 @@ export const POPULAR_BANKS: Array<{ code: string; name: string }> = [
   { code: "NAB", name: "Nam A Bank (Nam Á)" },
 ];
 
+export const POPULAR_VIETNAMESE_BANKS = POPULAR_BANKS;
+

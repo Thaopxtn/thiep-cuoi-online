@@ -56,8 +56,9 @@ export interface PublicCardDTO {
   rsvps: PublicRsvpDTO[];
   wishes: WeddingWish[];
   nodes?: Record<string, any>;
-  envelopeTheme?: "cream" | "traditional" | "burgundy";
+  envelopeTheme?: "cream" | "traditional" | "burgundy" | "emerald" | "midnight" | "blush" | string;
   ambientEffect?: string;
+  cinematicFx?: any;
   loveStory?: any[];
   showGiftBox?: boolean;
   showWishes?: boolean;
@@ -65,7 +66,16 @@ export interface PublicCardDTO {
   showEvents?: boolean;
   showCalendar?: boolean;
   showLoveStory?: boolean;
+  showAlbum?: boolean;
   fixedModuleStyles?: Record<string, string>;
+  effectConfig?: import("@/lib/effectsCatalog").EffectConfig;
+  rsvpTitle?: string;
+  rsvpMessage?: string;
+  wishesTitle?: string;
+  wishesDescription?: string;
+  isVip?: boolean;
+  plan?: "free" | "vip" | "premium";
+  showWatermark?: boolean;
 }
 
 /**
@@ -136,6 +146,7 @@ export function toPublicCardDTO(card: WeddingCard): PublicCardDTO {
     nodes: card.nodes,
     envelopeTheme: card.envelopeTheme,
     ambientEffect: card.ambientEffect,
+    cinematicFx: card.cinematicFx,
     loveStory: card.loveStory,
     showGiftBox: card.showGiftBox,
     showWishes: card.showWishes,
@@ -143,6 +154,15 @@ export function toPublicCardDTO(card: WeddingCard): PublicCardDTO {
     showEvents: card.showEvents,
     showCalendar: card.showCalendar,
     showLoveStory: card.showLoveStory,
+    showAlbum: card.showAlbum,
     fixedModuleStyles: card.fixedModuleStyles,
+    effectConfig: card.effectConfig,
+    rsvpTitle: card.rsvpTitle,
+    rsvpMessage: card.rsvpMessage,
+    wishesTitle: card.wishesTitle,
+    wishesDescription: card.wishesDescription,
+    isVip: card.isVip,
+    plan: card.plan,
+    showWatermark: card.showWatermark,
   };
 }

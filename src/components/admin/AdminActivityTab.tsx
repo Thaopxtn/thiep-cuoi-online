@@ -297,6 +297,13 @@ export default function AdminActivityTab({
           dot: "bg-sky-500",
           label: "Xem thiệp",
         };
+      case "partner_registration":
+        return {
+          icon: Sparkles,
+          bg: "bg-indigo-50 text-indigo-700 border-indigo-200",
+          dot: "bg-indigo-500",
+          label: "Đối tác đăng ký",
+        };
       default:
         return {
           icon: Activity,

@@ -3,6 +3,7 @@ import {
   addRsvp,
   deleteRsvp,
   updateRsvpStatus,
+  toggleRsvpCheckIn,
   getAllCards,
   saveCard,
   INITIAL_CARDS,
@@ -148,5 +149,18 @@ describe("RSVP Guest Management & Table Estimation", () => {
     expect(csvContent.startsWith("\uFEFF")).toBe(true);
     expect(csvContent).toContain("Nguyễn Văn A");
     expect(csvContent).toContain("Có tham dự");
+  });
+  it("điểm danh khách mời tại tiệc cưới (toggleRsvpCheckIn)", () => {
+    const isNowCheckedIn = toggleRsvpCheckIn(testCardId, "rsvp-sample-1", "Bàn 08");
+    expect(isNowCheckedIn).toBe(true);
+
+    const cardsAfter = getAllCards();
+    const rsvpAfter = cardsAfter.find((c) => c.id === testCardId)?.rsvps?.find((r) => r.id === "rsvp-sample-1");
+    expect(rsvpAfter?.checkedIn).toBe(true);
+    expect(rsvpAfter?.checkedInAt).toBeDefined();
+    expect(rsvpAfter?.tableNumber).toBe("Bàn 08");
+
+    const toggledOff = toggleRsvpCheckIn(testCardId, "rsvp-sample-1");
+    expect(toggledOff).toBe(false);
   });
 });

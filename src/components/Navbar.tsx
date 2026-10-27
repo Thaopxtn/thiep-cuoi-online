@@ -1,45 +1,83 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Menu, X, Moon, Sun, ArrowRight, User, LogOut, FolderHeart, Sparkles, ShieldCheck } from "lucide-react";
+import {
+  Menu,
+  X,
+  ArrowRight,
+  User,
+  LogOut,
+  FolderHeart,
+  Sparkles,
+  ShieldCheck,
+  Home,
+  LayoutTemplate,
+  Gift,
+  HelpCircle,
+  Mail,
+  HeartHandshake,
+} from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [isDark, setIsDark] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [scrolled, setScrolled] = useState(false);
   const { user, isLoggedIn, openLoginModal, logout } = useAuth();
   const pathname = usePathname();
 
-  const toggleDarkMode = () => {
-    setIsDark(!isDark);
-    if (!isDark) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      setScrolled(currentScrollY > 15);
+
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalHeight > 0) {
+        setScrollProgress(Math.min(100, Math.max(0, (currentScrollY / totalHeight) * 100)));
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
   const navLinks = [
-    { name: "Trang chủ", href: "/" },
-    { name: "Mẫu thiệp", href: "/templates" },
-    { name: "Thiệp đã tạo", href: "/thiep-online/khach-hang" },
-    { name: "Đối tác & Ưu đãi", href: "/doi-tac-cuoi" },
-    { name: "Gói dịch vụ", href: "#solution" },
-    { name: "Cẩm nang", href: "#faq" },
-    { name: "Liên hệ", href: "#footer" },
+    { name: "Trang chủ", href: "/", icon: Home },
+    { name: "Mẫu thiệp", href: "/templates", icon: LayoutTemplate },
+    { name: "Thiệp đã tạo", href: "/thiep-online/khach-hang", icon: FolderHeart },
+    { name: "Đối tác & Ưu đãi", href: "/doi-tac-cuoi", icon: HeartHandshake },
+    { name: "Gói dịch vụ", href: "/#solution", icon: Gift },
+    { name: "Cẩm nang", href: "/#faq", icon: HelpCircle },
+    { name: "Liên hệ", href: "/#footer", icon: Mail },
   ];
 
   return (
     <header
-      className="fixed left-0 right-0 z-[999] px-2.5 sm:px-6 lg:px-8 top-0"
+      className="fixed left-0 right-0 z-[999] px-3 sm:px-6 lg:px-8 top-0 transition-all duration-300"
       role="banner"
       aria-label="Thanh điều hướng chính"
     >
-      <div className="mx-auto transition-all duration-700 mt-2 max-w-7xl">
-        <div className="flex justify-between items-center transition-all duration-300 h-14 rounded-full border bg-white/85 backdrop-blur-md border-[#e6ced4] shadow-[0_12px_35px_rgba(16,24,40,0.08)] px-4 md:px-6">
+      {/* Scroll progress indicator */}
+      <div className="absolute top-0 left-0 right-0 h-[2.5px] bg-transparent overflow-hidden pointer-events-none z-[1000]">
+        <div
+          className="h-full bg-gradient-to-r from-zen-primary via-rose-500 to-pink-500 transition-[width] duration-150 ease-out"
+          style={{ width: `${scrollProgress}%` }}
+        />
+      </div>
+
+      <div className="mx-auto transition-all duration-300 mt-2.5 max-w-7xl">
+        <div
+          className={`flex justify-between items-center transition-all duration-300 h-14 rounded-full border px-4 md:px-6 ${
+            scrolled
+              ? "bg-white/95 backdrop-blur-md border-rose-100/90 shadow-[0_12px_36px_rgba(16,24,40,0.08)]"
+              : "bg-white/88 backdrop-blur-md border-[#e6ced4]/80 shadow-[0_8px_24px_rgba(16,24,40,0.05)]"
+          }`}
+        >
           {/* Desktop Nav */}
           <div className="hidden lg:flex w-full justify-between items-center gap-4">
             {/* Logo */}
@@ -48,83 +86,73 @@ export default function Navbar() {
                 href="/"
                 aria-label="Zenlove - Thiệp cưới online miễn phí"
                 title="Zenlove - Thiệp cưới online miễn phí"
-                className="group relative flex items-center justify-center cursor-pointer gap-1.5"
+                className="group relative flex items-center justify-center cursor-pointer gap-2"
               >
-                <img
-                  src="/assets/logo/logo-6.svg"
-                  className="h-10"
-                  alt="Zenlove - Thiệp cưới online miễn phí"
-                  title="Zenlove - Tạo thiệp cưới online đẹp nhất"
-                />
-                <span className="h-5">
-                  <img
-                    src="/assets/logo/text-logo-dark.svg"
-                    className="h-5 dark:hidden"
-                    alt="Zenlove - Website thiệp cưới online miễn phí"
-                    title="Zenlove - Thiệp cưới điện tử đẹp và hiện đại"
+                <div className="relative h-9 w-9">
+                  <Image
+                    src="/assets/logo/logo-6.svg"
+                    alt="Zenlove logo"
+                    fill
+                    sizes="36px"
+                    className="object-contain transition-transform duration-300 group-hover:scale-105"
+                    priority
                   />
-                  <img
-                    src="/assets/logo/text-logo-light.svg"
-                    className="hidden h-5 dark:block"
-                    alt=""
-                    aria-hidden="true"
-                  />
-                </span>
-                <div className="absolute -top-1.5 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 ease-in-out pointer-events-none">
-                  <span className="text-xs text-gray-500 font-mono bg-white/80 px-1 py-0.5 rounded shadow-sm border border-gray-100">
-                    v1.26.10a1
-                  </span>
                 </div>
+                <div className="relative h-4.5 w-24">
+                  <Image
+                    src="/assets/logo/text-logo-dark.svg"
+                    alt="Zenlove"
+                    fill
+                    sizes="96px"
+                    className="object-contain"
+                    priority
+                  />
+                </div>
+                <span className="text-[10px] text-gray-500 font-mono bg-rose-50/80 px-1.5 py-0.5 rounded-full border border-rose-100/60 font-semibold tracking-wider">
+                  v1.26
+                </span>
               </Link>
             </div>
 
             {/* Navigation links */}
             <nav aria-label="Main navigation">
-              <ul className="flex space-x-5 xl:space-x-8">
-                {navLinks.map((link) => (
-                  <li key={link.name}>
-                    <Link
-                      href={link.href}
-                      className={`whitespace-nowrap rounded-full px-2 py-1 text-sm font-medium transition-colors duration-200 hover:bg-rose-50 hover:text-zen-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zen-primary/30 ${
-                        pathname === link.href
-                          ? "bg-rose-50 font-bold text-zen-primary"
-                          : "text-zen-black"
-                      }`}
-                      aria-current={pathname === link.href ? "page" : undefined}
-                      title={link.name}
-                    >
-                      {link.name}
-                    </Link>
-                  </li>
-                ))}
+              <ul className="flex space-x-1 xl:space-x-2">
+                {navLinks.map((link) => {
+                  const isActive = pathname === link.href;
+                  return (
+                    <li key={link.name}>
+                      <Link
+                        href={link.href}
+                        className={`relative whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zen-primary/30 ${
+                          isActive
+                            ? "bg-rose-50/90 font-bold text-zen-primary shadow-2xs"
+                            : "text-gray-700 hover:text-zen-primary hover:bg-rose-50/50"
+                        }`}
+                        aria-current={isActive ? "page" : undefined}
+                        title={link.name}
+                      >
+                        {link.name}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </nav>
 
             {/* Right actions */}
             <div className="flex flex-shrink-0 items-center space-x-2 xl:space-x-3">
-              {/* Dark mode toggle */}
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                aria-label={isDark ? "Chuyển sang giao diện sáng" : "Chuyển sang giao diện tối"}
-                title={isDark ? "Giao diện sáng" : "Giao diện tối"}
-                className="flex size-9 shrink-0 items-center justify-center rounded-full text-zen-black transition-colors hover:bg-gray-100 hover:text-zen-primary"
-              >
-                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-
               {/* Google Auth / User Avatar */}
               {isLoggedIn && user ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-zen-primary/40 transition-all"
+                    className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-zen-primary/40 transition-all cursor-pointer"
                     aria-label="Tài khoản cá nhân"
                   >
                     <img
                       src={user.avatar}
                       alt={user.name}
-                      className="w-9 h-9 rounded-full object-cover border border-rose-200 shadow-xs"
+                      className="w-9 h-9 rounded-full object-cover border border-rose-200 shadow-2xs"
                     />
                   </button>
 
@@ -167,7 +195,7 @@ export default function Navbar() {
                           logout();
                           setUserMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors border-t border-gray-100 mt-1"
+                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors border-t border-gray-100 mt-1 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Đăng xuất</span>
@@ -179,7 +207,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => openLoginModal()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 hover:border-zen-primary/60 bg-white text-xs font-semibold text-gray-700 shadow-2xs hover:shadow-xs transition-all hover:scale-105"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-200 hover:border-zen-primary/50 bg-white text-xs font-semibold text-gray-700 shadow-2xs hover:shadow-xs transition-all hover:-translate-y-0.5 cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                     <path
@@ -206,7 +234,7 @@ export default function Navbar() {
               <Link
                 href="/templates"
                 id="header-btn-create"
-                className="bg-zen-primary hover:bg-[#d93849] text-white px-4 py-2 rounded-full text-xs sm:text-sm font-bold shadow-[0_4px_14px_rgba(229,65,83,0.35)] transition-all duration-300 hover:scale-105 flex items-center gap-1.5"
+                className="bg-zen-primary hover:bg-[#d93849] text-white px-4.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold shadow-[0_4px_14px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(229,65,83,0.4)] flex items-center gap-1.5"
               >
                 <span>Tạo thiệp</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -220,36 +248,35 @@ export default function Navbar() {
               href="/"
               aria-label="Zenlove - Thiệp cưới online miễn phí"
               title="Zenlove - Thiệp cưới online miễn phí"
-              className="group relative flex items-center justify-center cursor-pointer gap-1.5"
+              className="group relative flex items-center justify-center cursor-pointer gap-2"
             >
-              <img
-                src="/assets/logo/logo-6.svg"
-                className="h-9"
-                alt="Zenlove - Thiệp cưới online miễn phí"
-              />
-              <span className="h-4">
-                <img
-                  src="/assets/logo/text-logo-dark.svg"
-                  className="h-4 dark:hidden"
-                  alt="Zenlove"
+              <div className="relative h-8 w-8">
+                <Image
+                  src="/assets/logo/logo-6.svg"
+                  alt="Zenlove logo"
+                  fill
+                  sizes="32px"
+                  className="object-contain"
+                  priority
                 />
-              </span>
+              </div>
+              <div className="relative h-4 w-20">
+                <Image
+                  src="/assets/logo/text-logo-dark.svg"
+                  alt="Zenlove"
+                  fill
+                  sizes="80px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
             </Link>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleDarkMode}
-                aria-label="Giao diện tối"
-                className="flex size-8 shrink-0 items-center justify-center rounded-full text-zen-black transition-colors hover:bg-gray-100"
-              >
-                {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-              </button>
-
               {isLoggedIn && user ? (
                 <button
                   onClick={() => setMobileMenuOpen(true)}
-                  className="p-0.5 rounded-full ring-1 ring-zen-primary/40"
+                  className="p-0.5 rounded-full ring-2 ring-zen-primary/40 cursor-pointer"
                   aria-label="Tài khoản"
                 >
                   <img
@@ -261,7 +288,7 @@ export default function Navbar() {
               ) : (
                 <button
                   onClick={() => openLoginModal()}
-                  className="p-1 rounded-full text-gray-700 hover:text-zen-primary hover:bg-gray-100 transition-colors"
+                  className="p-1.5 rounded-full text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
                   aria-label="Đăng nhập"
                   title="Đăng nhập"
                 >
@@ -271,7 +298,7 @@ export default function Navbar() {
 
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="focus:outline-none text-zen-black hover:text-zen-primary transition-colors flex justify-center items-center p-1.5 rounded-full hover:bg-gray-100"
+                className="focus:outline-none text-zen-black hover:text-zen-primary transition-colors flex justify-center items-center p-1.5 rounded-full hover:bg-gray-100 cursor-pointer"
                 aria-label="Mở menu"
                 aria-expanded={mobileMenuOpen}
               >
@@ -286,34 +313,42 @@ export default function Navbar() {
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-[99999] w-screen h-screen isolate">
           <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
             onClick={() => setMobileMenuOpen(false)}
           />
 
           <aside
             id="mobile-menu"
-            className="fixed top-0 left-0 h-screen w-[85vw] max-w-80 bg-white shadow-2xl z-10 border-r border-gray-200 rounded-r-2xl overflow-hidden flex flex-col animate-slide-in"
+            className="fixed top-0 left-0 h-screen w-[85vw] max-w-80 bg-white shadow-2xl z-10 border-r border-gray-100 rounded-r-3xl overflow-hidden flex flex-col animate-slide-in"
             role="dialog"
             aria-modal="true"
             aria-label="Menu chính"
           >
             {/* Header */}
-            <div className="flex items-center justify-between py-3.5 px-5 border-b border-gray-100">
-              <div className="flex items-center gap-1.5">
-                <img
-                  src="/assets/logo/logo-6.svg"
-                  className="h-8 w-auto"
-                  alt="Zenlove"
-                />
-                <img
-                  src="/assets/logo/text-logo-dark.svg"
-                  className="h-4 w-auto object-contain"
-                  alt="Zenlove"
-                />
+            <div className="flex items-center justify-between py-4 px-5 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="relative h-8 w-8">
+                  <Image
+                    src="/assets/logo/logo-6.svg"
+                    alt="Zenlove"
+                    fill
+                    sizes="32px"
+                    className="object-contain"
+                  />
+                </div>
+                <div className="relative h-4 w-20">
+                  <Image
+                    src="/assets/logo/text-logo-dark.svg"
+                    alt="Zenlove"
+                    fill
+                    sizes="80px"
+                    className="object-contain"
+                  />
+                </div>
               </div>
               <button
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-gray-400 hover:text-gray-600 w-8 h-8 bg-gray-100 rounded-full flex justify-center items-center transition-colors"
+                className="text-gray-400 hover:text-gray-700 w-8 h-8 bg-gray-100/80 rounded-full flex justify-center items-center transition-colors cursor-pointer"
                 aria-label="Đóng menu"
               >
                 <X className="h-4 w-4" />
@@ -321,31 +356,46 @@ export default function Navbar() {
             </div>
 
             {/* Menu items */}
-            <nav className="flex-1 py-4 overflow-y-auto" aria-label="Menu chính (di động)">
-              <ul className="space-y-1 px-4">
-                {navLinks.map((link) => (
-                  <li key={link.name}>
-                    <a
-                      href={link.href}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="text-zen-black hover:text-zen-primary hover:bg-rose-50/60 px-4 text-base font-semibold block w-full py-2.5 rounded-lg transition-colors"
-                    >
-                      {link.name}
-                    </a>
-                  </li>
-                ))}
+            <nav className="flex-1 py-4 px-3 overflow-y-auto" aria-label="Menu chính (di động)">
+              <ul className="space-y-1">
+                {navLinks.map((link, idx) => {
+                  const isActive = pathname === link.href;
+                  const Icon = link.icon;
+                  return (
+                    <li key={link.name} style={{ animationDelay: `${idx * 40}ms` }}>
+                      <Link
+                        href={link.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
+                          isActive
+                            ? "bg-rose-50 text-zen-primary font-bold shadow-2xs"
+                            : "text-gray-700 hover:text-zen-primary hover:bg-gray-50"
+                        }`}
+                      >
+                        <div
+                          className={`flex size-8 shrink-0 items-center justify-center rounded-xl ${
+                            isActive ? "bg-zen-primary text-white" : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          <Icon className="size-4" />
+                        </div>
+                        <span>{link.name}</span>
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </nav>
 
             {/* Action Button & Auth in Mobile Drawer */}
             <div className="p-4 border-t border-gray-100 bg-gray-50/50 space-y-2.5">
               {isLoggedIn && user ? (
-                <div className="p-3 bg-white rounded-xl border border-gray-100 shadow-2xs space-y-2">
+                <div className="p-3 bg-white rounded-2xl border border-gray-100 shadow-2xs space-y-2">
                   <div className="flex items-center gap-2.5">
                     <img
                       src={user.avatar}
                       alt={user.name}
-                      className="w-9 h-9 rounded-full object-cover"
+                      className="w-9 h-9 rounded-full object-cover border border-rose-100"
                     />
                     <div className="min-w-0 flex-1">
                       <p className="text-xs font-bold text-gray-900 truncate">{user.name}</p>
@@ -355,7 +405,7 @@ export default function Navbar() {
                   <Link
                     href="/admin"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border-t border-gray-100"
+                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border-t border-gray-100"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-zen-primary" />
                     <span>Trang Quản trị (Admin)</span>
@@ -365,7 +415,7 @@ export default function Navbar() {
                       logout();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-center text-xs text-gray-500 font-semibold py-1.5 hover:bg-gray-50 rounded-lg transition-colors border-t border-gray-50"
+                    className="w-full text-center text-xs text-gray-500 font-semibold py-1.5 hover:bg-gray-50 rounded-xl transition-colors border-t border-gray-50 cursor-pointer"
                   >
                     Đăng xuất
                   </button>
@@ -377,7 +427,7 @@ export default function Navbar() {
                     setMobileMenuOpen(false);
                     openLoginModal();
                   }}
-                  className="w-full py-2.5 px-3 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center justify-center gap-2 shadow-2xs"
+                  className="w-full py-2.5 px-3 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path

@@ -129,8 +129,10 @@ export default function TemplateDetailClient({
     try {
       const card = await cloneTemplateToNewCard(template.slug || template.id);
       router.push(`/design-template/${card.id}?clonedFrom=${template.slug || template.id}`);
-    } catch (e) {
-      router.push(`/design-template/${template.id}`);
+    } catch (e: any) {
+      console.error("Clone template failed:", e);
+      setIsCloning(false);
+      alert(e?.message || "Không thể khởi tạo mẫu thiệp cưới. Vui lòng thử lại!");
     }
   };
 

@@ -1257,6 +1257,19 @@ export default function EditorRightInspector({
                   >
                     <AlignRight className="w-4 h-4" />
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePropChange("goldFoil", !props.goldFoil)}
+                    title="Hiệu ứng Dát vàng ánh kim lấp lánh (Gold Foil Shimmer)"
+                    className={`px-2 py-1 rounded-lg flex items-center gap-1 transition-all ${
+                      props.goldFoil
+                        ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-bold shadow-xs scale-105"
+                        : "text-amber-700 hover:bg-amber-100/60"
+                    }`}
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                    <span className="text-[10px] font-bold">Dát Vàng</span>
+                  </button>
                 </div>
               </div>
             )}

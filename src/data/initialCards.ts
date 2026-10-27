@@ -18,6 +18,9 @@ export interface WeddingRsvp {
   guests: number;
   note?: string;
   createdAt: string;
+  checkedIn?: boolean;
+  checkedInAt?: string;
+  tableNumber?: string | number;
 }
 
 export interface WeddingWish {
@@ -76,8 +79,19 @@ export interface WeddingCard {
   showWishes?: boolean;
   showRsvp?: boolean;
   showEvents?: boolean;
-  envelopeTheme?: "burgundy" | "cream" | "traditional";
-  ambientEffect?: "petals" | "sparkles" | "hearts" | "confetti";
+  envelopeTheme?: "burgundy" | "cream" | "traditional" | "emerald" | "midnight" | "blush" | string;
+  ambientEffect?: import("@/lib/effectsCatalog").AmbientEffectType;
+  effectConfig?: import("@/lib/effectsCatalog").EffectConfig;
+  cinematicFx?: {
+    enabled?: boolean;
+    touchSparkles?: boolean;
+    lightLeaks?: boolean;
+    ambientDust?: boolean;
+    goldShimmer?: boolean;
+    sealSymbol?: "囍" | "heart" | "crown" | "sparkle" | "monogram" | string;
+    intensity?: "subtle" | "normal" | "vibrant";
+    colorScheme?: "gold" | "rose" | "champagne" | "aurora";
+  };
   loveStory?: Array<{
     id?: string;
     date: string;
@@ -87,7 +101,12 @@ export interface WeddingCard {
   }>;
   showCalendar?: boolean;
   showLoveStory?: boolean;
+  showAlbum?: boolean;
   fixedModuleStyles?: Record<string, string>;
+  rsvpTitle?: string;
+  rsvpMessage?: string;
+  wishesTitle?: string;
+  wishesDescription?: string;
   isVip?: boolean;
   plan?: "free" | "vip" | "premium";
   vipUnlockedAt?: string;

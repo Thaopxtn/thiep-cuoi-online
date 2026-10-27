@@ -31,9 +31,11 @@ import {
   AlertCircle,
   Filter,
   UserPlus,
+  UserCheck,
   X,
   UtensilsCrossed,
   Crown,
+  Zap,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -48,14 +50,17 @@ import {
   addRsvp,
   deleteRsvp,
   updateRsvpStatus,
+  toggleRsvpCheckIn,
 } from "@/lib/weddingCardService";
 import BulkGuestInvitationModal from "@/components/invitations/BulkGuestInvitationModal";
 import VietQrVipPaymentModal from "@/components/payment/VietQrVipPaymentModal";
 import GiftLedgerTab from "@/components/dashboard/GiftLedgerTab";
+import GuestManagementTab from "@/components/dashboard/GuestManagementTab";
+import QuickCreateWizardModal from "@/components/templates/QuickCreateWizardModal";
 
 export default function DashboardPage() {
   const { user, isLoggedIn, openLoginModal, updatePassword, updateProfile, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<"cards" | "rsvp" | "wishes" | "gifts" | "settings">("cards");
+  const [activeTab, setActiveTab] = useState<"cards" | "guests" | "rsvp" | "wishes" | "gifts" | "settings">("cards");
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   // Personalized Guest Link Modal state
@@ -72,12 +77,15 @@ export default function DashboardPage() {
   const [vipModalCard, setVipModalCard] = useState<WeddingCard | null>(null);
   const [isVipPaymentOpen, setIsVipPaymentOpen] = useState(false);
 
+  // Quick Mobile Wizard Modal state
+  const [isQuickWizardOpen, setIsQuickWizardOpen] = useState(false);
+
   // Live operational cards state
   const [myCards, setMyCards] = useState<WeddingCard[]>([]);
 
   // RSVP Filtering & Manual Guest Management state
   const [selectedCardFilter, setSelectedCardFilter] = useState<string>("all");
-  const [rsvpStatusFilter, setRsvpStatusFilter] = useState<"all" | "attending" | "declined">("all");
+  const [rsvpStatusFilter, setRsvpStatusFilter] = useState<"all" | "attending" | "declined" | "checkedIn">("all");
   const [rsvpSearchQuery, setRsvpSearchQuery] = useState("");
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
 
@@ -115,7 +123,7 @@ export default function DashboardPage() {
         setMyCards(remoteCards || []);
       });
     } else {
-      setMyCards(getAllCards());
+      setMyCards([]);
     }
   }, [user?.id]);
 
@@ -166,6 +174,7 @@ export default function DashboardPage() {
     }
     if (rsvpStatusFilter === "attending" && !r.attending) return false;
     if (rsvpStatusFilter === "declined" && r.attending) return false;
+    if (rsvpStatusFilter === "checkedIn" && !r.checkedIn) return false;
     if (rsvpSearchQuery.trim()) {
       const q = rsvpSearchQuery.toLowerCase();
       const matchName = r.name?.toLowerCase().includes(q);
@@ -219,6 +228,11 @@ export default function DashboardPage() {
       !currentAttending,
       !currentAttending ? currentGuests || 1 : 0
     );
+    setMyCards(getAllCards(user?.id));
+  };
+
+  const handleToggleCheckIn = (cardId: string, rsvpId: string) => {
+    toggleRsvpCheckIn(cardId, rsvpId);
     setMyCards(getAllCards(user?.id));
   };
 
@@ -312,19 +326,36 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <Link
-            href="/templates"
-            onClick={(e) => {
-              if (!isLoggedIn) {
-                e.preventDefault();
-                openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới mới");
-              }
-            }}
-            className="w-full md:w-auto px-5 py-2.5 rounded-xl bg-zen-primary text-white text-xs sm:text-sm font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2 shrink-0 group"
-          >
-            <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
-            <span>Tạo thiệp cưới mới</span>
-          </Link>
+          <div className="flex flex-col sm:flex-row items-center gap-2.5 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => {
+                if (!isLoggedIn) {
+                  openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới nhanh");
+                  return;
+                }
+                setIsQuickWizardOpen(true);
+              }}
+              className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-rose-500 hover:from-amber-600 hover:to-rose-600 text-white text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer active:scale-95"
+            >
+              <Zap className="w-4 h-4 fill-amber-300 text-amber-200" />
+              <span>⚡ Tạo Nhanh 3 Phút</span>
+            </button>
+
+            <Link
+              href="/templates"
+              onClick={(e) => {
+                if (!isLoggedIn) {
+                  e.preventDefault();
+                  openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới mới");
+                }
+              }}
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-zen-primary text-white text-xs sm:text-sm font-bold shadow-md hover:bg-[#d93849] transition-all flex items-center justify-center gap-2 shrink-0 group"
+            >
+              <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+              <span>Tạo thiệp cưới mới</span>
+            </Link>
+          </div>
         </div>
 
         {/* Guest Warning Banner if not logged in */}
@@ -348,6 +379,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-2 border-b border-gray-200 pb-px mb-6 overflow-x-auto scrollbar-none">
           {[
             { id: "cards", label: "Thiệp cưới của tôi", icon: Calendar, count: myCards.length },
+            { id: "guests", label: "Danh sách khách & Phân bàn", icon: UserCheck },
             { id: "rsvp", label: "Khách mời & Xác nhận (RSVP)", icon: Users, count: rsvpsList.length },
             { id: "wishes", label: "Sổ lưu bút & Lời chúc", icon: MessageSquare, count: wishesList.length },
             { id: "gifts", label: "Sổ mừng cưới", icon: Gift },
@@ -592,6 +624,14 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* TAB 1.5: QUẢN LÝ DANH SÁCH KHÁCH MỜI, PHÂN BÀN & GỬI ZALO */}
+        {activeTab === "guests" && (
+          <GuestManagementTab
+            cards={myCards}
+            onOpenGiftTab={() => setActiveTab("gifts")}
+          />
+        )}
+
         {/* TAB 2: KHÁCH MỜI RSVP & QUẢN LÝ TIỆC CƯỚI */}
         {activeTab === "rsvp" && (
           <div className="space-y-6">
@@ -649,6 +689,26 @@ export default function DashboardPage() {
                 </span>
                 <span className="text-[10px] text-gray-400 mt-0.5">Không thể tham dự</span>
               </div>
+
+              <div className="bg-white p-4 rounded-2xl border border-teal-100 shadow-xs flex flex-col justify-between col-span-2 md:col-span-1">
+                <span className="text-[11px] font-bold text-teal-700 uppercase flex items-center gap-1">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Đã đến tiệc</span>
+                </span>
+                {(() => {
+                  const checkedIn = filteredRsvps.filter((r) => r.checkedIn).length;
+                  const total = filteredRsvps.filter((r) => r.attending).length;
+                  const pct = total > 0 ? Math.round((checkedIn / total) * 100) : 0;
+                  return (
+                    <>
+                      <span className="text-2xl font-bold text-teal-600 mt-1">
+                        {checkedIn} <span className="text-xs font-semibold text-gray-500">/ {total}</span>
+                      </span>
+                      <span className="text-[10px] text-teal-700/80 mt-0.5">Tỉ lệ có mặt: {pct}%</span>
+                    </>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Thanh Công Cụ Bộ Lọc & Tìm Kiếm */}
@@ -704,6 +764,17 @@ export default function DashboardPage() {
                     }`}
                   >
                     🔴 Báo bận
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRsvpStatusFilter("checkedIn")}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      rsvpStatusFilter === "checkedIn"
+                        ? "bg-teal-50 text-teal-700 shadow-xs font-bold"
+                        : "text-gray-500 hover:text-gray-900"
+                    }`}
+                  >
+                    🎉 Đã đến tiệc
                   </button>
                 </div>
 
@@ -855,6 +926,25 @@ export default function DashboardPage() {
                                 <span className="inline-flex items-center gap-1 text-gray-600 font-semibold bg-gray-100 hover:bg-gray-200 border border-gray-200 px-2.5 py-1 rounded-full text-[11px] transition-colors">
                                   <XCircle className="w-3.5 h-3.5 text-gray-400" />
                                   <span>Không thể đến</span>
+                                </span>
+                              )}
+                            </button>
+                          </td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleCheckIn(rsvp.cardId, rsvp.id)}
+                              className="cursor-pointer transition-all active:scale-95"
+                              title={rsvp.checkedIn ? "Bấm để bỏ điểm danh" : "Bấm để đánh dấu khách đã đến dự"}
+                            >
+                              {rsvp.checkedIn ? (
+                                <span className="inline-flex items-center gap-1 text-teal-800 font-bold bg-teal-100 hover:bg-teal-200 border border-teal-300 px-2.5 py-1 rounded-full text-[11px] transition-colors shadow-2xs">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-teal-600" />
+                                  <span>Đã đến</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-gray-500 font-medium bg-gray-100 hover:bg-teal-50 hover:text-teal-700 hover:border-teal-200 border border-gray-200 px-2.5 py-1 rounded-full text-[11px] transition-colors">
+                                  <span>Chưa đến</span>
                                 </span>
                               )}
                             </button>
@@ -1457,6 +1547,14 @@ export default function DashboardPage() {
             }}
           />
         )}
+
+        {/* Quick Mobile 3-Minute Create Wizard Modal */}
+        <QuickCreateWizardModal
+          isOpen={isQuickWizardOpen}
+          onClose={() => setIsQuickWizardOpen(false)}
+          userId={user?.id || "user"}
+          onRequireLogin={() => openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới")}
+        />
       </main>
 
       <Footer />

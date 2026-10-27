@@ -21,6 +21,7 @@ interface EditorPublishWarningModalProps {
   warnings: ValidationWarning[];
   onOpenAutoFill: () => void;
   onProceedPublish: () => void;
+  onFixWarning?: (type: ValidationWarning["type"]) => void;
 }
 
 export default function EditorPublishWarningModal({
@@ -29,6 +30,7 @@ export default function EditorPublishWarningModal({
   warnings,
   onOpenAutoFill,
   onProceedPublish,
+  onFixWarning,
 }: EditorPublishWarningModalProps) {
   if (!isOpen) return null;
 
@@ -101,11 +103,26 @@ export default function EditorPublishWarningModal({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-xs font-bold text-gray-900">{w.title}</h4>
-                  {w.severity === "high" && (
-                    <span className="text-[9px] font-semibold text-rose-600 bg-rose-100/80 px-1.5 py-0.2 rounded">
-                      Quan trọng
-                    </span>
-                  )}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {w.severity === "high" && (
+                      <span className="text-[9px] font-semibold text-rose-600 bg-rose-100/80 px-1.5 py-0.2 rounded">
+                        Quan trọng
+                      </span>
+                    )}
+                    {onFixWarning && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onFixWarning(w.type);
+                        }}
+                        className="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-0.5 ml-1 cursor-pointer"
+                      >
+                        <span>Sửa ngay</span>
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <p className="text-[11px] text-gray-600 mt-0.5 leading-relaxed">
                   {w.description}

@@ -1,9 +1,12 @@
 "use client";
- 
+
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
+import Section from "@/components/ui/Section";
+import SectionHeading from "@/components/ui/SectionHeading";
+import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
 import ArcCarousel from "./ArcCarousel";
 import ZenlovePreviewModal from "@/components/templates/ZenlovePreviewModal";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
@@ -203,39 +206,33 @@ export default function TemplatesSection() {
     try {
       const card = await cloneTemplateToNewCard(templateId);
       router.push(`/design-template/${card.id}?clonedFrom=${templateId}`);
-    } catch {
-      router.push(`/design-template/${templateId}`);
+    } catch (e: any) {
+      console.error("Clone template failed:", e);
+      alert(e?.message || "Không thể khởi tạo mẫu thiệp cưới. Vui lòng thử lại!");
     }
   };
 
   return (
-    <section id="templates" className="bg-[#fbfbfb] py-12">
-      <div>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="template-animate flex flex-col gap-2 md:gap-0 items-center md:items-start">
-            <h2
-              id="templates-heading"
-              className="text-center md:text-left text-2xl md:text-3xl text-gray-900 uppercase font-heading font-bold"
-            >
-              Chọn mẫu <br />
-              &amp; Tạo thiệp mời của bạn
-            </h2>
-            <h3 className="sr-only">Các mẫu thiệp cưới online đẹp và miễn phí</h3>
-            <h3 className="sr-only">Cá nhân hóa dễ dàng</h3>
-            <h3 className="sr-only">Chia sẻ nhanh chóng</h3>
-            <p className="text-center md:text-left text-gray-500 max-w-2xl mt-2 text-sm md:text-base">
-              Bắt đầu trải nghiệm tự tạo thiệp Online của bạn ngay với nhiều lựa
-              chọn phong phú — chọn mẫu, xem trước và tùy chỉnh chỉ trong vài bước.
-            </p>
-          </div>
-        </div>
+    <Section id="templates" bg="subtle" padding="lg" ariaLabel="Kho mẫu thiệp cưới">
+      <AnimateOnScroll animation="fade-up">
+        <SectionHeading
+          eyebrow="Kho mẫu đa dạng"
+          title={
+            <>
+              Chọn mẫu &amp; bắt đầu tạo thiệp mời của bạn
+            </>
+          }
+          description="Khám phá hơn 207+ thiết kế tinh tế từ phong cách Hoàng gia, Retro, Tối giản đến Hiện đại — xem trước và cá nhân hóa chỉ trong vài phút."
+        />
+      </AnimateOnScroll>
 
-        {/* 3D Arc Carousel */}
-        <div className="template-animate mx-auto mt-6 max-w-[1500px]">
+      {/* 3D Arc Carousel with animation */}
+      <AnimateOnScroll animation="fade-up" delay={150}>
+        <div className="mx-auto mt-10 max-w-[1500px]">
           <ArcCarousel
             items={TEMPLATE_ITEMS}
             label="Mẫu thiệp cưới online"
-            cardWidth={210}
+            cardWidth={220}
             visibleCards={7}
             caption={false}
             renderCard={(item) => (
@@ -243,10 +240,10 @@ export default function TemplatesSection() {
                 type="button"
                 onClick={() => handleCardClick(item)}
                 title={`Xem mẫu thiệp cưới ${item.name}`}
-                className="group/arc-card block w-full rounded-2xl text-left cursor-pointer focus:outline-none"
+                className="group/arc-card block w-full rounded-2xl text-left cursor-pointer focus:outline-none transition-transform duration-300 hover:scale-[1.02]"
               >
                 <span
-                  className="relative block overflow-hidden rounded-2xl border border-rose-100 bg-gray-100 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.45)] [aspect-ratio:1000/1470]"
+                  className="relative block overflow-hidden rounded-2xl border border-rose-100/80 bg-gray-100 shadow-[0_14px_32px_-12px_rgba(0,0,0,0.35)] [aspect-ratio:1000/1470]"
                   style={
                     {
                       "--image-scroll-percent": "40%",
@@ -262,25 +259,31 @@ export default function TemplatesSection() {
                     draggable={false}
                     className="h-auto w-full align-top [transform:translate3d(0,0,0)] transition-transform duration-200 ease-out group-hover/arc-card:[transition-duration:var(--scroll-duration)] group-hover/arc-card:[transition-timing-function:ease] motion-safe:group-hover/arc-card:[transform:translate3d(0,calc(var(--image-scroll-percent,0%)*-1),0)]"
                   />
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/arc-card:opacity-100 transition-opacity flex items-end p-4">
+                    <span className="text-white text-xs font-semibold drop-shadow-sm">
+                      {item.name} · Xem chi tiết →
+                    </span>
+                  </span>
                 </span>
               </button>
             )}
           />
         </div>
+      </AnimateOnScroll>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="template-animate flex justify-center mt-8">
-            <Link
-              className="bg-zen-primary hover:bg-[#d93849] text-white px-10 py-2.5 rounded-full font-medium shadow-md transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center gap-2"
-              aria-label="Xem thêm mẫu thiệp"
-              href="/templates"
-            >
-              <span className="font-bold">Xem thêm mẫu thiệp</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
+      {/* Action Button */}
+      <AnimateOnScroll animation="fade-up" delay={250}>
+        <div className="mt-12 flex justify-center">
+          <Link
+            className="group inline-flex items-center gap-2.5 bg-zen-primary hover:bg-[#d93849] text-white px-9 py-3.5 rounded-full font-bold shadow-[0_10px_28px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(229,65,83,0.4)]"
+            aria-label="Xem toàn bộ 207+ mẫu thiệp cưới"
+            href="/templates"
+          >
+            <span>Khám phá toàn bộ 207+ mẫu thiệp</span>
+            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+          </Link>
         </div>
-      </div>
+      </AnimateOnScroll>
 
       {/* Interactive Modal Previewing Real Cloned Template */}
       {previewTemplate && (
@@ -290,7 +293,6 @@ export default function TemplatesSection() {
           onUse={handleUseTemplate}
         />
       )}
-    </section>
+    </Section>
   );
 }
-

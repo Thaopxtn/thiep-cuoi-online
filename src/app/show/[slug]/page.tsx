@@ -36,6 +36,7 @@ import {
 import {
   getCardByIdOrSlug,
   fetchCardFromServer,
+  saveCard,
   addRsvp,
   addWish,
   toggleWishLike,
@@ -47,12 +48,15 @@ import {
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
 import FallingPetals, { type AmbientEffectType } from "@/components/FallingPetals";
+import { EFFECTS_CATALOG } from "@/lib/effectsCatalog";
 import {
   WeddingCalendarCard,
   LoveStoryTimeline,
   PolaroidGallery,
+  GuestPhotoWall,
 } from "@/components/show/InteractiveSections";
 import LuxuryEnvelopeModal from "@/components/show/LuxuryEnvelopeModal";
+import CinematicEffectsOverlay from "@/components/show/CinematicEffectsOverlay";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
 import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
 import { parseBrandedSlug } from "@/lib/brandedSlug";
@@ -90,12 +94,17 @@ export default function ShowInvitationPage() {
   const [ambientEffect, setAmbientEffect] = useState<AmbientEffectType>("petals");
   const [sfxEnabled, setSfxEnabled] = useState(true);
 
-  // Synchronize initial ambient effect from card
+  // Synchronize initial ambient effect and config from card
   useEffect(() => {
-    if (card?.ambientEffect) {
-      setAmbientEffect(card.ambientEffect as AmbientEffectType);
+    if (card) {
+      if (card.effectConfig?.enabled === false) {
+        setPetalsEnabled(false);
+      } else if (card.ambientEffect) {
+        setAmbientEffect(card.ambientEffect);
+        setPetalsEnabled(true);
+      }
     }
-  }, [card?.ambientEffect]);
+  }, [card?.ambientEffect, card?.effectConfig]);
 
   // Gift QR Modal & Toast state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -103,25 +112,22 @@ export default function ShowInvitationPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const cycleAmbientEffect = () => {
-    const modes: AmbientEffectType[] = ["petals", "sparkles", "hearts", "confetti"];
-    const currentIdx = modes.indexOf(ambientEffect);
+    const effectIds: AmbientEffectType[] = EFFECTS_CATALOG.map((e) => e.id);
+    const currentIdx = effectIds.indexOf(ambientEffect);
     if (!petalsEnabled) {
       setPetalsEnabled(true);
-      setAmbientEffect("petals");
-      setToastMessage("🌸 Đã bật: Cánh hoa hồng rơi");
-    } else if (currentIdx === modes.length - 1) {
+      const first = effectIds[0] || "petals";
+      setAmbientEffect(first);
+      const found = EFFECTS_CATALOG.find((e) => e.id === first);
+      setToastMessage(`✨ Đã bật: ${found?.name || "Cánh hoa hồng rơi"}`);
+    } else if (currentIdx === effectIds.length - 1) {
       setPetalsEnabled(false);
       setToastMessage("✨ Đã tạm dừng hiệu ứng hạt rơi");
     } else {
-      const nextMode = modes[currentIdx + 1];
+      const nextMode = effectIds[currentIdx + 1];
       setAmbientEffect(nextMode);
-      const names: Record<AmbientEffectType, string> = {
-        petals: "🌸 Cánh hoa hồng rơi",
-        sparkles: "✨ Kim tuyến bụi vàng hoàng gia",
-        hearts: "💖 Trái tim tình yêu bay bổng",
-        confetti: "🎉 Pháo hoa chúc mừng",
-      };
-      setToastMessage(`Đã đổi: ${names[nextMode]}`);
+      const found = EFFECTS_CATALOG.find((e) => e.id === nextMode);
+      setToastMessage(`Đã đổi: ${found?.icon || "✨"} ${found?.name || nextMode}`);
     }
     setTimeout(() => setToastMessage(null), 2500);
     if (sfxEnabled) {
@@ -334,12 +340,10 @@ export default function ShowInvitationPage() {
           found.fixedModuleStyles = initCard.fixedModuleStyles;
         }
       }
+      // Hiển thị tức thì từ local cache trong lúc đồng bộ máy chủ
       setCard(found);
       setupCountdown(found);
-      if (found.nodes && Object.keys(found.nodes).length > 2) {
-        incrementCardViews(slug);
-        return;
-      }
+      incrementCardViews(slug);
     }
 
     // Thiết lập timeout an toàn: sau 5s nếu không tải được thiệp thì báo lỗi thân thiện thay vì xoay vô tận
@@ -356,6 +360,7 @@ export default function ShowInvitationPage() {
         clearTimeout(notFoundTimer);
         setCard(serverCard);
         setupCountdown(serverCard);
+        saveCard(serverCard);
         if (serverCard.nodes && Object.keys(serverCard.nodes).length > 2) {
           return;
         }
@@ -484,8 +489,10 @@ export default function ShowInvitationPage() {
                 showEvents: prev?.showEvents !== undefined ? prev.showEvents : true,
                 envelopeTheme: prev?.envelopeTheme,
                 ambientEffect: prev?.ambientEffect,
+                effectConfig: prev?.effectConfig,
                 loveStory: prev?.loveStory,
                 showCalendar: prev?.showCalendar,
+                showAlbum: prev?.showAlbum,
                 showLoveStory: prev?.showLoveStory,
                 fixedModuleStyles: prev?.fixedModuleStyles,
                 nodes,
@@ -572,6 +579,7 @@ export default function ShowInvitationPage() {
 
   // Guestbook & Personalization state (?to=... or ?guest=...)
   const [guestNameParam, setGuestNameParam] = useState<string>("");
+  const [guestTableParam, setGuestTableParam] = useState<string>("");
   const [isShareGuestModalOpen, setIsShareGuestModalOpen] = useState(false);
   const [customGuestInput, setCustomGuestInput] = useState("");
   const [copiedGuestLink, setCopiedGuestLink] = useState(false);
@@ -603,11 +611,15 @@ export default function ShowInvitationPage() {
         sp.get("khach") ||
         sp.get("k") ||
         "";
+      const table = sp.get("table") || sp.get("ban") || "";
       if (guest) {
         setGuestNameParam(guest);
         setRsvpName(guest);
         setGuestName(guest);
         setCustomGuestInput(guest);
+      }
+      if (table) {
+        setGuestTableParam(table);
       }
     }
   }, []);
@@ -797,8 +809,25 @@ export default function ShowInvitationPage() {
         }}
       />
 
-      {/* Universal Ambient Canvas Engine (Petals / Sparkles / Hearts / Confetti) */}
-      <FallingPetals density={ambientDensity} active={petalsEnabled} effectType={ambientEffect} />
+      {/* Universal Ambient Canvas Engine (Petals / Sparkles / Hearts / Confetti / 14 Rich Effects) */}
+      <FallingPetals
+        density={card?.effectConfig?.density ?? ambientDensity}
+        speed={card?.effectConfig?.speed}
+        size={card?.effectConfig?.size}
+        opacity={card?.effectConfig?.opacity}
+        direction={card?.effectConfig?.direction}
+        active={petalsEnabled}
+        effectType={ambientEffect}
+      />
+
+      {/* Cinematic Motion Graphics Overlay (Touch Sparkles, Light Leaks & Lens Flares) */}
+      <CinematicEffectsOverlay
+        enableTouchSparkles={card?.cinematicFx?.touchSparkles ?? true}
+        enableLightLeaks={card?.cinematicFx?.lightLeaks ?? true}
+        enableAmbientDust={card?.cinematicFx?.ambientDust ?? true}
+        intensity={card?.cinematicFx?.intensity ?? "normal"}
+        colorScheme={card?.cinematicFx?.colorScheme ?? "gold"}
+      />
 
       {/* Floating Vinyl Record Audio Player + SFX & Petals Toggle (Right) */}
       <div className="fixed top-3 right-3 sm:top-4 sm:right-4 z-40 flex items-center gap-1.5 sm:gap-2 select-none">
@@ -822,25 +851,13 @@ export default function ShowInvitationPage() {
           onClick={cycleAmbientEffect}
           className={`p-1.5 sm:p-2 rounded-full backdrop-blur-md border shadow-md transition-all ${
             petalsEnabled
-              ? ambientEffect === "sparkles"
-                ? "bg-amber-50 text-amber-600 border-amber-300 hover:bg-amber-100"
-                : ambientEffect === "hearts"
-                ? "bg-pink-50 text-pink-600 border-pink-300 hover:bg-pink-100"
-                : ambientEffect === "confetti"
-                ? "bg-purple-50 text-purple-600 border-purple-300 hover:bg-purple-100"
-                : "bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100"
+              ? "bg-rose-50 text-rose-600 border-rose-300 hover:bg-rose-100 shadow-rose-900/10"
               : "bg-white/80 text-gray-400 border-gray-200 hover:bg-white"
           }`}
           title={
             petalsEnabled
               ? `Hiệu ứng: ${
-                  ambientEffect === "sparkles"
-                    ? "Kim tuyến bụi vàng"
-                    : ambientEffect === "hearts"
-                    ? "Trái tim bay"
-                    : ambientEffect === "confetti"
-                    ? "Pháo hoa chúc mừng"
-                    : "Cánh hoa hồng rơi"
+                  EFFECTS_CATALOG.find((e) => e.id === ambientEffect)?.name || ambientEffect
                 } (Chạm để đổi kiểu)`
               : "Bật hiệu ứng hạt rơi"
           }
@@ -948,6 +965,7 @@ export default function ShowInvitationPage() {
         venue={card.events?.[0]?.venue || "Trung tâm tiệc cưới"}
         coverImage={card.coverImage}
         theme={card.envelopeTheme || "cream"}
+        customSealSymbol={card.cinematicFx?.sealSymbol}
       />
 
       {/* ================= MAIN MOBILE INVITATION CONTAINER ================= */}
@@ -961,9 +979,17 @@ export default function ShowInvitationPage() {
                 Trân trọng kính mời: <strong className="text-amber-300 font-serif text-sm">{guestNameParam}</strong>
               </span>
             </div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-amber-200/90 bg-black/30 px-2 py-0.5 rounded-full shrink-0">
-              Khách Quý
-            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {guestTableParam && (
+                <span className="text-[10px] font-bold text-amber-950 bg-amber-300 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1 shadow-2xs">
+                  <span>🍽️</span>
+                  <span>{guestTableParam}</span>
+                </span>
+              )}
+              <span className="text-[10px] uppercase font-bold tracking-widest text-amber-200/90 bg-black/30 px-2 py-0.5 rounded-full shrink-0">
+                Khách Quý
+              </span>
+            </div>
           </div>
         )}
         {/* Dynamic Nodes Canvas (Hiển thị đúng 100% bản vẽ tùy biến của người dùng) */}
@@ -1276,7 +1302,7 @@ export default function ShowInvitationPage() {
         )}
 
         {/* ================= WEDDING PHOTO GALLERY (Album ảnh cưới) ================= */}
-        {galleryPhotos.length > 0 && (
+        {card.showAlbum !== false && galleryPhotos.length > 0 && (
           <AnimatedReveal animation="fade-up" delay={100}>
             <section id="album-section" className="px-6 py-8 relative z-10 bg-white border-t border-amber-900/10">
               <div className="text-center mb-6">
@@ -1371,6 +1397,11 @@ export default function ShowInvitationPage() {
             </section>
           </AnimatedReveal>
         )}
+
+        {/* ================= GUEST PHOTO WALL (KHOẢNH KHẮC TỪ KHÁCH MỜI) ================= */}
+        <AnimatedReveal animation="fade-up">
+          <GuestPhotoWall slug={slug} initialGuestName={guestNameParam} />
+        </AnimatedReveal>
 
         {/* ================= RSVP FORM (Xác nhận tham dự) ================= */}
         {card.showRsvp !== false && (
@@ -1824,6 +1855,16 @@ export default function ShowInvitationPage() {
                 <h2 className="text-2xl font-cormorant font-bold text-[#511419] mt-1">
                   Gửi Lời Chúc Mừng
                 </h2>
+                <div className="mt-2.5 flex justify-center">
+                  <Link
+                    href={`/show/${slug}/live`}
+                    target="_blank"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-rose-100/90 hover:bg-rose-200 text-zen-primary text-[11px] font-bold transition-all shadow-2xs"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Màn hình LED trực tiếp tiệc cưới</span>
+                  </Link>
+                </div>
               </div>
 
               <form onSubmit={handleSendWish} className="space-y-3 mb-6">

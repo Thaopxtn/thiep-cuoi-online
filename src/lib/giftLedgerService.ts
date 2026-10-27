@@ -158,3 +158,137 @@ export function exportGiftLedgerToCsv(entries: GiftEntry[], cardName?: string): 
 
   return "\uFEFF" + headers + rows;
 }
+
+/* ==========================================================================
+   DỰ TOÁN CHI PHÍ & QUẢN TRỊ NGÂN SÁCH ĐÁM CƯỚI (WEDDING BUDGET PLANNER)
+   ========================================================================== */
+
+export type BudgetCategory =
+  | "venue"       // Tiệc cưới & Nhà hàng
+  | "decor"       // Trang trí hoa tươi & rạp cưới
+  | "outfit"      // Váy cưới & Vest chú rể
+  | "media"       // Quay phim & Chụp ảnh cưới
+  | "jewelry"     // Nhẫn cưới & Trang sức
+  | "invitation"  // In ấn thiệp & quà cảm ơn
+  | "other";      // Chi phí khác
+
+export interface BudgetItem {
+  id: string;
+  cardId: string;
+  category: BudgetCategory;
+  title: string;
+  estimatedCost: number;
+  actualCost: number;
+  isPaid: boolean;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface BudgetStats {
+  totalEstimated: number;
+  totalActual: number;
+  totalPaid: number;
+  totalRemaining: number;
+}
+
+const BUDGET_STORAGE_PREFIX = "zenlove_budget_planner_";
+
+export const BUDGET_CATEGORIES: { id: BudgetCategory; label: string; icon: string }[] = [
+  { id: "venue", label: "Tiệc cưới & Nhà hàng", icon: "🍽️" },
+  { id: "decor", label: "Trang trí & Hoa tươi", icon: "💐" },
+  { id: "outfit", label: "Váy cưới & Trang phục", icon: "👗" },
+  { id: "media", label: "Quay phim & Chụp ảnh", icon: "📸" },
+  { id: "jewelry", label: "Nhẫn cưới & Trang sức", icon: "💍" },
+  { id: "invitation", label: "Thiệp cưới & Quà tặng", icon: "💌" },
+  { id: "other", label: "Chi phí dự phòng / Khác", icon: "🏷️" },
+];
+
+export function getBudgetItems(cardId: string): BudgetItem[] {
+  if (typeof window === "undefined" || !cardId) return [];
+  try {
+    const raw = localStorage.getItem(`${BUDGET_STORAGE_PREFIX}${cardId}`);
+    if (raw) return JSON.parse(raw);
+  } catch (err) {
+    console.error("Lỗi đọc danh sách ngân sách:", err);
+  }
+  return [];
+}
+
+export function saveBudgetItems(cardId: string, items: BudgetItem[]): boolean {
+  if (typeof window === "undefined" || !cardId) return false;
+  try {
+    localStorage.setItem(`${BUDGET_STORAGE_PREFIX}${cardId}`, JSON.stringify(items));
+    return true;
+  } catch (err) {
+    console.error("Lỗi lưu ngân sách:", err);
+    return false;
+  }
+}
+
+export function addBudgetItem(
+  cardId: string,
+  item: Omit<BudgetItem, "id" | "cardId" | "createdAt">
+): BudgetItem {
+  const current = getBudgetItems(cardId);
+  const newItem: BudgetItem = {
+    ...item,
+    id: `bdg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    cardId,
+    createdAt: new Date().toISOString(),
+  };
+
+  const updated = [newItem, ...current];
+  saveBudgetItems(cardId, updated);
+  return newItem;
+}
+
+export function updateBudgetItem(
+  cardId: string,
+  itemId: string,
+  updates: Partial<Omit<BudgetItem, "id" | "cardId" | "createdAt">>
+): boolean {
+  const current = getBudgetItems(cardId);
+  let updatedItem = false;
+  const updated = current.map((item) => {
+    if (item.id === itemId) {
+      updatedItem = true;
+      return { ...item, ...updates };
+    }
+    return item;
+  });
+
+  if (updatedItem) {
+    saveBudgetItems(cardId, updated);
+  }
+  return updatedItem;
+}
+
+export function deleteBudgetItem(cardId: string, itemId: string): boolean {
+  const current = getBudgetItems(cardId);
+  const updated = current.filter((item) => item.id !== itemId);
+  if (updated.length !== current.length) {
+    saveBudgetItems(cardId, updated);
+    return true;
+  }
+  return false;
+}
+
+export function calculateBudgetStats(items: BudgetItem[]): BudgetStats {
+  return items.reduce(
+    (acc, item) => {
+      acc.totalEstimated += item.estimatedCost || 0;
+      acc.totalActual += item.actualCost || 0;
+      if (item.isPaid) {
+        acc.totalPaid += item.actualCost || item.estimatedCost || 0;
+      }
+      return acc;
+    },
+    {
+      totalEstimated: 0,
+      totalActual: 0,
+      totalPaid: 0,
+      totalRemaining: 0,
+    }
+  );
+}
+

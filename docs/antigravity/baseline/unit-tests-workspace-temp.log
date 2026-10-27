@@ -1,0 +1,41 @@
+
+> thiep-cuoi-zenlove@1.0.0 test
+> vitest run --no-file-parallelism
+
+
+ RUN  v5.0.3 D:/luufilelaptrinh/thiepcuoiba
+
+ ❯ src/lib/__tests__/securityAndAuth.test.ts (16 tests | 1 failed) 27ms
+   ❯ Security Utilities - SSRF Protection & URL Sanitization (6)
+     × xác thực bất đồng bộ DNS resolution ngăn chặn SSRF và DNS Rebinding 15ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/securityAndAuth.test.ts > Security Utilities - SSRF Protection & URL Sanitization > xác thực bất đồng bộ DNS resolution ngăn chặn SSRF và DNS Rebinding
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/__tests__/securityAndAuth.test.ts:68:64
+     66|     expect(await isSafeExternalUrlAsync("http://localhost:3000")).toBe…
+     67|     // Domain công khai hợp lệ
+     68|     expect(await isSafeExternalUrlAsync("https://google.com")).toBe(tr…
+       |                                                                ^
+     69|   }, 15000);
+     70|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 30 passed (31)
+      Tests  1 failed | 231 passed (232)
+   Start at  01:28:27
+   Duration  6.94s (import 35%, transform 31%, tests 18%, worker 16%)
+
+    Isolate  31 workers spawned · ~141ms startup each (spawn + environment, per file)
+             at least ~4.23s faster with isolate: false — reuses workers across files instead of one per file
+

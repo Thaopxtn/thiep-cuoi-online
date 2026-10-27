@@ -10,7 +10,8 @@
     "test": "vitest run --no-file-parallelism",
     "test:watch": "vitest",
     "test:e2e": "node scripts/e2e-check.mjs",
-    "test:all": "node scripts/test-all-qa.mjs"
+    "test:all": "node scripts/test-all-qa.mjs",
+    "backup": "node scripts/backup-db.mjs"
   },
   "dependencies": {
     "@imgly/background-removal": "1.7.0",

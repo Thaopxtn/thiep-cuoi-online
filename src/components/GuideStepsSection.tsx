@@ -2,221 +2,176 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { LayoutTemplate, Edit3, Send, Play, X, ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { LayoutTemplate, Edit3, Send, Play, X, ArrowRight, Check } from "lucide-react";
+import Section from "@/components/ui/Section";
+import SectionHeading from "@/components/ui/SectionHeading";
+import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
+
+const steps = [
+  {
+    step: "01",
+    icon: LayoutTemplate,
+    title: "Chọn mẫu thiệp ưng ý",
+    description: "Khám phá kho mẫu phong phú được phân loại theo phong cách, tone màu và chủ đề. Xem trước giao diện thực tế trên di động.",
+    highlight: "207+ Mẫu có sẵn",
+  },
+  {
+    step: "02",
+    icon: Edit3,
+    title: "Cá nhân hóa nội dung",
+    description: "Tải ảnh cưới, thay đổi thông tin cô dâu chú rể, địa điểm tổ chức kèm Google Maps và số tài khoản nhận mừng VietQR.",
+    highlight: "Trình biên tập kéo thả",
+  },
+  {
+    step: "03",
+    icon: Send,
+    title: "Gửi thiệp & Theo dõi RSVP",
+    description: "Nhận đường link thiệp riêng biệt để chia sẻ qua Zalo, Messenger. Khách xác nhận tham dự sẽ được cập nhật thời gian thực.",
+    highlight: "Tự động thống kê",
+  },
+];
 
 export default function GuideStepsSection() {
   const [videoOpen, setVideoOpen] = useState(false);
 
   return (
-    <section
+    <Section
       id="create-page-10min"
-      className="py-10 md:py-12 bg-white"
-      role="region"
-      aria-labelledby="create-page-10min-title"
+      bg="white"
+      padding="lg"
+      ariaLabel="Hướng dẫn tạo thiệp trong 10 phút"
     >
-      <div className="max-w-7xl mx-auto px-4 md:px-0">
-        <div className="slide-up text-center mb-6 md:mb-12">
-          <h2
-            id="create-page-10min-title"
-            className="text-2xl md:text-4xl text-gray-900 font-heading mb-2"
-          >
-            Tạo thiệp cưới online trong{" "}
-            <span className="text-primary font-signature font-bold text-3xl md:text-5xl">
-              10 phút
-            </span>
-          </h2>
-          <p className="text-sm md:text-lg text-gray-500">
-            Dễ dàng thao tác · Kho mẫu đa dạng, cập nhật liên tục
-          </p>
-        </div>
+      <AnimateOnScroll animation="fade-up">
+        <SectionHeading
+          eyebrow="Đơn giản &amp; Nhanh chóng"
+          title={
+            <>
+              Tạo thiệp cưới online chỉ trong{" "}
+              <span className="font-signature font-bold text-zen-primary text-4xl sm:text-5xl lg:text-6xl">
+                10 phút
+              </span>
+            </>
+          }
+          description="Quy trình 3 bước trực quan giúp bất kỳ ai cũng có thể tự tay tạo nên tấm thiệp cưới hoàn hảo mà không cần kỹ năng thiết kế."
+        />
+      </AnimateOnScroll>
 
-        {/* Mobile Horizontal Stepper */}
-        <div className="slide-up md:hidden flex justify-center items-start gap-2 mb-8 px-2">
-          <div className="flex flex-col items-center flex-1 relative">
-            <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center mb-2 z-10 shadow-sm">
-              <LayoutTemplate className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-gray-900 text-center">
-              Chọn mẫu
-            </span>
-            <span className="text-xs text-gray-500 text-center mt-0.5">
-              Chọn thiệp yêu thích
-            </span>
-            <div className="absolute top-5 left-[60%] w-[80%] h-0.5 bg-primary/30"></div>
-          </div>
-          <div className="flex flex-col items-center flex-1 relative">
-            <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center mb-2 z-10 shadow-sm">
-              <Edit3 className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-gray-900 text-center">
-              Tùy chỉnh
-            </span>
-            <span className="text-xs text-gray-500 text-center mt-0.5">
-              Thêm ảnh và nội dung
-            </span>
-            <div className="absolute top-5 left-[60%] w-[80%] h-0.5 bg-primary/30"></div>
-          </div>
-          <div className="flex flex-col items-center flex-1 relative">
-            <div className="w-10 h-10 bg-primary text-white rounded-full flex items-center justify-center mb-2 z-10 shadow-sm">
-              <Send className="w-4 h-4" />
-            </div>
-            <span className="text-xs font-bold text-gray-900 text-center">
-              Gửi thiệp
-            </span>
-            <span className="text-xs text-gray-500 text-center mt-0.5">
-              Gửi qua Zalo, FB
-            </span>
-          </div>
-        </div>
-
-        {/* Desktop Vertical Stepper + Video */}
-        <div className="slide-up hidden md:flex md:justify-center gap-12 max-w-4xl mx-auto mb-10">
-          <div className="relative flex flex-col justify-between flex-1 max-w-md py-2">
-            <div className="absolute top-6 bottom-6 left-6 w-0.5 -translate-x-1/2 bg-primary/20"></div>
-
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                <LayoutTemplate className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="text-xs font-bold text-primary mb-0.5 uppercase tracking-wider">
-                  Bước 1
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 font-heading">
-                  Chọn mẫu
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Kho mẫu đa dạng, cập nhật liên tục với nhiều chủ đề và phong
-                  cách khác nhau.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                <Edit3 className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="text-xs font-bold text-primary mb-0.5 uppercase tracking-wider">
-                  Bước 2
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 font-heading">
-                  Cá nhân hóa
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Tùy chỉnh ảnh và nội dung dễ dàng với giao diện trực quan, thân
-                  thiện với người dùng.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-4 relative z-10">
-              <div className="w-12 h-12 bg-primary text-white rounded-full flex items-center justify-center shrink-0 shadow-sm">
-                <Send className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                <div className="text-xs font-bold text-primary mb-0.5 uppercase tracking-wider">
-                  Bước 3
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 font-heading">
-                  Gửi thiệp
-                </h3>
-                <p className="text-gray-600 text-sm">
-                  Chia sẻ qua Zalo, Messenger ngay lập tức mà không cần tải về,
-                  đảm bảo thiệp đến tay khách mời nhanh chóng và tiện lợi.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Desktop Video Frame */}
-          <div className="w-[300px] shrink-0">
-            <div className="relative w-full" style={{ paddingBottom: "177%" }}>
-              <button
-                type="button"
-                onClick={() => setVideoOpen(true)}
-                className="absolute top-0 left-0 w-full h-full rounded-2xl shadow-xl group overflow-hidden bg-black focus:outline-none focus:ring-4 focus:ring-primary/25 border-2 border-rose-100"
-                aria-label="Phát video: Hướng dẫn tạo thiệp cưới trên ZenLove"
+      {/* Responsive layout: Steps + Video */}
+      <div className="mt-14 grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+        {/* Steps Column */}
+        <div className="space-y-4 sm:space-y-5">
+          {steps.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <AnimateOnScroll
+                key={item.step}
+                animation="fade-up"
+                delay={index * 120}
               >
-                <img
-                  src="/assets/landing/thumbnai-10min-home.webp"
-                  alt="Hướng dẫn tạo thiệp cưới trên ZenLove"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <span className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/10"></span>
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-primary shadow-xl transition-transform group-hover:scale-110">
-                    <Play className="w-6 h-6 fill-current ml-0.5 text-zen-primary" />
-                  </span>
-                </span>
-              </button>
-            </div>
-          </div>
+                <div className="group relative flex items-start gap-4 sm:gap-5 rounded-2xl sm:rounded-3xl border border-gray-100 bg-[#fafafa]/80 p-5 sm:p-6 transition-all duration-300 hover:bg-white hover:border-rose-100 hover:shadow-[0_12px_32px_rgba(229,65,83,0.06)] hover:-translate-y-0.5">
+                  {/* Step Number & Icon */}
+                  <div className="flex size-13 sm:size-14 shrink-0 flex-col items-center justify-center rounded-2xl bg-gradient-to-br from-rose-50 to-pink-50 border border-rose-100/70 text-zen-primary shadow-2xs group-hover:scale-105 transition-transform">
+                    <Icon className="size-6 text-zen-primary" />
+                    <span className="text-[10px] font-black tracking-widest text-zen-primary/70 uppercase mt-0.5">
+                      {item.step}
+                    </span>
+                  </div>
+
+                  {/* Step Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h3 className="font-heading text-lg sm:text-xl font-bold text-gray-900 group-hover:text-zen-primary transition-colors">
+                        {item.title}
+                      </h3>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-semibold text-zen-primary">
+                        <Check className="size-3" />
+                        {item.highlight}
+                      </span>
+                    </div>
+                    <p className="text-sm leading-relaxed text-gray-600">
+                      {item.description}
+                    </p>
+                  </div>
+                </div>
+              </AnimateOnScroll>
+            );
+          })}
         </div>
 
-        {/* Mobile Video Frame */}
-        <div className="slide-up flex justify-center mb-8 md:hidden">
-          <div className="w-full max-w-[280px]">
-            <div className="relative w-full" style={{ paddingBottom: "177%" }}>
+        {/* Video Card (Unified Responsive) */}
+        <AnimateOnScroll animation="fade-left" delay={200} className="flex justify-center">
+          <div className="relative w-full max-w-[340px] sm:max-w-[380px]">
+            {/* Decorative background glow */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-rose-400/20 via-pink-400/20 to-amber-300/20 rounded-[2.5rem] blur-xl opacity-70 group-hover:opacity-100 transition-opacity" />
+
+            <div className="relative aspect-[9/16] max-h-[520px] w-full overflow-hidden rounded-[2rem] border-4 border-white bg-slate-900 shadow-2xl">
+              <Image
+                src="/assets/landing/thumbnai-10min-home.webp"
+                alt="Video hướng dẫn tạo thiệp cưới trên ZenLove"
+                fill
+                sizes="(max-width: 768px) 340px, 380px"
+                className="object-cover transition-transform duration-700 hover:scale-105"
+                priority={false}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-black/30 pointer-events-none" />
+
+              {/* Play Button Trigger */}
               <button
                 type="button"
                 onClick={() => setVideoOpen(true)}
-                className="absolute top-0 left-0 w-full h-full rounded-xl shadow-lg group overflow-hidden bg-black focus:outline-none focus:ring-4 focus:ring-primary/25"
+                className="group/btn absolute inset-0 flex flex-col items-center justify-center p-6 text-center focus:outline-none cursor-pointer"
                 aria-label="Phát video hướng dẫn"
               >
-                <img
-                  src="/assets/landing/thumbnai-10min-home.webp"
-                  alt="Hướng dẫn tạo thiệp cưới"
-                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                />
-                <span className="absolute inset-0 bg-black/20"></span>
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-primary shadow-lg">
-                    <Play className="w-5 h-5 fill-current ml-0.5 text-zen-primary" />
-                  </span>
-                </span>
+                <div className="flex size-16 sm:size-18 items-center justify-center rounded-full bg-white/95 text-zen-primary shadow-[0_8px_30px_rgba(0,0,0,0.3)] backdrop-blur-sm transition-all duration-300 group-hover/btn:scale-115 group-hover/btn:bg-white group-hover/btn:shadow-[0_12px_40px_rgba(229,65,83,0.5)]">
+                  <Play className="size-7 fill-current ml-1 text-zen-primary" />
+                </div>
+                <div className="mt-4 text-white">
+                  <p className="text-sm sm:text-base font-bold drop-shadow-md">
+                    Xem video hướng dẫn thực tế
+                  </p>
+                  <p className="text-xs text-white/80 mt-1">
+                    Thời lượng: 3 phút · Thao tác chi tiết
+                  </p>
+                </div>
               </button>
             </div>
           </div>
-        </div>
+        </AnimateOnScroll>
+      </div>
 
-        {/* Buttons */}
-        <div className="slide-up text-center">
+      {/* Action Buttons */}
+      <AnimateOnScroll animation="fade-up" delay={300}>
+        <div className="mt-12 text-center flex flex-col items-center justify-center gap-2">
           <Link
-            className="inline-flex items-center gap-1.5 !bg-zen-primary text-white hover:text-white px-8 py-3 rounded-full font-bold shadow-md transition-all duration-300 hover:scale-105 hover:bg-[#d93849]"
-            title="Tạo thiệp cưới online ngay trên Zenlove"
-            aria-label="Tạo thiệp cưới online ngay trên Zenlove"
+            className="group inline-flex items-center gap-2 bg-zen-primary hover:bg-[#d93849] text-white px-9 py-3.5 rounded-full font-bold shadow-[0_10px_28px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(229,65,83,0.4)]"
+            title="Bắt đầu tạo thiệp cưới online ngay trên Zenlove"
+            aria-label="Bắt đầu tạo thiệp cưới online ngay trên Zenlove"
             href="/templates"
           >
-            <span>Bắt đầu tạo thiệp</span>
-            <ArrowRight className="w-4 h-4 ml-0.5" />
+            <span>Bắt đầu tạo thiệp của bạn</span>
+            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
           </Link>
-        </div>
-
-        <div className="text-center mt-2.5">
           <Link
-            className="text-sm text-gray-500 italic hover:text-primary transition-colors underline-offset-4 hover:underline"
-            title="Xem hướng dẫn chi tiết tạo thiệp trên ZenLove"
-            aria-label="Xem hướng dẫn chi tiết tạo thiệp trên ZenLove"
+            className="text-xs sm:text-sm text-gray-500 hover:text-zen-primary transition-colors underline-offset-4 hover:underline mt-1"
+            title="Xem bài viết cẩm nang hướng dẫn chi tiết"
             href="/tao-thiep-cuoi-online"
           >
-            Xem hướng dẫn chi tiết
+            Đọc bài viết hướng dẫn chi tiết từng bước →
           </Link>
         </div>
-      </div>
+      </AnimateOnScroll>
 
       {/* Video Modal */}
       {videoOpen && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4">
-          <div className="relative w-full max-w-3xl aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="relative w-full max-w-3xl aspect-video bg-black rounded-3xl overflow-hidden shadow-2xl border border-white/10 animate-scale-up">
             <button
               onClick={() => setVideoOpen(false)}
-              className="absolute top-4 right-4 z-20 text-white bg-black/50 hover:bg-black/80 rounded-full p-2"
+              className="absolute top-4 right-4 z-20 text-white bg-black/60 hover:bg-black/90 rounded-full p-2.5 transition-colors cursor-pointer"
               aria-label="Đóng video"
             >
-              <X className="w-6 h-6" />
+              <X className="w-5 h-5" />
             </button>
             <iframe
               src="https://www.youtube.com/embed/X1Hsga9kzDQ?autoplay=1"
@@ -228,6 +183,6 @@ export default function GuideStepsSection() {
           </div>
         </div>
       )}
-    </section>
+    </Section>
   );
 }

@@ -66,7 +66,7 @@ describe("Security Utilities - SSRF Protection & URL Sanitization", () => {
     expect(await isSafeExternalUrlAsync("http://localhost:3000")).toBe(false);
     // Domain công khai hợp lệ
     expect(await isSafeExternalUrlAsync("https://google.com")).toBe(true);
-  });
+  }, 15000);
 
   it("triệt tiêu lỗ hổng CSV Formula Injection bằng cách escape tiền tố nguy hiểm", () => {
     expect(sanitizeCsvField("=SUM(A1:A10)")).toBe("\"'=SUM(A1:A10)\"");

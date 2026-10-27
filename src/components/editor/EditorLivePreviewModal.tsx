@@ -12,6 +12,10 @@ import {
   Share2,
 } from "lucide-react";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
+import EditorFixedModulesCanvas from "@/components/editor/EditorFixedModulesCanvas";
+import FallingPetals from "@/components/FallingPetals";
+import CinematicEffectsOverlay from "@/components/show/CinematicEffectsOverlay";
+import { WeddingCard } from "@/data/initialCards";
 
 interface EditorLivePreviewModalProps {
   isOpen: boolean;
@@ -19,6 +23,7 @@ interface EditorLivePreviewModalProps {
   nodes: Record<string, any>;
   templateName: string;
   slugOrId: string;
+  card?: WeddingCard | null;
 }
 
 export default function EditorLivePreviewModal({
@@ -27,13 +32,15 @@ export default function EditorLivePreviewModal({
   nodes,
   templateName,
   slugOrId,
+  card,
 }: EditorLivePreviewModalProps) {
   const [copied, setCopied] = useState(false);
   const [showQr, setShowQr] = useState(false);
 
   const origin =
     typeof window !== "undefined" ? window.location.origin : "http://localhost:3005";
-  const liveShowUrl = `${origin}/show/${slugOrId}`;
+  const previewSlug = card?.slug || slugOrId;
+  const liveShowUrl = `${origin}/show/${previewSlug}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(liveShowUrl)}`;
 
   useEffect(() => {
@@ -91,7 +98,25 @@ export default function EditorLivePreviewModal({
 
               {/* Scrollable Canvas Render (Exact User Edits) */}
               <div className="flex-1 overflow-y-auto scroll-smooth [scrollbar-width:none] relative bg-white">
+                {card && (card.ambientEffect || card.effectConfig?.type) && (
+                  <FallingPetals
+                    effectType={(card.ambientEffect || card.effectConfig?.type || "petals") as any}
+                    isContainerRelative={true}
+                  />
+                )}
+                {card?.cinematicFx?.enabled && (
+                  <CinematicEffectsOverlay
+                    enableTouchSparkles={card.cinematicFx.touchSparkles}
+                    enableLightLeaks={card.cinematicFx.lightLeaks}
+                    enableAmbientDust={card.cinematicFx.ambientDust}
+                    intensity={card.cinematicFx.intensity}
+                    colorScheme={card.cinematicFx.colorScheme}
+                  />
+                )}
                 <CardNodeRenderer nodes={nodes} />
+                {card && (
+                  <EditorFixedModulesCanvas card={card} readOnly={true} />
+                )}
               </div>
             </div>
           </div>

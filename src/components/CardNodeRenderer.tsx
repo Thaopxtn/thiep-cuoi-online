@@ -29,6 +29,7 @@ import { weddingSounds } from "@/lib/soundEffects";
 import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getSafeMapUrl, getGiftQrUrl } from "@/lib/moduleHelpers";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
+import PhotoBoxFrameRenderer from "@/components/PhotoBoxFrameRenderer";
 
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
@@ -393,42 +394,13 @@ export default function CardNodeRenderer({
               hoverClass={hoverClass}
               continuousClass={animClass}
             >
-              {/* Photo Box */}
-              {type === "PhotoBox" && props.imgKey && (
-                <div
-                  className="w-full h-full overflow-hidden"
-                  style={{
-                    borderRadius: props.borderRadius
-                      ? Array.isArray(props.borderRadius)
-                        ? `${props.borderRadius[0]}px`
-                        : `${props.borderRadius}px`
-                      : "0px",
-                    border: props.borderSize
-                      ? `${props.borderSize}px ${props.borderStyle || "solid"} ${props.borderColor || "#ffffff"}`
-                      : undefined,
-                    boxShadow: props.hasBoxShadow
-                      ? `${props.boxShadow?.offsetX || 0}px ${props.boxShadow?.offsetY || 4}px ${props.boxShadow?.blur || 10}px ${props.boxShadow?.color || "rgba(0,0,0,0.15)"}`
-                      : undefined,
-                    transform: `scaleX(${props.flipX ? -1 : 1}) scaleY(${props.flipY ? -1 : 1})`,
-                  }}
-                >
-                  <img
-                    src={getImageUrl(props.imgKey)}
-                    alt={props.alt || ""}
-                    onError={(e) =>
-                      handleImageFallback(
-                        e,
-                        undefined,
-                        !props.isReplaceable || isDecorativeAsset(props.imgKey)
-                      )
-                    }
-                    className="w-full h-full object-cover select-none pointer-events-none"
-                    style={{
-                      filter: props.filterStyle || undefined,
-                    }}
-                    draggable={false}
-                  />
-                </div>
+              {/* Photo Box with Canva-Style Artistic Wedding Frames */}
+              {type === "PhotoBox" && (props.imgKey || props.src) && (
+                <PhotoBoxFrameRenderer
+                  props={props}
+                  getImageUrl={getImageUrl}
+                  isEditor={false}
+                />
               )}
 
               {/* Text Box & Specialized Modules */}
@@ -440,6 +412,8 @@ export default function CardNodeRenderer({
                 type === "BankCardBox") && (
                 <div
                   className={`w-full h-full select-none ${
+                    props.goldFoil ? "gold-foil-shimmer" : ""
+                  } ${
                     props.fontFamily && props.fontFamily.startsWith("font-")
                       ? props.fontFamily
                       : ""

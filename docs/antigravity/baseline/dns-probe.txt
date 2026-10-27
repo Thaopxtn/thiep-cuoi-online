@@ -1,0 +1,5 @@
+Date: 2026-10-27 (Asia/Bangkok handoff date)
+Command: node -e 'require("node:dns").promises.lookup("google.com", {all:true}).then(result => console.log("DNS_LOOKUP_OK", result.length)).catch(error => { console.log("DNS_LOOKUP_FAILED", error.code); process.exitCode = 1; })'
+Observed stdout: DNS_LOOKUP_FAILED ENOTFOUND
+Exit code of the node process: 1
+No application source or DNS security behavior was changed.

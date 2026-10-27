@@ -14,6 +14,7 @@ import {
   Smartphone,
   ChevronUp,
   Sliders,
+  Shield,
 } from "lucide-react";
 
 export interface BottomBarProps {
@@ -29,6 +30,9 @@ export interface BottomBarProps {
   onToggleSnapping: () => void;
   onOpenPreview: () => void;
   onOpenShortcuts: () => void;
+  isAntiOverlapEnabled?: boolean;
+  onToggleAntiOverlap?: () => void;
+  onAutoArrangeBlocks?: () => void;
 }
 
 const ZOOM_PRESETS = [
@@ -53,6 +57,9 @@ export default function EditorBottomBar({
   onToggleSnapping,
   onOpenPreview,
   onOpenShortcuts,
+  isAntiOverlapEnabled,
+  onToggleAntiOverlap,
+  onAutoArrangeBlocks,
 }: BottomBarProps) {
   const [isZoomMenuOpen, setIsZoomMenuOpen] = useState(false);
   const zoomMenuRef = useRef<HTMLDivElement>(null);
@@ -71,16 +78,16 @@ export default function EditorBottomBar({
 
   return (
     <footer
-      className="fixed bottom-16 sm:bottom-4 right-2 sm:right-4 z-30 flex items-center gap-1.5 sm:gap-2 select-none pointer-events-auto"
+      className="fixed bottom-16 sm:bottom-4 right-2 sm:right-4 lg:right-[340px] z-30 hidden sm:flex items-center gap-1.5 sm:gap-2 select-none pointer-events-auto"
       onClick={(e) => e.stopPropagation()}
     >
       {/* ================= CANVA BOTTOM TOOLBAR PILL ================= */}
-      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 px-3 py-1.5 flex items-center gap-2.5 text-xs text-gray-700">
-        {/* Toggle Lưới Blueprint Grid */}
+      <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 px-2 sm:px-3 py-1.5 flex items-center gap-1.5 sm:gap-2.5 text-xs text-gray-700">
+        {/* Toggle Lưới Blueprint Grid (Desktop only) */}
         <button
           type="button"
           onClick={onToggleGrid}
-          className={`p-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+          className={`hidden sm:flex p-1.5 rounded-xl transition-all cursor-pointer items-center gap-1 ${
             isGridVisible
               ? "bg-rose-50 text-[#e54153] font-bold"
               : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
@@ -91,11 +98,11 @@ export default function EditorBottomBar({
           <span className="hidden sm:inline text-[11px]">Lưới</span>
         </button>
 
-        {/* Toggle Nam châm Smart Snap */}
+        {/* Toggle Nam châm Smart Snap (Desktop only) */}
         <button
           type="button"
           onClick={onToggleSnapping}
-          className={`p-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+          className={`hidden sm:flex p-1.5 rounded-xl transition-all cursor-pointer items-center gap-1 ${
             isSnappingEnabled
               ? "bg-rose-50 text-[#e54153] font-bold"
               : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
@@ -106,10 +113,51 @@ export default function EditorBottomBar({
           <span className="hidden sm:inline text-[11px]">Bắt dính</span>
         </button>
 
-        <div className="w-px h-4 bg-gray-200" />
+        {/* Toggle Chống đè khối (Desktop only) */}
+        {onToggleAntiOverlap && (
+          <button
+            type="button"
+            onClick={onToggleAntiOverlap}
+            className={`hidden sm:flex p-1.5 rounded-xl transition-all cursor-pointer items-center gap-1 ${
+              isAntiOverlapEnabled
+                ? "bg-rose-50 text-[#e54153] font-bold"
+                : "hover:bg-gray-100 text-gray-500 hover:text-gray-800"
+            }`}
+            title={isAntiOverlapEnabled ? "Tự động chống đè khối: Đang BẬT" : "Tự động chống đè khối: Đang TẮT"}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline text-[11px]">Chống đè</span>
+          </button>
+        )}
+
+        {/* Nút Tự động giãn cách đều các khối */}
+        {onAutoArrangeBlocks && (
+          <button
+            type="button"
+            onClick={onAutoArrangeBlocks}
+            className="hidden sm:flex p-1.5 rounded-xl transition-all cursor-pointer items-center gap-1 bg-amber-50/80 hover:bg-amber-100 text-amber-800 font-bold border border-amber-200/70"
+            title="Tự động giãn cách đều và chống đè tất cả các khối (Auto-Arrange)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span className="hidden sm:inline text-[11px]">Giãn cách đều</span>
+          </button>
+        )}
+
+        <div className="hidden sm:block w-px h-4 bg-gray-200" />
+
+        {/* Nút Vừa màn hình nhanh trên Mobile */}
+        <button
+          type="button"
+          onClick={onFitToScreen}
+          className="sm:hidden p-1.5 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 flex items-center gap-1 text-[11px] font-semibold"
+          title="Tự động căn vừa màn hình"
+        >
+          <Maximize2 className="w-3.5 h-3.5 text-gray-500" />
+          <span>Vừa</span>
+        </button>
 
         {/* Zoom Controls: [-] Slider [+] */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             type="button"
             onClick={onZoomOut}
@@ -119,7 +167,7 @@ export default function EditorBottomBar({
             <Minus className="w-3 h-3 stroke-[2.5]" />
           </button>
 
-          {/* Zoom Slider */}
+          {/* Zoom Slider (Desktop only) */}
           <input
             type="range"
             min="40"
@@ -127,7 +175,7 @@ export default function EditorBottomBar({
             step="5"
             value={zoomPercent}
             onChange={(e) => onSetZoom(parseInt(e.target.value) / 100)}
-            className="w-16 sm:w-20 accent-[#e54153] cursor-pointer h-1 bg-gray-200 rounded-lg appearance-none"
+            className="hidden sm:block w-16 sm:w-20 accent-[#e54153] cursor-pointer h-1 bg-gray-200 rounded-lg appearance-none"
             title={`Phóng to/thu nhỏ: ${zoomPercent}%`}
           />
 

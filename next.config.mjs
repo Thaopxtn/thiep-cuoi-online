@@ -90,12 +90,6 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config, { dev }) => {
-    if (dev) {
-      config.cache = false;
-    }
-    return config;
-  },
   experimental: {
     cpus: 1,
     workerThreads: false,

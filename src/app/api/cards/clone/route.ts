@@ -150,6 +150,15 @@ export async function POST(request: NextRequest) {
     musicUrl = extracted.musicUrl || musicUrl;
     musicTitle = extracted.musicTitle || musicTitle;
 
+    if (!parsedNodes && meta) {
+      parsedNodes = convertFormTemplateToCanvasNodes(meta, {
+        id: meta.id || templateId,
+        name: meta.name,
+        imageUrl: coverImage,
+        slug: meta.slug || templateSlug,
+      });
+    }
+
     // 3.1. Tự động chuyển đổi nếu là mẫu dạng FORM sang cây Craft.js Canvas
     if (parsedNodes && !parsedNodes.ROOT) {
       parsedNodes = convertFormTemplateToCanvasNodes(parsedNodes, {

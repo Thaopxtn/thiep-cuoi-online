@@ -212,16 +212,20 @@ export default function EditorPublishModal({
           slug: formatted,
           status: "published",
         };
-        saveCard(updatedCard);
 
         // Đồng bộ lên API nếu card đã có id
         if (card.id) {
-          await apiFetch(`/api/cards/${card.id}`, {
+          const res = await apiFetch(`/api/cards/${card.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(updatedCard),
-          }).catch((err) => console.warn("Lỗi đồng bộ slug lên server:", err));
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.message || "Không thể cập nhật đường dẫn trên máy chủ");
+          }
         }
+        saveCard(updatedCard);
       }
 
       if (onSlugUpdated) {
@@ -244,13 +248,6 @@ export default function EditorPublishModal({
         status: "published",
       };
       saveCard(updatedCard);
-      if (card.id) {
-        apiFetch(`/api/cards/${card.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedCard),
-        }).catch(() => {});
-      }
     }
   };
 

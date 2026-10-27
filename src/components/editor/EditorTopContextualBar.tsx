@@ -541,6 +541,21 @@ export default function EditorTopContextualBar({
             >
               <AlignRight className="w-3.5 h-3.5" />
             </button>
+
+            {/* Gold Foil Shimmer Toggle */}
+            <button
+              type="button"
+              onClick={() => onUpdateProps(id, { goldFoil: !props.goldFoil })}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg border transition-all cursor-pointer ${
+                props.goldFoil
+                  ? "bg-gradient-to-r from-amber-500 to-yellow-500 text-white border-amber-500 shadow-xs font-bold"
+                  : "bg-amber-50/80 hover:bg-amber-100/80 text-amber-800 border-amber-300/80"
+              }`}
+              title="Kỹ xảo Dát vàng ánh kim lấp lánh (Gold Foil Shimmer)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="text-[11px] font-bold">Dát vàng</span>
+            </button>
           </div>
         </>
       )}

@@ -12,7 +12,9 @@ import {
   SlidersHorizontal,
   ChevronDown,
   Heart,
+  Zap,
 } from "lucide-react";
+import QuickCreateWizardModal from "@/components/templates/QuickCreateWizardModal";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import FloatingSupport from "@/components/FloatingSupport";
@@ -58,6 +60,7 @@ function TemplatesPageContent() {
   const [previewTemplate, setPreviewTemplate] = useState<ZenLoveTemplate | null>(null);
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
+  const [isQuickWizardOpen, setIsQuickWizardOpen] = useState(false);
 
   // Sync favorites on mount and on storage events
   useEffect(() => {
@@ -263,6 +266,15 @@ function TemplatesPageContent() {
 
           {/* Quick Studio Action Buttons */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setIsQuickWizardOpen(true)}
+              className="px-4 py-2 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs sm:text-sm font-bold shadow-md shadow-amber-500/25 transition-all hover:scale-105 flex items-center gap-1.5 cursor-pointer"
+            >
+              <Zap className="w-3.5 h-3.5 fill-white text-white" />
+              <span>⚡ Tạo Nhanh 3 Phút (Mobile)</span>
+            </button>
+
             <Link
               href="/design-template/8c5055d8-30db-4b38-8831-e11063e3d352"
               className="px-4 py-2 rounded-full bg-zen-primary hover:bg-[#d93849] text-white text-xs sm:text-sm font-bold shadow-md shadow-zen-primary/20 transition-all hover:scale-105 flex items-center gap-1.5"
@@ -481,6 +493,13 @@ function TemplatesPageContent() {
         onClose={() => setIsSuggestModalOpen(false)}
         templates={ZENLOVE_TEMPLATES}
         onSelectTemplate={(tpl) => setPreviewTemplate(tpl)}
+      />
+
+      <QuickCreateWizardModal
+        isOpen={isQuickWizardOpen}
+        onClose={() => setIsQuickWizardOpen(false)}
+        userId={isLoggedIn ? "user" : undefined}
+        onRequireLogin={() => openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới mới")}
       />
 
       <Footer />

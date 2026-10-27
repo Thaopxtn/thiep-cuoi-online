@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Send } from "lucide-react";
+import { ChevronDown, Send, MessageCircleQuestion } from "lucide-react";
+import Section from "@/components/ui/Section";
+import SectionHeading from "@/components/ui/SectionHeading";
+import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
 
 export default function FaqSection() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -9,63 +12,56 @@ export default function FaqSection() {
   const faqs = [
     {
       id: "faq-question-1",
-      question: "ZenLove là gì?",
+      question: "ZenLove là gì và hoạt động như thế nào?",
       answer: [
-        "ZenLove là nền tảng tạo thiệp cưới online miễn phí, hiện đại và tinh tế.",
-        "Bạn có thể tạo thiệp cưới online miễn phí với hàng trăm mẫu đẹp tại ZenLove chỉ với vài bước cơ bản.",
-        "Thiết kế tinh tế, hiện đại, dễ tùy chỉnh và chia sẻ ngay lập tức.",
+        "ZenLove là nền tảng công nghệ tạo thiệp cưới online độc lập, sang trọng và hoàn toàn miễn phí.",
+        "Bạn chỉ cần chọn mẫu ưng ý, cá nhân hóa hình ảnh cô dâu chú rể, địa điểm và lịch trình rồi nhận ngay một đường link chuyên nghiệp để gửi đến khách mời qua Zalo, Messenger, Facebook.",
       ],
     },
     {
       id: "faq-question-2",
-      question: "Tạo Thiệp Cưới Online Trên Nền Tảng Của ZenLove Có MIỄN PHÍ Không?",
+      question: "Tạo thiệp cưới online trên ZenLove có thực sự MIỄN PHÍ không?",
       answer: [
-        "Chúng tôi có gói miễn phí với đầy đủ tính năng để tạo thiệp online đẹp và chuyên nghiệp.",
-        "Bạn có thể tạo, tuỳ chỉnh và chia sẻ thiệp hoàn toàn miễn phí.",
-        "Ngoài ra, chúng tôi cũng có các gói trả phí với những tính năng nâng cao để đáp ứng nhu cầu đa dạng của người dùng.",
+        "Hoàn toàn MIỄN PHÍ 100% với gói cơ bản đầy đủ tính năng: thiết kế trực quan, hiệu ứng mở phong bì hoàng gia, đồng hồ đếm ngược, bản đồ Google Maps và hộp mừng cưới VietQR.",
+        "Bạn chỉ trả phí khi có nhu cầu nâng cấp các gói cao cấp như tên miền thương hiệu riêng hoặc hiệu ứng đặc biệt độc quyền.",
       ],
     },
     {
       id: "faq-question-3",
-      question: "Có Cần Tạo Và Đăng Nhập Tài Khoản Để Thiết Kế Thiệp Cưới Online Không?",
+      question: "Tôi có cần tạo tài khoản để thiết kế thiệp cưới không?",
       answer: [
-        "Có, bạn cần tạo tài khoản và đăng nhập để có thể thiết kế và lưu trữ thiệp cưới của mình.",
-        "Việc đăng ký rất đơn giản và hoàn toàn miễn phí.",
-        "Bạn có thể đăng ký bằng email hoặc tài khoản mạng xã hội.",
+        "Có, việc đăng ký tài khoản chỉ mất 5 giây thông qua Đăng nhập Google.",
+        "Tài khoản giúp bạn lưu trữ bản vẽ, tự động sao lưu đám mây an toàn, chỉnh sửa nội dung bất cứ lúc nào và quản lý danh sách khách mời RSVP thời gian thực.",
       ],
     },
     {
       id: "faq-question-4",
-      question: "Khách Mời Có Cần Đăng Nhập Để Xem Thiệp Cưới Không?",
+      question: "Khách mời có cần tải app hay đăng nhập để xem thiệp không?",
       answer: [
-        "Không, khách mời không cần đăng nhập hay tạo tài khoản để xem thiệp cưới.",
-        "Họ chỉ cần click vào link thiệp mà bạn chia sẻ là có thể xem ngay lập tức trên bất kỳ thiết bị nào.",
+        "Hoàn toàn không. Khách mời chỉ cần nhấn vào đường link bạn gửi để mở thiệp ngay lập tức trên mọi trình duyệt (Safari, Chrome, Zalo webview, Messenger webview) với tốc độ tải trang cực nhanh dưới 1 giây.",
       ],
     },
     {
       id: "faq-question-5",
-      question: "Tạo Nhiều Mẫu Thiệp Cưới Trên Một Tài Khoản Có Được Không?",
+      question: "Tính năng mừng cưới qua VietQR hoạt động ra sao?",
       answer: [
-        "Có, bạn có thể tạo nhiều mẫu thiệp cưới khác nhau trên cùng một tài khoản.",
-        "Hệ thống cho phép bạn lưu trữ và quản lý tất cả các thiết kế của mình một cách dễ dàng.",
+        "ZenLove hỗ trợ tích hợp mã VietQR chuẩn Napas 24/7 của mọi ngân hàng Việt Nam.",
+        "Khách mời có thể quét mã trực tiếp trên màn hình để chuyển khoản thẳng vào tài khoản của cô dâu / chú rể. ZenLove không can thiệp, không thu bất kỳ khoản phí giao dịch nào.",
       ],
     },
     {
       id: "faq-question-6",
-      question: "Thông Tin Của Người Dùng Và Khách Mời Được Quản Lý Như Thế Nào?",
+      question: "Thông tin cá nhân và hình ảnh cưới có được bảo mật không?",
       answer: [
-        "ZenLove cam kết bảo mật thông tin người dùng theo tiêu chuẩn cao nhất.",
-        "Tất cả thông tin cá nhân và dữ liệu khách mời được mã hóa và lưu trữ an toàn.",
-        "Chúng tôi không chia sẻ thông tin với bên thứ ba mà không có sự đồng ý của bạn.",
+        "ZenLove cam kết bảo mật thông tin theo tiêu chuẩn hiện đại. Dữ liệu của bạn được mã hóa và lưu trữ an toàn trên hạ tầng đám mây cao cấp.",
+        "Chúng tôi tuyệt đối không chia sẻ thông tin khách mời hay số điện thoại cho bất kỳ bên thứ ba nào.",
       ],
     },
     {
       id: "faq-question-7",
-      question: "Khách mời có thể gửi quà mừng qua thiệp không?",
+      question: "Tôi có thể xuất danh sách khách xác nhận tham dự (RSVP) ra Excel không?",
       answer: [
-        "Có. ZenLove hỗ trợ hiển thị thông tin nhận tiền mừng hoặc mã QR ngân hàng do người tạo thiệp cung cấp.",
-        "Khi khách mời chuyển tiền, giao dịch được thực hiện trực tiếp giữa khách mời và tài khoản nhận tiền do người tạo thiệp cung cấp.",
-        "ZenLove không nhận, giữ hoặc chuyển tiền thay cho các bên.",
+        "Có! Bảng điều khiển (Dashboard) của ZenLove cho phép bạn theo dõi trực tiếp ai đi một mình, ai đi cùng người thân, lời chúc của khách và xuất toàn bộ danh sách ra file Excel (CSV chuẩn tiếng Việt UTF-8) chỉ với 1 click.",
       ],
     },
   ];
@@ -75,106 +71,110 @@ export default function FaqSection() {
   };
 
   return (
-    <section
+    <Section
       id="faq"
-      className="bg-white py-12"
-      role="region"
-      aria-labelledby="faq-heading"
+      bg="white"
+      padding="lg"
+      ariaLabel="Câu hỏi thường gặp"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="slide-up text-center mb-6 md:mb-8">
-          <h2
-            id="faq-heading"
-            className="text-2xl md:text-3xl text-zen-black font-heading font-bold"
-          >
-            CÂU HỎI THƯỜNG GẶP
-          </h2>
-          <p className="mt-3 text-sm md:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Mọi thắc mắc về tạo thiệp, gửi thiệp, nhận lời chúc và quản lý khách
-            mời trên ZenLove đều được giải đáp tại đây.
-          </p>
-        </div>
+      <AnimateOnScroll animation="fade-up">
+        <SectionHeading
+          eyebrow="Giải đáp thắc mắc"
+          title="Câu hỏi thường gặp"
+          description="Mọi thắc mắc về tạo thiệp cưới, gửi link, xác nhận tham dự và hộp mừng cưới VietQR đều được giải đáp chi tiết tại đây."
+        />
+      </AnimateOnScroll>
 
-        <div className="slide-up max-w-3xl mx-auto">
-          <h3 className="sr-only">Danh mục câu hỏi thường gặp về ZenLove</h3>
-          <div className="divide-y divide-gray-100">
-            {faqs.map((faq, idx) => {
-              const isOpen = openIndex === idx;
-              return (
-                <div key={faq.id} className="faq-item border-b border-gray-100 last:border-b-0">
-                  <button
-                    type="button"
-                    onClick={() => toggleFaq(idx)}
-                    className="flex w-full items-center justify-between gap-4 py-4 md:py-5 text-left group"
-                    aria-expanded={isOpen}
-                    aria-controls={`faq-answer-${idx}`}
-                    id={faq.id}
-                  >
-                    <span
-                      className={`text-sm md:text-base leading-snug transition-colors duration-200 font-medium ${
-                        isOpen ? "text-zen-primary font-bold" : "text-gray-800 group-hover:text-zen-black"
-                      }`}
-                    >
-                      {faq.question}
-                    </span>
-                    <span
-                      className={`shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full transition-all duration-300 ${
-                        isOpen
-                          ? "bg-zen-primary/10 text-zen-primary rotate-180"
-                          : "bg-gray-100 text-gray-500 group-hover:bg-zen-primary/5 group-hover:text-zen-primary"
-                      }`}
-                      aria-hidden="true"
-                    >
-                      <ChevronDown className="w-4 h-4" />
-                    </span>
-                  </button>
-
-                  <div
-                    id={`faq-answer-${idx}`}
-                    aria-labelledby={faq.id}
-                    className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-                      isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+      <div className="mt-12 max-w-3xl mx-auto space-y-3.5">
+        {faqs.map((faq, idx) => {
+          const isOpen = openIndex === idx;
+          return (
+            <AnimateOnScroll
+              key={faq.id}
+              animation="fade-up"
+              delay={idx * 50}
+            >
+              <div
+                className={`rounded-2xl border transition-all duration-300 overflow-hidden ${
+                  isOpen
+                    ? "border-rose-200/90 bg-rose-50/20 shadow-[0_8px_24px_rgba(229,65,83,0.06)]"
+                    : "border-gray-100 bg-[#fafafa]/60 hover:border-gray-200 hover:bg-white"
+                }`}
+              >
+                <button
+                  type="button"
+                  onClick={() => toggleFaq(idx)}
+                  className="flex w-full items-center justify-between gap-4 p-5 sm:p-6 text-left group cursor-pointer"
+                  aria-expanded={isOpen}
+                  aria-controls={`faq-answer-${idx}`}
+                  id={faq.id}
+                >
+                  <span
+                    className={`text-sm sm:text-base leading-snug font-semibold transition-colors duration-200 ${
+                      isOpen ? "text-zen-primary" : "text-gray-900 group-hover:text-zen-primary"
                     }`}
-                    role="region"
                   >
-                    <div className="overflow-hidden">
-                      <div className="pb-4 md:pb-5 pr-10">
-                        <div className="space-y-1.5">
-                          {faq.answer.map((para, pIdx) => (
-                            <p
-                              key={pIdx}
-                              className="text-sm md:text-base leading-relaxed text-gray-600 m-0"
-                            >
-                              {para}
-                            </p>
-                          ))}
-                        </div>
+                    {faq.question}
+                  </span>
+                  <span
+                    className={`shrink-0 inline-flex items-center justify-center size-8 rounded-full transition-all duration-300 ${
+                      isOpen
+                        ? "bg-zen-primary text-white rotate-180 shadow-xs"
+                        : "bg-gray-100 text-gray-500 group-hover:bg-rose-50 group-hover:text-zen-primary"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </span>
+                </button>
+
+                <div
+                  id={`faq-answer-${idx}`}
+                  aria-labelledby={faq.id}
+                  className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+                    isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+                  }`}
+                  role="region"
+                >
+                  <div className="overflow-hidden">
+                    <div className="px-5 sm:px-6 pb-5 sm:pb-6 pt-0 border-t border-rose-100/50">
+                      <div className="space-y-2 mt-3">
+                        {faq.answer.map((para, pIdx) => (
+                          <p
+                            key={pIdx}
+                            className="text-sm leading-relaxed text-gray-600 m-0"
+                          >
+                            {para}
+                          </p>
+                        ))}
                       </div>
                     </div>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
+              </div>
+            </AnimateOnScroll>
+          );
+        })}
+      </div>
 
-        <div className="slide-up text-center mt-10 md:mt-14">
-          <p className="text-sm text-gray-500 mb-3">
-            Vẫn còn thắc mắc? Zeny luôn sẵn sàng hỗ trợ bạn.
+      {/* Support Action */}
+      <AnimateOnScroll animation="fade-up" delay={300}>
+        <div className="text-center mt-12 pt-8 border-t border-gray-100 max-w-xl mx-auto">
+          <p className="text-sm text-gray-600 mb-3.5">
+            Bạn có câu hỏi riêng hoặc cần hỗ trợ tạo thiệp trọn gói?
           </p>
           <a
-            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-medium text-zen-black shadow-sm transition-all duration-200 hover:border-zen-primary/40 hover:bg-zen-primary/5 hover:text-zen-primary hover:-translate-y-0.5"
+            className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-6 py-2.5 text-sm font-semibold text-gray-800 shadow-2xs transition-all duration-200 hover:border-zen-primary/50 hover:bg-rose-50/50 hover:text-zen-primary hover:-translate-y-0.5"
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Liên hệ Zenlove trên Facebook (mở trong tab mới)"
-            title="Liên hệ Zenlove trên Facebook"
+            aria-label="Liên hệ hỗ trợ qua Facebook"
             href="https://fb.com/zenlove.me"
           >
-            <span>Zen ơi, giúp tôi</span>
+            <span>Nhắn tin tư vấn với ZenLove</span>
             <Send className="w-3.5 h-3.5 text-zen-primary" />
           </a>
         </div>
-      </div>
-    </section>
+      </AnimateOnScroll>
+    </Section>
   );
 }

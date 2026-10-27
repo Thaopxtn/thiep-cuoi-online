@@ -1882,7 +1882,7 @@ font-family: 'Plus Jakarta Sans';
    ========================================================================== */
 @font-face {
   font-family: 'Lora Regular';
-  src: local('Lora'), url('/fonts/lora-0QI6MX1D_JOuGQbT0gvTJPa787weuxJBkqg.woff2') format('woff2');
+  src: local('Lora'), url('/fonts/lora-0QIvMX1D_JOuMwr7Iw.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -1890,7 +1890,7 @@ font-family: 'Plus Jakarta Sans';
 
 @font-face {
   font-family: 'PlayfairDisplay';
-  src: local('Playfair Display'), url('/fonts/playfair-display-nuFiD-vYSZviVYUb_rj3ij__anPXPTs.woff2') format('woff2');
+  src: local('Playfair Display'), url('/fonts/playfair-display-nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgA.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
@@ -1906,7 +1906,7 @@ font-family: 'Plus Jakarta Sans';
 
 @font-face {
   font-family: 'Times New Normal';
-  src: local('Times New Roman'), local('Playfair Display'), url('/fonts/playfair-display-nuFiD-vYSZviVYUb_rj3ij__anPXPTs.woff2') format('woff2');
+  src: local('Times New Roman'), local('Playfair Display'), url('/fonts/playfair-display-nuFiD-vYSZviVYUb_rj3ij__anPXDTzYgA.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;

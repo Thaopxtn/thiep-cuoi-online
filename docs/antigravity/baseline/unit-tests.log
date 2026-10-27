@@ -1,0 +1,244 @@
+
+> thiep-cuoi-zenlove@1.0.0 test
+> vitest run --no-file-parallelism
+
+
+ RUN  v5.0.3 D:/luufilelaptrinh/thiepcuoiba
+
+ ❯ src/lib/__tests__/securityAndAuth.test.ts (16 tests | 1 failed) 45ms
+   ❯ Security Utilities - SSRF Protection & URL Sanitization (6)
+     × xác thực bất đồng bộ DNS resolution ngăn chặn SSRF và DNS Rebinding 24ms
+ ❯ src/lib/__tests__/businessLogicAudit.test.ts (0 test)
+ ❯ src/lib/__tests__/authGuard.test.ts (0 test)
+ ❯ src/lib/__tests__/rsvpGuestManagement.test.ts (0 test)
+ ❯ src/lib/__tests__/cardImageExporter.test.ts (0 test)
+ ❯ src/lib/__tests__/handcraftedModulePresets.test.ts (0 test)
+ ❯ src/lib/__tests__/targetedRemediationIntegration.test.ts (0 test)
+ ❯ src/lib/__tests__/moduleHelpersAndRealData.test.ts (0 test)
+ ❯ src/lib/__tests__/brandedSlugAndTemplateCode.test.ts (0 test)
+ ❯ src/lib/__tests__/templateLibrary.test.ts (0 test)
+ ❯ src/lib/__tests__/vietQrVipWebhook.test.ts (0 test)
+ ❯ src/lib/__tests__/cinematicMotionFx.test.ts (0 test)
+ ❯ src/lib/__tests__/unifiedModulesAndLoveStory.test.ts (0 test)
+ ❯ src/lib/__tests__/textSyncService.test.ts (0 test)
+ ❯ src/lib/__tests__/blockLayoutEngine.test.ts (0 test)
+ ❯ src/lib/__tests__/vietQrBankCodes.test.ts (0 test)
+ ❯ src/lib/interactiveFeatures.test.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 16 ⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/interactiveFeatures.test.ts [ src/lib/interactiveFeatures.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\065ab94acf5655361e892cbe17374961beb45e04'
+ ❯ src/lib/interactiveFeatures.test.ts:2:1
+      1| import { describe, it, expect } from "vitest";
+      2| import { findZenloveTemplate, ZENLOVE_TEMPLATES } from "@/data/zenlove…
+       | ^
+      3| import { INITIAL_CARDS } from "@/data/initialCards";
+      4| import { toggleWishLike, getAllCards, getCardByIdOrSlug } from "./wedd…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯
+
+ FAIL  src/lib/__tests__/authGuard.test.ts [ src/lib/__tests__/authGuard.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\6c09a5cb5c4b0651896cc1a68bae1c68d752adfc'
+ ❯ src/lib/__tests__/authGuard.test.ts:2:1
+      1| import { describe, it, expect, beforeEach, vi } from "vitest";
+      2| import { cloneTemplateToNewCard, getCurrentUserId } from "../weddingCa…
+       | ^
+      3|
+      4| describe("Auth Guard - Kiểm soát bắt buộc đăng nhập để tạo thiệp", () …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯
+
+ FAIL  src/lib/__tests__/blockLayoutEngine.test.ts [ src/lib/__tests__/blockLayoutEngine.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\c7e131f9d3ebaea4f31a60411e7166e6e79c3405'
+ ❯ src/lib/blockLayoutEngine.ts:6:1
+      4|  */
+      5|
+      6| import { isDecorativeNode } from "@/lib/decorativeLockService";
+       | ^
+      7|
+      8| export interface BoxBounds {
+ ❯ src/lib/__tests__/blockLayoutEngine.test.ts:2:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/17]⎯
+
+ FAIL  src/lib/__tests__/brandedSlugAndTemplateCode.test.ts [ src/lib/__tests__/brandedSlugAndTemplateCode.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\065ab94acf5655361e892cbe17374961beb45e04'
+ ❯ src/lib/__tests__/brandedSlugAndTemplateCode.test.ts:2:1
+      1| import { describe, it, expect } from "vitest";
+      2| import {
+       | ^
+      3|   ZENLOVE_TEMPLATES,
+      4|   findZenloveTemplate,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/17]⎯
+
+ FAIL  src/lib/__tests__/businessLogicAudit.test.ts [ src/lib/__tests__/businessLogicAudit.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\6c09a5cb5c4b0651896cc1a68bae1c68d752adfc'
+ ❯ src/lib/__tests__/businessLogicAudit.test.ts:2:1
+      1| import { describe, it, expect, vi, beforeEach } from "vitest";
+      2| import { parseWeddingTimestamp } from "../weddingCardService";
+       | ^
+      3| import { syncLinkedTextNodes, getLinkedTextGroup } from "../textSyncSe…
+      4| import { generateVietQrUrl, resolveBankCode } from "../vietQrBankCodes…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/17]⎯
+
+ FAIL  src/lib/__tests__/cardImageExporter.test.ts [ src/lib/__tests__/cardImageExporter.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\d09cfa99b182c72f31af3405c2cf0c46be2b1c6a'
+ ❯ src/lib/__tests__/cardImageExporter.test.ts:2:1
+      1| import { describe, it, expect, vi } from "vitest";
+      2| import { INITIAL_CARDS } from "@/data/initialCards";
+       | ^
+      3| import { CardExportOptions } from "../cardImageExporter";
+      4|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/17]⎯
+
+ FAIL  src/lib/__tests__/cinematicMotionFx.test.ts [ src/lib/__tests__/cinematicMotionFx.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\6604e46665c8d71a0cc8ddac8faf6c9edec79df6'
+ ❯ src/lib/__tests__/cinematicMotionFx.test.ts:3:1
+      1| import { describe, it, expect } from "vitest";
+      2| import { WeddingCard } from "@/data/initialCards";
+      3| import { toPublicCardDTO } from "@/lib/cardDto";
+       | ^
+      4|
+      5| describe("Cinematic Motion Graphics Suite & 3D Envelope Suite", () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/17]⎯
+
+ FAIL  src/lib/__tests__/handcraftedModulePresets.test.ts [ src/lib/__tests__/handcraftedModulePresets.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\506fb03dc5446ce38547db593da406a8432ab5fe'
+ ❯ src/lib/__tests__/handcraftedModulePresets.test.ts:2:1
+      1| import { describe, it, expect } from "vitest";
+      2| import {
+       | ^
+      3|   MODULE_CATEGORIES,
+      4|   MODULE_PRESETS,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/17]⎯
+
+ FAIL  src/lib/__tests__/moduleHelpersAndRealData.test.ts [ src/lib/__tests__/moduleHelpersAndRealData.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\12e1d22ebe2771d1fd57440bc45256ef77264e24'
+ ❯ src/lib/__tests__/moduleHelpersAndRealData.test.ts:2:1
+      1| import { describe, it, expect } from "vitest";
+      2| import {
+       | ^
+      3|   parseTimelineItems,
+      4|   generateTimelineHtml,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/17]⎯
+
+ FAIL  src/lib/__tests__/rsvpGuestManagement.test.ts [ src/lib/__tests__/rsvpGuestManagement.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\6c09a5cb5c4b0651896cc1a68bae1c68d752adfc'
+ ❯ src/lib/__tests__/rsvpGuestManagement.test.ts:2:1
+      1| import { describe, it, expect, beforeEach, vi } from "vitest";
+      2| import {
+       | ^
+      3|   addRsvp,
+      4|   deleteRsvp,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/17]⎯
+
+ FAIL  src/lib/__tests__/targetedRemediationIntegration.test.ts [ src/lib/__tests__/targetedRemediationIntegration.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\3b25a5a66c03507db39d9081c57dd1c9e783a553'
+ ❯ src/lib/__tests__/targetedRemediationIntegration.test.ts:2:1
+      1| import { describe, it, expect, vi, beforeEach, afterEach } from "vites…
+      2| import {
+       | ^
+      3|   generateAdminSessionToken,
+      4|   verifyAdminSessionToken,
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[11/17]⎯
+
+ FAIL  src/lib/__tests__/templateLibrary.test.ts [ src/lib/__tests__/templateLibrary.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\065ab94acf5655361e892cbe17374961beb45e04'
+ ❯ src/lib/templateUnifiedService.ts:6:1
+      4|  */
+      5|
+      6| import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemp…
+       | ^
+      7| import { SYSTEM_PRESETS, TemplateItem } from "@/data/templates";
+      8|
+ ❯ src/lib/__tests__/templateLibrary.test.ts:2:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[12/17]⎯
+
+ FAIL  src/lib/__tests__/textSyncService.test.ts [ src/lib/__tests__/textSyncService.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\12e1d22ebe2771d1fd57440bc45256ef77264e24'
+ ❯ src/lib/textSyncService.ts:6:1
+      4|
+      5| import { WeddingCard } from "@/data/initialCards";
+      6| import {
+       | ^
+      7|   generateBankCardHtml,
+      8|   generateCeremonyHtml,
+ ❯ src/lib/__tests__/textSyncService.test.ts:2:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[13/17]⎯
+
+ FAIL  src/lib/__tests__/unifiedModulesAndLoveStory.test.ts [ src/lib/__tests__/unifiedModulesAndLoveStory.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\d09cfa99b182c72f31af3405c2cf0c46be2b1c6a'
+ ❯ src/lib/__tests__/unifiedModulesAndLoveStory.test.ts:4:1
+      2| import { UNIFIED_WEDDING_MODULES, getModulesForTheme } from "@/lib/uni…
+      3| import { DEFAULT_LOVE_STORY } from "@/lib/loveStoryConstants";
+      4| import { INITIAL_CARDS, WeddingCard } from "@/data/initialCards";
+       | ^
+      5|
+      6| describe("Unified Modules Registry - Love Story & Wedding Album Integr…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[14/17]⎯
+
+ FAIL  src/lib/__tests__/vietQrBankCodes.test.ts [ src/lib/__tests__/vietQrBankCodes.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\93635486d9ad9bfb2f4602cda4b3c3b59ae2de35'
+ ❯ src/lib/__tests__/vietQrBankCodes.test.ts:2:1
+      1| import { describe, it, expect } from "vitest";
+      2| import { resolveBankCode, generateVietQrUrl } from "../vietQrBankCodes…
+       | ^
+      3|
+      4| describe("vietQrBankCodes - resolveBankCode", () => {
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[15/17]⎯
+
+ FAIL  src/lib/__tests__/vietQrVipWebhook.test.ts [ src/lib/__tests__/vietQrVipWebhook.test.ts ]
+Error: ENOENT: no such file or directory, open 'C:\Users\thaoh\AppData\Local\Packages\sandbox.{22901c14-3124-4075-83bb-0c396a426019}\AC\Temp\U6-KAaIuxcgcnZcRJ4ybB\ssr\93635486d9ad9bfb2f4602cda4b3c3b59ae2de35'
+ ❯ src/lib/__tests__/vietQrVipWebhook.test.ts:2:1
+      1| import { describe, it, expect } from "vitest";
+      2| import { generateVietQrUrl } from "../vietQrBankCodes";
+       | ^
+      3|
+      4| describe("VietQR Webhook VIP Auto-Activation & Napas247 Integration", …
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[16/17]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/lib/__tests__/securityAndAuth.test.ts > Security Utilities - SSRF Protection & URL Sanitization > xác thực bất đồng bộ DNS resolution ngăn chặn SSRF và DNS Rebinding
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/lib/__tests__/securityAndAuth.test.ts:68:64
+     66|     expect(await isSafeExternalUrlAsync("http://localhost:3000")).toBe…
+     67|     // Domain công khai hợp lệ
+     68|     expect(await isSafeExternalUrlAsync("https://google.com")).toBe(tr…
+       |                                                                ^
+     69|   }, 15000);
+     70|
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/17]⎯
+
+
+ Test Files  17 failed | 14 passed (31)
+      Tests  1 failed | 106 passed (107)
+   Start at  01:27:20
+   Duration  10.02s (import 41%, tests 23%, transform 21%, worker 15%)
+
+    Isolate  31 workers spawned · ~176ms startup each (spawn + environment, per file)
+             at least ~5.29s faster with isolate: false — reuses workers across files instead of one per file
+

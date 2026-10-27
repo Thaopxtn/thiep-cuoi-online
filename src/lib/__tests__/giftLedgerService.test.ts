@@ -4,6 +4,9 @@ import {
   formatVndCurrency,
   exportGiftLedgerToCsv,
   GiftEntry,
+  calculateBudgetStats,
+  BudgetItem,
+  BUDGET_CATEGORIES,
 } from "../giftLedgerService";
 
 describe("giftLedgerService", () => {
@@ -62,5 +65,57 @@ describe("giftLedgerService", () => {
     expect(csv).toContain("STT,Người mừng,Số tiền (VNĐ),Phương thức,Quan hệ,Lời chúc,Thời gian");
     expect(csv).toContain('"Bác Hùng","1000000","Tiền mặt / Phong bì","Họ Nhà Trai"');
     expect(csv).toContain('"Anh Hoàng","500000","Chuyển khoản (VietQR)","Bạn Bè"');
+  });
+
+  describe("Budget Planner Calculations", () => {
+    const sampleBudgetItems: BudgetItem[] = [
+      {
+        id: "b1",
+        cardId: "card-123",
+        category: "venue",
+        title: "Tiệc cưới khách sạn 5 sao",
+        estimatedCost: 80000000,
+        actualCost: 85000000,
+        isPaid: true,
+        createdAt: "2026-11-20T10:00:00Z",
+      },
+      {
+        id: "b2",
+        cardId: "card-123",
+        category: "decor",
+        title: "Trang trí sảnh hoa tươi",
+        estimatedCost: 20000000,
+        actualCost: 18000000,
+        isPaid: false,
+        createdAt: "2026-11-20T11:00:00Z",
+      },
+      {
+        id: "b3",
+        cardId: "card-123",
+        category: "media",
+        title: "Quay phóng sự cưới 4K",
+        estimatedCost: 15000000,
+        actualCost: 15000000,
+        isPaid: true,
+        createdAt: "2026-11-20T12:00:00Z",
+      },
+    ];
+
+    it("calculateBudgetStats should compute totalEstimated, totalActual, and totalPaid accurately", () => {
+      const stats = calculateBudgetStats(sampleBudgetItems);
+      expect(stats.totalEstimated).toBe(115000000);
+      expect(stats.totalActual).toBe(118000000);
+      expect(stats.totalPaid).toBe(100000000); // 85M + 15M
+    });
+
+    it("BUDGET_CATEGORIES should cover all key wedding categories", () => {
+      expect(BUDGET_CATEGORIES.length).toBeGreaterThanOrEqual(7);
+      const catIds = BUDGET_CATEGORIES.map((c) => c.id);
+      expect(catIds).toContain("venue");
+      expect(catIds).toContain("decor");
+      expect(catIds).toContain("outfit");
+      expect(catIds).toContain("media");
+      expect(catIds).toContain("jewelry");
+    });
   });
 });

@@ -40,6 +40,8 @@ export default function WeddingPartnersPage() {
     message: "",
   });
   const [formSubmitted, setFormSubmitted] = useState(false);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   const handleCopyCode = (code: string) => {
     navigator.clipboard?.writeText(code);
@@ -60,23 +62,36 @@ export default function WeddingPartnersPage() {
     });
   }, [selectedCategory, searchQuery]);
 
-  const handlePartnerSubmit = (e: React.FormEvent) => {
+  const handlePartnerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormSubmitted(true);
-    setTimeout(() => {
-      setFormSubmitted(false);
-      setIsPartnerModalOpen(false);
-      setPartnerFormData({
-        brandName: "",
-        category: "studio",
-        contactName: "",
-        phone: "",
-        email: "",
-        website: "",
-        message: "",
+    setSubmitError("");
+    try {
+      const res = await fetch("/api/partners", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(partnerFormData),
       });
-      alert("Cảm ơn đối tác đã đăng ký! Đội ngũ phát triển ZenLove sẽ liên hệ trong 24h.");
-    }, 1500);
+      const data = await res.json();
+      if (data.success) {
+        setSubmitSuccess(true);
+        setPartnerFormData({
+          brandName: "",
+          category: "studio",
+          contactName: "",
+          phone: "",
+          email: "",
+          website: "",
+          message: "",
+        });
+      } else {
+        setSubmitError(data.message || "Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.");
+      }
+    } catch (err) {
+      setSubmitError("Lỗi kết nối máy chủ. Vui lòng thử lại sau.");
+    } finally {
+      setFormSubmitted(false);
+    }
   };
 
   return (
@@ -337,7 +352,38 @@ export default function WeddingPartnersPage() {
               Liên kết cùng ZenLove Wedding để tăng trưởng doanh số và nhận khách hàng cưới tiềm năng.
             </p>
 
-            <form onSubmit={handlePartnerSubmit} className="mt-6 space-y-4">
+            {submitSuccess ? (
+              <div className="py-8 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                  <CheckCircle2 className="w-9 h-9" />
+                </div>
+                <h4 className="text-xl font-bold text-gray-900">
+                  Đăng Ký Đối Tác Thành Công!
+                </h4>
+                <p className="text-sm text-gray-600 max-w-sm mx-auto leading-relaxed">
+                  Cảm ơn quý đối tác đã tin tưởng đồng hành cùng ZenLove Wedding. Đội ngũ phát triển sẽ liên hệ trực tiếp qua điện thoại hoặc email trong vòng 24h để hoàn thiện chương trình ưu đãi.
+                </p>
+                <div className="pt-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSubmitSuccess(false);
+                      setIsPartnerModalOpen(false);
+                    }}
+                    className="px-6 py-2.5 rounded-xl text-xs font-bold bg-zen-primary hover:bg-rose-600 text-white transition-all shadow-md cursor-pointer"
+                  >
+                    Hoàn tất & Đóng
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handlePartnerSubmit} className="mt-6 space-y-4">
+                {submitError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-medium">
+                    {submitError}
+                  </div>
+                )}
+
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1">
                   Tên Thương Hiệu / Studio *
@@ -462,7 +508,9 @@ export default function WeddingPartnersPage() {
                   )}
                 </button>
               </div>
-            </form>
+            
+              </form>
+            )}
           </div>
         </div>
       )}

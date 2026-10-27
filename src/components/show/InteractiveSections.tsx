@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Calendar as CalendarIcon,
   Heart,
@@ -14,6 +14,9 @@ import {
   ChevronLeft,
   ChevronRight,
   X as CloseIcon,
+  Camera,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import {
   generateGoogleCalendarUrl,
@@ -241,49 +244,13 @@ export function WeddingCalendarCard({
    2. LOVE STORY TIMELINE (DÒNG THỜI GIAN TÌNH YÊU)
    ========================================================= */
 
-export interface LoveStoryItem {
-  id?: string;
-  date: string;
-  title: string;
-  description: string;
-  imageUrl?: string;
-}
+import { DEFAULT_LOVE_STORY, LoveStoryItem } from "@/lib/loveStoryConstants";
+export { DEFAULT_LOVE_STORY, type LoveStoryItem };
 
 interface LoveStoryTimelineProps {
   items?: LoveStoryItem[];
   themeStyle?: "luxury" | "traditional" | "pastel" | "default";
 }
-
-const DEFAULT_LOVE_STORY: LoveStoryItem[] = [
-  {
-    id: "step1",
-    date: "14 / 02 / 2021",
-    title: "Lần Đầu Gặp Gỡ",
-    description: "Một buổi chiều mưa bất chợt tại quán cafe nhỏ, ánh mắt chạm nhau mở ra câu chuyện của hai tâm hồn.",
-    imageUrl: "https://images.unsplash.com/photo-1516589178581-6cd7833ae3b2?q=80&w=600&auto=format&fit=crop",
-  },
-  {
-    id: "step2",
-    date: "20 / 10 / 2022",
-    title: "Lời Hẹn Ước Đầu Tiên",
-    description: "Dưới ánh đèn lung linh của thành phố, chúng ta chính thức nắm tay nhau bước vào chặng đường hẹn hò ngọt ngào.",
-    imageUrl: "https://images.unsplash.com/photo-1522673607200-164d1b6ce486?q=80&w=600&auto=format&fit=crop",
-  },
-  {
-    id: "step3",
-    date: "24 / 12 / 2024",
-    title: "Khoảnh Khắc Cầu Hôn",
-    description: "Bên bờ biển lúc hoàng hôn buông xuống, chiếc nhẫn trao tay cùng giọt nước mắt hạnh phúc: 'Em đồng ý!'.",
-    imageUrl: "https://images.unsplash.com/photo-1515934751635-c81c6bc9a2d8?q=80&w=600&auto=format&fit=crop",
-  },
-  {
-    id: "step4",
-    date: "Chung Đôi Mãi Mãi",
-    title: "Ngày Chung Đôi",
-    description: "Trước sự chứng kiến của gia đình và bạn bè, chúng ta trao nhau lời thề nguyện đồng hành suốt cuộc đời.",
-    imageUrl: "https://images.unsplash.com/photo-1519741497674-611481863552?q=80&w=600&auto=format&fit=crop",
-  },
-];
 
 export function LoveStoryTimeline({
   items = DEFAULT_LOVE_STORY,
@@ -426,6 +393,281 @@ export function PolaroidGallery({ photos, onPhotoClick }: PolaroidGalleryProps) 
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   4. GUEST PHOTO WALL (KHOẢNH KHẮC TIỆC CƯỚI TỪ KHÁCH MỜI)
+   ========================================================= */
+
+export interface GuestPhotoItem {
+  id: string;
+  senderName: string;
+  url: string;
+  caption?: string;
+  createdAt: string;
+  likes: number;
+}
+
+interface GuestPhotoWallProps {
+  slug: string;
+  initialGuestName?: string;
+}
+
+export function GuestPhotoWall({ slug, initialGuestName }: GuestPhotoWallProps) {
+  const [photos, setPhotos] = useState<GuestPhotoItem[]>([]);
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [senderName, setSenderName] = useState(initialGuestName || "");
+  const [caption, setCaption] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+
+  // Load photos
+  useEffect(() => {
+    async function fetchPhotos() {
+      try {
+        const res = await fetch(`/api/show/${slug}/photos`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.success && Array.isArray(data.photos)) {
+            setPhotos(data.photos);
+          }
+        }
+      } catch {}
+    }
+    fetchPhotos();
+  }, [slug]);
+
+  // Handle file select
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const f = e.target.files[0];
+      setSelectedFile(f);
+      setFilePreview(URL.createObjectURL(f));
+    }
+  };
+
+  // Handle submit photo
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) return;
+
+    try {
+      setIsUploading(true);
+      const fd = new FormData();
+      fd.append("file", selectedFile);
+      fd.append("senderName", senderName.trim() || "Khách Quý");
+      fd.append("caption", caption.trim());
+
+      const res = await fetch(`/api/show/${slug}/photos`, {
+        method: "POST",
+        body: fd,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.photo) {
+          setPhotos((prev) => [data.photo, ...prev]);
+          setIsUploadOpen(false);
+          setSelectedFile(null);
+          setFilePreview(null);
+          setCaption("");
+          setStatusMsg("🎉 Cảm ơn bạn! Bức ảnh kỷ niệm của bạn đã được lưu vào Album tiệc cưới!");
+          setTimeout(() => setStatusMsg(null), 4000);
+        }
+      } else {
+        setStatusMsg("Không thể tải ảnh lên. Vui lòng thử lại!");
+        setTimeout(() => setStatusMsg(null), 3000);
+      }
+    } catch {
+      setStatusMsg("Lỗi kết nối khi tải ảnh lên.");
+      setTimeout(() => setStatusMsg(null), 3000);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="w-full my-8 px-4 sm:px-6">
+      {statusMsg && (
+        <div className="mb-4 p-3 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-2xl text-xs font-bold text-center animate-fade-in">
+          {statusMsg}
+        </div>
+      )}
+
+      {/* Header & Upload Button */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 bg-gradient-to-r from-rose-50 via-amber-50 to-rose-50 p-4 rounded-2xl border border-rose-200/60">
+        <div>
+          <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+            <Camera className="w-4 h-4 text-zen-primary" />
+            <span>Khoảnh Khắc Tiệc Cưới Từ Khách Mời</span>
+          </h3>
+          <p className="text-[11px] text-gray-500 mt-0.5">
+            Cùng chia sẻ những bức ảnh chụp ngẫu hứng tại sảnh cưới và bàn tiệc!
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsUploadOpen(true)}
+          className="px-4 py-2 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white text-xs font-bold shadow-md shadow-zen-primary/20 flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer shrink-0"
+        >
+          <Upload className="w-3.5 h-3.5" />
+          <span>Gửi ảnh kỷ niệm của bạn</span>
+        </button>
+      </div>
+
+      {/* Photos Masonry / Grid */}
+      {photos.length === 0 ? (
+        <div className="p-8 text-center bg-gray-50/60 rounded-2xl border border-dashed border-gray-200">
+          <ImageIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-xs font-bold text-gray-600">Chưa có ảnh nào từ khách mời</p>
+          <p className="text-[11px] text-gray-400 mt-0.5">
+            Hãy là người đầu tiên chia sẻ khoảnh khắc vui vẻ trong tiệc cưới cùng cô dâu chú rể!
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {photos.map((item) => (
+            <div
+              key={item.id}
+              className="bg-white rounded-2xl overflow-hidden border border-gray-100 shadow-sm hover:shadow-md transition-shadow group flex flex-col"
+            >
+              <div className="aspect-square w-full bg-gray-100 overflow-hidden relative">
+                <img
+                  src={item.url}
+                  alt={item.caption || "Ảnh khách mời"}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  loading="lazy"
+                />
+              </div>
+              <div className="p-2.5 flex flex-col justify-between flex-1">
+                <div>
+                  <span className="text-[11px] font-bold text-gray-800 block truncate">
+                    {item.senderName}
+                  </span>
+                  {item.caption && (
+                    <p className="text-[10px] text-gray-500 line-clamp-2 mt-0.5 italic">
+                      "{item.caption}"
+                    </p>
+                  )}
+                </div>
+                <span className="text-[9px] text-gray-400 mt-1 block">
+                  {new Date(item.createdAt).toLocaleTimeString("vi-VN", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Upload Modal */}
+      {isUploadOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-3xl p-5 shadow-2xl border border-gray-100 animate-scale-up space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-gray-100">
+              <h4 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <Camera className="w-4 h-4 text-zen-primary" />
+                <span>Gửi Ảnh Kỷ Niệm Tiệc Cưới</span>
+              </h4>
+              <button
+                type="button"
+                onClick={() => setIsUploadOpen(false)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {/* File input / Preview */}
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                  Chọn ảnh chụp của bạn:
+                </label>
+                {filePreview ? (
+                  <div className="relative aspect-video rounded-2xl overflow-hidden border border-gray-200 bg-gray-50">
+                    <img src={filePreview} alt="Preview" className="w-full h-full object-contain" />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSelectedFile(null);
+                        setFilePreview(null);
+                      }}
+                      className="absolute top-2 right-2 p-1 rounded-full bg-black/60 text-white hover:bg-black/80"
+                    >
+                      <CloseIcon className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-gray-300 hover:border-zen-primary rounded-2xl cursor-pointer bg-gray-50/50 hover:bg-rose-50/30 transition-colors">
+                    <Camera className="w-8 h-8 text-gray-400 mb-1" />
+                    <span className="text-xs font-bold text-gray-700">Chụp hoặc chọn ảnh từ máy</span>
+                    <span className="text-[10px] text-gray-400 mt-0.5">Hỗ trợ JPG, PNG, WebP (Tối đa 6MB)</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                  Tên của bạn / Bàn tiệc:
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Vd: Bạn Mai (Bàn 5)..."
+                  value={senderName}
+                  onChange={(e) => setSenderName(e.target.value)}
+                  className="w-full p-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-zen-primary"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-gray-700 block mb-1">
+                  Lời nhắn gửi đôi uyên ương:
+                </label>
+                <input
+                  type="text"
+                  placeholder="Vd: Chúc mừng đôi bạn trẻ cực phẩm!..."
+                  value={caption}
+                  onChange={(e) => setCaption(e.target.value)}
+                  className="w-full p-2 text-xs border border-gray-200 rounded-xl focus:outline-none focus:border-zen-primary"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsUploadOpen(false)}
+                  className="flex-1 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-bold text-gray-600 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedFile || isUploading}
+                  className="flex-1 py-2 rounded-xl bg-zen-primary hover:bg-[#d93849] disabled:opacity-50 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span>{isUploading ? "Đang gửi..." : "Gửi ảnh ngay"}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

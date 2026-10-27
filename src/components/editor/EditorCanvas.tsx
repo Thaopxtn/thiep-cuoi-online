@@ -35,12 +35,21 @@ import {
   Crown,
   FileText,
   Eye,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  ChevronsDown,
+  ChevronsUp,
+  MoveVertical,
+  GripHorizontal,
+  Shield,
 } from "lucide-react";
 import { SelectedElementData } from "./EditorRightInspector";
 import EditorTopContextualBar from "./EditorTopContextualBar";
 import EditorContextMenu from "./EditorContextMenu";
 import EditorBottomBar from "./EditorBottomBar";
 import FallingPetals from "@/components/FallingPetals";
+import PhotoBoxFrameRenderer from "@/components/PhotoBoxFrameRenderer";
 import { EffectConfig } from "@/lib/effectsCatalog";
 import { compressImageToWebP } from "@/lib/imageCompression";
 import {  addUploadedImageToLibrary, addUploadedImagesToLibrary , uploadFileToServer } from "@/lib/mediaLibraryService";
@@ -52,6 +61,7 @@ import {
   isDecorativeAsset,
 } from "@/lib/imageUtils";
 import { isDecorativeNode, isElementLocked, getRealWeddingPhotoSlots } from "@/lib/decorativeLockService";
+import { isContentBlock, isOverlapping, getBoxBounds } from "@/lib/blockLayoutEngine";
 import { calculateCountdown, formatCalendarData, getModuleRenderHtml, getGiftQrUrl, getSafeMapUrl } from "@/lib/moduleHelpers";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { ANIMATION_KEYFRAME_MAP } from "@/lib/animationCatalog";
@@ -63,10 +73,26 @@ import { FixedModuleId } from "./EditorFixedModuleEditModal";
 interface EditorCanvasProps {
   nodes: Record<string, any>;
   selectedElement: SelectedElementData | null;
+  selectedElements?: SelectedElementData[];
   onSelectElement: (element: SelectedElementData | null) => void;
+  onSelectElements?: (elements: SelectedElementData[]) => void;
+  onToggleSelectElement?: (element: SelectedElementData) => void;
   onUpdateElementProps: (elementId: string, updatedProps: Record<string, any>) => void;
   onDeleteElement: (elementId: string) => void;
+  onDeleteMultipleElements?: (ids: string[]) => void;
   onDuplicateElement: (elementId: string) => void;
+  onDuplicateMultipleElements?: (ids: string[]) => void;
+  onAlignMultipleElements?: (ids: string[], alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => void;
+  onShiftElementsBelow?: (thresholdY: number, deltaY: number) => void;
+  onAutoArrangeBlocks?: () => void;
+  onResolveOverlap?: (elementId: string) => void;
+  isAntiOverlapEnabled?: boolean;
+  onToggleAntiOverlap?: () => void;
+  onAddFrame?: (frame: any, pos?: { left?: number; top?: number; x?: number; y?: number }) => void;
+  onAddSpacer?: (height: number, atY?: number) => void;
+  onAddStock?: (stockUrl: string, name: string, pos?: { left?: number; top?: number; x?: number; y?: number }) => void;
+  onAddWidget?: (type: string, initialProps?: Record<string, any>) => void;
+  onAddModulePreset?: (preset: any) => void;
   zoomLevel: number;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -93,10 +119,26 @@ interface EditorCanvasProps {
 export default function EditorCanvas({
   nodes,
   selectedElement,
+  selectedElements = [],
   onSelectElement,
+  onSelectElements,
+  onToggleSelectElement,
   onUpdateElementProps,
   onDeleteElement,
+  onDeleteMultipleElements,
   onDuplicateElement,
+  onDuplicateMultipleElements,
+  onAlignMultipleElements,
+  onShiftElementsBelow,
+  onAutoArrangeBlocks,
+  onResolveOverlap,
+  isAntiOverlapEnabled: isAntiOverlapEnabledProp,
+  onToggleAntiOverlap: onToggleAntiOverlapProp,
+  onAddFrame,
+  onAddSpacer,
+  onAddStock,
+  onAddWidget,
+  onAddModulePreset,
   zoomLevel,
   onZoomIn,
   onZoomOut,
@@ -160,7 +202,8 @@ export default function EditorCanvas({
 
   // Track replaced photo slot IDs and panel state
   const [replacedSlotIds, setReplacedSlotIds] = useState<Set<string>>(new Set());
-  const [isQuickPanelCollapsed, setIsQuickPanelCollapsed] = useState(false);
+  const [isQuickPanelCollapsed, setIsQuickPanelCollapsed] = useState(true);
+  const [isStretcherExpanded, setIsStretcherExpanded] = useState(false);
   const quickScrollRef = useRef<HTMLDivElement>(null);
   const initialSlotImagesRef = useRef<Record<string, string>>({});
 
@@ -250,12 +293,339 @@ export default function EditorCanvas({
   const [isRotating, setIsRotating] = useState(false);
   // Magnetic Smart Snapping states
   const [isSnappingEnabled, setIsSnappingEnabled] = useState(true);
+  const [internalAntiOverlap, setIsAntiOverlapEnabled] = useState(true);
+  const isAntiOverlapActive =
+    isAntiOverlapEnabledProp !== undefined ? isAntiOverlapEnabledProp : internalAntiOverlap;
+  const toggleAntiOverlap =
+    onToggleAntiOverlapProp || (() => setIsAntiOverlapEnabled((v) => !v));
   const [activeSnapGuides, setActiveSnapGuides] = useState<{
     vertical?: number;
     horizontal?: number;
     labelV?: string;
     labelH?: string;
   } | null>(null);
+
+  // Canva Advanced Tools: Multi-selection, Marquee Selection, Canvas Splitter & Drag-Drop
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const [marqueeBox, setMarqueeBox] = useState<{
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null>(null);
+  const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
+  const [stretchingState, setStretchingState] = useState<{
+    thresholdY: number;
+    startScreenY: number;
+    currentDelta: number;
+  } | null>(null);
+  const multiDragRef = useRef<{
+    startX: number;
+    startY: number;
+    initialPositions: Record<string, { left: number; top: number }>;
+  } | null>(null);
+
+  // Multi-Selection State & Calculations
+  const activeSelectedElements =
+    selectedElements && selectedElements.length > 0
+      ? selectedElements
+      : selectedElement
+      ? [selectedElement]
+      : [];
+  const selectedIds = new Set(activeSelectedElements.map((el) => el.id));
+  const isMultiSelected = activeSelectedElements.length > 1;
+
+  const multiSelectedNodes = childNodes.filter((c) => selectedIds.has(c.id));
+  let groupLeft = 0;
+  let groupTop = 0;
+  let groupWidth = 0;
+  let groupHeight = 0;
+
+  if (multiSelectedNodes.length > 0) {
+    const lefts = multiSelectedNodes.map((c) => Number(c.props.left ?? 0));
+    const rights = multiSelectedNodes.map(
+      (c) => Number(c.props.left ?? 0) + Number(c.props.width ?? 100)
+    );
+    const tops = multiSelectedNodes.map((c) => Number(c.props.top ?? 0));
+    const bottoms = multiSelectedNodes.map(
+      (c) => Number(c.props.top ?? 0) + Number(c.props.height ?? 100)
+    );
+
+    groupLeft = Math.min(...lefts);
+    groupTop = Math.min(...tops);
+    groupWidth = Math.max(...rights) - groupLeft;
+    groupHeight = Math.max(...bottoms) - groupTop;
+  }
+
+  // Tọa độ Y đáy của khối phần tử đang chọn phục vụ thước dời bố cục / co dãn bảng vẽ
+  const activeBottomY =
+    multiSelectedNodes.length > 0
+      ? groupTop + groupHeight
+      : selectedElement
+      ? Number(nodes[selectedElement.id]?.props?.top ?? 0) +
+        Number(nodes[selectedElement.id]?.props?.height ?? 100)
+      : null;
+
+  // Kéo di chuyển toàn bộ nhóm phần tử cùng lúc (Multi-element Dragging)
+  const handleMouseDownGroup = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+
+    const initialPositions: Record<string, { left: number; top: number }> = {};
+    activeSelectedElements.forEach((el) => {
+      const n = nodes[el.id];
+      if (n && !isElementLocked(el.id, n)) {
+        initialPositions[el.id] = {
+          left: Number(n.props?.left ?? 0),
+          top: Number(n.props?.top ?? 0),
+        };
+      }
+    });
+
+    multiDragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      initialPositions,
+    };
+    setIsDragging(true);
+
+    const handleMouseMove = (moveEv: MouseEvent) => {
+      if (!multiDragRef.current) return;
+      const dx = (moveEv.clientX - multiDragRef.current.startX) / zoomLevel;
+      const dy = (moveEv.clientY - multiDragRef.current.startY) / zoomLevel;
+
+      Object.entries(multiDragRef.current.initialPositions).forEach(([id, pos]) => {
+        onUpdateElementProps(id, {
+          left: Math.round(pos.left + dx),
+          top: Math.round(pos.top + dy),
+        });
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      multiDragRef.current = null;
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Quét chọn nhiều phần tử trên nền canvas (Marquee / Rubberband Selection)
+  const handleMouseDownCanvasBg = (e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    const isBg =
+      target === e.currentTarget ||
+      target.classList.contains("canvas-blueprint-grid") ||
+      target.id === "canvas-inner-area";
+    if (!isBg) return;
+
+    if (!canvasContainerRef.current) return;
+    const rect = canvasContainerRef.current.getBoundingClientRect();
+    const startX = Math.round((e.clientX - rect.left) / zoomLevel);
+    const startY = Math.round((e.clientY - rect.top) / zoomLevel);
+
+    setMarqueeBox({
+      startX,
+      startY,
+      currentX: startX,
+      currentY: startY,
+    });
+
+    let hasMoved = false;
+
+    const handleMouseMove = (moveEv: MouseEvent) => {
+      if (!canvasContainerRef.current) return;
+      const curRect = canvasContainerRef.current.getBoundingClientRect();
+      const curX = Math.round((moveEv.clientX - curRect.left) / zoomLevel);
+      const curY = Math.round((moveEv.clientY - curRect.top) / zoomLevel);
+
+      if (Math.abs(curX - startX) > 4 || Math.abs(curY - startY) > 4) {
+        hasMoved = true;
+      }
+
+      setMarqueeBox({
+        startX,
+        startY,
+        currentX: curX,
+        currentY: curY,
+      });
+
+      if (hasMoved) {
+        const minX = Math.min(startX, curX);
+        const maxX = Math.max(startX, curX);
+        const minY = Math.min(startY, curY);
+        const maxY = Math.max(startY, curY);
+
+        const matched = childNodes
+          .filter((c) => {
+            if (isElementLocked(c.id, nodes[c.id])) return false;
+            const cLeft = Number(c.props.left ?? 0);
+            const cTop = Number(c.props.top ?? 0);
+            const cWidth = Number(c.props.width ?? 100);
+            const cHeight = Number(c.props.height ?? 100);
+            return (
+              cLeft < maxX &&
+              cLeft + cWidth > minX &&
+              cTop < maxY &&
+              cTop + cHeight > minY
+            );
+          })
+          .map((c) => ({ id: c.id, type: c.type, props: c.props }));
+
+        onSelectElements?.(matched);
+        if (matched.length === 1) {
+          onSelectElement(matched[0]);
+        } else if (matched.length === 0) {
+          onSelectElement(null);
+        }
+      }
+    };
+
+    const handleMouseUp = () => {
+      setMarqueeBox(null);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      if (!hasMoved) {
+        onSelectElement(null);
+        onSelectElements?.([]);
+        onSelectFixedModule?.(null);
+        setContextMenu(null);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // Kéo dãn bảng vẽ tại vị trí bên trong (Interactive Canvas Stretcher Drag)
+  const handleStartStretchDrag = (e: React.MouseEvent, thresholdY: number) => {
+    if (e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+
+    const startScreenY = e.clientY;
+    let currentDelta = 0;
+
+    setStretchingState({
+      thresholdY,
+      startScreenY,
+      currentDelta: 0,
+    });
+
+    const handleMouseMove = (moveEv: MouseEvent) => {
+      const deltaPx = Math.round((moveEv.clientY - startScreenY) / zoomLevel);
+      currentDelta = deltaPx;
+      setStretchingState({
+        thresholdY,
+        startScreenY,
+        currentDelta: deltaPx,
+      });
+    };
+
+    const handleMouseUp = () => {
+      setStretchingState(null);
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+      if (Math.abs(currentDelta) >= 6 && onShiftElementsBelow) {
+        onShiftElementsBelow(thresholdY, currentDelta);
+      }
+    };
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+  };
+
+  // HTML5 Drag & Drop vào Canvas từ Ngăn Thành phần bên trái
+  const handleDragOver = (e: React.DragEvent) => {
+    if (
+      e.dataTransfer.types.includes("application/zenlove-element") ||
+      e.dataTransfer.types.includes("text/plain")
+    ) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      if (!isDragOverCanvas) setIsDragOverCanvas(true);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragOverCanvas(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOverCanvas(false);
+
+    const rawData =
+      e.dataTransfer.getData("application/zenlove-element") ||
+      e.dataTransfer.getData("text/plain");
+    if (!rawData) return;
+
+    try {
+      const data = JSON.parse(rawData);
+      if (!canvasContainerRef.current) return;
+      const canvasRect = canvasContainerRef.current.getBoundingClientRect();
+
+      const cursorX = Math.round((e.clientX - canvasRect.left) / zoomLevel);
+      const cursorY = Math.round((e.clientY - canvasRect.top) / zoomLevel);
+
+      if (data.type === "frame" && onAddFrame) {
+        const frameItem = data.frame || data.data;
+        const w = frameItem?.defaultWidth || 320;
+        const h = frameItem?.defaultHeight || 400;
+        onAddFrame(frameItem, {
+          left: Math.max(10, Math.min(canvasWidth - w - 10, cursorX - Math.round(w / 2))),
+          top: Math.max(10, cursorY - Math.round(h / 2)),
+        });
+      } else if ((data.type === "stock" || data.type === "sticker") && onAddStock) {
+        const stockUrl = data.stockUrl || data.url || data.data?.url;
+        const name = data.name || data.data?.name || "Họa tiết";
+        onAddStock(stockUrl, name, {
+          left: Math.max(10, Math.min(canvasWidth - 160, cursorX - 70)),
+          top: Math.max(10, cursorY - 70),
+        });
+      } else if (data.type === "spacer" && onAddSpacer) {
+        const height = data.height || data.data?.height || 80;
+        onAddSpacer(height, cursorY);
+      } else if (data.type === "shape" && onAddWidget) {
+        const shapeType = data.shapeType || data.data?.shapeType || "rectangle";
+        const w = data.width || data.data?.width || 120;
+        const h = data.height || data.data?.height || 120;
+        if (shapeType === "line") {
+          onAddWidget("LineBox", {
+            width: w,
+            height: h,
+            backgroundColor: data.fill || "#d4af37",
+            borderColor: data.borderColor || "#d4af37",
+            left: Math.max(10, cursorX - Math.round(w / 2)),
+            top: Math.max(10, cursorY),
+          });
+        } else {
+          onAddWidget("GeometricBox", {
+            shapeType: shapeType,
+            fill: data.fill || "#ffffff",
+            backgroundColor: data.fill || data.backgroundColor || "#ffffff",
+            borderRadius: data.borderRadius || 0,
+            borderSize: data.borderSize || 0,
+            borderColor: data.borderColor || "transparent",
+            opacity: data.opacity ?? 1,
+            width: w,
+            height: h,
+            left: Math.max(10, cursorX - Math.round(w / 2)),
+            top: Math.max(10, cursorY - Math.round(h / 2)),
+          });
+        }
+      } else if (data.type === "module" && onAddModulePreset) {
+        onAddModulePreset(data.preset || data.data);
+      }
+    } catch (err) {
+      console.error("Lỗi thả phần tử vào bảng vẽ:", err);
+    }
+  };
 
   const dragStartRef = useRef<{
     startX: number;
@@ -268,7 +638,21 @@ export default function EditorCanvas({
   const handleMouseDownElement = (e: React.MouseEvent, id: string, props: any, type: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+
+    const isMultiModifier = e.shiftKey || e.ctrlKey || e.metaKey;
+    if (isMultiModifier) {
+      onToggleSelectElement?.({ id, type, props });
+      return;
+    }
+
+    // Nếu phần tử đang thuộc nhóm được chọn nhiều đối tượng, kéo phần tử này sẽ kéo cả nhóm
+    if (isMultiSelected && selectedIds.has(id)) {
+      handleMouseDownGroup(e);
+      return;
+    }
+
     onSelectElement({ id, type, props });
+    onSelectElements?.([{ id, type, props }]);
 
     // Không cho phép kéo di chuyển nếu phần tử bị khóa (mặc định các họa tiết bị khóa, trừ khi đã mở khóa)
     if (isElementLocked(id, props, nodes[id])) {
@@ -348,6 +732,30 @@ export default function EditorCanvas({
         }
       }
 
+      if (isAntiOverlapActive && isContentBlock(id, nodes[id])) {
+        const elemW = Number(props.width ?? 100);
+        const elemH = Number(props.height ?? 100);
+        const curBox = {
+          top: newTop,
+          left: newLeft,
+          width: elemW,
+          height: elemH,
+          bottom: newTop + elemH,
+          right: newLeft + elemW,
+        };
+
+        const collidingNode = childNodes.find((c) => {
+          if (c.id === id || !isContentBlock(c.id, nodes[c.id])) return false;
+          const otherBox = getBoxBounds(nodes[c.id]);
+          return isOverlapping(curBox, otherBox, 4);
+        });
+
+        if (collidingNode) {
+          guideH = newTop;
+          guideLabelH = "⚠️ Đang đè khối (Thả tay sẽ tự đẩy giãn cách)";
+        }
+      }
+
       setActiveSnapGuides(
         guideV !== undefined || guideH !== undefined
           ? { vertical: guideV, horizontal: guideH, labelV: guideLabelV, labelH: guideLabelH }
@@ -361,11 +769,16 @@ export default function EditorCanvas({
     };
 
     const handleMouseUp = () => {
+      const draggedElementId = dragStartRef.current?.elementId;
       setIsDragging(false);
       dragStartRef.current = null;
       setActiveSnapGuides(null);
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+
+      if (isAntiOverlapActive && draggedElementId && onResolveOverlap) {
+        onResolveOverlap(draggedElementId);
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -493,10 +906,15 @@ export default function EditorCanvas({
     };
 
     const handleMouseUp = () => {
+      const resizedId = resizeStartRef.current?.elementId;
       setIsResizing(false);
       resizeStartRef.current = null;
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
+
+      if (isAntiOverlapActive && resizedId && onResolveOverlap) {
+        onResolveOverlap(resizedId);
+      }
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -537,10 +955,15 @@ export default function EditorCanvas({
     };
 
     const handleTouchEnd = () => {
+      const draggedElementId = dragStartRef.current?.elementId;
       setIsDragging(false);
       dragStartRef.current = null;
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
+
+      if (isAntiOverlapActive && draggedElementId && onResolveOverlap) {
+        onResolveOverlap(draggedElementId);
+      }
     };
 
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
@@ -654,10 +1077,15 @@ export default function EditorCanvas({
     };
 
     const handleTouchEnd = () => {
+      const resizedId = resizeStartRef.current?.elementId;
       setIsResizing(false);
       resizeStartRef.current = null;
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
+
+      if (isAntiOverlapActive && resizedId && onResolveOverlap) {
+        onResolveOverlap(resizedId);
+      }
     };
 
     window.addEventListener("touchmove", handleTouchMove, { passive: true });
@@ -888,6 +1316,18 @@ export default function EditorCanvas({
 
       {/* ================= MOBILE-SPECIFIC QUICK ACTION BAR (< sm) ================= */}
       <div className="sm:hidden sticky top-1.5 z-40 mb-2.5 px-2 flex items-center justify-center gap-1.5 overflow-x-auto max-w-full no-scrollbar select-none pointer-events-auto">
+        {onAutoArrangeBlocks && (
+          <button
+            type="button"
+            onClick={() => onAutoArrangeBlocks()}
+            className="shrink-0 px-2.5 py-1.5 rounded-full bg-white/95 backdrop-blur-md border border-indigo-200/90 text-indigo-700 text-[11px] font-bold shadow-2xs flex items-center gap-1 active:scale-95 transition-all cursor-pointer"
+            title="Tự động giãn cách đều các khối và chống đè lên nhau"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <span>Chống đè</span>
+          </button>
+        )}
+
         <button
           type="button"
           onClick={() => onOpenFixedModulesTab?.()}
@@ -946,7 +1386,7 @@ export default function EditorCanvas({
           backgroundSize: "100% auto",
           backgroundRepeat: "repeat-y",
           transform: `scale(${zoomLevel})`,
-          transformOrigin: "top left",
+          transformOrigin: "top center",
         }}
       >
         {/* LIVE AMBIENT CANVAS EFFECT CONFINED TO MOBILE CARD */}
@@ -965,12 +1405,53 @@ export default function EditorCanvas({
         )}
         {/* Upper custom design nodes area */}
         <div
+          ref={canvasContainerRef}
+          id="canvas-inner-area"
+          onMouseDown={handleMouseDownCanvasBg}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
           className="relative w-full shrink-0"
           style={{
             width: `${canvasWidth}px`,
             height: `${canvasHeight}px`,
           }}
         >
+        {/* Drag-and-Drop Active Overlay from Left Drawer */}
+        {isDragOverCanvas && (
+          <div className="absolute inset-0 pointer-events-none z-[1000] border-4 border-dashed border-[#e54153] bg-[#e54153]/10 flex items-center justify-center animate-fade-in backdrop-blur-[1px]">
+            <div className="bg-white/95 px-6 py-3 rounded-2xl shadow-2xl border border-rose-200 flex items-center gap-2.5 text-[#e54153] font-bold text-sm">
+              <Plus className="w-5 h-5 animate-bounce" />
+              <span>Thả vào đây để chèn vào thiệp cưới</span>
+            </div>
+          </div>
+        )}
+
+        {/* Marquee Rubberband Selection Overlay */}
+        {marqueeBox && (() => {
+          const minX = Math.min(marqueeBox.startX, marqueeBox.currentX);
+          const maxX = Math.max(marqueeBox.startX, marqueeBox.currentX);
+          const minY = Math.min(marqueeBox.startY, marqueeBox.currentY);
+          const maxY = Math.max(marqueeBox.startY, marqueeBox.currentY);
+          const w = maxX - minX;
+          const h = maxY - minY;
+
+          return (
+            <div
+              className="absolute pointer-events-none z-[100] border-2 border-indigo-500 bg-indigo-500/15 rounded-xs border-dashed"
+              style={{
+                left: `${minX}px`,
+                top: `${minY}px`,
+                width: `${w}px`,
+                height: `${h}px`,
+              }}
+            >
+              <div className="absolute -top-6 left-0 bg-indigo-600 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow-sm whitespace-nowrap">
+                Chọn vùng ({activeSelectedElements.length})
+              </div>
+            </div>
+          );
+        })()}
         {/* Blueprint Graph Grid Overlay (Toggleable Canva-style grid) */}
         {isGridVisible && (
           <div
@@ -1087,7 +1568,13 @@ export default function EditorCanvas({
               }}
               onClick={(e) => {
                 e.stopPropagation();
-                onSelectElement({ id, type, props });
+                const isMultiModifier = e.shiftKey || e.ctrlKey || e.metaKey;
+                if (isMultiModifier) {
+                  onToggleSelectElement?.({ id, type, props });
+                } else {
+                  onSelectElement({ id, type, props });
+                  onSelectElements?.([{ id, type, props }]);
+                }
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
@@ -1110,8 +1597,10 @@ export default function EditorCanvas({
               className={`absolute group select-none ${hoverClass} ${
                 isLocked
                   ? "pointer-events-auto cursor-pointer"
-                  : selectedElement?.id === id
-                  ? "cursor-grab active:cursor-grabbing ring-1 ring-[#e54153]/40 pointer-events-auto"
+                  : selectedIds.has(id)
+                  ? isMultiSelected
+                    ? "cursor-grab active:cursor-grabbing ring-2 ring-indigo-500 ring-offset-1 pointer-events-auto"
+                    : "cursor-grab active:cursor-grabbing ring-1 ring-[#e54153]/50 pointer-events-auto"
                   : "cursor-pointer hover:ring-1 hover:ring-gray-300/60 pointer-events-auto"
               }`}
               style={{
@@ -1128,42 +1617,13 @@ export default function EditorCanvas({
             >
               <div className={`w-full h-full ${animClass}`}>
                 {/* Element Content by Type */}
-                {type === "PhotoBox" && props.imgKey && (
-                  <div
-                    className="w-full h-full overflow-hidden"
-                  style={{
-                    borderRadius: props.borderRadius
-                      ? `${props.borderRadius[0]}px`
-                      : "0px",
-                    border: props.borderSize
-                      ? `${props.borderSize}px ${props.borderStyle || "solid"} ${props.borderColor || "#ffffff"}`
-                      : undefined,
-                    boxShadow: props.hasBoxShadow
-                      ? `${props.boxShadow?.offsetX || 0}px ${props.boxShadow?.offsetY || 4}px ${props.boxShadow?.blur || 10}px ${props.boxShadow?.color || "rgba(0,0,0,0.15)"}`
-                      : undefined,
-                    transform: `scaleX(${props.flipX ? -1 : 1}) scaleY(${
-                      props.flipY ? -1 : 1
-                    })`,
-                  }}
-                >
-                  <img
-                    src={getImageUrl(props.imgKey)}
-                    alt={props.alt || ""}
-                    onError={(e) => {
-                      handleImageFallback(
-                        e,
-                        undefined,
-                        !props.isReplaceable || isDecorativeAsset(props.imgKey)
-                      );
-                    }}
-                    className="w-full h-full object-cover pointer-events-none select-none transition-all duration-300"
-                    style={{
-                      filter: props.filterStyle || undefined,
-                    }}
-                    draggable={false}
+                {type === "PhotoBox" && (props.imgKey || props.src) && (
+                  <PhotoBoxFrameRenderer
+                    props={props}
+                    getImageUrl={getImageUrl}
+                    isEditor={true}
                   />
-                </div>
-              )}
+                )}
 
               {(type === "TextBox" ||
                 type === "TimelineBox" ||
@@ -2209,8 +2669,102 @@ export default function EditorCanvas({
           );
         })}
 
+        {/* ================= MULTI-SELECTION COLLECTIVE BOUNDING BOX & TOOLBAR ================= */}
+        {isMultiSelected && multiSelectedNodes.length > 1 && (
+          <div
+            className="absolute pointer-events-auto z-50 border-2 border-dashed border-indigo-500 bg-indigo-500/5 select-none"
+            style={{
+              left: `${groupLeft}px`,
+              top: `${groupTop}px`,
+              width: `${groupWidth}px`,
+              height: `${groupHeight}px`,
+            }}
+          >
+            {/* Drag Handle Area over group */}
+            <div
+              onMouseDown={handleMouseDownGroup}
+              className="absolute inset-0 cursor-move"
+              title="Giữ chuột và kéo để di chuyển cả nhóm đối tượng"
+            />
+
+            {/* Floating Group Toolbar directly above the group */}
+            <div
+              className="absolute -top-11 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-gray-900/95 text-white px-2.5 py-1 rounded-full shadow-2xl backdrop-blur-md border border-gray-700 text-xs whitespace-nowrap pointer-events-auto z-50 select-none animate-fade-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="font-bold text-[11px] text-indigo-300 pr-1.5 border-r border-gray-700 flex items-center gap-1">
+                <span>📦</span>
+                <span>{multiSelectedNodes.length} đối tượng</span>
+              </span>
+
+              {/* Alignment Tools */}
+              <button
+                type="button"
+                onClick={() => onAlignMultipleElements?.(Array.from(selectedIds), "left")}
+                className="p-1 rounded hover:bg-white/20 text-gray-200 transition-colors cursor-pointer"
+                title="Căn lề trái"
+              >
+                <AlignLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onAlignMultipleElements?.(Array.from(selectedIds), "center")}
+                className="p-1 rounded hover:bg-white/20 text-gray-200 transition-colors cursor-pointer"
+                title="Căn giữa ngang"
+              >
+                <AlignCenter className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onAlignMultipleElements?.(Array.from(selectedIds), "right")}
+                className="p-1 rounded hover:bg-white/20 text-gray-200 transition-colors cursor-pointer"
+                title="Căn lề phải"
+              >
+                <AlignRight className="w-3.5 h-3.5" />
+              </button>
+
+              <span className="w-px h-3 bg-gray-700 mx-0.5" />
+
+              {/* Duplicate Multi */}
+              <button
+                type="button"
+                onClick={() => onDuplicateMultipleElements?.(Array.from(selectedIds))}
+                className="p-1 rounded hover:bg-white/20 text-indigo-300 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-semibold"
+                title="Nhân bản tất cả các đối tượng đã chọn"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Nhân bản</span>
+              </button>
+
+              {/* Delete Multi */}
+              <button
+                type="button"
+                onClick={() => onDeleteMultipleElements?.(Array.from(selectedIds))}
+                className="p-1 rounded hover:bg-red-500/30 text-rose-300 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-semibold"
+                title="Xóa tất cả các đối tượng đã chọn"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Xóa</span>
+              </button>
+
+              {/* Clear Selection */}
+              <button
+                type="button"
+                onClick={() => {
+                  onSelectElements?.([]);
+                  onSelectElement(null);
+                }}
+                className="p-1 rounded hover:bg-white/20 text-gray-400 hover:text-white transition-colors cursor-pointer ml-0.5"
+                title="Bỏ chọn tất cả"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ================= SELECTION OVERLAY (Z-Index 50: Always on top of all canvas layers) ================= */}
-        {selectedElement && (() => {
+        {!isMultiSelected && selectedElement && (() => {
           const node = nodes[selectedElement.id];
           if (!node) return null;
           const p = node.props || {};
@@ -2380,6 +2934,131 @@ export default function EditorCanvas({
             </div>
           );
         })()}
+
+        {/* ================= THƯỚC DỜI BỐ CỤC / CO DÃN BẢNG VẼ TẠI VỊ TRÍ NÀY ================= */}
+        {activeBottomY !== null && (
+          <div
+            className="absolute left-0 right-0 z-40 pointer-events-auto flex flex-col items-center select-none group"
+            style={{ top: `${activeBottomY + 40}px` }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Full-width Divider Line */}
+            <div className="w-full h-px border-t border-dashed border-indigo-300/40 group-hover:border-indigo-400/80 transition-colors" />
+
+            {/* Collapsed Compact State: Sleek, non-intrusive tag */}
+            {!isStretcherExpanded && !stretchingState ? (
+              <div
+                className="mt-1 flex items-center gap-2 bg-white/95 hover:bg-white backdrop-blur-md px-3 py-1 rounded-full shadow-sm border border-indigo-200 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 transition-all cursor-pointer opacity-80 hover:opacity-100 hover:shadow-md"
+                onClick={() => setIsStretcherExpanded(true)}
+                title="Bấm để mở công cụ dời khoảng cách các khối phía dưới"
+              >
+                <MoveVertical className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Dời bố cục phía dưới</span>
+                <div
+                  onMouseDown={(e) => handleStartStretchDrag(e, activeBottomY)}
+                  className="px-2 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center gap-1 cursor-ns-resize shadow-xs active:scale-95 select-none"
+                  title="Giữ chuột và kéo lên/xuống để co dãn khoảng cách tự do"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <GripHorizontal className="w-3 h-3" />
+                  <span>Kéo dời</span>
+                </div>
+              </div>
+            ) : (
+              /* Expanded Full Controls */
+              <div className="mt-1 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full shadow-lg border border-indigo-200 text-xs font-semibold text-gray-800 transition-all hover:shadow-xl hover:border-indigo-400 animate-fade-in">
+                <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-800">
+                  <MoveVertical className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Dời bố cục phía dưới:</span>
+                </span>
+
+                {/* Push Down +50px */}
+                <button
+                  type="button"
+                  onClick={() => onShiftElementsBelow?.(activeBottomY, 50)}
+                  className="px-2 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold transition-all active:scale-95 flex items-center gap-0.5 border border-indigo-200 cursor-pointer"
+                  title="Đẩy toàn bộ các phần tử bên dưới xuống thêm 50px"
+                >
+                  <ChevronsDown className="w-3 h-3" />
+                  <span>+50px</span>
+                </button>
+
+                {/* Push Down +100px */}
+                <button
+                  type="button"
+                  onClick={() => onShiftElementsBelow?.(activeBottomY, 100)}
+                  className="px-2 py-0.5 rounded-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold transition-all active:scale-95 flex items-center gap-0.5 border border-indigo-200 cursor-pointer"
+                  title="Đẩy toàn bộ các phần tử bên dưới xuống thêm 100px"
+                >
+                  <ChevronsDown className="w-3 h-3" />
+                  <span>+100px</span>
+                </button>
+
+                {/* Pull Up -50px */}
+                <button
+                  type="button"
+                  onClick={() => onShiftElementsBelow?.(activeBottomY, -50)}
+                  className="px-2 py-0.5 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold transition-all active:scale-95 flex items-center gap-0.5 border border-slate-200 cursor-pointer"
+                  title="Kéo toàn bộ các phần tử bên dưới lên 50px"
+                >
+                  <ChevronsUp className="w-3 h-3" />
+                  <span>-50px</span>
+                </button>
+
+                {/* Pull Up -100px */}
+                <button
+                  type="button"
+                  onClick={() => onShiftElementsBelow?.(activeBottomY, -100)}
+                  className="px-2 py-0.5 rounded-full bg-slate-50 hover:bg-slate-100 text-slate-700 text-[10px] font-bold transition-all active:scale-95 flex items-center gap-0.5 border border-slate-200 cursor-pointer"
+                  title="Kéo toàn bộ các phần tử bên dưới lên 100px"
+                >
+                  <ChevronsUp className="w-3 h-3" />
+                  <span>-100px</span>
+                </button>
+
+                {/* Spacer Button */}
+                <button
+                  type="button"
+                  onClick={() => onAddSpacer?.(80, activeBottomY)}
+                  className="px-2 py-0.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 text-[10px] font-bold transition-all active:scale-95 flex items-center gap-0.5 border border-amber-200 cursor-pointer"
+                  title="Chèn thêm 80px khoảng trống tại vị trí này"
+                >
+                  <Plus className="w-3 h-3 text-amber-600" />
+                  <span>+Khoảng trống</span>
+                </button>
+
+                {/* Interactive Drag Handle */}
+                <div
+                  onMouseDown={(e) => handleStartStretchDrag(e, activeBottomY)}
+                  className="px-2 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center gap-1 cursor-ns-resize shadow-xs active:scale-95 select-none"
+                  title="Giữ chuột và kéo lên/xuống để co dãn khoảng cách tự do"
+                >
+                  <GripHorizontal className="w-3 h-3" />
+                  <span>Kéo dời</span>
+                </div>
+
+                {/* Close Button */}
+                <button
+                  type="button"
+                  onClick={() => setIsStretcherExpanded(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-0.5 cursor-pointer"
+                  title="Thu gọn"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
+            {/* Live Delta Tooltip while dragging stretch handle */}
+            {stretchingState && (
+              <div className="mt-1.5 px-3 py-1 bg-gray-900 text-white font-mono text-xs font-bold rounded-lg shadow-xl animate-pulse">
+                {stretchingState.currentDelta >= 0
+                  ? `⬇️ Đẩy xuống: +${stretchingState.currentDelta}px`
+                  : `⬆️ Kéo lên: ${stretchingState.currentDelta}px`}
+              </div>
+            )}
+          </div>
+        )}
         </div>
 
         {/* ================= LOWER FIXED MODULES SECTION ================= */}
@@ -2416,6 +3095,9 @@ export default function EditorCanvas({
         onToggleGrid={() => setIsGridVisible((v) => !v)}
         isSnappingEnabled={isSnappingEnabled}
         onToggleSnapping={() => setIsSnappingEnabled((v) => !v)}
+        isAntiOverlapEnabled={isAntiOverlapActive}
+        onToggleAntiOverlap={toggleAntiOverlap}
+        onAutoArrangeBlocks={onAutoArrangeBlocks}
         onOpenPreview={() => onOpenPreview?.()}
         onOpenShortcuts={() => onOpenShortcuts?.()}
       />
@@ -2424,7 +3106,7 @@ export default function EditorCanvas({
       {photoSlots.length > 0 && !isQuickPanelCollapsed ? (
         <div
           className={`fixed bottom-16 sm:bottom-5 z-30 max-w-[calc(100vw-16px)] sm:max-w-[70vw] lg:max-w-2xl pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
-            isLeftDrawerOpen ? "hidden md:block md:left-[395px]" : "left-2 right-2 sm:right-auto sm:left-24"
+            isLeftDrawerOpen ? "hidden md:block md:bottom-20 md:left-[395px]" : "left-2 right-2 sm:right-auto sm:left-24"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
@@ -2659,7 +3341,7 @@ export default function EditorCanvas({
         /* Trạng thái thu nhỏ gọn gàng */
         <div
           className={`fixed bottom-16 sm:bottom-5 z-30 pointer-events-auto select-none transition-all duration-300 ease-in-out animate-fade-in ${
-            isLeftDrawerOpen ? "hidden md:block md:left-[395px]" : "left-3 sm:left-24"
+            isLeftDrawerOpen ? "hidden md:block md:bottom-20 md:left-[395px]" : "left-3 sm:left-24"
           }`}
           onClick={(e) => e.stopPropagation()}
         >

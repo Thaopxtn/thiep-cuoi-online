@@ -23,6 +23,7 @@ import {
   Sparkles,
   UserCheck,
   Activity,
+  Handshake,
 } from "lucide-react";
 
 import AdminOverviewTab from "@/components/admin/AdminOverviewTab";
@@ -31,6 +32,7 @@ import AdminCardsTab from "@/components/admin/AdminCardsTab";
 import AdminRsvpTab from "@/components/admin/AdminRsvpTab";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
 import AdminTemplatesTab from "@/components/admin/AdminTemplatesTab";
+import AdminPartnerTab from "@/components/admin/AdminPartnerTab";
 import AdminSettingsTab from "@/components/admin/AdminSettingsTab";
 
 const ADMIN_SESSION_KEY = "zenlove_admin_auth_token";
@@ -44,7 +46,7 @@ export default function AdminPage() {
 
   // Tab đang hoạt động
   const [activeTab, setActiveTab] = useState<
-    "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "settings"
+    "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "partners" | "settings"
   >("overview");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
@@ -384,7 +386,7 @@ export default function AdminPage() {
   }
 
   // ================= 2. GIAO DIỆN QUẢN TRỊ ADMIN PORTAL CHÍNH THỨC =================
-  type TabId = "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "settings";
+  type TabId = "overview" | "activities" | "cards" | "rsvps" | "users" | "templates" | "partners" | "settings";
 
   interface NavTabItem {
     id: TabId;
@@ -420,6 +422,7 @@ export default function AdminPage() {
       badge: usersData.length,
     },
     { id: "templates", label: "Kho mẫu giao diện", icon: Layers },
+    { id: "partners", label: "Đối tác cưới", icon: Handshake },
     { id: "settings", label: "Cấu hình & Trạng thái", icon: Settings },
   ];
 
@@ -688,6 +691,8 @@ export default function AdminPage() {
           )}
 
           {activeTab === "templates" && <AdminTemplatesTab />}
+
+          {activeTab === "partners" && <AdminPartnerTab />}
 
           {activeTab === "settings" && (
             <AdminSettingsTab onLogoutAdmin={handleLogoutAdmin} />

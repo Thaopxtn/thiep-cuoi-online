@@ -1,8 +1,11 @@
 "use client";
 
-import React from "react";
+import React, { useRef, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Sparkles, Heart } from "lucide-react";
+import Section from "@/components/ui/Section";
+import SectionHeading from "@/components/ui/SectionHeading";
+import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
 import ArcCarousel from "./ArcCarousel";
 
 interface FeedbackCard {
@@ -155,66 +158,102 @@ const FEEDBACK_CARDS: FeedbackCard[] = [
   },
 ];
 
+function AnimatedCounter({ target, duration = 1800 }: { target: number; duration?: number }) {
+  const [count, setCount] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  const [started, setStarted] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setStarted(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.3 }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    if (!started) return;
+    const steps = 45;
+    const increment = target / steps;
+    let current = 0;
+    const stepTime = duration / steps;
+
+    const timer = setInterval(() => {
+      current += increment;
+      if (current >= target) {
+        setCount(target);
+        clearInterval(timer);
+      } else {
+        setCount(Math.floor(current));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [started, target, duration]);
+
+  return <span ref={ref}>{count.toLocaleString()}</span>;
+}
+
 export default function FeedbackSection() {
   return (
-    <section
+    <Section
       id="feedback"
-      className="bg-[#fbfbfb] py-12"
-      role="region"
-      aria-labelledby="feedback-heading"
+      bg="subtle"
+      padding="lg"
+      ariaLabel="Thiệp đã chia sẻ thành công"
     >
-      <div>
-        <div className="max-w-7xl mx-auto text-center px-4 md:px-0">
-          <div className="slide-up flex flex-col md:flex-row items-center justify-center mb-0 md:mb-4">
-            <span
-              className="text-6xl md:text-8xl font-semibold text-primary font-signature italic mr-0 md:mr-2 relative"
-              aria-hidden="true"
-            >
-              999
-              <span
-                className="text-6xl md:text-6xl leading-none font-bold text-primary font-signature italic absolute -top-[2rem] -right-[2.6rem] md:-right-[3rem]"
-                aria-hidden="true"
-              >
-                +
-              </span>
-            </span>
-            <div className="md:text-left ml-0 mt-4 md:mt-0 md:ml-12">
-              <h2
-                id="feedback-heading"
-                className="text-center md:text-left text-2xl md:text-3xl text-gray-900 uppercase font-heading font-bold"
-              >
-                CHIẾC THIỆP ONLINE
-                <br />
-                ĐÃ CHIA SẺ THÀNH CÔNG
-              </h2>
-            </div>
+      <AnimateOnScroll animation="fade-up">
+        {/* Highlight counter */}
+        <div className="flex flex-col items-center justify-center text-center mb-4">
+          <div className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-rose-50/80 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.18em] text-zen-primary shadow-2xs">
+            <Heart className="size-3.5 fill-current text-zen-primary" />
+            <span>Niềm vui lan tỏa</span>
           </div>
-          <p className="slide-up text-md md:text-base text-gray-600 max-w-2xl mx-auto mt-4 md:mt-0">
-            Lời mời tham dự sự kiện bằng thiệp Online
-            <br />
-            phù hợp với mọi mạng xã hội và nền tảng trò chuyện trực tuyến
-          </p>
-          <h3 className="sr-only">
-            Các thiệp mời đã được chia sẻ bởi người dùng
-          </h3>
-        </div>
 
-        {/* Arc Carousel */}
-        <div className="slide-up mx-auto mt-6 max-w-[1500px]">
+          <div className="mt-4 flex items-baseline justify-center gap-1 font-signature text-6xl sm:text-7xl md:text-8xl font-bold text-zen-primary">
+            <AnimatedCounter target={999} />
+            <span className="text-4xl sm:text-5xl font-bold text-rose-400">+</span>
+          </div>
+
+          <h2
+            id="feedback-heading"
+            className="mt-2 font-heading text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight uppercase"
+          >
+            Chiếc thiệp online đã chia sẻ thành công
+          </h2>
+          <p className="mt-3 text-base text-gray-600 max-w-2xl leading-relaxed">
+            Hàng ngàn cặp đôi đã tin tưởng chọn ZenLove để gửi trọn vẹn thông điệp hạnh phúc đến người thân và bạn bè qua mọi nền tảng mạng xã hội.
+          </p>
+        </div>
+      </AnimateOnScroll>
+
+      {/* Arc Carousel */}
+      <AnimateOnScroll animation="fade-up" delay={150}>
+        <div className="mx-auto mt-8 max-w-[1500px]">
           <ArcCarousel
             items={FEEDBACK_CARDS}
             label="Thiệp mời đã chia sẻ"
-            cardWidth={210}
+            cardWidth={220}
             visibleCards={7}
             caption={false}
             renderCard={(item) => (
               <Link
                 href={`/show/${item.slug}`}
                 title={`Xem thiệp cưới đã chia sẻ: ${item.title}`}
-                className="group/arc-card block rounded-2xl"
+                className="group/arc-card block rounded-2xl transition-transform duration-300 hover:scale-[1.02]"
               >
                 <span
-                  className="relative block overflow-hidden rounded-2xl border border-rose-100 bg-gray-100 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.45)] [aspect-ratio:1000/1470]"
+                  className="relative block overflow-hidden rounded-2xl border border-rose-100/80 bg-gray-100 shadow-[0_12px_28px_-12px_rgba(0,0,0,0.35)] [aspect-ratio:1000/1470]"
                   style={
                     {
                       "--image-scroll-percent": "0%",
@@ -228,33 +267,38 @@ export default function FeedbackSection() {
                     loading="lazy"
                     decoding="async"
                     draggable={false}
-                    className="h-auto w-full align-top [transform:translate3d(0,0,0)] transition-transform duration-200 ease-out"
+                    className="h-auto w-full align-top [transform:translate3d(0,0,0)] transition-transform duration-300 ease-out group-hover/arc-card:scale-105"
                   />
                   <span
                     aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-[3px] transition-[backdrop-filter,background-color] duration-300 group-hover/arc-card:bg-transparent group-hover/arc-card:backdrop-blur-0"
-                  ></span>
+                    className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-[2px] transition-[backdrop-filter,background-color] duration-300 group-hover/arc-card:bg-transparent group-hover/arc-card:backdrop-blur-0"
+                  />
+                  <span className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/arc-card:opacity-100 transition-opacity">
+                    <span className="text-white text-xs font-semibold line-clamp-1">
+                      {item.title}
+                    </span>
+                  </span>
                 </span>
               </Link>
             )}
           />
         </div>
+      </AnimateOnScroll>
 
-        {/* Action Button */}
-        <div className="max-w-7xl mx-auto text-center px-4 md:px-0">
-          <div className="slide-up flex justify-center mt-8">
-            <Link
-              className="bg-zen-primary hover:bg-[#d93849] text-white px-10 py-2.5 rounded-full font-medium shadow-md transition-all duration-300 hover:scale-105 hover:shadow-lg flex items-center gap-1.5"
-              aria-label="Tạo thiệp online của bạn ngay"
-              title="Tạo thiệp online của bạn ngay"
-              href="/templates"
-            >
-              <span className="font-bold">Tạo thiệp của bạn ngay</span>
-              <ArrowRight className="w-4 h-4 ml-0.5" />
-            </Link>
-          </div>
+      {/* Action Button */}
+      <AnimateOnScroll animation="fade-up" delay={250}>
+        <div className="mt-12 flex justify-center">
+          <Link
+            className="group inline-flex items-center gap-2 bg-zen-primary hover:bg-[#d93849] text-white px-9 py-3.5 rounded-full font-bold shadow-[0_10px_28px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(229,65,83,0.4)]"
+            aria-label="Tạo thiệp online của bạn ngay"
+            title="Tạo thiệp online của bạn ngay"
+            href="/templates"
+          >
+            <span>Tạo thiệp riêng của bạn ngay</span>
+            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+          </Link>
         </div>
-      </div>
-    </section>
+      </AnimateOnScroll>
+    </Section>
   );
 }

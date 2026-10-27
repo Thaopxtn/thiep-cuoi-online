@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
-import { Heart, Sparkles } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import { Heart, Sparkles, Crown } from "lucide-react";
+import { weddingSounds } from "@/lib/soundEffects";
 
 export interface LuxuryEnvelopeProps {
   isOpen: boolean;
@@ -13,7 +14,22 @@ export interface LuxuryEnvelopeProps {
   weddingDate?: string;
   venue?: string;
   coverImage?: string;
-  theme?: "cream" | "burgundy" | "traditional" | string;
+  theme?: "cream" | "burgundy" | "traditional" | "emerald" | "midnight" | "blush" | string;
+  customSealSymbol?: "囍" | "heart" | "crown" | "sparkle" | "monogram" | string;
+}
+
+interface BurstParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  size: number;
+  alpha: number;
+  color: string;
+  decay: number;
+  rotation: number;
+  vRot: number;
+  isStar: boolean;
 }
 
 export default function LuxuryEnvelopeModal({
@@ -27,14 +43,20 @@ export default function LuxuryEnvelopeModal({
   venue,
   coverImage,
   theme = "cream",
+  customSealSymbol,
 }: LuxuryEnvelopeProps) {
-  if (isOpen) return null;
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const burstCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [isHovered, setIsHovered] = useState(false);
 
-  // Theme palettes & textures
+  // Palettes config
   const isTraditional = theme === "traditional";
   const isBurgundy = theme === "burgundy";
+  const isEmerald = theme === "emerald";
+  const isMidnight = theme === "midnight";
+  const isBlush = theme === "blush";
 
-  // Palette configs
   const colors = isTraditional
     ? {
         envelopeBg: "from-[#7d121b] via-[#941722] to-[#6a0d14]",
@@ -73,8 +95,65 @@ export default function LuxuryEnvelopeModal({
         sealText: "text-[#ffd700]",
         symbol: "heart",
       }
+    : isEmerald
+    ? {
+        envelopeBg: "from-[#062c22] via-[#0b3d30] to-[#041f18]",
+        pocketGradientStart: "#0e4b3c",
+        pocketGradientEnd: "#072a21",
+        flapGradientStart: "#125847",
+        flapGradientEnd: "#0a362b",
+        goldStroke: "#dfb76c",
+        ribbonBg: "from-[#0b3d30] via-[#145343] to-[#072a21]",
+        ribbonBorder: "#dfb76c",
+        ribbonTail: "from-[#145343] to-[#062c22]",
+        tagBg: "bg-[#f4faf7]",
+        tagText: "text-[#0b3d30]",
+        tagBorder: "border-[#c9a859]",
+        sealOuter: "from-[#dfb76c] via-[#b99144] to-[#866322]",
+        sealInner: "from-[#0b3d30] via-[#134e3f] to-[#062c22]",
+        sealText: "text-[#ffd700]",
+        symbol: "crown",
+      }
+    : isMidnight
+    ? {
+        envelopeBg: "from-[#0d1527] via-[#15223e] to-[#080d19]",
+        pocketGradientStart: "#1c2b4e",
+        pocketGradientEnd: "#0f182c",
+        flapGradientStart: "#233662",
+        flapGradientEnd: "#131f38",
+        goldStroke: "#e2d5b8",
+        ribbonBg: "from-[#15223e] via-[#20335c] to-[#0e1628]",
+        ribbonBorder: "#e2d5b8",
+        ribbonTail: "from-[#20335c] to-[#0d1527]",
+        tagBg: "bg-[#f8f9fc]",
+        tagText: "text-[#15223e]",
+        tagBorder: "border-[#c4b595]",
+        sealOuter: "from-[#e2d5b8] via-[#bfb090] to-[#8d7e5d]",
+        sealInner: "from-[#15223e] via-[#1f3056] to-[#0d1527]",
+        sealText: "text-[#fbf5e6]",
+        symbol: "sparkle",
+      }
+    : isBlush
+    ? {
+        envelopeBg: "from-[#572733] via-[#6f3241] to-[#421d27]",
+        pocketGradientStart: "#7f3b4c",
+        pocketGradientEnd: "#522430",
+        flapGradientStart: "#924558",
+        flapGradientEnd: "#612a38",
+        goldStroke: "#f1cbb5",
+        ribbonBg: "from-[#6f3241] via-[#873e50] to-[#4d212c]",
+        ribbonBorder: "#f1cbb5",
+        ribbonTail: "from-[#873e50] to-[#421d27]",
+        tagBg: "bg-[#fff7f8]",
+        tagText: "text-[#572733]",
+        tagBorder: "border-[#e5a88c]",
+        sealOuter: "from-[#e5a88c] via-[#cb8c70] to-[#995e46]",
+        sealInner: "from-[#6f3241] via-[#843c4e] to-[#4b202a]",
+        sealText: "text-[#ffded1]",
+        symbol: "heart",
+      }
     : {
-        // Cream / Champagne (Default for Pure Romance & Aurora Luxury)
+        // Cream / Champagne default
         envelopeBg: "from-[#f4efe6] via-[#faf7f2] to-[#eae2d5]",
         pocketGradientStart: "#ffffff",
         pocketGradientEnd: "#ede5d8",
@@ -93,36 +172,184 @@ export default function LuxuryEnvelopeModal({
         symbol: "sparkle",
       };
 
-  // Extract monogram initial from guest name if provided (e.g. "Anh Tuấn VIP" -> "T", "Chị Mai" -> "M")
+  const activeSymbol = customSealSymbol || colors.symbol;
+
+  // Extract monogram initial from guest name
   const getGuestInitial = (name?: string): string | null => {
     if (!name) return null;
     let clean = name.trim();
     if (!clean) return null;
-
-    // Remove common suffixes like VIP, Pro, etc.
     clean = clean.replace(/\b(vip|pro|plus|\(vip\)|\(pro\))\b/gi, "").trim();
-
-    // Split words
     const words = clean.split(/\s+/).filter(Boolean);
     if (words.length === 0) return name.trim()[0]?.toUpperCase() || null;
-
-    // Filter out common Vietnamese title prefixes if more words exist
     const prefixes = /^(anh|chị|chi|em|bạn|ban|bác|bac|chú|chu|cô|co|dì|di|gia\s*đình|gđ|gd|mr|ms|mrs)$/i;
     const meaningfulWords = words.filter((w, i) => (i === 0 && words.length > 1 ? !prefixes.test(w) : true));
-
     const targetWord = meaningfulWords[meaningfulWords.length - 1] || words[words.length - 1];
     const initial = targetWord ? targetWord[0].toUpperCase() : null;
     return initial && /^[A-ZÀ-Ỹ0-9]$/i.test(initial) ? initial : null;
   };
   const guestInitial = getGuestInitial(guestName);
 
+  // 3D Parallax Tilt (Gyroscope on mobile)
+  useEffect(() => {
+    const handleOrientation = (e: DeviceOrientationEvent) => {
+      if (e.gamma === null || e.beta === null) return;
+      const yTilt = Math.max(-10, Math.min(10, e.gamma / 3));
+      const xTilt = Math.max(-8, Math.min(8, (e.beta - 45) / 4));
+      setTilt({ x: -xTilt, y: yTilt });
+    };
+
+    if (typeof window !== "undefined" && window.DeviceOrientationEvent) {
+      window.addEventListener("deviceorientation", handleOrientation, true);
+    }
+    return () => {
+      if (typeof window !== "undefined" && window.DeviceOrientationEvent) {
+        window.removeEventListener("deviceorientation", handleOrientation);
+      }
+    };
+  }, []);
+
+  // 3D Mouse Parallax on desktop
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const normX = (e.clientX - centerX) / (rect.width / 2);
+    const normY = (e.clientY - centerY) / (rect.height / 2);
+    setTilt({
+      x: -normY * 7,
+      y: normX * 9,
+    });
+  };
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0 });
+    setIsHovered(false);
+  };
+
+  // Wax Seal Canvas Particle Burst
+  const triggerWaxBurst = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isOpening) return;
+
+    // Haptic vibration feedback
+    if (typeof navigator !== "undefined" && navigator.vibrate) {
+      try {
+        navigator.vibrate([40, 25, 55]);
+      } catch {}
+    }
+
+    // Play synthesized envelope open sound
+    weddingSounds.playEnvelopeOpen();
+
+    // Canvas particle burst animation
+    const canvas = burstCanvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        const originX = rect.left + rect.width / 2;
+        const originY = rect.top + rect.height / 2;
+
+        const burstColors = ["#ffd700", "#fff3a8", "#ffc107", "#ffa000", "#ffffff", "#fce4ec"];
+        const particles: BurstParticle[] = [];
+
+        for (let i = 0; i < 48; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 3.5 + Math.random() * 7.5;
+          particles.push({
+            x: originX,
+            y: originY,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 1.2,
+            size: 2.5 + Math.random() * 4.5,
+            alpha: 1.0,
+            color: burstColors[Math.floor(Math.random() * burstColors.length)],
+            decay: 0.018 + Math.random() * 0.02,
+            rotation: Math.random() * Math.PI,
+            vRot: (Math.random() - 0.5) * 0.2,
+            isStar: Math.random() > 0.4,
+          });
+        }
+
+        const renderBurst = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          let alive = 0;
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.18; // gravity
+            p.rotation += p.vRot;
+            p.alpha -= p.decay;
+
+            if (p.alpha <= 0.01) continue;
+            alive++;
+
+            ctx.save();
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rotation);
+            ctx.fillStyle = p.color;
+            ctx.globalAlpha = p.alpha;
+            ctx.shadowColor = "#ffd700";
+            ctx.shadowBlur = 8;
+
+            if (p.isStar) {
+              // 4-point gold star
+              ctx.beginPath();
+              ctx.moveTo(0, -p.size);
+              ctx.lineTo(p.size * 0.35, -p.size * 0.35);
+              ctx.lineTo(p.size, 0);
+              ctx.lineTo(p.size * 0.35, p.size * 0.35);
+              ctx.lineTo(0, p.size);
+              ctx.lineTo(-p.size * 0.35, p.size * 0.35);
+              ctx.lineTo(-p.size, 0);
+              ctx.lineTo(-p.size * 0.35, -p.size * 0.35);
+              ctx.closePath();
+              ctx.fill();
+            } else {
+              ctx.beginPath();
+              ctx.arc(0, 0, p.size, 0, Math.PI * 2);
+              ctx.fill();
+            }
+            ctx.restore();
+          }
+
+          if (alive > 0) {
+            requestAnimationFrame(renderBurst);
+          } else {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+          }
+        };
+
+        requestAnimationFrame(renderBurst);
+      }
+    }
+
+    onOpen();
+  };
+
+  if (isOpen) return null;
+
   return (
     <div
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-4 transition-all duration-700 select-none ${
-        isOpening ? "opacity-0 scale-105 pointer-events-none" : "opacity-100 scale-100"
+      ref={containerRef}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={handleMouseLeave}
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center p-4 select-none transition-all duration-1000 ${
+        isOpening
+          ? "opacity-0 scale-[1.2] translate-y-[-4%] pointer-events-none"
+          : "opacity-100 scale-100"
       }`}
     >
-      {/* 1. Cinematic Romantic Background */}
+      {/* Canvas for full-screen particle burst */}
+      <canvas ref={burstCanvasRef} className="fixed inset-0 pointer-events-none z-50 w-full h-full" />
+
+      {/* 1. Cinematic Background with Anamorphic Glow */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {coverImage ? (
           <img
@@ -131,30 +358,50 @@ export default function LuxuryEnvelopeModal({
             className="w-full h-full object-cover blur-md brightness-60 scale-110"
           />
         ) : (
-          <div className="w-full h-full bg-[#1c0f12]" />
+          <div className="w-full h-full bg-[#170e10]" />
         )}
+
         {/* Soft Warm Radial Vignette */}
-        <div className="absolute inset-0 bg-radial-[circle_at_center,rgba(0,0,0,0.25)_0%,rgba(0,0,0,0.85)_100%]" />
+        <div className="absolute inset-0 bg-radial-[circle_at_center,rgba(0,0,0,0.2)_0%,rgba(0,0,0,0.85)_100%]" />
+
         {/* Atmospheric Bokeh shimmer dots */}
-        <div className="absolute inset-0 bg-[radial-gradient(#ffd700_1px,transparent_1px)] [background-size:24px_24px] opacity-15" />
+        <div className="absolute inset-0 bg-[radial-gradient(#ffd700_1px,transparent_1px)] [background-size:24px_24px] opacity-20" />
+
+        {/* Cinematic horizontal lens flare beam */}
+        <div className="absolute top-1/3 inset-x-0 h-48 bg-gradient-to-r from-transparent via-amber-400/10 to-transparent blur-3xl pointer-events-none animate-pulse" />
       </div>
 
-      {/* 2. Main 3D Envelope Scene Wrapper */}
-      <div className="relative w-full max-w-[360px] perspective-envelope z-10 animate-scale-in">
-        <div className="relative w-full h-[240px] transform-style-3d">
-
-          {/* Layer A: Envelope Back Wall (Giấy mặt sau) */}
+      {/* 2. Main 3D Envelope Scene Wrapper with Gyro/Mouse Tilt */}
+      <div
+        className="relative w-full max-w-[360px] perspective-envelope z-10 transition-transform duration-200 ease-out"
+        style={{
+          transform: `perspective(1200px) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        <div className="relative w-full h-[240px] transform-style-3d drop-shadow-[0_30px_70px_rgba(0,0,0,0.7)]">
+          {/* Dynamic Glare Light Sheet reacting to tilt */}
           <div
-            className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${colors.envelopeBg} shadow-[0_25px_60px_-15px_rgba(0,0,0,0.7),0_0_35px_rgba(212,175,55,0.2)] border border-amber-400/30 overflow-hidden`}
+            className="absolute inset-0 rounded-2xl pointer-events-none z-30 opacity-40 transition-opacity duration-300"
+            style={{
+              background: `radial-gradient(circle at ${50 + tilt.y * 3}% ${
+                50 + tilt.x * 3
+              }%, rgba(255, 255, 255, 0.35) 0%, transparent 60%)`,
+            }}
+          />
+
+          {/* Layer A: Envelope Back Wall */}
+          <div
+            className={`absolute inset-0 rounded-2xl bg-gradient-to-b ${colors.envelopeBg} border border-amber-400/30 overflow-hidden`}
           >
             {/* Inner artistic liner pattern */}
             <div className="absolute inset-0 opacity-20 bg-[radial-gradient(#d4af37_1px,transparent_1px)] [background-size:12px_12px]" />
           </div>
 
-          {/* Layer B: The Sliding Invitation Letter Card (Tucked inside, slides up when opened) */}
+          {/* Layer B: The Sliding Invitation Letter Card */}
           <div
-            className={`envelope-letter-slide absolute inset-x-4 top-4 bottom-4 bg-[#fffdfa] rounded-xl border border-amber-500/30 shadow-lg p-3 text-center flex flex-col justify-between z-10 transition-transform duration-700 ${
-              isOpening ? "-translate-y-28 scale-[1.03] shadow-2xl" : "translate-y-0"
+            className={`envelope-letter-slide absolute inset-x-4 top-4 bottom-4 bg-[#fffdfa] rounded-xl border border-amber-500/30 shadow-lg p-3 text-center flex flex-col justify-between z-10 transition-all duration-1000 ${
+              isOpening ? "-translate-y-36 scale-[1.05] shadow-2xl" : "translate-y-0"
             }`}
           >
             {/* Elegant Letter Content with Gold Foil Border */}
@@ -192,7 +439,7 @@ export default function LuxuryEnvelopeModal({
             </div>
           </div>
 
-          {/* Layer C: Gapless Front Pocket (Túi đựng mặt trước 100% Watertight SVG) */}
+          {/* Layer C: Gapless Front Pocket */}
           <div className="absolute inset-0 pointer-events-none z-20 overflow-hidden rounded-2xl">
             <svg
               className="w-full h-full drop-shadow-[0_-5px_12px_rgba(0,0,0,0.25)]"
@@ -206,14 +453,12 @@ export default function LuxuryEnvelopeModal({
                 </linearGradient>
               </defs>
 
-              {/* Seamless Front Pocket Geometry with rounded bottom corners */}
               <path
                 d="M 0 16 L 175 75 Q 180 77 185 75 L 360 16 L 360 224 A 16 16 0 0 1 344 240 L 16 240 A 16 16 0 0 1 0 224 Z"
                 fill="url(#pocketGrad)"
                 stroke={colors.goldStroke}
                 strokeWidth="1"
               />
-              {/* Decorative Inset Gold Foil Stitching */}
               <path
                 d="M 6 22 L 175 81 Q 180 83 185 81 L 354 22"
                 fill="none"
@@ -228,7 +473,6 @@ export default function LuxuryEnvelopeModal({
             <div
               className={`absolute bottom-8 inset-x-0 h-8 bg-gradient-to-r ${colors.ribbonBg} border-y border-amber-400/40 shadow-sm flex items-center justify-center`}
             >
-              {/* Ribbon Gold Foil Center Highlight */}
               <div className="w-full h-px bg-amber-200/40" />
 
               {/* Guest Invitation Calligraphy Badge on Ribbon */}
@@ -243,16 +487,13 @@ export default function LuxuryEnvelopeModal({
             </div>
           </div>
 
-          {/* Layer D: 3D Top Flap with Realistic Wax Seal (Nắp gập xoay 3D với góc bo chuẩn) */}
+          {/* Layer D: 3D Top Flap with Realistic Wax Seal */}
           <div
             className={`envelope-flap-3d envelope-flap-3d-smooth absolute top-0 inset-x-0 h-[145px] z-30 origin-top cursor-pointer ${
               isOpening ? "envelope-flap-3d-open" : ""
             }`}
-            onClick={onOpen}
+            onClick={triggerWaxBurst}
           >
-            {/* Top Flap SVG:
-                Top corners rounded with exact 16px radius matching the envelope back!
-                Apex reaches (180, 138) with a smooth rounded tip. */}
             <svg
               className="w-full h-full drop-shadow-[0_8px_16px_rgba(0,0,0,0.35)]"
               viewBox="0 0 360 145"
@@ -270,7 +511,6 @@ export default function LuxuryEnvelopeModal({
                 stroke={colors.goldStroke}
                 strokeWidth="1"
               />
-              {/* Inset Gold Foil Stitching line on flap */}
               <path
                 d="M 22 5 L 338 5 A 12 12 0 0 1 350 17 L 184 130 Q 180 133 176 130 L 10 17 A 12 12 0 0 1 22 5 Z"
                 fill="none"
@@ -284,10 +524,7 @@ export default function LuxuryEnvelopeModal({
             {/* 3D Photorealistic Melted Wax Seal Button */}
             <button
               type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpen();
-              }}
+              onClick={triggerWaxBurst}
               className="absolute top-[96px] left-1/2 -translate-x-1/2 w-16 h-16 rounded-full cursor-pointer group z-40 transition-transform duration-300 hover:scale-110 active:scale-95"
               title="Chạm vào con dấu sáp để mở thiệp cưới"
             >
@@ -301,46 +538,48 @@ export default function LuxuryEnvelopeModal({
                 style={{ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%)" }}
               />
 
-              {/* Outer Organic Wavy Wax Puddle (Gờ sáp nóng chảy bất đối xứng) */}
+              {/* Outer Organic Wavy Wax Puddle with Shimmer */}
               <div
-                className={`w-full h-full rounded-[48%_52%_49%_51%_/_53%_47%_52%_48%] bg-gradient-to-br ${colors.sealOuter} p-1 shadow-[0_8px_20px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] flex items-center justify-center animate-wax-seal-glow border border-amber-200/60`}
+                className={`w-full h-full rounded-[48%_52%_49%_51%_/_53%_47%_52%_48%] bg-gradient-to-br ${colors.sealOuter} p-1 shadow-[0_8px_20px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.6)] flex items-center justify-center animate-wax-seal-glow border border-amber-200/60 relative overflow-hidden`}
               >
+                {/* Shimmer light sweep across wax seal */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-in-out pointer-events-none" />
+
                 {/* Inner Wax Cavity with Engraved Monogram */}
                 <div
                   className={`w-11 h-11 rounded-[47%_53%_50%_50%_/_52%_48%_53%_47%] bg-gradient-to-br ${colors.sealInner} border border-amber-300/50 flex items-center justify-center shadow-[inset_0_3px_6px_rgba(0,0,0,0.5)]`}
                 >
-                  {guestInitial ? (
+                  {guestInitial && activeSymbol === "monogram" ? (
                     <span className="text-xl font-bold font-serif text-amber-200 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)] tracking-tight">
                       {guestInitial}
                     </span>
-                  ) : colors.symbol === "囍" ? (
+                  ) : activeSymbol === "囍" ? (
                     <span className="text-2xl font-bold font-serif text-yellow-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                       囍
                     </span>
-                  ) : colors.symbol === "heart" ? (
+                  ) : activeSymbol === "crown" ? (
+                    <Crown className="w-5 h-5 text-amber-300 drop-shadow group-hover:scale-110 transition-transform" />
+                  ) : activeSymbol === "heart" ? (
                     <Heart className="w-5 h-5 text-amber-300 fill-amber-300 drop-shadow group-hover:scale-110 transition-transform" />
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-amber-300">
-                      <Sparkles className="w-5 h-5 fill-amber-300 drop-shadow group-hover:scale-110 transition-transform" />
-                    </div>
+                    <Sparkles className="w-5 h-5 fill-amber-300 text-amber-300 drop-shadow group-hover:scale-110 transition-transform" />
                   )}
                 </div>
               </div>
             </button>
           </div>
-
         </div>
 
         {/* 3. Interactive Call to Action Hint below envelope */}
         <div className="mt-8 text-center">
           <button
             type="button"
-            onClick={onOpen}
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-black/50 hover:bg-black/70 text-amber-200 border border-amber-400/50 backdrop-blur-md shadow-xl text-xs font-semibold tracking-wide transition-all hover:scale-105 active:scale-95 cursor-pointer animate-bounce"
+            onClick={triggerWaxBurst}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/60 hover:bg-black/80 text-amber-200 border border-amber-400/50 backdrop-blur-md shadow-2xl text-xs font-semibold tracking-wide transition-all hover:scale-105 active:scale-95 cursor-pointer animate-bounce"
           >
             <span>💌</span>
-            <span>Chạm vào con dấu để mở thiệp</span>
-            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>Chạm vào con dấu sáp để mở thiệp</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
           </button>
         </div>
       </div>
