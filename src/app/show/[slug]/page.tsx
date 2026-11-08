@@ -75,6 +75,13 @@ import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
 import { weddingSounds } from "@/lib/soundEffects";
 import AnimatedReveal from "@/components/AnimatedReveal";
 
+const QUICK_WISH_SUGGESTIONS = [
+  "Chúc hai bạn trăm năm hạnh phúc, đầu bạc răng long! 💍",
+  "Chúc tân lang tân nương mãi mãi yêu thương và đồng hành bên nhau! ✨",
+  "Mừng ngày chung đôi, chúc gia đình nhỏ luôn ngập tràn tiếng cười! 🥂",
+  "Chúc hai bạn sớm đón thêm thiên thần nhỏ đáng yêu! 👶",
+];
+
 export default function ShowInvitationPage() {
   const params = useParams();
   const slug = (params?.slug as string) || "hong-phong";
@@ -1931,6 +1938,35 @@ export default function ShowInvitationPage() {
                       : "border-gray-200 bg-white focus:border-zen-primary"
                   }`}
                 />
+                {/* Gợi ý lời chúc 1 chạm */}
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between text-[11px] text-gray-500">
+                    <span>Gợi ý lời chúc ý nghĩa:</span>
+                    <span className="text-[10px] text-gray-400 italic">Chạm để chọn</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-0.5 px-0.5">
+                    {QUICK_WISH_SUGGESTIONS.map((qw, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setGuestWish(qw);
+                          if (sfxEnabled) weddingSounds.playSoftClick();
+                          if (typeof navigator !== "undefined" && navigator.vibrate) {
+                            try { navigator.vibrate(30); } catch {}
+                          }
+                        }}
+                        className={`text-[11px] px-2.5 py-1 rounded-full whitespace-nowrap border transition-all cursor-pointer shrink-0 active:scale-95 ${
+                          guestWish === qw
+                            ? "bg-rose-100/90 text-zen-primary border-rose-300 font-bold shadow-2xs"
+                            : "bg-white hover:bg-rose-50/60 text-gray-700 border-gray-200 hover:border-rose-200"
+                        }`}
+                      >
+                        {qw}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <textarea
                   required
                   rows={2}
@@ -2246,6 +2282,20 @@ export default function ShowInvitationPage() {
                   {copiedBank === "groom" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedBank === "groom" ? "Đã sao chép số tài khoản!" : "Sao chép số tài khoản"}</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!card.groom.accountNumber) return;
+                    const fullInfo = `Ngân hàng: ${card.groom.bankName || "MB BANK"}\nSố tài khoản: ${card.groom.accountNumber}\nChủ tài khoản: ${groomBankOwner}`;
+                    copyToClipboard(fullInfo, "groom_full");
+                    setToastMessage("Đã sao chép đầy đủ thông tin chuyển khoản!");
+                    setTimeout(() => setToastMessage(null), 2500);
+                  }}
+                  className="w-full py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  {copiedBank === "groom_full" ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBank === "groom_full" ? "Đã sao chép đầy đủ!" : "Sao chép đầy đủ thông tin"}</span>
+                </button>
               </div>
             )}
 
@@ -2285,8 +2335,30 @@ export default function ShowInvitationPage() {
                   {copiedBank === "bride" ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                   <span>{copiedBank === "bride" ? "Đã sao chép số tài khoản!" : "Sao chép số tài khoản"}</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!card.bride.accountNumber) return;
+                    const fullInfo = `Ngân hàng: ${card.bride.bankName || "TECHCOMBANK"}\nSố tài khoản: ${card.bride.accountNumber}\nChủ tài khoản: ${brideBankOwner}`;
+                    copyToClipboard(fullInfo, "bride_full");
+                    setToastMessage("Đã sao chép đầy đủ thông tin chuyển khoản!");
+                    setTimeout(() => setToastMessage(null), 2500);
+                  }}
+                  className="w-full py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  {copiedBank === "bride_full" ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBank === "bride_full" ? "Đã sao chép đầy đủ!" : "Sao chép đầy đủ thông tin"}</span>
+                </button>
               </div>
             )}
+
+            {/* Gợi ý cho khách mở app ngân hàng */}
+            <div className="p-2.5 rounded-2xl bg-amber-50/90 border border-amber-200/60 text-[11px] text-amber-900 text-left flex items-start gap-2 shadow-2xs">
+              <span className="text-sm shrink-0">📱</span>
+              <p className="leading-snug">
+                <strong>Mẹo nhanh:</strong> Nếu đang dùng điện thoại, bạn hãy bấm sao chép số tài khoản rồi mở ứng dụng Ngân hàng của bạn để chuyển khoản mừng cưới thuận tiện nhất!
+              </p>
+            </div>
           </div>
         </div>
       )}

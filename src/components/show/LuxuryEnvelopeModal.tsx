@@ -528,6 +528,10 @@ export default function LuxuryEnvelopeModal({
               className="absolute top-[96px] left-1/2 -translate-x-1/2 w-16 h-16 rounded-full cursor-pointer group z-40 transition-transform duration-300 hover:scale-110 active:scale-95"
               title="Chạm vào con dấu sáp để mở thiệp cưới"
             >
+              {/* Interactive golden pulsating aura hint */}
+              <div className="absolute -inset-2 rounded-full border-2 border-amber-300/70 animate-ping pointer-events-none opacity-40 -z-20" />
+              <div className="absolute -inset-3 rounded-full bg-amber-400/20 blur-md pointer-events-none opacity-60 group-hover:opacity-100 transition-opacity -z-20" />
+
               {/* Crossed Ribbon Tails hanging beneath the wax seal */}
               <div
                 className={`absolute top-8 left-2 w-3 h-8 bg-gradient-to-b ${colors.ribbonTail} border-l border-amber-300/40 rotate-15 shadow-sm pointer-events-none -z-10`}
