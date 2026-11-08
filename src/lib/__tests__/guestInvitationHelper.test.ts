@@ -17,6 +17,32 @@ describe("guestInvitationHelper", () => {
     );
   });
 
+  it("keeps existing query and fragment while replacing the display name", () => {
+    const link = formatGuestLink(`${baseUrl}?campaign=family&to=old#rsvp`, "Khách mới");
+    const url = new URL(link);
+    expect(url.searchParams.get("campaign")).toBe("family");
+    expect(url.searchParams.getAll("to")).toEqual(["Khách mới"]);
+    expect(url.hash).toBe("#rsvp");
+  });
+
+  it("keeps exact guest identity separate from display name and table", () => {
+    const url = new URL(formatGuestLink(baseUrl, "Nguyễn An", {
+      cardId: "card-identity", guestId: "rsvp:guest/1", tableNumber: "Bàn 08",
+    }));
+    expect(url.searchParams.get("cardId")).toBe("card-identity");
+    expect(url.searchParams.get("guestId")).toBe("rsvp:guest/1");
+    expect(url.searchParams.get("to")).toBe("Nguyễn An");
+    expect(url.searchParams.get("table")).toBe("Bàn 08");
+  });
+
+  it("does not transfer an old guest identity or seat when personalizing a new invitation", () => {
+    const url = new URL(formatGuestLink(`${baseUrl}?guestId=old&cardId=old-card&table=Old&campaign=family`, "Khách mới"));
+    expect(url.searchParams.has("guestId")).toBe(false);
+    expect(url.searchParams.has("cardId")).toBe(false);
+    expect(url.searchParams.has("table")).toBe(false);
+    expect(url.searchParams.get("campaign")).toBe("family");
+  });
+
   it("formatZaloInvite should format polite wedding message", () => {
     const link = formatGuestLink(baseUrl, "Anh Hoàng");
     const msg = formatZaloInvite({

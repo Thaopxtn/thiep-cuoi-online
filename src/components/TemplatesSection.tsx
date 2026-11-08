@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Section from "@/components/ui/Section";
 import SectionHeading from "@/components/ui/SectionHeading";
 import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
@@ -222,7 +222,7 @@ export default function TemplatesSection() {
               Chọn mẫu &amp; bắt đầu tạo thiệp mời của bạn
             </>
           }
-          description="Khám phá hơn 207+ thiết kế tinh tế từ phong cách Hoàng gia, Retro, Tối giản đến Hiện đại — xem trước và cá nhân hóa chỉ trong vài phút."
+          description="Khám phá các thiết kế từ truyền thống đến hiện đại. Xem trước và chọn một mẫu phù hợp với câu chuyện của hai bạn."
         />
       </AnimateOnScroll>
 
@@ -240,7 +240,7 @@ export default function TemplatesSection() {
                 type="button"
                 onClick={() => handleCardClick(item)}
                 title={`Xem mẫu thiệp cưới ${item.name}`}
-                className="group/arc-card block w-full rounded-2xl text-left cursor-pointer focus:outline-none transition-transform duration-300 hover:scale-[1.02]"
+                className="group/arc-card block w-full rounded-2xl text-left cursor-pointer transition-transform duration-300 motion-safe:hover:scale-[1.02]"
               >
                 <span
                   className="relative block overflow-hidden rounded-2xl border border-rose-100/80 bg-gray-100 shadow-[0_14px_32px_-12px_rgba(0,0,0,0.35)] [aspect-ratio:1000/1470]"
@@ -259,9 +259,9 @@ export default function TemplatesSection() {
                     draggable={false}
                     className="h-auto w-full align-top [transform:translate3d(0,0,0)] transition-transform duration-200 ease-out group-hover/arc-card:[transition-duration:var(--scroll-duration)] group-hover/arc-card:[transition-timing-function:ease] motion-safe:group-hover/arc-card:[transform:translate3d(0,calc(var(--image-scroll-percent,0%)*-1),0)]"
                   />
-                  <span className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover/arc-card:opacity-100 transition-opacity flex items-end p-4">
+                  <span className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent flex items-end p-4">
                     <span className="text-white text-xs font-semibold drop-shadow-sm">
-                      {item.name} · Xem chi tiết →
+                      {item.name}
                     </span>
                   </span>
                 </span>
@@ -275,12 +275,11 @@ export default function TemplatesSection() {
       <AnimateOnScroll animation="fade-up" delay={250}>
         <div className="mt-12 flex justify-center">
           <Link
-            className="group inline-flex items-center gap-2.5 bg-zen-primary hover:bg-[#d93849] text-white px-9 py-3.5 rounded-full font-bold shadow-[0_10px_28px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(229,65,83,0.4)]"
-            aria-label="Xem toàn bộ 207+ mẫu thiệp cưới"
+            className="zen-button zen-button-primary"
             href="/templates"
           >
-            <span>Khám phá toàn bộ 207+ mẫu thiệp</span>
-            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+            <span>Khám phá toàn bộ mẫu thiệp</span>
+            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
           </Link>
         </div>
       </AnimateOnScroll>

@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardsFromDb, deleteCardFromDb, updateCardStatusInDb } from "@/lib/serverDb";
+import {
+  getCardsFromDb,
+  deleteCardFromDb,
+  updateCardStatusInDb,
+  activateCardVipInDb,
+  setCardVipInDb,
+} from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
 import { verifyAdminAuth } from "@/lib/serverAuth";
 
@@ -44,6 +50,8 @@ export async function GET(request: NextRequest) {
       updatedAt: c.updatedAt,
       musicTitle: c.musicTitle,
       userId: c.userId,
+      isVip: Boolean(c.isVip || (c.groom as any)?.isVip),
+      plan: c.plan || (c.groom as any)?.plan || "free",
     }));
 
     return NextResponse.json({
@@ -62,7 +70,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/admin/cards
- * Cập nhật trạng thái thiệp cưới (Draft <-> Published) (Yêu cầu quyền Admin)
+ * Cập nhật trạng thái thiệp cưới (Draft <-> Published) hoặc Gói VIP (Yêu cầu quyền Admin)
  */
 export async function PATCH(request: NextRequest) {
   const auth = await verifyAdminAuth(request);
@@ -75,33 +83,60 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { id, status } = body;
+    const { id, status, isVip } = body;
 
-    if (!id || !status) {
+    if (isVip !== undefined && typeof isVip !== "boolean") {
+      return NextResponse.json({ success: false, message: "Trạng thái VIP không hợp lệ" }, { status: 400 });
+    }
+
+    if (!id) {
       return NextResponse.json(
-        { success: false, message: "Thiếu ID hoặc trạng thái thiệp" },
+        { success: false, message: "Thiếu ID thiệp cưới" },
         { status: 400 }
       );
     }
 
-    if (status !== "published" && status !== "draft") {
-      return NextResponse.json(
-        { success: false, message: "Trạng thái thiệp không hợp lệ" },
-        { status: 400 }
-      );
+    const messages: string[] = [];
+
+    // 1. Cập nhật trạng thái Xuất bản / Bản nháp nếu có
+    if (status) {
+      if (status !== "published" && status !== "draft") {
+        return NextResponse.json(
+          { success: false, message: "Trạng thái thiệp không hợp lệ" },
+          { status: 400 }
+        );
+      }
+      const updated = await updateCardStatusInDb(id, status);
+      if (!updated) {
+        return NextResponse.json(
+          { success: false, message: "Không thể cập nhật trạng thái thiệp trên cơ sở dữ liệu" },
+          { status: 500 }
+        );
+      }
+      messages.push(`Đổi trạng thái thành "${status === "published" ? "Đã xuất bản" : "Bản nháp"}"`);
     }
 
-    const updated = await updateCardStatusInDb(id, status);
-    if (!updated) {
-      return NextResponse.json(
-        { success: false, message: "Không thể cập nhật trạng thái thiệp trên cơ sở dữ liệu" },
-        { status: 500 }
-      );
+    // 2. Cập nhật trạng thái VIP nếu có
+    if (isVip !== undefined) {
+      if (isVip) {
+        const vipRes = await activateCardVipInDb(id);
+        if (!vipRes.success) {
+          return NextResponse.json(
+            { success: false, message: "Không thể kích hoạt VIP cho thiệp" },
+            { status: 500 }
+          );
+        }
+        messages.push("Đã nâng cấp VIP thành công");
+      } else {
+        const result = await setCardVipInDb(id, false);
+        if (!result.success) return NextResponse.json({ success: false, message: "Không thể lưu hạ cấp VIP" }, { status: 500 });
+        messages.push("Đã chuyển về gói thường (Free)");
+      }
     }
 
     return NextResponse.json({
       success: true,
-      message: `Đã đổi trạng thái thiệp thành "${status === "published" ? "Đã xuất bản" : "Bản nháp"}"`,
+      message: messages.join(". ") || "Cập nhật thiệp thành công!",
     });
   } catch (error: any) {
     console.error("Lỗi PATCH /api/admin/cards:", error);

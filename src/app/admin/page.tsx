@@ -58,6 +58,7 @@ export default function AdminPage() {
   const [wishesData, setWishesData] = useState<any[]>([]);
   const [usersData, setUsersData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
 
   // Đồng hồ thời gian thực
   const [currentTime, setCurrentTime] = useState("");
@@ -151,6 +152,18 @@ export default function AdminPage() {
         usersRes.json().catch(() => ({})),
       ]);
 
+      const failedSources = [
+        { name: "thống kê", response: statsRes, data: statsJson },
+        { name: "nhật ký hoạt động", response: activitiesRes, data: activitiesJson },
+        { name: "thiệp", response: cardsRes, data: cardsJson },
+        { name: "khách mời", response: rsvpsRes, data: rsvpsJson },
+        { name: "lời chúc", response: wishesRes, data: wishesJson },
+        { name: "tài khoản", response: usersRes, data: usersJson },
+      ].filter(({ response, data }) => !response.ok || !data.success).map(({ name }) => name);
+      setDataError(failedSources.length
+        ? `Chưa xác nhận được dữ liệu ${failedSources.join(", ")}. Dữ liệu đã tải trước đó có thể chưa cập nhật.`
+        : null);
+
       if (statsJson.success) setStatsData(statsJson.stats);
       if (activitiesJson.success && Array.isArray(activitiesJson.activities)) {
         setActivitiesData(activitiesJson.activities);
@@ -161,6 +174,7 @@ export default function AdminPage() {
       if (usersJson.success) setUsersData(usersJson.users);
     } catch (err) {
       console.error("Lỗi khi tải dữ liệu Admin:", err);
+      setDataError("Không thể kết nối máy chủ quản trị. Dữ liệu đã tải trước đó có thể chưa cập nhật.");
     } finally {
       setLoading(false);
     }
@@ -251,6 +265,29 @@ export default function AdminPage() {
       }
     } catch (e) {
       alert("Lỗi kết nối khi cập nhật trạng thái");
+    }
+  };
+
+  // Hành động chuyển đổi gói VIP (Kích hoạt / Hủy VIP thủ công)
+  const handleToggleVip = async (id: string, currentVip: boolean) => {
+    const nextVip = !currentVip;
+    try {
+      const res = await fetch("/api/admin/cards", {
+        method: "PATCH",
+        headers: getAdminHeaders(true),
+        body: JSON.stringify({ id, isVip: nextVip }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCardsData((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, isVip: nextVip } : c))
+        );
+        fetchAllData();
+      } else {
+        alert(data.message || "Không thể cập nhật gói VIP");
+      }
+    } catch (e) {
+      alert("Lỗi kết nối khi cập nhật gói VIP");
     }
   };
 
@@ -604,9 +641,10 @@ export default function AdminPage() {
                 <span>
                   {navTabs.find((t) => t.id === activeTab)?.label || "Quản trị hệ thống"}
                 </span>
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[10px] font-bold border border-emerald-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span>Trực tuyến</span>
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${dataError
+                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                  : "bg-gray-50 text-gray-700 border-gray-200"}`}>
+                  <span>{dataError ? "Gián đoạn đồng bộ" : statsData ? "Đã đồng bộ" : "Chưa xác minh"}</span>
                 </span>
               </h1>
               <p className="text-[11px] text-gray-400 hidden sm:flex items-center gap-1.5 mt-0.5">
@@ -644,6 +682,7 @@ export default function AdminPage() {
 
         {/* NỘI DUNG TỪNG TAB */}
         <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto pb-20">
+          {dataError && <p role="alert" className="mb-5 text-sm text-amber-800">{dataError}</p>}
           {activeTab === "overview" && (
             <AdminOverviewTab
               stats={statsData}
@@ -668,6 +707,7 @@ export default function AdminPage() {
               onRefresh={fetchAllData}
               onDeleteCard={handleDeleteCard}
               onToggleStatus={handleToggleStatus}
+              onToggleVip={handleToggleVip}
             />
           )}
 

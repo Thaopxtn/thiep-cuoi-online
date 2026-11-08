@@ -2,29 +2,40 @@
   "name": "thiep-cuoi-zenlove",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=24.11.1 <25"
+  },
   "scripts": {
-    "dev": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next dev -p 3005",
-    "build": "node --max-old-space-size=4096 ./node_modules/next/dist/bin/next build",
+    "dev": "node --max-old-space-size=2048 ./node_modules/next/dist/bin/next dev -p 3005",
+    "build": "node --max-old-space-size=2048 ./node_modules/next/dist/bin/next build",
     "start": "next start -p 3005",
     "lint": "next lint",
+    "typecheck": "tsc --noEmit --incremental false",
+    "check": "npm run typecheck && npm run lint && npm test",
     "test": "vitest run --no-file-parallelism",
     "test:watch": "vitest",
     "test:e2e": "node scripts/e2e-check.mjs",
     "test:all": "node scripts/test-all-qa.mjs",
-    "backup": "node scripts/backup-db.mjs"
+    "backup": "node scripts/backup-db.mjs",
+    "test:db": "node scripts/verify-database.mjs",
+    "test:browser": "playwright test",
+    "test:ui": "playwright test --config playwright.ui.config.mts"
   },
   "dependencies": {
     "@imgly/background-removal": "1.7.0",
     "clsx": "^2.1.1",
+    "jsqr": "1.4.0",
     "lucide-react": "^0.460.0",
     "lzutf8": "^0.6.3",
     "next": "^14.2.15",
     "onnxruntime-web": "1.21.0",
+    "qrcode-generator": "2.0.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwind-merge": "^2.5.4"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@types/node": "^20.17.0",
     "@types/react": "^18.3.11",
     "@types/react-dom": "^18.3.0",

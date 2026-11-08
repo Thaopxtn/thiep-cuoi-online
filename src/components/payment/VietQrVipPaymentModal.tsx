@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   ExternalLink,
   ArrowRight,
+  MessageCircle,
 } from "lucide-react";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 
@@ -314,6 +315,23 @@ export default function VietQrVipPaymentModal({
                   {isChecking ? <Loader2 className="w-3 h-3 animate-spin" /> : <ShieldCheck className="w-3 h-3" />}
                   <span>Kiểm tra ngay</span>
                 </button>
+              </div>
+
+              {/* Zalo Support Contact Reassurance */}
+              <div className="pt-2 text-center">
+                <p className="text-[11px] text-gray-500">
+                  Cần hỗ trợ kích hoạt nhanh hoặc chuyển khoản khác ngân hàng?
+                </p>
+                <a
+                  href={`https://zalo.me/0823312212?text=${encodeURIComponent(`Chào ZenLove, mình cần hỗ trợ kích hoạt VIP cho thiệp: ${cardName} (Mã: VIP ${cardSlug.toLowerCase()})`)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#0068FF] hover:underline"
+                >
+                  <MessageCircle className="w-3.5 h-3.5" />
+                  <span>Nhắn Zalo hỗ trợ tức thì (0823.312.212)</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
               </div>
             </>
           )}

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { recordActivity, getAggregatedActivities } from "../activityService";
+import { getCardsFromDb, getAllRsvpsFromDb, getUsersWithStatsFromDb } from "../serverDb";
 
 // Mock serverDb module
 vi.mock("../serverDb", () => ({
@@ -111,5 +112,27 @@ describe("Activity Service - Giám sát toàn bộ hoạt động của website 
         (a.targetName && a.targetName.includes("Mai Lan"))
     );
     expect(found).toBe(true);
+  });
+
+  it("reuses the verified cards snapshot while aggregating strict admin data", async () => {
+    await getAggregatedActivities({ strictDatabase: true });
+    expect(getCardsFromDb).toHaveBeenCalledTimes(1);
+    expect(getCardsFromDb).toHaveBeenCalledWith(undefined, undefined, { strict: true });
+    expect(getUsersWithStatsFromDb).toHaveBeenCalledWith({
+      strict: true, cards: expect.arrayContaining([expect.objectContaining({ id: "card_mock_1" })]),
+    });
+  });
+
+  it("does not swallow a failed database source in a strict admin feed", async () => {
+    const failure = new Error("Database read unavailable");
+    vi.mocked(getAllRsvpsFromDb).mockRejectedValueOnce(failure);
+    await expect(getAggregatedActivities({ strictDatabase: true })).rejects.toBe(failure);
+    expect(getUsersWithStatsFromDb).not.toHaveBeenCalled();
+  });
+
+  it("does not swallow an unavailable auth user source in a strict admin feed", async () => {
+    const failure = new Error("Auth user source unavailable");
+    vi.mocked(getUsersWithStatsFromDb).mockRejectedValueOnce(failure);
+    await expect(getAggregatedActivities({ strictDatabase: true })).rejects.toBe(failure);
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, Send, MessageCircleQuestion } from "lucide-react";
+import { ChevronDown, Send } from "lucide-react";
 import Section from "@/components/ui/Section";
 import SectionHeading from "@/components/ui/SectionHeading";
 import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
@@ -101,6 +101,7 @@ export default function FaqSection() {
                     : "border-gray-100 bg-[#fafafa]/60 hover:border-gray-200 hover:bg-white"
                 }`}
               >
+                <h3>
                 <button
                   type="button"
                   onClick={() => toggleFaq(idx)}
@@ -127,10 +128,12 @@ export default function FaqSection() {
                     <ChevronDown className="w-4 h-4" />
                   </span>
                 </button>
+                </h3>
 
                 <div
                   id={`faq-answer-${idx}`}
                   aria-labelledby={faq.id}
+                  aria-hidden={!isOpen}
                   className={`grid transition-[grid-template-rows] duration-300 ease-out ${
                     isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
                   }`}

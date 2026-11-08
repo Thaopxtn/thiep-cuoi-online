@@ -7,55 +7,130 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 0 0% 11%;
-    --primary: 353 77% 58%;
+    --foreground: 324 10% 10%;
+    --primary: 352 60% 50%;
     --primary-foreground: 0 0% 100%;
-    --zen-surface: #fffaf8;
-    --zen-border: #f2e4e1;
-    --zen-muted: #6b6265;
+    --zen-color-primary: 201 52 71;
+    --zen-color-primary-hover: 180 43 60;
+    --zen-color-foreground: 28 23 26;
+    --zen-color-surface: 255 250 248;
+    --zen-color-subtle: 250 250 250;
+    --zen-color-muted: 107 98 101;
+    --zen-color-border: 231 222 221;
+    --zen-surface: rgb(var(--zen-color-surface));
+    --zen-border: rgb(var(--zen-color-border));
+    --zen-muted: rgb(var(--zen-color-muted));
+    --zen-radius-control: 0.75rem;
+    --zen-radius-pill: 9999px;
     --zen-radius-lg: 1.5rem;
     --zen-shadow-card: 0 14px 36px rgba(123, 45, 54, 0.08);
+    --zen-duration: 160ms;
+    --zen-ease: cubic-bezier(0.2, 0, 0, 1);
+    --zen-font-body: 'Be Vietnam Pro', var(--font-inter), system-ui, -apple-system, sans-serif;
   }
 
   html {
     scroll-behavior: smooth;
-    font-family: 'Be Vietnam Pro', var(--font-inter), system-ui, -apple-system, sans-serif;
+    font-family: var(--zen-font-body);
+    scroll-padding-top: 6rem;
   }
 
   body {
     background-color: #ffffff;
-    color: #1c171a;
+    color: rgb(var(--zen-color-foreground));
     overflow-x: hidden;
   }
 
-  :where(a, button, input, select, textarea):focus-visible {
-    outline: 3px solid rgba(229, 65, 83, 0.3);
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 3px solid rgb(var(--zen-color-primary));
     outline-offset: 3px;
   }
 }
 
 @layer components {
+  .zen-container {
+    width: 100%;
+    max-width: 80rem;
+    margin-inline: auto;
+    padding-inline: clamp(1rem, 3vw, 2rem);
+  }
+
+  .zen-section {
+    padding-block: clamp(3rem, 6vw, 6rem);
+  }
+
+  .zen-button {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: var(--zen-radius-pill);
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color var(--zen-duration) var(--zen-ease),
+      border-color var(--zen-duration) var(--zen-ease),
+      color var(--zen-duration) var(--zen-ease);
+  }
+
+  .zen-button-primary {
+    background: rgb(var(--zen-color-primary));
+    color: #fff;
+  }
+
+  .zen-button-primary:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: rgb(var(--zen-color-primary-hover));
+  }
+
+  .zen-button-secondary {
+    border-color: rgb(var(--zen-color-primary));
+    background: #fff;
+    color: rgb(var(--zen-color-primary));
+  }
+
+  .zen-button-secondary:hover:not(:disabled):not([aria-disabled="true"]),
+  .zen-button-ghost:hover:not(:disabled):not([aria-disabled="true"]) {
+    background: #fff1f2;
+  }
+
+  .zen-button-ghost {
+    color: rgb(var(--zen-color-primary));
+  }
+
+  .zen-button:disabled,
+  .zen-button[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
   .zen-control {
     display: inline-flex;
     min-height: 2.75rem;
     align-items: center;
     justify-content: center;
     gap: 0.45rem;
-    border: 1px solid #e7dedd;
-    border-radius: 0.75rem;
+    border: 1px solid var(--zen-border);
+    border-radius: var(--zen-radius-control);
     background: #fff;
     padding: 0.5rem 0.8rem;
-    color: #51494b;
+    color: rgb(var(--zen-color-foreground));
     font-size: 0.875rem;
     font-weight: 600;
-    transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease;
+    transition: border-color var(--zen-duration) var(--zen-ease),
+      background-color var(--zen-duration) var(--zen-ease),
+      color var(--zen-duration) var(--zen-ease);
   }
 
   .zen-control:hover,
   .zen-control[aria-pressed="true"] {
-    border-color: rgba(229, 65, 83, 0.5);
+    border-color: rgb(var(--zen-color-primary));
     background: #fff1f2;
-    color: #c93447;
+    color: rgb(var(--zen-color-primary));
   }
 }
 
@@ -1536,7 +1611,7 @@
    ========================================================================== */
 ::selection {
   background-color: #ffe4e6;
-  color: #e54153;
+  color: rgb(var(--zen-color-foreground));
 }
 
 @keyframes countUp {

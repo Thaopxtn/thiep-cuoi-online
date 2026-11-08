@@ -74,10 +74,12 @@ export default function EditorFixedModulesCanvas({
   });
 
   useEffect(() => {
-    if (!card) return;
-    setCountdown(calculateCountdown(card.weddingDate, card.weddingTime));
+    if (!card?.weddingDate) return;
+    const weddingDate = card.weddingDate;
+    const weddingTime = card.weddingTime;
+    setCountdown(calculateCountdown(weddingDate, weddingTime));
     const timer = setInterval(() => {
-      setCountdown(calculateCountdown(card.weddingDate, card.weddingTime));
+      setCountdown(calculateCountdown(weddingDate, weddingTime));
     }, 1000);
     return () => clearInterval(timer);
   }, [card?.weddingDate, card?.weddingTime]);

@@ -9,6 +9,7 @@
 
 import { NextRequest } from "next/server";
 import crypto from "crypto";
+import { fetchWithDeadline } from "./serverFetch";
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL || "";
 const SUPABASE_ANON_KEY =
@@ -33,11 +34,7 @@ export function getAdminHmacSecret(): string {
  * KHÔNG sử dụng mã PIN mặc định tĩnh. Phải cấu hình qua biến môi trường.
  */
 export function getConfiguredAdminPasscode(): string {
-  return (
-    process.env.ADMIN_PASSCODE ||
-    process.env.NEXT_PUBLIC_ADMIN_PASSCODE ||
-    ""
-  ).trim();
+  return (process.env.ADMIN_PASSCODE || "").trim();
 }
 
 /**
@@ -299,7 +296,7 @@ export async function verifyUserAuth(
   }
 
   try {
-    const res = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
+    const res = await fetchWithDeadline(`${SUPABASE_URL}/auth/v1/user`, {
       headers: {
         Authorization: `Bearer ${token}`,
         apikey: SUPABASE_ANON_KEY,
@@ -317,10 +314,8 @@ export async function verifyUserAuth(
     }
 
     // Kiểm tra quyền Admin trong metadata máy chủ
-    const isAdmin = Boolean(
-      userData.app_metadata?.role === "admin" ||
-      userData.user_metadata?.role === "admin"
-    );
+    // user_metadata is editable by the account holder and cannot grant privileges.
+    const isAdmin = userData.app_metadata?.role === "admin";
 
     // Lưu cache 60s
     userTokenCache.set(token, {

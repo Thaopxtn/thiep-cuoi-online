@@ -3,9 +3,13 @@
  * Chạy độc lập qua: npm run test:e2e
  */
 
+import nextEnv from "@next/env";
+import { testEndpoint } from "./qa-http.mjs";
+
+nextEnv.loadEnvConfig(process.cwd());
 const BASE_URL = process.env.BASE_URL || "http://localhost:3005";
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "zenlove_admin_secure_2026";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "zenlove_qa_master_key_2026";
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "";
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
 
 const colors = {
   reset: "\x1b[0m",
@@ -16,42 +20,6 @@ const colors = {
   bold: "\x1b[1m",
 };
 
-async function testEndpoint(name, url, options = {}) {
-  const start = Date.now();
-  try {
-    const res = await fetch(url, options);
-    const duration = Date.now() - start;
-    let data = null;
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      data = await res.json();
-    } else {
-      data = await res.text();
-    }
-
-    const passed = res.ok;
-    return {
-      name,
-      url,
-      passed,
-      status: res.status,
-      duration,
-      data,
-      error: passed ? null : `HTTP ${res.status}`,
-    };
-  } catch (err) {
-    return {
-      name,
-      url,
-      passed: false,
-      status: 0,
-      duration: Date.now() - start,
-      data: null,
-      error: err.message,
-    };
-  }
-}
-
 async function runAllChecks() {
   console.log(`\n${colors.bold}${colors.cyan}====================================================${colors.reset}`);
   console.log(`${colors.bold}${colors.cyan}  🚀 BẮT ĐẦU KIỂM THỬ HỆ THỐNG TỰ ĐỘNG (E2E CHECK) ${colors.reset}`);
@@ -61,14 +29,13 @@ async function runAllChecks() {
   // Đăng nhập Admin để lấy token hợp lệ
   let adminToken = "";
   try {
-    const authRes = await fetch(`${BASE_URL}/api/admin/verify`, {
+    const authRes = ADMIN_PASSCODE && await testEndpoint("Admin login", `${BASE_URL}/api/admin/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passcode: ADMIN_PASSCODE }),
     });
-    if (authRes.ok) {
-      const authData = await authRes.json();
-      adminToken = authData.token || "";
+    if (authRes?.passed) {
+      adminToken = authRes.data.token || "";
     }
   } catch {}
 
@@ -188,6 +155,96 @@ async function runAllChecks() {
         headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : { "x-admin-key": ADMIN_API_KEY },
       },
       validate: (r) => r.status === 200 && r.data && r.data.success,
+    },
+    // 14. Kiểm tra Bảng giá Dịch vụ trên Trang chủ
+    {
+      name: "Bảng Giá Dịch Vụ (#pricing trên Trang chủ)",
+      url: `${BASE_URL}/`,
+      options: { method: "GET" },
+      validate: (r) => r.passed && typeof r.data === "string" && r.data.includes("pricing") && r.data.includes("99.000"),
+    },
+    // 15. Kiểm tra Nút Xem Thiệp Mẫu Thực Tế (Live Demo)
+    {
+      name: "Nút Xem Thiệp Mẫu Thực Tế (Live Demo trên Hero)",
+      url: `${BASE_URL}/`,
+      options: { method: "GET" },
+      validate: (r) => r.passed && typeof r.data === "string" && r.data.includes("hero-btn-demo") && r.data.includes("thao-le-zenlove-mau01-2026"),
+    },
+    // 16. Kiểm tra Hỗ trợ Trực tuyến Zalo 24/7 (FloatingSupport)
+    {
+      name: "Widget Hỗ Trực Tuyến Zalo 24/7 & Hotline 0823312212",
+      url: `${BASE_URL}/`,
+      options: { method: "GET" },
+      validate: (r) => r.passed && typeof r.data === "string" && r.data.includes("0823312212") && r.data.includes("zalo.me"),
+    },
+    // 17. SSR exposes invitation metadata/schema; template labels render after hydration.
+    {
+      name: "Thiệp Cưới Mẫu Thực Tế (/show/thao-le-zenlove-mau01-2026)",
+      url: `${BASE_URL}/show/thao-le-zenlove-mau01-2026`,
+      options: { method: "GET" },
+      validate: (r) => r.passed && typeof r.data === "string" &&
+        r.data.includes('property="og:url"') && r.data.includes("/show/thao-le-zenlove-mau01-2026") &&
+        r.data.includes('"@type":"Event"'),
+    },
+    // Validation is checked before storage: never create a wish in live data.
+    {
+      name: "Từ Chối Lời Chúc Thiếu Tên (HTTP 400, không ghi dữ liệu)",
+      url: `${BASE_URL}/api/show/thao-le-zenlove-mau01-2026/wishes`,
+      options: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "",
+          content: "Chúc hai bạn trăm năm hạnh phúc, gia đình êm ấm tài lộc!",
+        }),
+      },
+      validate: (r) => r.status === 400,
+    },
+    // Invalid phone numbers must be rejected before writing RSVP data.
+    {
+      name: "Từ Chối RSVP Sai SĐT (HTTP 400, không ghi dữ liệu)",
+      url: `${BASE_URL}/api/show/thao-le-zenlove-mau01-2026/rsvp`,
+      options: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Khách Mời Danh Dự",
+          phone: "invalid",
+          attending: true,
+          guests: 2,
+        }),
+      },
+      validate: (r) => r.status === 400,
+    },
+    // 20. Kiểm tra API Trạng Thái VIP Thiệp Cưới
+    {
+      name: "Kiểm Tra Trạng Thái Gói VIP (/api/cards/[id]/vip-status)",
+      url: `${BASE_URL}/api/cards/card_1792173082745_06no/vip-status`,
+      options: { method: "GET" },
+      validate: (r) => r.passed && r.data && r.data.success && typeof r.data.isVip === "boolean",
+    },
+    // Exercise the admin guard without credentials, never activate a real card.
+    {
+      name: "Chặn Kích Hoạt VIP Khi Chưa Xác Thực (HTTP 401)",
+      url: `${BASE_URL}/api/admin/cards`,
+      options: {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          id: "qa-unauthorized-no-write",
+          isVip: true,
+        }),
+      },
+      validate: (r) => r.status === 401,
+    },
+    // 22. Kiểm tra Công Cụ Sinh Mã VietQR Napas 24/7
+    {
+      name: "Công Cụ Sinh Mã VietQR Napas 24/7 (GET /api/tools/vietqr)",
+      url: `${BASE_URL}/api/tools/vietqr?bank=MB&account=240220038888&amount=99000&name=ZENLOVE`,
+      options: { method: "GET" },
+      validate: (r) => r.passed && r.data && r.data.success && r.data.qrUrl && r.data.qrUrl.includes("vietqr.io"),
     },
   ];
 

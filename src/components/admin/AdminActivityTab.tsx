@@ -48,13 +48,16 @@ interface AdminActivityTabProps {
   onRefreshParent?: () => void;
 }
 
+const EMPTY_ACTIVITIES: SystemActivityItem[] = [];
+
 export default function AdminActivityTab({
-  initialActivities = [],
+  initialActivities = EMPTY_ACTIVITIES,
   onRefreshParent,
 }: AdminActivityTabProps) {
   const [activities, setActivities] = useState<SystemActivityItem[]>(initialActivities);
   const [loading, setLoading] = useState(false);
-  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
   const [selectedActorType, setSelectedActorType] = useState<string>("all");
@@ -70,12 +73,16 @@ export default function AdminActivityTab({
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (data.success && Array.isArray(data.activities)) {
+      if (res.ok && data.success && Array.isArray(data.activities)) {
         setActivities(data.activities);
         setLastUpdated(new Date());
+        setFetchError(null);
+      } else {
+        setFetchError(data.message || "Không thể xác nhận nhật ký hoạt động từ cơ sở dữ liệu.");
       }
     } catch (err) {
       console.error("Lỗi khi tải nhật ký hoạt động:", err);
+      setFetchError("Không thể kết nối máy chủ. Nhật ký đang hiển thị có thể chưa cập nhật.");
     } finally {
       if (!isSilent) setLoading(false);
     }
@@ -83,26 +90,19 @@ export default function AdminActivityTab({
 
   // Đồng bộ với prop khi nhận prop mới
   useEffect(() => {
-    if (initialActivities.length > 0 && activities.length === 0) {
-      setActivities(initialActivities);
-    }
+    setActivities(initialActivities);
   }, [initialActivities]);
 
   // Bộ đếm tự động làm mới (Auto Refresh interval)
   useEffect(() => {
     if (!autoRefresh) return;
-
+    setRefreshCountdown(15);
     const timer = setInterval(() => {
-      setRefreshCountdown((prev) => {
-        if (prev <= 1) {
-          fetchActivities(true);
-          return 15;
-        }
-        return prev - 1;
-      });
+      setRefreshCountdown((prev) => prev <= 1 ? 15 : prev - 1);
     }, 1000);
+    const refreshTimer = setInterval(() => { void fetchActivities(true); }, 15000);
 
-    return () => clearInterval(timer);
+    return () => { clearInterval(timer); clearInterval(refreshTimer); };
   }, [autoRefresh, fetchActivities]);
 
   // Lọc danh sách hoạt động
@@ -316,6 +316,7 @@ export default function AdminActivityTab({
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {fetchError && <p role="alert" className="text-sm text-amber-800">{fetchError}</p>}
       {/* 1. TOP HEADER & ĐIỀU KHIỂN THỜI GIAN THỰC */}
       <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -330,7 +331,7 @@ export default function AdminActivityTab({
                 </h2>
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 text-zen-primary text-[11px] font-bold border border-rose-200">
                   <span className="w-2 h-2 rounded-full bg-zen-primary animate-ping" />
-                  <span>Live Feed</span>
+                  <span>{fetchError ? "Chưa cập nhật" : lastUpdated ? "Đã cập nhật" : "Nhật ký hoạt động"}</span>
                 </span>
               </div>
               <p className="text-xs text-gray-500 mt-0.5">
@@ -502,7 +503,7 @@ export default function AdminActivityTab({
             </h3>
           </div>
           <span className="text-[11px] text-gray-400">
-            Cập nhật lần cuối: {lastUpdated.toLocaleTimeString("vi-VN")}
+            {lastUpdated ? `Cập nhật lần cuối: ${lastUpdated.toLocaleTimeString("vi-VN")}` : "Chưa tự làm mới"}
           </span>
         </div>
 

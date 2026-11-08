@@ -147,6 +147,8 @@ describe("guestManagementService", () => {
 
     const payload = getZaloSharePayload(guest, mockCard, "https://zenlove.me");
     expect(payload.cardUrl).toContain("to=B%C3%A1c%20H%C3%B9ng");
+    expect(new URL(payload.cardUrl).searchParams.get("guestId")).toBe(guest.id);
+    expect(new URL(payload.cardUrl).searchParams.get("cardId")).toBe(mockCard.id);
     expect(payload.cardUrl).toContain("table=B%C3%A0n%20Tr%C6%B0%E1%BB%9Fng%20B%E1%BB%91i%201");
     expect(payload.zaloUrl).toContain("https://zalo.me/share");
     expect(payload.shareText).toContain("Bác Hùng");

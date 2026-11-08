@@ -19,6 +19,7 @@ import {
   Plus,
   Sparkles,
   CheckCircle2,
+  Crown,
 } from "lucide-react";
 
 interface CardItem {
@@ -40,6 +41,8 @@ interface CardItem {
   wishesCount: number;
   updatedAt?: string;
   musicTitle?: string;
+  isVip?: boolean;
+  plan?: string;
 }
 
 interface AdminCardsTabProps {
@@ -48,6 +51,7 @@ interface AdminCardsTabProps {
   onRefresh: () => void;
   onDeleteCard: (id: string, name: string) => Promise<void>;
   onToggleStatus: (id: string, currentStatus: "published" | "draft") => Promise<void>;
+  onToggleVip?: (id: string, currentVip: boolean) => Promise<void>;
 }
 
 export default function AdminCardsTab({
@@ -56,6 +60,7 @@ export default function AdminCardsTab({
   onRefresh,
   onDeleteCard,
   onToggleStatus,
+  onToggleVip,
 }: AdminCardsTabProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "published" | "draft">("all");
@@ -275,30 +280,65 @@ export default function AdminCardsTab({
 
                     {/* Trạng thái Switch */}
                     <td className="py-3.5 px-4">
-                      <button
-                        type="button"
-                        disabled={processingId === card.id}
-                        onClick={async () => {
-                          setProcessingId(card.id);
-                          await onToggleStatus(card.id, card.status);
-                          setProcessingId(null);
-                        }}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all active:scale-95 ${
-                          card.status === "published"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
-                            : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
-                        }`}
-                        title="Bấm để đổi trạng thái Xuất bản / Bản nháp"
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            card.status === "published" ? "bg-emerald-500" : "bg-amber-500"
+                      <div className="flex flex-col gap-1.5 items-start">
+                        <button
+                          type="button"
+                          disabled={processingId === card.id}
+                          onClick={async () => {
+                            setProcessingId(card.id);
+                            await onToggleStatus(card.id, card.status);
+                            setProcessingId(null);
+                          }}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all active:scale-95 ${
+                            card.status === "published"
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100"
+                              : "bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100"
                           }`}
-                        />
-                        <span>
-                          {card.status === "published" ? "Đã xuất bản" : "Bản nháp"}
-                        </span>
-                      </button>
+                          title="Bấm để đổi trạng thái Xuất bản / Bản nháp"
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              card.status === "published" ? "bg-emerald-500" : "bg-amber-500"
+                            }`}
+                          />
+                          <span>
+                            {card.status === "published" ? "Đã xuất bản" : "Bản nháp"}
+                          </span>
+                        </button>
+
+                        {/* Nút Toggle VIP */}
+                        {card.isVip ? (
+                          <button
+                            type="button"
+                            disabled={processingId === `vip_${card.id}`}
+                            onClick={async () => {
+                              setProcessingId(`vip_${card.id}`);
+                              await onToggleVip?.(card.id, true);
+                              setProcessingId(null);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition-colors cursor-pointer"
+                            title="Bấm để hủy gói VIP (chuyển về Free)"
+                          >
+                            <Crown className="w-3 h-3 text-amber-600" />
+                            <span>VIP Pro</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={processingId === `vip_${card.id}`}
+                            onClick={async () => {
+                              setProcessingId(`vip_${card.id}`);
+                              await onToggleVip?.(card.id, false);
+                              setProcessingId(null);
+                            }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 border border-gray-200 hover:bg-amber-50 hover:text-amber-800 hover:border-amber-300 transition-colors cursor-pointer"
+                            title="Bấm để kích hoạt VIP ngay cho thiệp này"
+                          >
+                            <Crown className="w-3 h-3 text-gray-400" />
+                            <span>Kích hoạt VIP</span>
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     {/* Thao tác */}

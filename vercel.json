@@ -21,11 +21,20 @@
       ]
     },
     {
-      "source": "/(uploads|fonts|templates|images)/(.*)",
+      "source": "/(uploads|fonts|images)/(.*)",
       "headers": [
         {
           "key": "Cache-Control",
           "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/show/(.*)",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
         }
       ]
     }

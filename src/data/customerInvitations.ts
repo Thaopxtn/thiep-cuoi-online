@@ -108,16 +108,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "nodesCount": 70
   },
   {
-    "slug": "HK7DWQRBWFWH",
-    "href": "/show/HK7DWQRBWFWH",
-    "title": "Bản nháp",
-    "image": "https://cdn-resource.zenlove.me/uploads/feb1148d-85da-4f5d-a8be-c726ad0d9d5e/SU1HMDQzMF8xNzkxMjA1NDA2NTYyX2prZWp4ZzQ0bTlp.jpg?crop=0,399,1368,1026",
-    "date": "2026",
-    "views": 8,
-    "groomName": "Bản nháp",
-    "nodesCount": 116
-  },
-  {
     "slug": "Q6X3CSJE7KWQ",
     "href": "/show/Q6X3CSJE7KWQ",
     "title": "Thiệp cưới Anh Tú & Ngọc Mai",
@@ -239,17 +229,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "image": "https://cdn-resource.zenlove.me/uploads/b83eede7-47a8-42be-8398-4582a88e65f5/VjY3NTUzMF8xNzkwMzIyNTY2MDMwX3Q5dzI2ejk4Nndt.jpg?crop=0,206,1216,811",
     "date": "15.10.2026",
     "views": 2,
-    "groomName": "Wedding Tuấn",
-    "brideName": "Ngân",
-    "nodesCount": 85
-  },
-  {
-    "slug": "BAKXHV53URQM",
-    "href": "/show/BAKXHV53URQM",
-    "title": "Wedding Tuấn & Ngân",
-    "image": "https://cdn-resource.zenlove.me/uploads/b83eede7-47a8-42be-8398-4582a88e65f5/VjY3NTc2Ml8xNzkwMzIyNTY1OTY2X3owaGI1Z2RhMTY.jpg?crop=0,246,1216,811",
-    "date": "15.10.2026",
-    "views": 19,
     "groomName": "Wedding Tuấn",
     "brideName": "Ngân",
     "nodesCount": 85
@@ -451,18 +430,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "nodesCount": 60
   },
   {
-    "slug": "543IUPE2KCFA",
-    "href": "/show/543IUPE2KCFA",
-    "title": "THIỆP MỜI ĐÁM CƯỚI TRÀ MY&ANH TÚ",
-    "image": "https://cdn-resource.zenlove.me/uploads/abd51623-5e24-4a42-9eb8-ed9723042f2a/MTczQTU5NjktY29weV8xNzkxMTI0NzkyMzIzX2F5ZzFocmNqMHdk.jpg?crop=0,286,1216,912",
-    "date": "2026",
-    "views": 1,
-    "groomName": "THIỆP MỜI ĐÁM CƯỚI TRÀ MY",
-    "brideName": "ANH TÚ",
-    "venue": "LỄ VU QUY ĐƯỢC CỬ HÀNH TẠI TƯ GIA",
-    "nodesCount": 60
-  },
-  {
     "slug": "6XRO1LKE2PXF",
     "href": "/show/6XRO1LKE2PXF",
     "title": "xuansang",
@@ -495,18 +462,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "brideName": "Hương Giang",
     "venue": "tại tư gia nhà gái",
     "nodesCount": 83
-  },
-  {
-    "slug": "R160XPGMI0VU",
-    "href": "/show/R160XPGMI0VU",
-    "title": "THIỆP MỜI ĐÁM CƯỚI TRÀ MY&ANH TÚ",
-    "image": "https://cdn-resource.zenlove.me/uploads/abd51623-5e24-4a42-9eb8-ed9723042f2a/MTczQTQ0MDMtY29weV8xNzkxMTI0NzkyMjU4XzlyYjczMjdreGh0.jpg?crop=0,532,1215,911",
-    "date": "2026",
-    "views": 14,
-    "groomName": "THIỆP MỜI ĐÁM CƯỚI TRÀ MY",
-    "brideName": "ANH TÚ",
-    "venue": "LỄ VU QUY ĐƯỢC CỬ HÀNH TẠI TƯ GIA",
-    "nodesCount": 60
   },
   {
     "slug": "57NPHB1ILWKO",
@@ -879,17 +834,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "nodesCount": 70
   },
   {
-    "slug": "88QWYW4HVXXR",
-    "href": "/show/88QWYW4HVXXR",
-    "title": "Thiệp cưới HỒNG PHƯƠNG & PHƯƠNG HẢO",
-    "image": "https://cdn-resource.zenlove.me/uploads/5f324d84-d700-4edb-a740-9d34684a778c/SU1HMDM4OV8xNzkxMDM4OTI5ODA2X3NjY2I5Z2VsMnk.png?crop=0,425,704,469",
-    "date": "2026",
-    "views": 19,
-    "groomName": "HỒNG PHƯƠNG",
-    "brideName": "PHƯƠNG HẢO",
-    "nodesCount": 26
-  },
-  {
     "slug": "FI5YRAHA1QT2",
     "href": "/show/FI5YRAHA1QT2",
     "title": "Thiệp mời đám cưới Việt Long - Mộc Miên",
@@ -900,17 +844,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "brideName": "Mộc Miên",
     "venue": "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI TƯ GIA NHÀ TRAI",
     "nodesCount": 58
-  },
-  {
-    "slug": "CWDPVFJMUZJF",
-    "href": "/show/CWDPVFJMUZJF",
-    "title": "Thiệp cưới HỒNG PHƯƠNG & PHƯƠNG HẢO",
-    "image": "https://cdn-resource.zenlove.me/uploads/274a8aa0-71b6-445b-bc9b-b5c10b30847e/SU1HMDM4OV8xNzkxMDM2OTU3MzUwXzF1Njl1OTcxZWMy.png?crop=0,413,727,545",
-    "date": "2026",
-    "views": 24,
-    "groomName": "HỒNG PHƯƠNG",
-    "brideName": "PHƯƠNG HẢO",
-    "nodesCount": 26
   },
   {
     "slug": "E6QE59Q5PMUH",
@@ -935,17 +868,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "brideName": "Như Ngọc",
     "venue": "tại tư gia nhà trai",
     "nodesCount": 68
-  },
-  {
-    "slug": "SXS0JHFBTK55",
-    "href": "/show/SXS0JHFBTK55",
-    "title": "Thiệp cưới HỒNG PHƯƠNG & PHƯƠNG HẢO",
-    "image": "https://cdn-resource.zenlove.me/uploads/4fb50abf-4b4d-4e22-a1be-f824733d91ec/SU1HMDM4OV8xNzkxMDM1OTI0MDgzX3FmMG1rcHVyM3ds.png?crop=0,390,707,530",
-    "date": "2026",
-    "views": 24,
-    "groomName": "HỒNG PHƯƠNG",
-    "brideName": "PHƯƠNG HẢO",
-    "nodesCount": 26
   },
   {
     "slug": "73IT8Z830Q4H",
@@ -1061,17 +983,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "groomName": "Happy birthday Bích Xuân 🎂",
     "venue": "Dc : Nhà Hàng Xanh - Khu 5 - Thất Khê",
     "nodesCount": 41
-  },
-  {
-    "slug": "0OPV9IZCD7F9",
-    "href": "/show/0OPV9IZCD7F9",
-    "title": "Thiệp mời",
-    "image": "https://cdn-resource.zenlove.me/uploads/43ed7bcf-1ace-48ca-9bc1-4606ee15aa19/SU1HNzE1OF8xNzkxMDA3ODc0MzI5X3lxZ2l3bzluODRs.jpg?crop=0,315,1279,853",
-    "date": "2026",
-    "views": 40,
-    "groomName": "Thiệp mời",
-    "venue": "LỄ THÀNH HÔN ĐƯỢC CỬ HÀNH TẠI TƯ GIA",
-    "nodesCount": 60
   },
   {
     "slug": "G9T12R6YIJUA",
@@ -1288,17 +1199,6 @@ export const CUSTOMER_INVITATIONS: CustomerInvitation[] = [
     "brideName": "Sỹ Thời",
     "venue": "Địa điểm : Tại tư gia nhà Gái",
     "nodesCount": 66
-  },
-  {
-    "slug": "46J003FOIH9Z",
-    "href": "/show/46J003FOIH9Z",
-    "title": "Thiệp cưới Hồng Phương & Phương Hảo",
-    "image": "https://cdn-resource.zenlove.me/uploads/5eaa3913-254f-4c07-9a91-75660a778d87/SU1HMDM4OV8xNzkwOTI1NjMzMzk1X3h3eG1vdjJ2bm1z.png?crop=0,397,716,537",
-    "date": "2026",
-    "views": 79,
-    "groomName": "Hồng Phương",
-    "brideName": "Phương Hảo",
-    "nodesCount": 26
   },
   {
     "slug": "36OR6ZO6MEBB",

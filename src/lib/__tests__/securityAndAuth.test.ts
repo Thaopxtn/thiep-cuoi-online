@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import dns from "dns/promises";
 import {
   isPrivateIp,
   isSafeExternalUrl,
@@ -61,12 +62,27 @@ describe("Security Utilities - SSRF Protection & URL Sanitization", () => {
   });
 
   it("xác thực bất đồng bộ DNS resolution ngăn chặn SSRF và DNS Rebinding", async () => {
-    // Chặn localhost và metadata
-    expect(await isSafeExternalUrlAsync("http://127.0.0.1")).toBe(false);
-    expect(await isSafeExternalUrlAsync("http://localhost:3000")).toBe(false);
-    // Domain công khai hợp lệ
-    expect(await isSafeExternalUrlAsync("https://google.com")).toBe(true);
-  }, 15000);
+    const lookup = vi.spyOn(dns, "lookup");
+    try {
+      expect(await isSafeExternalUrlAsync("http://127.0.0.1")).toBe(false);
+      expect(await isSafeExternalUrlAsync("http://localhost:3000")).toBe(false);
+      expect(lookup).not.toHaveBeenCalled();
+
+      lookup.mockResolvedValue([{ address: "8.8.8.8", family: 4 }] as any);
+      expect(await isSafeExternalUrlAsync("https://public.example.com")).toBe(true);
+
+      lookup.mockResolvedValue([
+        { address: "8.8.8.8", family: 4 },
+        { address: "127.0.0.1", family: 4 },
+      ] as any);
+      expect(await isSafeExternalUrlAsync("https://rebind.example.com")).toBe(false);
+
+      lookup.mockRejectedValue(new Error("DNS unavailable"));
+      expect(await isSafeExternalUrlAsync("https://unresolved.example.com")).toBe(false);
+    } finally {
+      lookup.mockRestore();
+    }
+  });
 
   it("triệt tiêu lỗ hổng CSV Formula Injection bằng cách escape tiền tố nguy hiểm", () => {
     expect(sanitizeCsvField("=SUM(A1:A10)")).toBe("\"'=SUM(A1:A10)\"");

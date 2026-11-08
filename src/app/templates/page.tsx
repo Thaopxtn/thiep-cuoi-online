@@ -43,7 +43,7 @@ const ITEMS_PER_PAGE = 24;
 
 function TemplatesPageContent() {
   const router = useRouter();
-  const { isLoggedIn, openLoginModal } = useAuth();
+  const { user, isLoggedIn, openLoginModal } = useAuth();
 
   // State
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -224,7 +224,7 @@ function TemplatesPageContent() {
     <div className="min-h-screen flex flex-col bg-[#fffbfa] text-zen-black">
       <Navbar />
 
-      <main className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-20">
+      <main id="main-content" className="flex-1 max-w-7xl mx-auto w-full px-3 sm:px-6 lg:px-8 pt-24 sm:pt-28 pb-20">
         {/* Breadcrumb Navigation matching ZenLove */}
         <nav
           className="flex items-center justify-center gap-1.5 text-xs text-gray-500 mb-5"
@@ -498,7 +498,7 @@ function TemplatesPageContent() {
       <QuickCreateWizardModal
         isOpen={isQuickWizardOpen}
         onClose={() => setIsQuickWizardOpen(false)}
-        userId={isLoggedIn ? "user" : undefined}
+        userId={user?.id || (isLoggedIn ? "user" : undefined)}
         onRequireLogin={() => openLoginModal("Vui lòng đăng nhập để bắt đầu tạo thiệp cưới mới")}
       />
 

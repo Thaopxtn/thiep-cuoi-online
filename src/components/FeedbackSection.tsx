@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles, Heart } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Section from "@/components/ui/Section";
 import SectionHeading from "@/components/ui/SectionHeading";
 import AnimateOnScroll from "@/components/ui/AnimateOnScroll";
@@ -158,52 +158,6 @@ const FEEDBACK_CARDS: FeedbackCard[] = [
   },
 ];
 
-function AnimatedCounter({ target, duration = 1800 }: { target: number; duration?: number }) {
-  const [count, setCount] = useState(0);
-  const ref = useRef<HTMLSpanElement>(null);
-  const [started, setStarted] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setStarted(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.3 }
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!started) return;
-    const steps = 45;
-    const increment = target / steps;
-    let current = 0;
-    const stepTime = duration / steps;
-
-    const timer = setInterval(() => {
-      current += increment;
-      if (current >= target) {
-        setCount(target);
-        clearInterval(timer);
-      } else {
-        setCount(Math.floor(current));
-      }
-    }, stepTime);
-
-    return () => clearInterval(timer);
-  }, [started, target, duration]);
-
-  return <span ref={ref}>{count.toLocaleString()}</span>;
-}
-
 export default function FeedbackSection() {
   return (
     <Section
@@ -213,28 +167,10 @@ export default function FeedbackSection() {
       ariaLabel="Thiệp đã chia sẻ thành công"
     >
       <AnimateOnScroll animation="fade-up">
-        {/* Highlight counter */}
-        <div className="flex flex-col items-center justify-center text-center mb-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-rose-100 bg-rose-50/80 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.18em] text-zen-primary shadow-2xs">
-            <Heart className="size-3.5 fill-current text-zen-primary" />
-            <span>Niềm vui lan tỏa</span>
-          </div>
-
-          <div className="mt-4 flex items-baseline justify-center gap-1 font-signature text-6xl sm:text-7xl md:text-8xl font-bold text-zen-primary">
-            <AnimatedCounter target={999} />
-            <span className="text-4xl sm:text-5xl font-bold text-rose-400">+</span>
-          </div>
-
-          <h2
-            id="feedback-heading"
-            className="mt-2 font-heading text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 tracking-tight uppercase"
-          >
-            Chiếc thiệp online đã chia sẻ thành công
-          </h2>
-          <p className="mt-3 text-base text-gray-600 max-w-2xl leading-relaxed">
-            Hàng ngàn cặp đôi đã tin tưởng chọn ZenLove để gửi trọn vẹn thông điệp hạnh phúc đến người thân và bạn bè qua mọi nền tảng mạng xã hội.
-          </p>
-        </div>
+        <SectionHeading
+          title="Mỗi cặp đôi, một lời mời riêng"
+          description="Khám phá những tấm thiệp đã chia sẻ để tìm cảm hứng cho câu chuyện của hai bạn."
+        />
       </AnimateOnScroll>
 
       {/* Arc Carousel */}
@@ -250,7 +186,7 @@ export default function FeedbackSection() {
               <Link
                 href={`/show/${item.slug}`}
                 title={`Xem thiệp cưới đã chia sẻ: ${item.title}`}
-                className="group/arc-card block rounded-2xl transition-transform duration-300 hover:scale-[1.02]"
+                className="group/arc-card block rounded-2xl transition-transform duration-300 motion-safe:hover:scale-[1.02]"
               >
                 <span
                   className="relative block overflow-hidden rounded-2xl border border-rose-100/80 bg-gray-100 shadow-[0_12px_28px_-12px_rgba(0,0,0,0.35)] [aspect-ratio:1000/1470]"
@@ -269,11 +205,7 @@ export default function FeedbackSection() {
                     draggable={false}
                     className="h-auto w-full align-top [transform:translate3d(0,0,0)] transition-transform duration-300 ease-out group-hover/arc-card:scale-105"
                   />
-                  <span
-                    aria-hidden="true"
-                    className="pointer-events-none absolute inset-0 bg-white/10 backdrop-blur-[2px] transition-[backdrop-filter,background-color] duration-300 group-hover/arc-card:bg-transparent group-hover/arc-card:backdrop-blur-0"
-                  />
-                  <span className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/arc-card:opacity-100 transition-opacity">
+                  <span className="absolute inset-x-0 bottom-0 p-3 bg-gradient-to-t from-black/80 to-transparent">
                     <span className="text-white text-xs font-semibold line-clamp-1">
                       {item.title}
                     </span>
@@ -289,13 +221,13 @@ export default function FeedbackSection() {
       <AnimateOnScroll animation="fade-up" delay={250}>
         <div className="mt-12 flex justify-center">
           <Link
-            className="group inline-flex items-center gap-2 bg-zen-primary hover:bg-[#d93849] text-white px-9 py-3.5 rounded-full font-bold shadow-[0_10px_28px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(229,65,83,0.4)]"
+            className="zen-button zen-button-primary"
             aria-label="Tạo thiệp online của bạn ngay"
             title="Tạo thiệp online của bạn ngay"
             href="/templates"
           >
             <span>Tạo thiệp riêng của bạn ngay</span>
-            <ArrowRight className="w-4 h-4 transition-transform duration-300 group-hover:translate-x-1" />
+            <ArrowRight aria-hidden="true" className="size-4 shrink-0" />
           </Link>
         </div>
       </AnimateOnScroll>

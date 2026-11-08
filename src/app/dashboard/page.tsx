@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -88,6 +88,10 @@ export default function DashboardPage() {
   const [rsvpStatusFilter, setRsvpStatusFilter] = useState<"all" | "attending" | "declined" | "checkedIn">("all");
   const [rsvpSearchQuery, setRsvpSearchQuery] = useState("");
   const [isAddGuestModalOpen, setIsAddGuestModalOpen] = useState(false);
+  const rsvpMutationPendingRef = useRef(false);
+  const [rsvpMutationPending, setRsvpMutationPending] = useState(false);
+  const deletingCardRef = useRef(false);
+  const [deletingCardId, setDeletingCardId] = useState<string | null>(null);
 
   // Manual guest input form
   const [newGuestCardId, setNewGuestCardId] = useState<string>("");
@@ -153,17 +157,19 @@ export default function DashboardPage() {
   };
 
   const handleDeleteCard = async (cardId: string) => {
+    if (deletingCardRef.current) return;
     if (confirm("Bạn có chắc chắn muốn xóa thiệp cưới này không?")) {
-      deleteCard(cardId);
-      if (user?.id) {
-        try {
-          await fetch(`/api/cards/${cardId}?userId=${encodeURIComponent(user.id)}`, {
-            method: "DELETE",
-            headers: { "x-user-id": user.id },
-          });
-        } catch (e) {}
+      deletingCardRef.current = true;
+      setDeletingCardId(cardId);
+      try {
+        await deleteCard(cardId);
+        setMyCards(getAllCards(user?.id));
+      } catch (error) {
+        alert(error instanceof Error ? error.message : "Không thể xóa thiệp. Vui lòng thử lại.");
+      } finally {
+        deletingCardRef.current = false;
+        setDeletingCardId(null);
       }
-      setMyCards(getAllCards(user?.id));
     }
   };
 
@@ -185,7 +191,7 @@ export default function DashboardPage() {
     return true;
   });
 
-  const handleAddNewGuest = (e: React.FormEvent) => {
+  const handleAddNewGuest = async (e: React.FormEvent) => {
     e.preventDefault();
     const targetCardId = newGuestCardId || myCards[0]?.id;
     if (!targetCardId || !newGuestName.trim()) {
@@ -193,13 +199,14 @@ export default function DashboardPage() {
       return;
     }
 
-    addRsvp(targetCardId, {
+    await runRsvpMutation(async () => {
+    await addRsvp(targetCardId, {
       name: newGuestName.trim(),
-      phone: newGuestPhone.trim() || "---",
+      phone: newGuestPhone.trim(),
       attending: newGuestAttending,
       guests: newGuestAttending ? Number(newGuestCount) || 1 : 0,
       note: newGuestNote.trim(),
-    });
+    }, { asOwner: true });
 
     setMyCards(getAllCards(user?.id));
     setIsAddGuestModalOpen(false);
@@ -207,33 +214,46 @@ export default function DashboardPage() {
     setNewGuestPhone("");
     setNewGuestCount(1);
     setNewGuestNote("");
+    });
   };
 
-  const handleDeleteGuest = (cardId: string, rsvpId: string) => {
-    if (confirm("Bạn có chắc chắn muốn xóa khách mời này khỏi danh sách?")) {
-      deleteRsvp(cardId, rsvpId);
+  const runRsvpMutation = async (action: () => Promise<unknown>) => {
+    if (rsvpMutationPendingRef.current) return;
+    rsvpMutationPendingRef.current = true;
+    setRsvpMutationPending(true);
+    try {
+      await action();
       setMyCards(getAllCards(user?.id));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Không thể cập nhật khách mời. Vui lòng thử lại.");
+    } finally {
+      rsvpMutationPendingRef.current = false;
+      setRsvpMutationPending(false);
     }
   };
 
-  const handleToggleGuestStatus = (
+  const handleDeleteGuest = async (cardId: string, rsvpId: string) => {
+    if (confirm("Bạn có chắc chắn muốn xóa khách mời này khỏi danh sách?")) {
+      await runRsvpMutation(() => deleteRsvp(cardId, rsvpId));
+    }
+  };
+
+  const handleToggleGuestStatus = async (
     cardId: string,
     rsvpId: string,
     currentAttending: boolean,
     currentGuests: number
   ) => {
-    updateRsvpStatus(
+    await runRsvpMutation(() => updateRsvpStatus(
       cardId,
       rsvpId,
       !currentAttending,
       !currentAttending ? currentGuests || 1 : 0
-    );
-    setMyCards(getAllCards(user?.id));
+    ));
   };
 
-  const handleToggleCheckIn = (cardId: string, rsvpId: string) => {
-    toggleRsvpCheckIn(cardId, rsvpId);
-    setMyCards(getAllCards(user?.id));
+  const handleToggleCheckIn = async (cardId: string, rsvpId: string) => {
+    await runRsvpMutation(() => toggleRsvpCheckIn(cardId, rsvpId));
   };
 
   const handleClientExportCsv = () => {
@@ -591,6 +611,7 @@ export default function DashboardPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteCard(card.id)}
+                          disabled={deletingCardId !== null}
                           className="p-2 rounded-xl text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                           title="Xóa thiệp"
                         >
@@ -1507,9 +1528,10 @@ export default function DashboardPage() {
                   </button>
                   <button
                     type="submit"
+                    disabled={rsvpMutationPending}
                     className="px-5 py-2 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold transition-all shadow-md active:scale-95 cursor-pointer"
                   >
-                    Lưu khách mời
+                    {rsvpMutationPending ? "Đang lưu..." : "Lưu khách mời"}
                   </button>
                 </div>
               </form>

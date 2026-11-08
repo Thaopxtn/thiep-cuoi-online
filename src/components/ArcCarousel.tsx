@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useMemo, useEffect } from "react";
+import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 
 // Precalculated optimal angle limit for arc
 const ARC_ANGLE = (() => {
@@ -43,6 +44,7 @@ export default function ArcCarousel<T extends { id?: string | number }>({
   const itemRefs = useRef<(HTMLLIElement | null)[]>([]);
   const [containerWidth, setContainerWidth] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
 
   // Layout calculation
   const layout = useMemo(() => {
@@ -124,8 +126,11 @@ export default function ArcCarousel<T extends { id?: string | number }>({
     const totalCircumference = virtualItems.length * layout.step;
     let rafId = 0;
     let lastTimestamp = 0;
+    let renderedOffset = Number.NaN;
 
     const renderTransforms = () => {
+      if (renderedOffset === s.offset) return;
+      renderedOffset = s.offset;
       itemRefs.current.forEach((itemEl, idx) => {
         if (!itemEl) return;
         const relativeOffset = wrapOffset(idx * layout.step - s.offset, totalCircumference);
@@ -168,7 +173,7 @@ export default function ArcCarousel<T extends { id?: string | number }>({
           s.velocity *= Math.exp(-4 * dt);
         } else {
           s.velocity = 0;
-          if (!reducedMotion && !s.hovering && !s.focused) {
+          if (isPlaying && !reducedMotion && !s.hovering && !s.focused) {
             s.offset += 28 * dt; // automatic smooth slow scroll
           }
         }
@@ -207,13 +212,24 @@ export default function ArcCarousel<T extends { id?: string | number }>({
       io.disconnect();
       stop();
     };
-  }, [layout, virtualItems, reducedMotion]);
+  }, [layout, virtualItems, reducedMotion, isPlaying]);
+
+  const moveBy = (direction: -1 | 1) => {
+    if (!layout) return;
+    const s = state.current;
+    s.velocity = 0;
+    s.target = (s.target ?? s.offset) + direction * layout.step;
+    if (reducedMotion) {
+      s.offset = s.target;
+      s.target = null;
+    }
+  };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     const s = state.current;
     if (e.pointerId === s.pointerId) {
       s.dragging = false;
-      if (performance.now() - s.lastTime > 80) {
+      if (reducedMotion || performance.now() - s.lastTime > 80) {
         s.velocity = 0;
       }
       if (s.captured && e.currentTarget.hasPointerCapture(e.pointerId)) {
@@ -225,13 +241,19 @@ export default function ArcCarousel<T extends { id?: string | number }>({
   return (
     <div
       ref={containerRef}
-      className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,#000_5%,#000_95%,transparent)]"
+      role="region"
+      aria-roledescription="carousel"
+      aria-label={label}
+      className="relative"
+      onFocus={() => { state.current.focused = true; }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          state.current.focused = false;
+        }
+      }}
     >
       <div
-        role="region"
-        aria-roledescription="carousel"
-        aria-label={label}
-        className="relative h-[278px] cursor-grab touch-pan-y select-none transition-opacity duration-500 active:cursor-grabbing sm:h-[344px]"
+        className="relative h-[278px] overflow-hidden cursor-grab touch-pan-y select-none transition-opacity duration-500 active:cursor-grabbing sm:h-[344px]"
         style={{
           height: layout ? layout.stageHeight : undefined,
           opacity: layout ? 1 : 0,
@@ -281,7 +303,6 @@ export default function ArcCarousel<T extends { id?: string | number }>({
         onDragStart={(e) => e.preventDefault()}
         onFocus={(e) => {
           const target = e.target as HTMLElement;
-          if (!target.matches(":focus-visible")) return;
           const s = state.current;
           s.focused = true;
           const li = target.closest("[data-arc-index]") as HTMLElement | null;
@@ -290,10 +311,9 @@ export default function ArcCarousel<T extends { id?: string | number }>({
           const total = virtualItems.length * layout.step;
           s.velocity = 0;
           s.target = s.offset + wrapOffset(idx * layout.step - s.offset, total);
-        }}
-        onBlur={(e) => {
-          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
-            state.current.focused = false;
+          if (reducedMotion) {
+            s.offset = s.target;
+            s.target = null;
           }
         }}
       >
@@ -303,12 +323,13 @@ export default function ArcCarousel<T extends { id?: string | number }>({
         >
           {virtualItems.map(({ item, copy }, idx) => {
             const isRepeat = copy > 0;
-            const key = `${(item as any).id ?? idx}-${copy}`;
+            const key = `${item.id ?? idx}-${copy}`;
             return (
               <li
                 key={key}
                 ref={(el) => {
                   itemRefs.current[idx] = el;
+                  if (el) el.inert = isRepeat;
                 }}
                 data-arc-index={idx}
                 aria-hidden={isRepeat || undefined}
@@ -320,6 +341,46 @@ export default function ArcCarousel<T extends { id?: string | number }>({
             );
           })}
         </ul>
+      </div>
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+        <button
+          type="button"
+          className="zen-button zen-button-secondary"
+          aria-label={`Xem mục trước trong ${label}`}
+          disabled={!layout || items.length < 2}
+          onClick={() => moveBy(-1)}
+        >
+          <ChevronLeft aria-hidden="true" className="size-4" />
+          Trước
+        </button>
+        <button
+          type="button"
+          className="zen-button zen-button-ghost"
+          aria-label={reducedMotion ? `Chuyển động ${label} đã tắt theo tùy chọn giảm chuyển động` : isPlaying ? `Tạm dừng chuyển động ${label}` : `Tiếp tục chuyển động ${label}`}
+          disabled={reducedMotion || items.length < 2}
+          onClick={() => {
+            const nextPlaying = !isPlaying;
+            if (nextPlaying) state.current.focused = false;
+            setIsPlaying(nextPlaying);
+          }}
+        >
+          {isPlaying && !reducedMotion ? (
+            <Pause aria-hidden="true" className="size-4" />
+          ) : (
+            <Play aria-hidden="true" className="size-4" />
+          )}
+          {reducedMotion ? "Chuyển động đã tắt" : isPlaying ? "Tạm dừng" : "Tiếp tục"}
+        </button>
+        <button
+          type="button"
+          className="zen-button zen-button-secondary"
+          aria-label={`Xem mục sau trong ${label}`}
+          disabled={!layout || items.length < 2}
+          onClick={() => moveBy(1)}
+        >
+          Sau
+          <ChevronRight aria-hidden="true" className="size-4" />
+        </button>
       </div>
     </div>
   );

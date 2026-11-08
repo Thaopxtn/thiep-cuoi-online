@@ -76,17 +76,23 @@ export async function getAggregatedActivities(options?: {
   limit?: number;
   search?: string;
   userId?: string;
+  strictDatabase?: boolean;
 }): Promise<SystemActivity[]> {
   const aggregated: SystemActivity[] = [...runtimeActivities];
 
   try {
-    // Tải đồng thời 4 nguồn dữ liệu từ CSDL song song để tối ưu tốc độ (< 800ms)
-    const [rawCards, rawRsvps, rawWishes, rawUsers] = await Promise.all([
-      getCardsFromDb().catch(() => []),
-      getAllRsvpsFromDb().catch(() => []),
-      getAllWishesFromDb().catch(() => []),
-      getUsersWithStatsFromDb().catch(() => []),
+    const strict = options?.strictDatabase === true;
+    const cardsRequest = getCardsFromDb(undefined, undefined, { strict });
+    const rsvpsRequest = getAllRsvpsFromDb({ strict });
+    const wishesRequest = getAllWishesFromDb({ strict });
+    const [rawCards, rawRsvps, rawWishes] = await Promise.all([
+      strict ? cardsRequest : cardsRequest.catch(() => []),
+      strict ? rsvpsRequest : rsvpsRequest.catch(() => []),
+      strict ? wishesRequest : wishesRequest.catch(() => []),
     ]);
+    // Reuse this verified cards snapshot instead of fetching the same table twice.
+    const usersRequest = getUsersWithStatsFromDb({ strict, cards: rawCards });
+    const rawUsers = await (strict ? usersRequest : usersRequest.catch(() => []));
 
     // Không hiển thị dữ liệu mẫu như hoạt động thật khi database đang rỗng.
     const cards = rawCards || [];
@@ -197,6 +203,7 @@ export async function getAggregatedActivities(options?: {
       });
     });
   } catch (err) {
+    if (options?.strictDatabase) throw err;
     console.warn("Lỗi khi tổng hợp activities từ DB:", err);
   }
 

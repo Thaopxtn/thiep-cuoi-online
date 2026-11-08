@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardsFromDb, upsertCardToDb } from "@/lib/serverDb";
+import { getCardsFromDb, getCardByIdOrSlugFromDb, upsertCardToDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
 import { recordActivity } from "@/lib/activityService";
 import { verifyUserAuth, verifyAdminAuth } from "@/lib/serverAuth";
+import { buildCardContentWrite } from "@/lib/cardMutationPolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     // 1. Nếu là Quản trị viên: Có thể xem theo userId hoặc toàn bộ
     if (adminAuth.authenticated) {
-      const cards = await getCardsFromDb(requestedUserId || undefined, token);
+      const cards = await getCardsFromDb(requestedUserId || undefined, token, { strict: true });
       return NextResponse.json({
         success: true,
         source: "database_admin",
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
 
     // 2. Nếu người dùng đã đăng nhập: CHỈ trả về đúng thiệp của tài khoản đã xác thực
     if (userAuth.authenticated && userAuth.userId) {
-      const cards = await getCardsFromDb(userAuth.userId, token);
+      const cards = await getCardsFromDb(userAuth.userId, token, { strict: true });
       return NextResponse.json({
         success: true,
         source: "database",
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     console.error("GET /api/cards error:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Lỗi lấy danh sách thiệp" },
-      { status: 500 }
+      { status: error?.status === 503 ? 503 : 500 }
     );
   }
 }
@@ -82,7 +83,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    if (!body.name) {
+    if (!body || typeof body !== "object" || Array.isArray(body) ||
+        typeof body.name !== "string" || !body.name.trim() ||
+        (body.id !== undefined && (typeof body.id !== "string" || !body.id.trim())) ||
+        (body.slug !== undefined && typeof body.slug !== "string") ||
+        (body.status !== undefined && !["draft", "published"].includes(body.status))) {
       return NextResponse.json(
         { success: false, message: "Thiếu tên thiệp cưới" },
         { status: 400 }
@@ -94,13 +99,25 @@ export async function POST(request: NextRequest) {
     const token = request.headers.get("authorization")?.split(" ")[1];
 
     const cardId = body.id || `card_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    if (await getCardByIdOrSlugFromDb(cardId) ||
+        (body.slug && await getCardByIdOrSlugFromDb(body.slug))) {
+      return NextResponse.json(
+        { success: false, message: "ID hoặc đường dẫn thiệp đã được sử dụng" },
+        { status: 409 }
+      );
+    }
     const savedCard = await upsertCardToDb(
       {
-        ...body,
-        userId: effectiveUserId,
+        ...buildCardContentWrite(body, undefined, effectiveUserId),
+        name: body.name,
+        status: body.status || "draft",
+        views: 0,
+        rsvps: [],
+        wishes: [],
         id: cardId,
       },
-      token
+      token,
+      { createOnly: true }
     );
 
     if (!savedCard) {

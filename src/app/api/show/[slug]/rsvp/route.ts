@@ -124,7 +124,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       );
     }
 
-    const numGuests = Math.min(Math.max(parseInt(String(guests), 10) || 1, 1), 10);
+    const numGuests = attending === false ? 0 : Math.min(Math.max(parseInt(String(guests), 10) || 1, 1), 10);
     const cleanNote = note ? String(note).trim().slice(0, 500) : "";
 
     // 3. Tìm thiệp thực tế (không tự sinh thiệp ma)

@@ -22,7 +22,7 @@ const EditorFixedModuleEditModal = dynamic(() => import("@/components/editor/Edi
 const ZenlovePreviewModal = dynamic(() => import("@/components/templates/ZenlovePreviewModal"), { ssr: false });
 import { getTemplateById, TEMPLATES_DATA } from "@/data/templatesData";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate, findZenloveTemplate } from "@/data/zenloveTemplates";
-import { saveCard, saveCardAsync, getCardByIdOrSlug, fetchCardForEditor, WeddingCard } from "@/lib/weddingCardService";
+import { saveCard, saveCardAsync, getCardByIdOrSlug, getCurrentUserId, fetchCardForEditor, WeddingCard } from "@/lib/weddingCardService";
 import { apiFetch } from "@/lib/apiClient";
 import { DEFAULT_LOVE_STORY } from "@/components/show/InteractiveSections";
 import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
@@ -74,12 +74,11 @@ export default function DesignTemplatePage() {
   const routeTemplateId = (params?.id as string) || "8c5055d8-30db-4b38-8831-e11063e3d352";
   const [templateId, setTemplateId] = useState<string>(routeTemplateId);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState<boolean>(false);
+  const [editorAccessError, setEditorAccessError] = useState<string | null>(null);
 
   // Sync state if route params change externally
   useEffect(() => {
-    if (params?.id && params.id !== templateId) {
-      setTemplateId(params.id as string);
-    }
+    if (params?.id) setTemplateId((current) => current === params.id ? current : params.id as string);
   }, [params?.id]);
   const { user, isLoggedIn, openLoginModal } = useAuth();
 
@@ -182,6 +181,14 @@ export default function DesignTemplatePage() {
   }, [isLoggedIn]);
 
   const isAuthenticated = isLoggedIn || hasLocalSession;
+  // Timers must read the committed render, including settings changed after they were scheduled.
+  const latestSaveStateRef = useRef({ buildCard: buildCardFromCurrentState, isAuthenticated, userId: user?.id });
+  latestSaveStateRef.current = { buildCard: buildCardFromCurrentState, isAuthenticated, userId: user?.id };
+
+  useEffect(() => () => {
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    revisionRef.current += 1;
+  }, [templateId]);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -234,14 +241,17 @@ export default function DesignTemplatePage() {
         clearTimeout(autosaveTimerRef.current);
       }
       autosaveTimerRef.current = setTimeout(async () => {
+        autosaveTimerRef.current = null;
         try {
-          const card = buildCardFromCurrentState(customNodes);
+          const latest = latestSaveStateRef.current;
+          const card = latest.buildCard(customNodes);
           // 1. Lưu đồng bộ tức thì vào Local Cache
           saveCard(card);
 
           // 2. Nếu đã đăng nhập, đồng bộ ngầm lên máy chủ Supabase
-          if (isAuthenticated) {
+          if (latest.isAuthenticated) {
             const res = await saveCardAsync(card);
+            if (revisionRef.current !== targetRevision) return;
             if (res.success) {
               if (revisionRef.current === targetRevision) {
                 lastSavedRevisionRef.current = targetRevision;
@@ -255,11 +265,11 @@ export default function DesignTemplatePage() {
           }
         } catch (e) {
           console.error("Autosave error:", e);
-          setSaveStatus("offline");
+          if (revisionRef.current === targetRevision) setSaveStatus("offline");
         }
       }, 1500);
     },
-    [isAuthenticated, templateId]
+    []
   );
 
   // Push new state to history
@@ -325,9 +335,9 @@ export default function DesignTemplatePage() {
         if (initialPhotos.length > 0) setCardAlbum(initialPhotos);
       }
       if (cardToApply.templateName) setTemplateName(cardToApply.templateName);
-      if (cardToApply.musicUrl) {
+      if (cardToApply.musicUrl !== undefined) {
         setCurrentMusic({
-          title: cardToApply.musicTitle || "Bản nhạc cưới",
+          title: cardToApply.musicTitle ?? "Bản nhạc cưới",
           url: cardToApply.musicUrl,
         });
       }
@@ -374,25 +384,50 @@ export default function DesignTemplatePage() {
 
     async function loadTemplate() {
       setIsLoadingTemplate(true);
+      setEditorAccessError(null);
       try {
         // 1. Kiểm tra local cache để hiển thị tức thì (Optimistic UI)
         const localCard = getCardByIdOrSlug(templateId);
-        if (localCard) {
+        const sessionUserId = latestSaveStateRef.current.userId || getCurrentUserId();
+        const hasSession = latestSaveStateRef.current.isAuthenticated || Boolean(sessionUserId);
+        const localOwnerId = localCard?.userId || localCard?.groom?.userId;
+        const canUseLocal = Boolean(localCard && (localOwnerId ? localOwnerId === sessionUserId : !hasSession));
+        if (localCard && canUseLocal) {
           applyCardToEditor(localCard);
         }
 
         // 2. Thử nạp bản gốc từ Server API (hỗ trợ clean context, draft của owner)
-        let activeCard: WeddingCard | null = localCard || null;
+        let activeCard: WeddingCard | null = canUseLocal ? localCard || null : null;
         if (templateId) {
           const serverRes = await fetchCardForEditor(templateId);
+          if (!isMounted) return;
           if (serverRes.success && serverRes.card) {
-            if (!isMounted) return;
-            activeCard = serverRes.card;
-            applyCardToEditor(serverRes.card);
-            saveCard(serverRes.card);
+            const privateAccess = serverRes.isOwner || Boolean(serverRes.card.userId);
+            const authenticatedNow = latestSaveStateRef.current.isAuthenticated || Boolean(getCurrentUserId());
+            if (privateAccess) {
+              activeCard = serverRes.card;
+              applyCardToEditor(serverRes.card);
+              saveCard(serverRes.card);
+            } else if (authenticatedNow) {
+              if (!activeCard) {
+                setEditorAccessError("Bạn không có quyền chỉnh sửa thiệp này. Hãy tạo bản sao từ kho mẫu bằng tài khoản của bạn.");
+                return;
+              }
+              setSaveStatus("offline");
+              showToast("Không xác minh được quyền trên máy chủ. Đang dùng bản lưu của bạn trên thiết bị.");
+            } else if (!activeCard) {
+              // Anonymous trial data may be rendered, but never replaces a private cache.
+              activeCard = serverRes.card;
+              applyCardToEditor(serverRes.card);
+            }
           } else if (serverRes.status === 403) {
-            if (!isMounted) return;
-            showToast("⚠️ Bạn không có quyền chỉnh sửa thiệp cưới này.");
+            if (!activeCard) {
+              setEditorAccessError("Bạn không có quyền chỉnh sửa thiệp cưới này.");
+              return;
+            }
+            setSaveStatus("offline");
+          } else if (hasSession && !activeCard && (serverRes.status === 401 || (serverRes.status || 0) >= 500)) {
+            setEditorAccessError(serverRes.message || "Không thể tải dữ liệu riêng của thiệp. Vui lòng thử lại khi có kết nối.");
             return;
           }
         }
@@ -406,6 +441,7 @@ export default function DesignTemplatePage() {
               const res = await fetch(`/api/zenlove-template/${tplIdToFetch}`);
               if (res.ok) {
                 const json = await res.json();
+                if (!isMounted) return;
                 if (json.success && json.data?.parsedNodes) {
                   let fetchedNodes = json.data.parsedNodes;
                   if (!fetchedNodes.ROOT) {
@@ -418,7 +454,7 @@ export default function DesignTemplatePage() {
                   const updatedWithNodes = { ...activeCard, nodes: repairedNodes };
                   setCustomCardData(updatedWithNodes);
                   saveCard(updatedWithNodes);
-                  saveCardAsync(updatedWithNodes).catch(() => {});
+                  triggerDebouncedAutosave(repairedNodes);
                 }
               }
             } catch (err) {
@@ -510,7 +546,7 @@ export default function DesignTemplatePage() {
               if (initialPhotos.length > 0) {
                 setCardAlbum((prev) => (prev && prev.length > 0 ? prev : initialPhotos));
               }
-              showToast(`✨ Đã nạp mẫu: "${foundMeta?.name || json.data?.name || templateName}"`);
+              showToast(`✨ Đã nạp mẫu: "${foundMeta?.name || json.data?.name || "Mẫu thiệp"}"`);
               return;
             }
           }
@@ -581,7 +617,7 @@ export default function DesignTemplatePage() {
     return () => {
       isMounted = false;
     };
-  }, [templateId]);
+  }, [templateId, triggerDebouncedAutosave]);
 
   // Support browser Back/Forward navigation without full reload
   useEffect(() => {
@@ -669,8 +705,6 @@ export default function DesignTemplatePage() {
           setCustomCardData((prevCard) => {
             const current = prevCard || buildCardFromCurrentState();
             const merged = { ...current, ...updatedCardPatch };
-            saveCard(merged);
-            saveCardAsync(merged).catch(() => {});
             return merged;
           });
         }
@@ -737,8 +771,7 @@ export default function DesignTemplatePage() {
   };
 
   // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S, Delete, Duplicate, Nudge, Deselect)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (
         target &&
@@ -853,11 +886,14 @@ export default function DesignTemplatePage() {
           handleUpdateProps(selectedElement.id, { left: newLeft, top: newTop });
         }
       }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [historyIndex, history, selectedElement, selectedElements, nodes]);
+  };
+  const keyboardHandlerRef = useRef(handleKeyDown);
+  keyboardHandlerRef.current = handleKeyDown;
+  useEffect(() => {
+    const listener = (event: KeyboardEvent) => keyboardHandlerRef.current(event);
+    window.addEventListener("keydown", listener);
+    return () => window.removeEventListener("keydown", listener);
+  }, []);
 
   // Canva-style Fit to Screen calculation (hỗ trợ cả Mobile & Desktop)
   const handleFitToScreen = () => {
@@ -966,13 +1002,6 @@ export default function DesignTemplatePage() {
     currentCard.musicTitle = title;
     currentCard.musicUrl = url;
     saveCard(currentCard);
-
-    // Sync to Supabase in background
-    fetch(`/api/cards/${currentCard.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(currentCard),
-    }).catch(() => {});
 
     showToast(`🎵 Đã chọn nhạc nền: "${title}"`);
   };
@@ -1869,7 +1898,8 @@ export default function DesignTemplatePage() {
   // Operational Card Builder - Extract couple info, photos, and current customized canvas nodes
   function buildCardFromCurrentState(customNodesOverride?: Record<string, any>) {
     const slug = templateId === "8c5055d8-30db-4b38-8831-e11063e3d352" ? "hong-phong" : templateId;
-    const existing = getCardByIdOrSlug(templateId) || getCardByIdOrSlug(slug);
+    // Keep a trial draft under its editor URL, rather than reusing a showcase card's ID.
+    const existing = getCardByIdOrSlug(templateId);
     const activeNodes = customNodesOverride || nodes;
 
     // Trích xuất thông tin thực tế từ template nodes và metadata
@@ -2033,18 +2063,8 @@ export default function DesignTemplatePage() {
         },
       ]),
       album: finalAlbum,
-      musicTitle:
-        currentMusic.title ||
-        existing?.musicTitle ||
-        extracted.musicTitle ||
-        currentZenloveTemplate?.musicName ||
-        "Thiên đường với người thương",
-      musicUrl:
-        currentMusic.url ||
-        existing?.musicUrl ||
-        extracted.musicUrl ||
-        currentZenloveTemplate?.musicUrl ||
-        "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3",
+      musicTitle: currentMusic.title,
+      musicUrl: currentMusic.url,
       rsvps: base?.rsvps || existing?.rsvps || [],
       wishes: base?.wishes || existing?.wishes || [],
       fixedModuleStyles: base?.fixedModuleStyles || existing?.fixedModuleStyles,
@@ -2064,6 +2084,7 @@ export default function DesignTemplatePage() {
 
   // Album Handler - Cập nhật danh sách ảnh trong album cưới và đồng bộ ảnh bìa
   const handleUpdateAlbum = (newAlbum: string[]) => {
+    isAlbumInitializedRef.current = true;
     setCardAlbum(newAlbum);
     setCustomCardData((prev) => {
       const base = prev || buildCardFromCurrentState();
@@ -2102,7 +2123,7 @@ export default function DesignTemplatePage() {
       }
       showToast("💾 Đã lưu và đồng bộ lên máy chủ thành công!");
     } else {
-      setSaveStatus("offline");
+      if (revisionRef.current === targetRevision) setSaveStatus("offline");
       showToast("💾 Đã lưu tạm thời trên máy (Ngoại tuyến)!");
     }
   };
@@ -2121,13 +2142,23 @@ export default function DesignTemplatePage() {
       setNodes(updatedCard.nodes);
       pushHistory(updatedCard.nodes);
     }
+    setCardAlbum(updatedCard.album || []);
+    if (updatedCard.effectConfig) setEffectConfig(updatedCard.effectConfig);
+    setCurrentMusic({ title: updatedCard.musicTitle, url: updatedCard.musicUrl });
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    revisionRef.current += 1;
+    const targetRevision = revisionRef.current;
+    saveCard(updatedCard);
     setSaveStatus("saving");
     showToast("⏳ Đang lưu cài đặt lên máy chủ...");
     if (updatedCard.templateName) {
       setTemplateName(updatedCard.templateName);
     }
     const res = await saveCardAsync(updatedCard);
-    setSaveStatus(res.success ? "saved" : "offline");
+    if (revisionRef.current === targetRevision) {
+      if (res.success) lastSavedRevisionRef.current = targetRevision;
+      setSaveStatus(res.success ? "saved" : "offline");
+    }
     if (res.success) {
       showToast("⚙️ Đã lưu cài đặt thông tin thiệp & Hộp mừng lên máy chủ!");
     } else {
@@ -2139,7 +2170,7 @@ export default function DesignTemplatePage() {
   const handlePreview = () => {
     const card = buildCardFromCurrentState();
     saveCard(card);
-    saveCardAsync(card).catch(() => {});
+    if (!isAuthenticated) setSaveStatus("offline");
     setIsLivePreviewOpen(true);
   };
 
@@ -2169,6 +2200,9 @@ export default function DesignTemplatePage() {
   const proceedPublish = async (cardToPublish?: WeddingCard) => {
     if (isPublishing) return;
     setIsPublishing(true);
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    revisionRef.current += 1;
+    const targetRevision = revisionRef.current;
     setSaveStatus("saving");
     showToast("⏳ Đang lưu và xuất bản thiệp lên máy chủ...");
     try {
@@ -2176,7 +2210,7 @@ export default function DesignTemplatePage() {
       const saveRes = await saveCardAsync(card);
       if (!saveRes.success) {
         showToast("⚠️ Không thể lưu bản thiết kế: " + (saveRes.message || "Lỗi mạng"));
-        setSaveStatus("offline");
+        if (revisionRef.current === targetRevision) setSaveStatus("offline");
         return;
       }
 
@@ -2187,28 +2221,33 @@ export default function DesignTemplatePage() {
       if (!pubRes.ok) {
         const errData = await pubRes.json().catch(() => ({}));
         showToast("⚠️ Xuất bản thất bại: " + (errData.message || `Lỗi HTTP ${pubRes.status}`));
-        setSaveStatus("error");
+        if (revisionRef.current === targetRevision) setSaveStatus("error");
         return;
       }
 
       const pubData = await pubRes.json();
-      const publishedCard: WeddingCard = {
-        ...card,
-        status: "published",
-        slug: pubData.card?.slug || card.slug,
-      };
+      if (!pubData.success || pubData.card?.id !== card.id || pubData.card.status !== "published") {
+        throw new Error("Máy chủ chưa xác nhận trạng thái xuất bản");
+      }
+      const publishedCard = pubData.card as WeddingCard;
 
-      setCustomCardData(publishedCard);
-      saveCard(publishedCard);
-      lastSavedRevisionRef.current = revisionRef.current;
-      setSaveStatus("saved");
+      setCustomCardData((prev) => revisionRef.current === targetRevision ? publishedCard : ({
+        ...(prev || publishedCard), status: "published", slug: publishedCard.slug,
+        isVip: publishedCard.isVip, plan: publishedCard.plan,
+        vipUnlockedAt: publishedCard.vipUnlockedAt, showWatermark: publishedCard.showWatermark,
+      }));
+      if (revisionRef.current === targetRevision) {
+        saveCard(publishedCard);
+        lastSavedRevisionRef.current = targetRevision;
+        setSaveStatus("saved");
+      }
       showToast("🚀 Thiệp cưới đã xuất bản thành công!");
 
       setIsPublishModalOpen(true);
     } catch (err: any) {
       console.error("Publish error:", err);
       showToast("⚠️ Có lỗi xảy ra trong quá trình xuất bản.");
-      setSaveStatus("offline");
+      if (revisionRef.current === targetRevision) setSaveStatus("offline");
     } finally {
       setIsPublishing(false);
     }
@@ -2243,7 +2282,12 @@ export default function DesignTemplatePage() {
     };
     setCustomCardData(merged);
     saveCard(merged);
-    saveCardAsync(merged).catch(() => {});
+    if (updatedCard.album !== undefined) setCardAlbum(updatedCard.album);
+    if (updatedCard.effectConfig) setEffectConfig(updatedCard.effectConfig);
+    if (updatedCard.musicTitle !== undefined || updatedCard.musicUrl !== undefined) {
+      setCurrentMusic({ title: merged.musicTitle, url: merged.musicUrl });
+    }
+    triggerDebouncedAutosave(updatedNodes);
 
     showToast(
       `✨ Đã tự động điền ${stats.textCount} nội dung, ${stats.photoCount} ảnh & ${stats.widgetCount} tiện ích!`
@@ -2320,19 +2364,24 @@ export default function DesignTemplatePage() {
     setCustomCardData((prev) => {
       const base = prev || buildCardFromCurrentState();
       const updated = { ...base, [key]: value };
-      saveCard(updated);
-      saveCardAsync(updated).catch(() => {});
       return updated;
     });
+    triggerDebouncedAutosave();
     showToast(`${value ? "✓ Đã bật hiển thị" : "✕ Đã tắt"} khối trên bảng thiết kế!`);
   };
 
   const handleSaveFixedModuleConfig = (updatedCard: WeddingCard) => {
     setCustomCardData(updatedCard);
-    saveCard(updatedCard);
-    saveCardAsync(updatedCard).catch(() => {});
+    triggerDebouncedAutosave();
     showToast("✨ Đã cập nhật thông tin & kiểu mẫu khối cố định!");
   };
+
+  if (editorAccessError) return (
+    <main className="min-h-screen flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <p role="alert">{editorAccessError}</p>
+      <button type="button" onClick={() => router.push("/templates")} className="px-4 py-2 rounded-lg bg-rose-700 text-white">Về kho mẫu thiệp</button>
+    </main>
+  );
 
   if (!isClientMounted) {
     return (
@@ -2386,7 +2435,7 @@ export default function DesignTemplatePage() {
         <EditorLeftDrawer
           nodes={nodes}
           card={buildCardFromCurrentState()}
-          cardAlbum={cardAlbum.length > 0 ? cardAlbum : (customCardData?.album || [])}
+          cardAlbum={isAlbumInitializedRef.current ? cardAlbum : (cardAlbum.length > 0 ? cardAlbum : customCardData?.album)}
           onUpdateAlbum={handleUpdateAlbum}
           activeTab={activeLeftTab}
           isOpen={isLeftDrawerOpen}

@@ -194,6 +194,9 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toLocaleDateString("vi-VN"),
       views: 0,
       userId,
+      isVip: false,
+      plan: "free",
+      showWatermark: true,
       coverImage,
       story:
         extracted.story ||
@@ -253,7 +256,7 @@ export async function POST(request: NextRequest) {
     };
 
     // 4. Lưu lên Supabase Database và xác nhận kết quả
-    const savedCard = await upsertCardToDb(newCard);
+    const savedCard = await upsertCardToDb(newCard, undefined, { createOnly: true });
     if (!savedCard) {
       console.error("LỖI: upsertCardToDb thất bại khi clone thiệp:", newCard.id);
       return NextResponse.json(

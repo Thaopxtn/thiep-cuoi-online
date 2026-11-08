@@ -49,7 +49,7 @@ export default function AnimateOnScroll({
     return () => observer.disconnect();
   }, [threshold, once]);
 
-  const baseStyles = "transition-all duration-700 ease-[cubic-bezier(0.16,1,0.3,1)]";
+  const baseStyles = "transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:opacity-100 motion-reduce:transform-none motion-reduce:transition-none";
   const hiddenMap = {
     "fade-up": "opacity-0 translate-y-7",
     "fade-in": "opacity-0",

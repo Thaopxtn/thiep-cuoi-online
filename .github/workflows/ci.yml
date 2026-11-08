@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Unit and route regression tests
+        run: npm test
+      - name: TypeScript contract check
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint -- --no-cache
+      - name: Production build without service credentials
+        run: npm run build
+
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: zenlove_qa_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qa-only-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d zenlove_qa_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      CI: "true"
+      NEXT_TELEMETRY_DISABLED: "1"
+      ZENLOVE_QA_DATABASE_URL: postgresql://postgres:qa-only-password@127.0.0.1:5432/zenlove_qa_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: PostgreSQL client and browser
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          npx playwright install --with-deps chromium
+      - name: Repeat migrations, verify RLS and concurrent writes
+        run: npm run test:db
+      - name: Build with local QA fixture credentials only
+        run: node scripts/testing/start-qa-app.mjs build
+      - name: Desktop and mobile persistence regression
+        run: npm run test:browser
+      - name: Preserve failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-evidence
+          path: |
+            playwright-report/
+            test-results/
+            test-reports/continuation-db.log
+          retention-days: 7

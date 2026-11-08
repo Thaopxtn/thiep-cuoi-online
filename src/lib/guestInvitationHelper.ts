@@ -26,9 +26,24 @@ export interface ParsedGuestEntry {
 /**
  * Tạo URL thiệp cưới có tham số cá nhân hóa tên khách mời
  */
-export function formatGuestLink(baseUrl: string, guestName: string): string {
-  const cleanBase = baseUrl.replace(/\/+$/, "");
-  return `${cleanBase}?to=${encodeURIComponent(guestName.trim())}`;
+export function formatGuestLink(
+  baseUrl: string,
+  guestName: string,
+  identity?: { cardId: string; guestId: string; tableNumber?: string }
+): string {
+  const url = new URL(baseUrl.replace(/\/+$/, ""));
+  for (const key of ["cardId", "guestId", "cardSlug", "table", "ban"]) url.searchParams.delete(key);
+  url.searchParams.set("to", guestName.trim());
+  // Guest identity is separate from the display name and table assignment.
+  if (identity) {
+    url.searchParams.set("cardId", identity.cardId);
+    url.searchParams.set("guestId", identity.guestId);
+    if (identity.tableNumber) url.searchParams.set("table", identity.tableNumber);
+  }
+  url.search = Array.from(url.searchParams.entries(), ([key, value]) =>
+    `${encodeURIComponent(key)}=${encodeURIComponent(value)}`
+  ).join("&");
+  return url.href;
 }
 
 /**

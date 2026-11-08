@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -21,6 +21,7 @@ import {
   HeartHandshake,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import Dialog from "@/components/ui/Dialog";
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -29,6 +30,43 @@ export default function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const { user, isLoggedIn, openLoginModal, logout } = useAuth();
   const pathname = usePathname();
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const desktop = window.matchMedia("(min-width: 1280px)");
+    const closeOnDesktop = () => {
+      if (desktop.matches) setMobileMenuOpen(false);
+    };
+    closeOnDesktop();
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, [mobileMenuOpen]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    userMenuRef.current?.querySelector<HTMLAnchorElement>("a")?.focus();
+    const closeOutside = (event: PointerEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) setUserMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setUserMenuOpen(false);
+      userMenuTriggerRef.current?.focus();
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOutside);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [userMenuOpen]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -51,7 +89,7 @@ export default function Navbar() {
     { name: "Mẫu thiệp", href: "/templates", icon: LayoutTemplate },
     { name: "Thiệp đã tạo", href: "/thiep-online/khach-hang", icon: FolderHeart },
     { name: "Đối tác & Ưu đãi", href: "/doi-tac-cuoi", icon: HeartHandshake },
-    { name: "Gói dịch vụ", href: "/#solution", icon: Gift },
+    { name: "Bảng giá", href: "/#pricing", icon: Gift },
     { name: "Cẩm nang", href: "/#faq", icon: HelpCircle },
     { name: "Liên hệ", href: "/#footer", icon: Mail },
   ];
@@ -79,7 +117,7 @@ export default function Navbar() {
           }`}
         >
           {/* Desktop Nav */}
-          <div className="hidden lg:flex w-full justify-between items-center gap-4">
+          <div className="hidden xl:flex w-full justify-between items-center gap-4">
             {/* Logo */}
             <div className="flex-shrink-0">
               <Link
@@ -98,7 +136,7 @@ export default function Navbar() {
                     priority
                   />
                 </div>
-                <div className="relative h-4.5 w-24">
+                <div className="relative h-5 w-24">
                   <Image
                     src="/assets/logo/text-logo-dark.svg"
                     alt="Zenlove"
@@ -108,14 +146,11 @@ export default function Navbar() {
                     priority
                   />
                 </div>
-                <span className="text-[10px] text-gray-500 font-mono bg-rose-50/80 px-1.5 py-0.5 rounded-full border border-rose-100/60 font-semibold tracking-wider">
-                  v1.26
-                </span>
               </Link>
             </div>
 
             {/* Navigation links */}
-            <nav aria-label="Main navigation">
+            <nav aria-label="Điều hướng chính">
               <ul className="flex space-x-1 xl:space-x-2">
                 {navLinks.map((link) => {
                   const isActive = pathname === link.href;
@@ -123,7 +158,7 @@ export default function Navbar() {
                     <li key={link.name}>
                       <Link
                         href={link.href}
-                        className={`relative whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zen-primary/30 ${
+                        className={`relative inline-flex min-h-11 items-center whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zen-primary/30 ${
                           isActive
                             ? "bg-rose-50/90 font-bold text-zen-primary shadow-2xs"
                             : "text-gray-700 hover:text-zen-primary hover:bg-rose-50/50"
@@ -143,11 +178,21 @@ export default function Navbar() {
             <div className="flex flex-shrink-0 items-center space-x-2 xl:space-x-3">
               {/* Google Auth / User Avatar */}
               {isLoggedIn && user ? (
-                <div className="relative">
+                <div
+                  ref={userMenuRef}
+                  className="relative"
+                  onBlur={(event) => {
+                    if (!event.currentTarget.contains(event.relatedTarget)) setUserMenuOpen(false);
+                  }}
+                >
                   <button
+                    ref={userMenuTriggerRef}
+                    type="button"
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-zen-primary/40 transition-all cursor-pointer"
+                    className="flex min-h-11 min-w-11 items-center justify-center gap-2 p-1 rounded-full hover:ring-2 hover:ring-zen-primary/40 transition-all cursor-pointer"
                     aria-label="Tài khoản cá nhân"
+                    aria-expanded={userMenuOpen}
+                    aria-controls="account-navigation"
                   >
                     <img
                       src={user.avatar}
@@ -158,6 +203,7 @@ export default function Navbar() {
 
                   {userMenuOpen && (
                     <div
+                      id="account-navigation"
                       className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fade-in"
                       onClick={() => setUserMenuOpen(false)}
                     >
@@ -168,7 +214,7 @@ export default function Navbar() {
 
                       <Link
                         href="/dashboard"
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-zen-primary transition-colors"
+                        className="flex min-h-11 items-center gap-2.5 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-rose-50 hover:text-zen-primary transition-colors"
                       >
                         <FolderHeart className="w-4 h-4 text-zen-primary" />
                         <span>Kho thiệp của tôi</span>
@@ -176,7 +222,7 @@ export default function Navbar() {
 
                       <Link
                         href="/templates"
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-700 hover:bg-rose-50 hover:text-zen-primary transition-colors"
+                        className="flex min-h-11 items-center gap-2.5 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-rose-50 hover:text-zen-primary transition-colors"
                       >
                         <Sparkles className="w-4 h-4 text-amber-500" />
                         <span>Tạo thiệp cưới mới</span>
@@ -184,7 +230,7 @@ export default function Navbar() {
 
                       <Link
                         href="/admin"
-                        className="flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors border-t border-gray-100"
+                        className="flex min-h-11 items-center gap-2.5 px-4 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors border-t border-gray-100"
                       >
                         <ShieldCheck className="w-4 h-4 text-zen-primary" />
                         <span>Trang Quản trị (Admin)</span>
@@ -195,7 +241,7 @@ export default function Navbar() {
                           logout();
                           setUserMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors border-t border-gray-100 mt-1 cursor-pointer"
+                        className="w-full min-h-11 flex items-center gap-2.5 px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors border-t border-gray-100 mt-1 cursor-pointer"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Đăng xuất</span>
@@ -207,7 +253,7 @@ export default function Navbar() {
                 <button
                   type="button"
                   onClick={() => openLoginModal()}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-200 hover:border-zen-primary/50 bg-white text-xs font-semibold text-gray-700 shadow-2xs hover:shadow-xs transition-all hover:-translate-y-0.5 cursor-pointer"
+                  className="flex min-h-11 items-center gap-1.5 px-3.5 py-1.5 rounded-full border border-gray-200 hover:border-zen-primary/50 bg-white text-xs font-semibold text-gray-700 shadow-2xs hover:shadow-xs transition-all hover:-translate-y-0.5 cursor-pointer"
                 >
                   <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                     <path
@@ -234,7 +280,7 @@ export default function Navbar() {
               <Link
                 href="/templates"
                 id="header-btn-create"
-                className="bg-zen-primary hover:bg-[#d93849] text-white px-4.5 py-1.5 rounded-full text-xs sm:text-sm font-semibold shadow-[0_4px_14px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(229,65,83,0.4)] flex items-center gap-1.5"
+                className="bg-zen-primary hover:bg-zen-primary-hover text-white px-4 py-1.5 min-h-11 rounded-full text-xs sm:text-sm font-semibold shadow-[0_4px_14px_rgba(229,65,83,0.3)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(229,65,83,0.4)] flex items-center gap-1.5"
               >
                 <span>Tạo thiệp</span>
                 <ArrowRight className="w-3.5 h-3.5" />
@@ -243,7 +289,7 @@ export default function Navbar() {
           </div>
 
           {/* Mobile Nav Bar */}
-          <div className="lg:hidden flex w-full justify-between items-center">
+          <div className="xl:hidden flex w-full justify-between items-center">
             <Link
               href="/"
               aria-label="Zenlove - Thiệp cưới online miễn phí"
@@ -275,9 +321,13 @@ export default function Navbar() {
             <div className="flex items-center gap-2">
               {isLoggedIn && user ? (
                 <button
+                  type="button"
                   onClick={() => setMobileMenuOpen(true)}
-                  className="p-0.5 rounded-full ring-2 ring-zen-primary/40 cursor-pointer"
+                  className="min-h-11 min-w-11 flex items-center justify-center p-0.5 rounded-full ring-2 ring-zen-primary/40 cursor-pointer"
                   aria-label="Tài khoản"
+                  aria-expanded={mobileMenuOpen}
+                  aria-controls="mobile-menu"
+                  aria-haspopup="dialog"
                 >
                   <img
                     src={user.avatar}
@@ -287,8 +337,9 @@ export default function Navbar() {
                 </button>
               ) : (
                 <button
+                  type="button"
                   onClick={() => openLoginModal()}
-                  className="p-1.5 rounded-full text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
+                  className="min-h-11 min-w-11 flex items-center justify-center p-1.5 rounded-full text-gray-700 hover:text-zen-primary hover:bg-rose-50/60 transition-colors cursor-pointer"
                   aria-label="Đăng nhập"
                   title="Đăng nhập"
                 >
@@ -297,10 +348,13 @@ export default function Navbar() {
               )}
 
               <button
+                type="button"
                 onClick={() => setMobileMenuOpen(true)}
-                className="focus:outline-none text-zen-black hover:text-zen-primary transition-colors flex justify-center items-center p-1.5 rounded-full hover:bg-gray-100 cursor-pointer"
+                className="min-h-11 min-w-11 text-zen-black hover:text-zen-primary transition-colors flex justify-center items-center p-1.5 rounded-full hover:bg-gray-100 cursor-pointer"
                 aria-label="Mở menu"
                 aria-expanded={mobileMenuOpen}
+                aria-controls="mobile-menu"
+                aria-haspopup="dialog"
               >
                 <Menu className="h-5 w-5" />
               </button>
@@ -311,18 +365,15 @@ export default function Navbar() {
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-[99999] w-screen h-screen isolate">
-          <div
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
-            onClick={() => setMobileMenuOpen(false)}
-          />
-
+        <Dialog
+          id="mobile-menu"
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+          label="Menu chính"
+          className="min-h-full"
+        >
           <aside
-            id="mobile-menu"
-            className="fixed top-0 left-0 h-screen w-[85vw] max-w-80 bg-white shadow-2xl z-10 border-r border-gray-100 rounded-r-3xl overflow-hidden flex flex-col animate-slide-in"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Menu chính"
+            className="fixed top-0 left-0 h-[100dvh] w-[85vw] max-w-80 bg-white shadow-2xl z-10 border-r border-gray-100 rounded-r-3xl overflow-hidden flex flex-col animate-slide-in"
           >
             {/* Header */}
             <div className="flex items-center justify-between py-4 px-5 border-b border-gray-100">
@@ -347,8 +398,9 @@ export default function Navbar() {
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setMobileMenuOpen(false)}
-                className="text-gray-400 hover:text-gray-700 w-8 h-8 bg-gray-100/80 rounded-full flex justify-center items-center transition-colors cursor-pointer"
+                className="text-gray-600 hover:text-gray-700 w-11 h-11 bg-gray-100/80 rounded-full flex justify-center items-center transition-colors cursor-pointer"
                 aria-label="Đóng menu"
               >
                 <X className="h-4 w-4" />
@@ -366,6 +418,7 @@ export default function Navbar() {
                       <Link
                         href={link.href}
                         onClick={() => setMobileMenuOpen(false)}
+                        aria-current={isActive ? "page" : undefined}
                         className={`flex items-center gap-3 px-3.5 py-2.5 rounded-2xl text-sm font-semibold transition-all ${
                           isActive
                             ? "bg-rose-50 text-zen-primary font-bold shadow-2xs"
@@ -405,7 +458,7 @@ export default function Navbar() {
                   <Link
                     href="/admin"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border-t border-gray-100"
+                    className="flex min-h-11 items-center gap-2 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors border-t border-gray-100"
                   >
                     <ShieldCheck className="w-3.5 h-3.5 text-zen-primary" />
                     <span>Trang Quản trị (Admin)</span>
@@ -415,7 +468,7 @@ export default function Navbar() {
                       logout();
                       setMobileMenuOpen(false);
                     }}
-                    className="w-full text-center text-xs text-gray-500 font-semibold py-1.5 hover:bg-gray-50 rounded-xl transition-colors border-t border-gray-50 cursor-pointer"
+                    className="w-full min-h-11 text-center text-sm text-gray-600 font-semibold py-1.5 hover:bg-gray-50 rounded-xl transition-colors border-t border-gray-50 cursor-pointer"
                   >
                     Đăng xuất
                   </button>
@@ -427,7 +480,7 @@ export default function Navbar() {
                     setMobileMenuOpen(false);
                     openLoginModal();
                   }}
-                  className="w-full py-2.5 px-3 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-700 flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
+                  className="w-full min-h-11 py-2.5 px-3 rounded-full border border-gray-200 bg-white hover:bg-gray-50 text-sm font-bold text-gray-700 flex items-center justify-center gap-2 shadow-2xs cursor-pointer"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 24 24">
                     <path
@@ -447,20 +500,20 @@ export default function Navbar() {
                       d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
                     />
                   </svg>
-                  <span>Đăng nhập với Google</span>
+                  <span>Đăng nhập</span>
                 </button>
               )}
 
               <Link
                 href="/templates"
                 onClick={() => setMobileMenuOpen(false)}
-                className="block w-full text-center bg-zen-primary hover:bg-[#d93849] text-white py-3 rounded-full text-sm font-bold shadow-md transition-colors"
+                className="block w-full text-center bg-zen-primary hover:bg-zen-primary-hover text-white py-3 rounded-full text-sm font-bold shadow-md transition-colors"
               >
                 Tạo thiệp ngay
               </Link>
             </div>
           </aside>
-        </div>
+        </Dialog>
       )}
     </header>
   );

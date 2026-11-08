@@ -8,9 +8,9 @@ export default function Footer() {
     { title: "Mẫu thiệp cưới online", href: "/templates" },
     { title: "Mẫu thiệp sinh nhật, sự kiện", href: "/templates" },
     { title: "Ưu đãi & Đối tác cưới", href: "/doi-tac-cuoi" },
-    { title: "Cẩm nang tạo thiệp cưới", href: "/#faq" },
+    { title: "Cẩm nang tạo thiệp cưới", href: "/tao-thiep-cuoi-online" },
     { title: "Tiếp thị liên kết (Affiliate)", href: "/doi-tac-cuoi" },
-    { title: "Tạo thiệp trọn gói VIP", href: "/#solution" },
+    { title: "Tạo thiệp trọn gói VIP", href: "/#pricing" },
   ];
 
   const legalLinks = [
@@ -63,7 +63,7 @@ export default function Footer() {
                 </Link>
               </div>
               <p className="text-gray-600 leading-relaxed text-sm">
-                Nền tảng tạo thiệp cưới online độc lập số 1 Việt Nam. Tinh tế, hiện đại, tối ưu 0đ chi phí vận hành cho mọi cặp đôi.
+                Tạo thiệp cưới online, chia sẻ lời mời và quản lý khách tham dự cho ngày chung đôi.
               </p>
               <div className="mt-4 pt-4 border-t border-gray-100 space-y-1 text-xs text-gray-500">
                 <p>
@@ -84,15 +84,15 @@ export default function Footer() {
               <p className="text-gray-900 font-bold mb-4 font-heading text-base">
                 Sản phẩm &amp; Tiện ích
               </p>
-              <ul className="space-y-2.5">
+              <ul>
                 {productLinks.map((item) => (
                   <li key={item.title}>
                     <Link
                       href={item.href}
-                      className="group inline-flex items-center gap-1 text-gray-600 hover:text-zen-primary transition-colors text-sm"
+                      className="group inline-flex min-h-11 items-center gap-1 text-gray-600 hover:text-zen-primary transition-colors text-sm"
                     >
                       <span>{item.title}</span>
-                      <ArrowUpRight className="size-3 opacity-0 group-hover:opacity-100 transition-opacity text-zen-primary" />
+                      <ArrowUpRight aria-hidden="true" className="size-3 opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity text-zen-primary" />
                     </Link>
                   </li>
                 ))}
@@ -104,12 +104,12 @@ export default function Footer() {
               <p className="text-gray-900 font-bold mb-4 font-heading text-base">
                 Quy định &amp; Chính sách
               </p>
-              <ul className="space-y-2.5">
+              <ul>
                 {legalLinks.map((item) => (
                   <li key={item.title}>
                     <Link
                       href={item.href}
-                      className="text-gray-600 hover:text-zen-primary transition-colors text-sm"
+                      className="inline-flex min-h-11 items-center text-gray-600 hover:text-zen-primary transition-colors text-sm"
                     >
                       {item.title}
                     </Link>
@@ -135,10 +135,10 @@ export default function Footer() {
                   href="https://www.facebook.com/zenlove.me/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="size-10 rounded-full bg-gray-100 hover:bg-rose-50 hover:text-zen-primary flex items-center justify-center transition-all hover:scale-105 text-gray-700 border border-gray-200/60"
+                  className="size-11 rounded-full bg-gray-100 hover:bg-rose-50 hover:text-zen-primary flex items-center justify-center transition-colors text-gray-700 border border-gray-200/60"
                   aria-label="Facebook ZenLove"
                 >
-                  <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="size-5 fill-current" viewBox="0 0 24 24">
                     <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                   </svg>
                 </a>
@@ -148,10 +148,10 @@ export default function Footer() {
                   href="https://www.instagram.com/zenlove.me/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="size-10 rounded-full bg-gray-100 hover:bg-rose-50 hover:text-zen-primary flex items-center justify-center transition-all hover:scale-105 text-gray-700 border border-gray-200/60"
+                  className="size-11 rounded-full bg-gray-100 hover:bg-rose-50 hover:text-zen-primary flex items-center justify-center transition-colors text-gray-700 border border-gray-200/60"
                   aria-label="Instagram ZenLove"
                 >
-                  <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="size-5 fill-current" viewBox="0 0 24 24">
                     <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z" />
                   </svg>
                 </a>
@@ -161,10 +161,10 @@ export default function Footer() {
                   href="https://www.tiktok.com/@zenlove.me/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="size-10 rounded-full bg-gray-100 hover:bg-rose-50 hover:text-zen-primary flex items-center justify-center transition-all hover:scale-105 text-gray-700 border border-gray-200/60"
+                  className="size-11 rounded-full bg-gray-100 hover:bg-rose-50 hover:text-zen-primary flex items-center justify-center transition-colors text-gray-700 border border-gray-200/60"
                   aria-label="TikTok ZenLove"
                 >
-                  <svg className="w-4.5 h-4.5 fill-current" viewBox="0 0 24 24">
+                  <svg aria-hidden="true" className="size-5 fill-current" viewBox="0 0 24 24">
                     <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64c.29 0 .58.04.85.12V9.4a6.33 6.33 0 0 0-1-.08A6.34 6.34 0 0 0 3 15.66a6.34 6.34 0 0 0 10.82 4.49 6.3 6.3 0 0 0 1.86-4.48V8.69a8.18 8.18 0 0 0 4.91 1.63V6.87a4.85 4.85 0 0 1-1-.18z" />
                   </svg>
                 </a>

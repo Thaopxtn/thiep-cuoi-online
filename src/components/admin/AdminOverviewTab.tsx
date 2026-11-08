@@ -58,6 +58,12 @@ export default function AdminOverviewTab({
     );
   }
 
+  if (!stats) {
+    return <p role="status" className="py-12 text-center text-sm text-gray-600">
+      Chưa có số liệu đã xác minh từ cơ sở dữ liệu. Hãy làm mới sau khi kết nối được khôi phục.
+    </p>;
+  }
+
   const kpis = [
     {
       title: "Tổng số thiệp cưới",

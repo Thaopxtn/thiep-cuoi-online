@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Playfair_Display, Dancing_Script } from "next/font/google";
+import { AuthProvider } from "@/context/AuthContext";
+import LoginModal from "@/components/auth/LoginModal";
+import { getSiteUrl } from "@/lib/siteConfig";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,20 +23,53 @@ const dancingScript = Dancing_Script({
   display: "swap",
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thiep-cuoi-online.vercel.app";
+const siteUrl = getSiteUrl();
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
-  title: "Nền Tảng Tạo Thiệp Cưới Online Miễn Phí & Tinh Tế",
+  title: {
+    default: "ZenLove - Nền Tảng Tạo Thiệp Cưới Online Miễn Phí & Tinh Tế",
+    template: "%s | ZenLove Wedding",
+  },
   description:
     "Tạo thiệp cưới online cao cấp chỉ với 5 phút, mở phong bì sáp niêm phong hoàng gia, nhạc nền lãng mạn, quản lý khách mời RSVP thời gian thực và hộp mừng cưới VietQR chuẩn Napas 24/7.",
+  keywords: [
+    "thiệp cưới online",
+    "mẫu thiệp cưới đẹp",
+    "tạo thiệp cưới miễn phí",
+    "quản lý khách mời rsvp",
+    "thiệp cưới số",
+    "vietqr đám cưới",
+  ],
+  authors: [{ name: "ZenLove Team" }],
+  creator: "ZenLove",
+  openGraph: {
+    type: "website",
+    locale: "vi_VN",
+    url: siteUrl,
+    siteName: "ZenLove Wedding",
+    title: "ZenLove - Nền Tảng Tạo Thiệp Cưới Online Miễn Phí & Tinh Tế",
+    description:
+      "Tạo thiệp cưới online cao cấp chỉ với 5 phút, mở phong bì sáp niêm phong hoàng gia, nhạc nền lãng mạn, quản lý khách mời RSVP thời gian thực.",
+    images: [
+      {
+        url: "/assets/logo/logo-6.svg",
+        width: 800,
+        height: 800,
+        alt: "ZenLove Wedding Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ZenLove - Nền Tảng Tạo Thiệp Cưới Online Miễn Phí & Tinh Tế",
+    description:
+      "Tạo thiệp cưới online cao cấp chỉ với 5 phút, mở phong bì sáp niêm phong hoàng gia, nhạc nền lãng mạn.",
+  },
   icons: {
     icon: "/favicon.ico",
   },
 };
-
-import { AuthProvider } from "@/context/AuthContext";
-import LoginModal from "@/components/auth/LoginModal";
 
 export default function RootLayout({
   children,
@@ -43,7 +79,9 @@ export default function RootLayout({
   return (
     <html lang="vi" className={`${inter.variable} ${playfair.variable} ${dancingScript.variable}`}>
       <head>
-        <link rel="stylesheet" href="/fonts/fonts.css" />
+        <link rel="preconnect" href="https://cdn-resource.zenlove.me" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://img.vietqr.io" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://images.unsplash.com" crossOrigin="anonymous" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -90,7 +128,13 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className="antialiased selection:bg-rose-100 selection:text-zen-primary">
+      <body className="antialiased selection:bg-rose-100 selection:text-zen-black">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-[10000] focus:px-4 focus:py-3 focus:bg-zen-primary focus:text-white focus:text-sm focus:font-semibold focus:rounded-full focus:shadow-lg"
+        >
+          Chuyển đến nội dung chính
+        </a>
         <AuthProvider>
           {children}
           <LoginModal />

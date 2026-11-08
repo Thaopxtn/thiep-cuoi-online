@@ -7,6 +7,7 @@ import {
 import { recordActivity } from "@/lib/activityService";
 import { verifyUserAuth, verifyAdminAuth, isCardOwner } from "@/lib/serverAuth";
 import { toPublicCardDTO } from "@/lib/cardDto";
+import { buildCardContentWrite } from "@/lib/cardMutationPolicy";
 
 export const dynamic = "force-dynamic";
 
@@ -99,16 +100,25 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body) ||
+        (body.name !== undefined && (typeof body.name !== "string" || !body.name.trim())) ||
+        (body.slug !== undefined && typeof body.slug !== "string") ||
+        (body.status !== undefined && !["draft", "published"].includes(body.status))) {
+      return NextResponse.json({ success: false, message: "Dữ liệu thiệp không hợp lệ" }, { status: 400 });
+    }
+    if (body.slug && body.slug !== existing.slug) {
+      const slugOwner = await getCardByIdOrSlugFromDb(body.slug);
+      if (slugOwner && slugOwner.id !== existing.id) {
+        return NextResponse.json({ success: false, message: "Đường dẫn thiệp đã được sử dụng" }, { status: 409 });
+      }
+    }
     const token = request.headers.get("authorization")?.split(" ")[1];
-
-    // Chặn người dùng tự thay đổi quyền sở hữu (userId) của thiệp
-    const preservedUserId = existing.userId || (userAuth.authenticated ? userAuth.userId : body.userId);
 
     const updated = await upsertCardToDb(
       {
-        ...body,
-        userId: preservedUserId,
-        id, // Đảm bảo ID không bị ghi đè
+        ...buildCardContentWrite(body, existing),
+        name: body.name ?? existing.name,
+        id: existing.id,
       },
       token
     );
@@ -190,7 +200,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     const token = request.headers.get("authorization")?.split(" ")[1];
-    const ok = await deleteCardFromDb(id, token);
+    const ok = await deleteCardFromDb(existing.id, token);
     if (!ok) {
       return NextResponse.json(
         { success: false, message: "Không thể xóa thiệp cưới từ cơ sở dữ liệu" },

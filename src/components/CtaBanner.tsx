@@ -16,8 +16,8 @@ export default function CtaBanner() {
 
           <div className="relative mx-auto max-w-3xl">
             {/* Pill Badge */}
-            <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-rose-200/80 bg-white/95 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-zen-primary shadow-2xs backdrop-blur-sm">
-              <Sparkles className="size-3.5" />
+            <div className="mx-auto mb-4 inline-flex items-center gap-2 text-sm font-semibold text-zen-primary">
+              <Sparkles aria-hidden="true" className="size-4" />
               <span>Khởi tạo miễn phí ngay hôm nay</span>
             </div>
 
@@ -50,11 +50,11 @@ export default function CtaBanner() {
             {/* Action Button */}
             <div className="mt-8 flex justify-center">
               <Link
-                className="group inline-flex items-center justify-center gap-2.5 rounded-full bg-zen-primary px-9 py-4 text-base font-bold text-white shadow-[0_12px_32px_rgba(229,65,83,0.35)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-[#d93849] hover:shadow-[0_18px_42px_rgba(229,65,83,0.45)]"
+                className="zen-button zen-button-primary"
                 href="/templates"
               >
                 <span>Bắt đầu tạo thiệp cưới ngay</span>
-                <Send className="size-4 transition-transform duration-300 group-hover:translate-x-1" />
+                <Send aria-hidden="true" className="size-4 shrink-0" />
               </Link>
             </div>
           </div>

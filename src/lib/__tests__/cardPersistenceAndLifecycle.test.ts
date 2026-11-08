@@ -1,4 +1,28 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach, afterAll } from "vitest";
+
+// Exercise the local repository without touching application data or a configured cloud DB.
+const testDatabase = vi.hoisted(() => {
+  const originalUrls = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+  };
+  process.env.SUPABASE_URL = "";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = "";
+  return { contents: "[]", mtime: 0, originalUrls };
+});
+
+vi.mock("fs", () => ({
+  default: {
+    existsSync: () => true,
+    statSync: () => ({ mtimeMs: testDatabase.mtime }),
+    readFileSync: () => testDatabase.contents,
+    writeFileSync: (_file: string, contents: string) => {
+      testDatabase.contents = contents;
+      testDatabase.mtime += 1;
+    },
+    mkdirSync: vi.fn(),
+  },
+}));
 import { WeddingCard } from "@/data/initialCards";
 import {
   saveCard,
@@ -14,6 +38,8 @@ describe("E01–E06: CARD PERSISTENCE, LIFECYCLE & ROUND-TRIP INTEGRITY", () => 
   let store: Record<string, string> = {};
 
   beforeEach(() => {
+    testDatabase.contents = "[]";
+    testDatabase.mtime += 1;
     store = {};
     const mockStorage = {
       getItem: (key: string) => store[key] || null,
@@ -42,6 +68,13 @@ describe("E01–E06: CARD PERSISTENCE, LIFECYCLE & ROUND-TRIP INTEGRITY", () => 
   afterEach(() => {
     global.fetch = originalFetch;
     vi.restoreAllMocks();
+  });
+
+  afterAll(() => {
+    for (const [key, value] of Object.entries(testDatabase.originalUrls)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
   });
 
   // =========================================================================

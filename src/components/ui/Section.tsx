@@ -21,8 +21,8 @@ export default function Section({
 }: SectionProps) {
   const bgMap = {
     white: "bg-white",
-    warm: "bg-[#fffaf8]",
-    subtle: "bg-[#fafafa]",
+    warm: "bg-zen-surface",
+    subtle: "bg-zen-subtle",
   };
   const paddingMap = {
     sm: "py-12 sm:py-16",
@@ -36,7 +36,7 @@ export default function Section({
       className={`${bgMap[bg]} ${paddingMap[padding]} transition-colors duration-300 ${className}`}
       aria-label={ariaLabel}
     >
-      <div className={`mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 ${containerClassName}`}>
+      <div className={`zen-container ${containerClassName}`}>
         {children}
       </div>
     </section>

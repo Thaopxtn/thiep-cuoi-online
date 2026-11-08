@@ -16,6 +16,9 @@ import {
 import { apiFetch } from "@/lib/apiClient";
 export type { WeddingEvent, WeddingRsvp, WeddingWish, WeddingCard };
 export { INITIAL_CARDS };
+let cardCacheRevision = 0;
+let cardListRequestId = 0;
+const latestCardListRequests = new Map<string, number>();
 
 export function getCurrentAuth(): { id?: string, token?: string } {
   if (typeof window === 'undefined') return {};
@@ -49,12 +52,17 @@ export function getCardsStorageKey(userId?: string): string {
 export async function fetchCardsFromServer(userId?: string): Promise<WeddingCard[]> {
   const uid = userId || getCurrentUserId();
   const storageKey = getCardsStorageKey(uid);
+  const cacheRevision = cardCacheRevision;
+  const requestId = ++cardListRequestId;
+  latestCardListRequests.set(storageKey, requestId);
   try {
     const url = uid ? `/api/cards?userId=${encodeURIComponent(uid)}` : "/api/cards";
     const res = await apiFetch(url);
     if (!res.ok) return getAllCards(uid);
     const data = await res.json();
     if (data.success && Array.isArray(data.cards)) {
+      // An older listing must not resurrect a deleted card or erase a newly acknowledged RSVP.
+      if (cacheRevision !== cardCacheRevision || latestCardListRequests.get(storageKey) !== requestId) return getAllCards(uid);
       if (typeof window !== "undefined") {
         localStorage.setItem(storageKey, JSON.stringify(data.cards));
       }
@@ -142,6 +150,7 @@ function pruneOldLocalStorageCache(keepCardId?: string) {
 
 export function saveCard(card: WeddingCard): void {
   if (typeof window === "undefined") return;
+  cardCacheRevision += 1;
   const currentUid = card.userId || getCurrentUserId();
   const updatedCard: WeddingCard = {
     ...card,
@@ -228,25 +237,33 @@ export async function fetchCardForEditor(id: string): Promise<{
   }
 }
 
-export async function saveCardAsync(card: WeddingCard): Promise<{ success: boolean; message?: string }> {
-  const currentUid = card.userId || getCurrentUserId();
-  const cardWithUid = {
-    ...card,
-    userId: currentUid,
-  };
+type CardSaveResult = { success: boolean; message?: string };
+const pendingCardSaves = new Map<string, Promise<CardSaveResult>>();
 
+export async function saveCardAsync(card: WeddingCard): Promise<CardSaveResult> {
+  const currentUid = card.userId || getCurrentUserId();
+  // Capture the complete snapshot now; requests for one card must reach the server in order.
+  let body: string;
   try {
+    body = JSON.stringify({ ...card, userId: currentUid });
+  } catch {
+    return { success: false, message: "Dữ liệu thiệp không hợp lệ" };
+  }
+  const previous = pendingCardSaves.get(card.id);
+  const operation: Promise<CardSaveResult> = (previous || Promise.resolve()).then(async () => {
+    try {
     const res = await apiFetch(`/api/cards/${card.id}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(cardWithUid),
+      body,
     });
     if (res.ok) {
       const data = await res.json();
-      // Chỉ lưu local cache sau khi server xác nhận lưu thành công
-      saveCard(cardWithUid);
+      if (data.success === false) return { success: false, message: data.message || "Không thể lưu thiệp" };
+      // A completed older request must not replace a newer local edit waiting in the queue.
+      if (pendingCardSaves.get(card.id) === operation) saveCard(data.card || JSON.parse(body));
       return { success: true, message: data.message || "Đã lưu lên máy chủ thành công" };
     }
     const errData = await res.json().catch(() => ({}));
@@ -254,27 +271,69 @@ export async function saveCardAsync(card: WeddingCard): Promise<{ success: boole
   } catch (err: any) {
     return { success: false, message: err?.message || "Lỗi kết nối máy chủ" };
   }
+  });
+  pendingCardSaves.set(card.id, operation);
+  try {
+    return await operation;
+  } finally {
+    if (pendingCardSaves.get(card.id) === operation) pendingCardSaves.delete(card.id);
+  }
 }
 
-export function deleteCard(cardId: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    const storageKey = getCardsStorageKey();
-    const cards = getAllCards().filter((c) => c.id !== cardId);
-    localStorage.setItem(storageKey, JSON.stringify(cards));
+type InteractionMutationOptions = { localOnly?: boolean };
 
-    // Đồng bộ xóa lên Supabase Server API
-    const currentUid = getCurrentUserId();
-    fetch(`/api/cards/${cardId}`, {
-      method: "DELETE",
-      headers: {
-          ...(currentUid ? { "x-user-id": currentUid } : {}),
-          ...(getCurrentAuth().token ? { "Authorization": `Bearer ${getCurrentAuth().token}` } : {})
-        },
-    }).catch((err) => console.warn("Xóa trên Server API thất bại:", err));
-  } catch (e) {
-    console.error("Failed to delete card:", e);
+function isAnonymousDemo(cardId: string, options: InteractionMutationOptions): boolean {
+  if (!options.localOnly) return false;
+  const auth = getCurrentAuth();
+  const card = getCardByIdOrSlug(cardId);
+  if (!card || auth.id || auth.token || card.userId || card.groom?.userId) {
+    throw new Error("Chỉ dữ liệu xem thử chưa đăng nhập mới được lưu riêng trên thiết bị");
   }
+  return true;
+}
+
+// Update matching cached records only. Public interactions must not adopt a card into
+// the current user's account or replace a private editor snapshot with a public DTO.
+function updateCardCaches(cardId: string, update: (card: WeddingCard) => WeddingCard | null): void {
+  cardCacheRevision += 1;
+  if (typeof window === "undefined") return;
+  let keys: Array<string | null>;
+  try {
+    keys = Array.from({ length: localStorage.length }, (_, index) => localStorage.key(index));
+  } catch {
+    return;
+  }
+  for (const key of keys) {
+    if (!key || !(key.startsWith("card_") || key.startsWith("zenlove_cards_") || key === "zenlove_guest_cards_v1")) continue;
+    try {
+      const value = JSON.parse(localStorage.getItem(key) || "null");
+      if (Array.isArray(value)) {
+        if (!value.some((card) => card.id === cardId || card.slug === cardId)) continue;
+        const next = value.flatMap((card) => {
+          if (card.id !== cardId && card.slug !== cardId) return [card];
+          const updated = update(card);
+          return updated ? [updated] : [];
+        });
+        localStorage.setItem(key, JSON.stringify(next));
+      } else if (value && (value.id === cardId || value.slug === cardId)) {
+        const updated = update(value);
+        if (updated) localStorage.setItem(key, JSON.stringify(updated));
+        else localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.warn("Không thể cập nhật bộ nhớ đệm sau khi máy chủ xác nhận:", error);
+    }
+  }
+}
+
+export async function deleteCard(cardId: string, options: InteractionMutationOptions = {}): Promise<void> {
+  if (!isAnonymousDemo(cardId, options)) {
+    await pendingCardSaves.get(cardId);
+    const res = await apiFetch(`/api/cards/${encodeURIComponent(cardId)}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success !== true) throw new Error(data.message || `Không thể xóa thiệp (HTTP ${res.status})`);
+  }
+  updateCardCaches(cardId, () => null);
 }
 
 export function incrementCardViews(idOrSlug: string): void {
@@ -297,154 +356,116 @@ export function incrementCardViews(idOrSlug: string): void {
   } catch (e) {}
 }
 
-export function addRsvp(cardId: string, rsvp: Omit<WeddingRsvp, "id" | "cardId" | "createdAt">): WeddingRsvp {
-  const newRsvp: WeddingRsvp = {
-    ...rsvp,
-    id: `rsvp_${Date.now()}`,
-    cardId,
-    createdAt: new Date().toLocaleString("vi-VN"),
-  };
-
-  if (typeof window !== "undefined") {
-    try {
-      const storageKey = getCardsStorageKey();
-      const cards = getAllCards();
-      const card = cards.find((c) => c.id === cardId || c.slug === cardId);
-      if (card) {
-        card.rsvps = [newRsvp, ...(card.rsvps || [])];
-        const existingIndex = cards.findIndex((c) => c.id === card.id);
-        cards[existingIndex] = card;
-        localStorage.setItem(storageKey, JSON.stringify(cards));
-      }
-
-      // Đồng bộ lên Supabase Server API
-      fetch(`/api/show/${cardId}/rsvp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(rsvp),
-      }).catch((err) => console.warn("Gửi RSVP lên server thất bại:", err));
-    } catch (e) {}
-  }
-  return newRsvp;
-}
-
-export function deleteRsvp(cardId: string, rsvpId: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    const storageKey = getCardsStorageKey();
-    const cards = getAllCards();
-    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
-    if (card && card.rsvps) {
-      card.rsvps = card.rsvps.filter((r) => r.id !== rsvpId);
-      const existingIndex = cards.findIndex((c) => c.id === card.id);
-      cards[existingIndex] = card;
-      localStorage.setItem(storageKey, JSON.stringify(cards));
-      saveCard(card);
+export async function addRsvp(
+  cardId: string,
+  rsvp: Omit<WeddingRsvp, "id" | "cardId" | "createdAt">,
+  options: InteractionMutationOptions & { asOwner?: boolean } = {}
+): Promise<WeddingRsvp> {
+  let saved: WeddingRsvp;
+  if (isAnonymousDemo(cardId, options)) {
+    saved = { ...rsvp, id: `rsvp_demo_${crypto.randomUUID()}`, cardId, createdAt: new Date().toISOString() };
+  } else {
+    const url = options.asOwner
+      ? `/api/cards/${encodeURIComponent(cardId)}/rsvps`
+      : `/api/show/${encodeURIComponent(cardId)}/rsvp`;
+    const res = await apiFetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rsvp) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success !== true || !data.rsvp?.id || !data.rsvp?.createdAt) {
+      throw new Error(data.message || `Không thể lưu phản hồi RSVP (HTTP ${res.status})`);
     }
-  } catch (e) {
-    console.error("deleteRsvp error:", e);
+    saved = { ...rsvp, cardId, ...data.rsvp };
   }
+  updateCardCaches(cardId, (card) => ({ ...card, rsvps: [saved, ...(card.rsvps || []).filter((item) => item.id !== saved.id)] }));
+  return saved;
 }
 
-export function updateRsvpStatus(
+function getCardForRsvpMutation(cardId: string): WeddingCard {
+  const summary = getAllCards().find((c) => c.id === cardId || c.slug === cardId);
+  const full = getCardByIdOrSlug(cardId);
+  if (!summary && !full) throw new Error("Không tìm thấy thiệp cưới");
+  return { ...full, ...summary, nodes: full?.nodes || summary?.nodes } as WeddingCard;
+}
+
+async function persistRsvpMutation(
+  card: WeddingCard,
+  rsvpId: string,
+  updates?: Partial<WeddingRsvp>
+): Promise<WeddingRsvp | null> {
+  const auth = getCurrentAuth();
+  // Only anonymous demo data may remain on this device. Real accounts must use the owner API.
+  if (!auth.id && !auth.token && !card.userId) return updates ? {
+    ...card.rsvps.find((r) => r.id === rsvpId)!, ...updates,
+  } : null;
+  const res = await apiFetch(`/api/cards/${encodeURIComponent(card.id)}/rsvps/${encodeURIComponent(rsvpId)}`, {
+    method: updates ? "PATCH" : "DELETE",
+    headers: { "Content-Type": "application/json" },
+    ...(updates ? { body: JSON.stringify(updates) } : {}),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.success !== true || (updates && !data.rsvp)) {
+    throw new Error(data.message || `Không thể cập nhật khách mời (HTTP ${res.status})`);
+  }
+  return data.rsvp || null;
+}
+
+export async function deleteRsvp(cardId: string, rsvpId: string): Promise<void> {
+  const card = getCardForRsvpMutation(cardId);
+  if (!card.rsvps?.some((r) => r.id === rsvpId)) throw new Error("Không tìm thấy khách mời");
+  await persistRsvpMutation(card, rsvpId);
+  const latest = getCardForRsvpMutation(cardId);
+  saveCard({ ...latest, rsvps: latest.rsvps.filter((r) => r.id !== rsvpId) });
+}
+
+export async function updateRsvpStatus(
   cardId: string,
   rsvpId: string,
   attending: boolean,
   guests?: number
-): void {
-  if (typeof window === "undefined") return;
-  try {
-    const storageKey = getCardsStorageKey();
-    const cards = getAllCards();
-    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
-    if (card && card.rsvps) {
-      card.rsvps = card.rsvps.map((r) => {
-        if (r.id === rsvpId) {
-          return {
-            ...r,
-            attending,
-            guests: attending ? (guests ?? r.guests ?? 1) : 0,
-          };
-        }
-        return r;
-      });
-      const existingIndex = cards.findIndex((c) => c.id === card.id);
-      cards[existingIndex] = card;
-      localStorage.setItem(storageKey, JSON.stringify(cards));
-      saveCard(card);
-    }
-  } catch (e) {
-    console.error("updateRsvpStatus error:", e);
-  }
+): Promise<void> {
+  const card = getCardForRsvpMutation(cardId);
+  const current = card.rsvps?.find((r) => r.id === rsvpId);
+  if (!current) throw new Error("Không tìm thấy khách mời");
+  const updated = await persistRsvpMutation(card, rsvpId, {
+    attending, guests: attending ? (guests ?? current.guests ?? 1) : 0,
+  });
+  const latest = getCardForRsvpMutation(cardId);
+  saveCard({ ...latest, rsvps: latest.rsvps.map((r) => r.id === rsvpId ? updated! : r) });
 }
-export function toggleRsvpCheckIn(
+export async function toggleRsvpCheckIn(
   cardId: string,
   rsvpId: string,
   tableNumber?: string | number
-): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    const storageKey = getCardsStorageKey();
-    const cards = getAllCards();
-    const card = cards.find((c) => c.id === cardId || c.slug === cardId);
-    if (card && card.rsvps) {
-      let newCheckedInState = false;
-      card.rsvps = card.rsvps.map((r) => {
-        if (r.id === rsvpId) {
-          newCheckedInState = !r.checkedIn;
-          return {
-            ...r,
-            checkedIn: newCheckedInState,
-            checkedInAt: newCheckedInState ? new Date().toISOString() : undefined,
-            ...(tableNumber !== undefined ? { tableNumber } : {}),
-          };
-        }
-        return r;
-      });
-      const existingIndex = cards.findIndex((c) => c.id === card.id);
-      if (existingIndex >= 0) {
-        cards[existingIndex] = card;
-      }
-      localStorage.setItem(storageKey, JSON.stringify(cards));
-      saveCard(card);
-      return newCheckedInState;
-    }
-  } catch (e) {
-    console.error("toggleRsvpCheckIn error:", e);
-  }
-  return false;
+): Promise<boolean> {
+  const card = getCardForRsvpMutation(cardId);
+  const current = card.rsvps?.find((r) => r.id === rsvpId);
+  if (!current) throw new Error("Không tìm thấy khách mời");
+  const checkedIn = !current.checkedIn;
+  const updated = await persistRsvpMutation(card, rsvpId, {
+    checkedIn,
+    ...(!getCurrentAuth().id && !getCurrentAuth().token && !card.userId ? { checkedInAt: checkedIn ? new Date().toISOString() : undefined } : {}),
+    ...(tableNumber !== undefined ? { tableNumber } : {}),
+  });
+  const latest = getCardForRsvpMutation(cardId);
+  saveCard({ ...latest, rsvps: latest.rsvps.map((r) => r.id === rsvpId ? updated! : r) });
+  return Boolean(updated?.checkedIn);
 }
 
-export function addWish(cardId: string, name: string, content: string): WeddingWish {
-  const newWish: WeddingWish = {
-    id: `wish_${Date.now()}`,
-    cardId,
-    name,
-    content,
-    createdAt: new Date().toLocaleString("vi-VN"),
-  };
-
-  if (typeof window !== "undefined") {
-    try {
-      const storageKey = getCardsStorageKey();
-      const cards = getAllCards();
-      const card = cards.find((c) => c.id === cardId || c.slug === cardId);
-      if (card) {
-        card.wishes = [newWish, ...(card.wishes || [])];
-        const existingIndex = cards.findIndex((c) => c.id === card.id);
-        cards[existingIndex] = card;
-        localStorage.setItem(storageKey, JSON.stringify(cards));
-      }
-
-      // Đồng bộ lên Supabase Server API
-      fetch(`/api/show/${cardId}/wishes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, content }),
-      }).catch((err) => console.warn("Gửi lời chúc lên server thất bại:", err));
-    } catch (e) {}
+export async function addWish(cardId: string, name: string, content: string, options: InteractionMutationOptions = {}): Promise<WeddingWish> {
+  let saved: WeddingWish;
+  if (isAnonymousDemo(cardId, options)) {
+    saved = { id: `wish_demo_${crypto.randomUUID()}`, cardId, name, content, createdAt: new Date().toISOString() };
+  } else {
+    const res = await apiFetch(`/api/show/${encodeURIComponent(cardId)}/wishes`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, content }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success !== true || !data.wish?.id || !data.wish?.createdAt) {
+      throw new Error(data.message || `Không thể lưu lời chúc (HTTP ${res.status})`);
+    }
+    saved = { cardId, name, content, ...data.wish };
   }
-  return newWish;
+  updateCardCaches(cardId, (card) => ({ ...card, wishes: [saved, ...(card.wishes || []).filter((item) => item.id !== saved.id)] }));
+  return saved;
 }
 
 export function toggleWishLike(cardId: string, wishId: string): number {

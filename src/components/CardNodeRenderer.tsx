@@ -33,7 +33,7 @@ import PhotoBoxFrameRenderer from "@/components/PhotoBoxFrameRenderer";
 
 interface CardNodeRendererProps {
   nodes: Record<string, any>;
-  onRsvpSuccess?: (rsvpData: any) => void;
+  onRsvpSuccess?: (rsvpData: any) => void | Promise<void>;
   onOpenGiftQr?: () => void;
   groom?: { name?: string; bankName?: string; accountNumber?: string; accountName?: string; qrCode?: string };
   bride?: { name?: string; bankName?: string; accountNumber?: string; accountName?: string; qrCode?: string };
@@ -246,6 +246,9 @@ export default function CardNodeRenderer({
   const [rsvpPhone, setRsvpPhone] = useState("");
   const [rsvpGuests, setRsvpGuests] = useState(1);
   const [rsvpAttending, setRsvpAttending] = useState(true);
+  const [rsvpPending, setRsvpPending] = useState(false);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const rsvpPendingRef = useRef(false);
 
   // Live countdown ticker
   const [, setLiveTick] = useState(0);
@@ -1189,18 +1192,28 @@ export default function CardNodeRenderer({
                     </div>
                   ) : (
                     <form
-                      onSubmit={(e) => {
+                      onSubmit={async (e) => {
                         e.preventDefault();
-                        if (!rsvpName.trim()) return;
-                        weddingSounds.playCelebration();
-                        setRsvpSent(true);
+                        if (!rsvpName.trim() || rsvpPendingRef.current) return;
+                        rsvpPendingRef.current = true;
+                        setRsvpPending(true);
+                        setRsvpError(null);
+                        try {
                         if (onRsvpSuccess) {
-                          onRsvpSuccess({
+                          await onRsvpSuccess({
                             name: rsvpName.trim(),
                             phone: rsvpPhone.trim(),
                             attending: rsvpAttending,
                             guests: rsvpAttending ? rsvpGuests : 0,
                           });
+                        }
+                        setRsvpSent(true);
+                        weddingSounds.playCelebration();
+                        } catch (error) {
+                          setRsvpError(error instanceof Error ? error.message : "Không thể gửi xác nhận. Vui lòng thử lại.");
+                        } finally {
+                          rsvpPendingRef.current = false;
+                          setRsvpPending(false);
                         }
                       }}
                       className="space-y-2"
@@ -1268,11 +1281,13 @@ export default function CardNodeRenderer({
                       </div>
                       <button
                         type="submit"
+                        disabled={rsvpPending}
                         className="w-full py-2 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-xs flex items-center justify-center gap-1.5"
                       >
-                        <span>Gửi xác nhận</span>
+                        <span>{rsvpPending ? "Đang gửi..." : "Gửi xác nhận"}</span>
                         <Send className="w-3 h-3" />
                       </button>
+                      {rsvpError && <p role="alert" className="text-xs text-red-600">{rsvpError}</p>}
                     </form>
                   )}
                 </div>

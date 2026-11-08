@@ -7,10 +7,13 @@
 import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
+import nextEnv from "@next/env";
+import { performanceRating, testEndpoint } from "./qa-http.mjs";
 
+nextEnv.loadEnvConfig(process.cwd());
 const BASE_URL = process.env.BASE_URL || "http://localhost:3005";
-const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "zenlove_admin_secure_2026";
-const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "zenlove_qa_master_key_2026";
+const ADMIN_PASSCODE = process.env.ADMIN_PASSCODE || "";
+const ADMIN_API_KEY = process.env.ADMIN_API_KEY || "";
 
 const colors = {
   reset: "\x1b[0m",
@@ -22,42 +25,6 @@ const colors = {
   magenta: "\x1b[35m",
   bold: "\x1b[1m",
 };
-
-async function testEndpoint(name, url, options = {}) {
-  const start = Date.now();
-  try {
-    const res = await fetch(url, options);
-    const duration = Date.now() - start;
-    let data = null;
-    const contentType = res.headers.get("content-type") || "";
-    if (contentType.includes("application/json")) {
-      data = await res.json();
-    } else {
-      data = await res.text();
-    }
-
-    const passed = res.ok;
-    return {
-      name,
-      url,
-      passed,
-      status: res.status,
-      duration,
-      data,
-      error: passed ? null : `HTTP ${res.status}`,
-    };
-  } catch (err) {
-    return {
-      name,
-      url,
-      passed: false,
-      status: 0,
-      duration: Date.now() - start,
-      data: null,
-      error: err.message,
-    };
-  }
-}
 
 async function runQASuite() {
   const startTime = Date.now();
@@ -114,14 +81,13 @@ async function runQASuite() {
   // Đăng nhập Admin hợp lệ để lấy token dùng cho các test kiểm thử quyền
   let adminToken = "";
   try {
-    const authVerifyRes = await fetch(`${BASE_URL}/api/admin/verify`, {
+    const authVerifyRes = ADMIN_PASSCODE && await testEndpoint("Admin login", `${BASE_URL}/api/admin/verify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ passcode: ADMIN_PASSCODE }),
     });
-    if (authVerifyRes.ok) {
-      const authData = await authVerifyRes.json();
-      adminToken = authData.token || "";
+    if (authVerifyRes?.passed) {
+      adminToken = authVerifyRes.data.token || "";
     }
   } catch {}
 
@@ -318,17 +284,19 @@ async function runQASuite() {
     { name: "Homepage SSR", url: `${BASE_URL}/` },
     { name: "Template Library", url: `${BASE_URL}/templates` },
     { name: "Public Wedding Card", url: `${BASE_URL}/show/net-hoang-hon-2877` },
-    { name: "Admin Stats API", url: `${BASE_URL}/api/admin/stats`, headers: { Authorization: `Bearer ${adminToken}` } },
-    { name: "Admin Activities API", url: `${BASE_URL}/api/admin/activities`, headers: { Authorization: `Bearer ${adminToken}` } },
+    { name: "Admin Stats API", url: `${BASE_URL}/api/admin/stats`, headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : { "x-admin-key": ADMIN_API_KEY } },
+    { name: "Admin Activities API", url: `${BASE_URL}/api/admin/activities`, headers: adminToken ? { Authorization: `Bearer ${adminToken}` } : { "x-admin-key": ADMIN_API_KEY } },
   ];
 
   for (const t of perfTargets) {
-    const start = Date.now();
-    await fetch(t.url, { headers: t.headers || {} });
-    const lat = Date.now() - start;
-    const speedRating = lat < 500 ? `${colors.green}SIÊU NHANH (<500ms)${colors.reset}` : `${colors.yellow}BÌNH THƯỜNG (<2s)${colors.reset}`;
-    console.log(`  ⚡ ${t.name.padEnd(25)} : ${colors.bold}${lat}ms${colors.reset} (${speedRating})`);
-    reportData.perfBenchmarks.push({ name: t.name, latency: lat });
+    const result = await testEndpoint(t.name, t.url, { headers: t.headers || {} });
+    const ratingColor = !result.passed ? colors.red : result.duration < 500 ? colors.green : colors.yellow;
+    console.log(`  ⚡ ${t.name.padEnd(25)} : ${colors.bold}${result.duration}ms${colors.reset} (${ratingColor}${performanceRating(result)}${colors.reset})`);
+    reportData.perfBenchmarks.push({
+      name: t.name, latency: result.duration, status: result.status,
+      passed: result.passed, rating: performanceRating(result), error: result.error,
+    });
+    if (!result.passed) reportData.passed = false;
   }
 
   // -------------------------------------------------------------
@@ -389,7 +357,7 @@ async function runQASuite() {
       </div>
       <div class="card">
         <div class="card-title">Môi Trường</div>
-        <div class="card-val" style="font-size: 1rem; margin-top: 0.8rem; color: #cbd5e1;">Localhost 3005</div>
+        <div class="card-val" style="font-size: 1rem; margin-top: 0.8rem; color: #cbd5e1;">${new URL(BASE_URL).host.replace(/[&<>"']/g, "")}</div>
       </div>
     </div>
 
@@ -415,6 +383,12 @@ async function runQASuite() {
           )
           .join("")}
       </tbody>
+    </table>
+    <h3>Độ trễ HTTP (đọc hết response, có timeout)</h3>
+    <p>Đây là số đo local theo từng request, chưa phải LCP hoặc kiểm thử tải trình duyệt.</p>
+    <table>
+      <thead><tr><th>Endpoint</th><th>HTTP</th><th>Thời gian</th><th>Đánh giá</th></tr></thead>
+      <tbody>${reportData.perfBenchmarks.map((p) => `<tr><td>${p.name}</td><td>${p.status}</td><td>${p.latency}ms</td><td>${p.rating}</td></tr>`).join("")}</tbody>
     </table>
   </div>
 </body>

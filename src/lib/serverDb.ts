@@ -9,6 +9,7 @@ import lzutf8 from "lzutf8";
 import fs from "fs";
 import path from "path";
 import { WeddingCard, WeddingRsvp, WeddingWish } from "@/data/initialCards";
+import { fetchWithDeadline as fetchWithTimeout } from "./serverFetch";
 
 const LOCAL_CARDS_FILE = path.join(process.cwd(), "src", "data", "cards-local-db.json");
 
@@ -32,34 +33,38 @@ function readLocalCards(): WeddingCard[] {
 }
 
 
-function fetchWithTimeout(url: string, init: RequestInit = {}, timeoutMs = 2500): Promise<Response> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
-  return fetch(url, {
-    ...init,
-    signal: init.signal || controller.signal,
-  }).finally(() => clearTimeout(timer));
+export class DatabaseUnavailableError extends Error {
+  readonly status = 503;
+  constructor(message = "Không thể kết nối cơ sở dữ liệu") {
+    super(message);
+    this.name = "DatabaseUnavailableError";
+  }
 }
 
-function writeLocalCard(card: any) {
+export type DatabaseReadOptions = { strict?: boolean };
+
+function writeLocalCard(card: Partial<WeddingCard> & { id: string }): boolean {
   try {
-    const cards = readLocalCards();
+    // Do not change the in-memory view until the file write has succeeded.
+    const cards = [...readLocalCards()];
     const idx = cards.findIndex((c) => c.id === card.id || (card.slug && c.slug === card.slug));
     if (idx >= 0) {
       cards[idx] = { ...cards[idx], ...card };
     } else {
-      cards.unshift(card);
+      cards.unshift(card as WeddingCard);
     }
-    localCardsCache = cards;
     const dir = path.dirname(LOCAL_CARDS_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(LOCAL_CARDS_FILE, JSON.stringify(cards), "utf8");
+    localCardsCache = cards;
     try {
       const stat = fs.statSync(LOCAL_CARDS_FILE);
       lastMtimeMs = stat.mtimeMs;
     } catch {}
+    return true;
   } catch (err) {
     console.warn("Lỗi ghi cards-local-db.json:", err);
+    return false;
   }
 }
 
@@ -156,7 +161,7 @@ function mapDbToCard(row: any): WeddingCard {
       : Array.isArray(row.album)
       ? row.album
       : [],
-    musicTitle: row.musicTitle || "Thiên đường với người thương",
+    musicTitle: row.musicTitle ?? "Thiên đường với người thương",
     musicUrl: row.musicUrl || "",
     rsvps: Array.isArray(row.rsvps) ? row.rsvps : [],
     wishes: Array.isArray(row.wishes) ? row.wishes : [],
@@ -204,24 +209,25 @@ function mapDbToCard(row: any): WeddingCard {
     rsvpMessage: row.rsvpMessage !== undefined ? row.rsvpMessage : groomMeta.rsvpMessage,
     wishesTitle: row.wishesTitle !== undefined ? row.wishesTitle : groomMeta.wishesTitle,
     wishesDescription: row.wishesDescription !== undefined ? row.wishesDescription : groomMeta.wishesDescription,
-    isVip: Boolean(row.isVip ?? groomMeta.isVip ?? false),
-    plan: row.plan || groomMeta.plan || (row.isVip || groomMeta.isVip ? "vip" : "free"),
-    vipUnlockedAt: row.vipUnlockedAt || groomMeta.vipUnlockedAt,
+    isVip: Boolean(groomMeta.isVip ?? row.isVip ?? false),
+    plan: groomMeta.plan || row.plan || ((groomMeta.isVip ?? row.isVip) ? "vip" : "free"),
+    vipUnlockedAt: groomMeta.vipUnlockedAt || row.vipUnlockedAt,
     showWatermark:
-      row.showWatermark !== undefined
-        ? Boolean(row.showWatermark)
-        : (groomMeta.showWatermark !== undefined
-          ? Boolean(groomMeta.showWatermark)
-          : !Boolean(row.isVip ?? groomMeta.isVip)),
+      groomMeta.showWatermark !== undefined
+        ? Boolean(groomMeta.showWatermark)
+        : (row.showWatermark !== undefined
+          ? Boolean(row.showWatermark)
+          : !Boolean(groomMeta.isVip ?? row.isVip)),
   };
 }
 
 /**
  * Lấy tất cả thiệp từ Supabase (hỗ trợ lọc theo userId)
  */
-export async function getCardsFromDb(userId?: string, token?: string): Promise<WeddingCard[]> {
+export async function getCardsFromDb(userId?: string, token?: string, options: DatabaseReadOptions = {}): Promise<WeddingCard[]> {
   const localCards = readLocalCards();
   if (!isDbConfigured) {
+    if (options.strict) throw new DatabaseUnavailableError("Cơ sở dữ liệu chưa được cấu hình");
     if (userId) return localCards.filter((c: WeddingCard) => c.userId === userId);
     return localCards;
   }
@@ -234,11 +240,10 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
       cache: "no-store",
     });
     if (!res.ok) {
-      console.error("Lỗi getCardsFromDb HTTP:", res.status, await res.text());
-      // Khi DB đã cấu hình nhưng tạm thời lỗi, không trả dữ liệu local như dữ liệu thật.
-      return [];
+      throw new DatabaseUnavailableError("Không thể tải danh sách thiệp từ cơ sở dữ liệu");
     }
     const data = await res.json();
+    if (!Array.isArray(data)) throw new DatabaseUnavailableError("Dữ liệu danh sách thiệp không hợp lệ");
     const mapped = data.map(mapDbToCard);
 
     // Nếu có userId: lọc nghiêm ngặt theo đúng userId của tài khoản (Tuyệt đối không gộp thiệp lạ không chủ)
@@ -247,6 +252,7 @@ export async function getCardsFromDb(userId?: string, token?: string): Promise<W
     }
     return mapped;
   } catch (err) {
+    if (options.strict) throw err instanceof DatabaseUnavailableError ? err : new DatabaseUnavailableError();
     console.error("Lỗi getCardsFromDb:", err);
     return [];
   }
@@ -262,29 +268,40 @@ export async function getCardByIdOrSlugFromDb(idOrSlug: string): Promise<Wedding
   if (!isDbConfigured) return localFound || null;
   try {
     const encoded = encodeURIComponent(idOrSlug);
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/cards?or=(id.eq.${encoded},slug.eq.${encoded})&select=*,rsvps(*),wishes(*)`,
       {
         headers: getDbHeaders(),
         cache: "no-store",
       }
     );
-    if (!res.ok) return localFound || null;
+    if (!res.ok) throw new DatabaseUnavailableError("Không thể tải thiệp từ cơ sở dữ liệu");
     const cards = await res.json();
-    return cards.length > 0 ? mapDbToCard(cards[0]) : (localFound || null);
+    if (!Array.isArray(cards)) throw new DatabaseUnavailableError("Dữ liệu thiệp không hợp lệ");
+    // A confirmed empty result must not resurrect a deleted card from the offline cache.
+    const found = cards.find((row: any) => row.id === idOrSlug) || cards.find((row: any) => row.slug === idOrSlug);
+    return found ? mapDbToCard(found) : null;
   } catch (err) {
-    return localFound || null;
+    // Authorization must never use stale cached ownership when the database is unavailable.
+    throw err instanceof DatabaseUnavailableError ? err : new DatabaseUnavailableError();
   }
 }
 
 /**
  * Lưu hoặc cập nhật thiệp cưới (Upsert)
  */
-export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; name: string }, token?: string): Promise<WeddingCard | null> {
+export async function upsertCardToDb(
+  card: Partial<WeddingCard> & { id: string; name: string },
+  token?: string,
+  options: { createOnly?: boolean } = {}
+): Promise<WeddingCard | null> {
   // Chỉ ghi local cache khi chế độ offline không cấu hình database
   if (!isDbConfigured) {
-    writeLocalCard(card as any);
-    return card as any;
+    if (process.env.NODE_ENV === "production") return null;
+    if (options.createOnly && readLocalCards().some((item) => item.id === card.id || (card.slug && item.slug === card.slug))) {
+      return null;
+    }
+    return writeLocalCard(card) ? card as WeddingCard : null;
   }
   try {
     const slug =
@@ -319,7 +336,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       groom: {
         ...(card.groom || {}),
         userId: card.userId || (card.groom as any)?.userId,
-        accountName: card.groom?.accountName || card.groom?.name,
+        accountName: card.groom?.accountName ?? card.groom?.name,
         showGiftBox: card.showGiftBox,
         showWishes: card.showWishes,
         showRsvp: card.showRsvp,
@@ -344,7 +361,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       },
       bride: {
         ...(card.bride || {}),
-        accountName: card.bride?.accountName || card.bride?.name,
+        accountName: card.bride?.accountName ?? card.bride?.name,
       },
       events: card.events || [],
       albumImages: card.album || [],
@@ -356,11 +373,13 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
       payload.pageData = pageData;
     }
 
+    if (!options.createOnly) return saveCardContentToDb(card.id, payload);
+
     let res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards`, {
       method: "POST",
       headers: {
         ...getDbHeaders(),
-        Prefer: "resolution=merge-duplicates,return=representation",
+        Prefer: options.createOnly ? "return=representation" : "resolution=merge-duplicates,return=representation",
       },
       body: JSON.stringify(payload),
     });
@@ -375,7 +394,7 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
           method: "POST",
           headers: {
             ...getDbHeaders(),
-            Prefer: "resolution=merge-duplicates,return=representation",
+            Prefer: options.createOnly ? "return=representation" : "resolution=merge-duplicates,return=representation",
           },
           body: JSON.stringify(payload),
         });
@@ -383,36 +402,51 @@ export async function upsertCardToDb(card: Partial<WeddingCard> & { id: string; 
 
       if (!res.ok) {
         console.error("Lỗi upsertCardToDb HTTP:", res.status, errText);
-        writeLocalCard(card as any);
-        return card as any;
+        return null;
       }
     }
 
     const result = await res.json();
-    if (result && result.length > 0) {
+    if (Array.isArray(result) && result.length === 1 && result[0].id === card.id) {
       const saved = mapDbToCard(result[0]);
-      writeLocalCard(saved);
       return saved;
     }
-    writeLocalCard(card as any);
-    return card as any;
+    return null;
   } catch (err) {
     console.error("Lỗi upsertCardToDb:", err);
-    writeLocalCard(card as any);
-    return card as any;
+    return null;
+  }
+}
+
+/** Routes authorize the caller; the database atomically preserves owner, views and billing. */
+export async function saveCardContentToDb(id: string, content: Record<string, unknown>): Promise<WeddingCard | null> {
+  if (!isDbConfigured) return null;
+  try {
+    const response = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rpc/save_card_content`, {
+      method: "POST", headers: getDbHeaders(), body: JSON.stringify({ card_key: id, content }),
+    });
+    if (!response.ok) return null;
+    const result = await response.json();
+    const row = Array.isArray(result) && result.length === 1 ? result[0] : result;
+    if (!row || row.id !== id) return null;
+    const saved = mapDbToCard(row);
+    return saved;
+  } catch {
+    return null;
   }
 }
 
 /**
  * Xóa thiệp cưới theo ID
  */
-export async function deleteCardFromDb(id: string, token?: string): Promise<boolean> {
+export async function deleteCardFromDb(id: string, _token?: string): Promise<boolean> {
   if (!isDbConfigured) return false;
   try {
     const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
       method: "DELETE",
       headers: {
-        ...getDbHeaders(token),
+        // Ownership is verified by the API before invoking this server-only operation.
+        ...getDbHeaders(),
         Prefer: "return=representation",
       },
     });
@@ -466,7 +500,7 @@ export async function createRsvpInDb(rsvp: {
       name: rsvp.name,
       phone: rsvp.phone,
       attending: rsvp.attending !== false,
-      guests: rsvp.guests || 1,
+      guests: rsvp.attending === false ? 0 : Math.min(10, Math.max(1, rsvp.guests ?? 1)),
       note: rsvp.note || "",
       createdAt: new Date().toISOString(),
     };
@@ -483,7 +517,8 @@ export async function createRsvpInDb(rsvp: {
     }
 
     const inserted = await res.json();
-    return inserted && inserted.length > 0 ? inserted[0] : payload;
+    return Array.isArray(inserted) && inserted.length === 1 && inserted[0].id === payload.id && inserted[0].cardId === payload.cardId
+      ? inserted[0] : null;
   } catch (err) {
     console.error("Lỗi createRsvpInDb:", err);
     return null;
@@ -496,7 +531,7 @@ export async function createRsvpInDb(rsvp: {
 export async function getRsvpsFromDb(cardId: string): Promise<WeddingRsvp[]> {
   if (!isDbConfigured) return [];
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/rsvps?cardId=eq.${cardId}&order=createdAt.desc`,
       {
         headers: getDbHeaders(),
@@ -515,6 +550,7 @@ export async function getRsvpsFromDb(cardId: string): Promise<WeddingRsvp[]> {
  * Thêm lời chúc vào Sổ lưu bút
  */
 export async function createWishInDb(wish: {
+  id?: string;
   cardId: string;
   name: string;
   content: string;
@@ -522,7 +558,7 @@ export async function createWishInDb(wish: {
   if (!isDbConfigured) return null;
   try {
     const payload = {
-      id: `wish_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      id: wish.id || `wish_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       cardId: wish.cardId,
       name: wish.name,
       content: wish.content,
@@ -531,7 +567,7 @@ export async function createWishInDb(wish: {
 
     const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/wishes`, {
       method: "POST",
-      headers: getDbHeaders(),
+      headers: { ...getDbHeaders(), ...(wish.id ? { Prefer: "resolution=ignore-duplicates,return=representation" } : {}) },
       body: JSON.stringify(payload),
     });
 
@@ -541,7 +577,17 @@ export async function createWishInDb(wish: {
     }
 
     const inserted = await res.json();
-    return inserted && inserted.length > 0 ? inserted[0] : payload;
+    if (Array.isArray(inserted) && inserted.length === 1 && inserted[0].id === payload.id && inserted[0].cardId === payload.cardId) return inserted[0];
+    if (wish.id && Array.isArray(inserted) && inserted.length === 0) {
+      // An idempotent retry is only acknowledged after reading the existing committed row.
+      const existing = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/wishes?id=eq.${encodeURIComponent(wish.id)}&cardId=eq.${encodeURIComponent(wish.cardId)}`, {
+        headers: getDbHeaders(), cache: "no-store",
+      });
+      if (!existing.ok) return null;
+      const rows = await existing.json();
+      if (Array.isArray(rows) && rows.length === 1 && rows[0].id === wish.id && rows[0].cardId === wish.cardId) return rows[0];
+    }
+    return null;
   } catch (err) {
     console.error("Lỗi createWishInDb:", err);
     return null;
@@ -554,7 +600,7 @@ export async function createWishInDb(wish: {
 export async function getWishesFromDb(cardId: string): Promise<WeddingWish[]> {
   if (!isDbConfigured) return [];
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/wishes?cardId=eq.${cardId}&order=createdAt.desc`,
       {
         headers: getDbHeaders(),
@@ -572,19 +618,25 @@ export async function getWishesFromDb(cardId: string): Promise<WeddingWish[]> {
 /**
  * Lấy danh sách tất cả RSVPs toàn hệ thống (Dành cho Admin)
  */
-export async function getAllRsvpsFromDb(): Promise<WeddingRsvp[]> {
-  if (!isDbConfigured) return [];
+export async function getAllRsvpsFromDb(options: DatabaseReadOptions = {}): Promise<WeddingRsvp[]> {
+  if (!isDbConfigured) {
+    if (options.strict) throw new DatabaseUnavailableError("Cơ sở dữ liệu chưa được cấu hình");
+    return [];
+  }
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/rsvps?order=createdAt.desc`,
       {
         headers: getDbHeaders(),
         cache: "no-store",
       }
     );
-    if (!res.ok) return [];
-    return await res.json();
+    if (!res.ok) throw new DatabaseUnavailableError("Không thể tải RSVP từ cơ sở dữ liệu");
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new DatabaseUnavailableError("Dữ liệu RSVP không hợp lệ");
+    return rows;
   } catch (err) {
+    if (options.strict) throw err instanceof DatabaseUnavailableError ? err : new DatabaseUnavailableError();
     console.error("Lỗi getAllRsvpsFromDb:", err);
     return [];
   }
@@ -593,19 +645,25 @@ export async function getAllRsvpsFromDb(): Promise<WeddingRsvp[]> {
 /**
  * Lấy danh sách tất cả lời chúc toàn hệ thống (Dành cho Admin)
  */
-export async function getAllWishesFromDb(): Promise<WeddingWish[]> {
-  if (!isDbConfigured) return [];
+export async function getAllWishesFromDb(options: DatabaseReadOptions = {}): Promise<WeddingWish[]> {
+  if (!isDbConfigured) {
+    if (options.strict) throw new DatabaseUnavailableError("Cơ sở dữ liệu chưa được cấu hình");
+    return [];
+  }
   try {
-    const res = await fetch(
+    const res = await fetchWithTimeout(
       `${SUPABASE_URL}/rest/v1/wishes?order=createdAt.desc`,
       {
         headers: getDbHeaders(),
         cache: "no-store",
       }
     );
-    if (!res.ok) return [];
-    return await res.json();
+    if (!res.ok) throw new DatabaseUnavailableError("Không thể tải lời chúc từ cơ sở dữ liệu");
+    const rows = await res.json();
+    if (!Array.isArray(rows)) throw new DatabaseUnavailableError("Dữ liệu lời chúc không hợp lệ");
+    return rows;
   } catch (err) {
+    if (options.strict) throw err instanceof DatabaseUnavailableError ? err : new DatabaseUnavailableError();
     console.error("Lỗi getAllWishesFromDb:", err);
     return [];
   }
@@ -624,6 +682,75 @@ export async function deleteRsvpFromDb(id: string): Promise<boolean> {
     return res.ok;
   } catch (err) {
     console.error("Lỗi deleteRsvpFromDb:", err);
+    return false;
+  }
+}
+
+/** Caller must authorize ownership of cardId before updating its RSVP. */
+export async function updateCardRsvpInDb(
+  cardId: string,
+  rsvpId: string,
+  updates: Partial<WeddingRsvp>,
+  _accessToken?: string
+): Promise<WeddingRsvp | null> {
+  const editableFields = [
+    "name", "phone", "attending", "guests", "note", "checkedIn", "checkedInAt", "tableNumber",
+  ] as const;
+  const payload: Record<string, unknown> = Object.fromEntries(editableFields
+    .filter((key) => updates[key] !== undefined)
+    .map((key) => [key, updates[key]]));
+  if (updates.checkedIn === false) payload.checkedInAt = null;
+  if (Object.keys(payload).length === 0) return null;
+
+  if (!isDbConfigured) {
+    if (process.env.NODE_ENV === "production") return null;
+    const card = readLocalCards().find((item) => item.id === cardId);
+    const existing = card?.rsvps?.find((item) => item.id === rsvpId);
+    if (!card || !existing) return null;
+    const updated = { ...existing, ...payload, id: rsvpId, cardId,
+      ...(updates.checkedIn === false ? { checkedInAt: undefined } : {}),
+    } as WeddingRsvp;
+    return writeLocalCard({ ...card, rsvps: card.rsvps.map((item) => item.id === rsvpId ? updated : item) })
+      ? updated : null;
+  }
+
+  try {
+    const res = await fetchWithTimeout(
+      `${SUPABASE_URL}/rest/v1/rsvps?id=eq.${encodeURIComponent(rsvpId)}&cardId=eq.${encodeURIComponent(cardId)}`,
+      { method: "PATCH", headers: getDbHeaders(), body: JSON.stringify(payload) }
+    );
+    if (!res.ok) return null;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length === 1 && rows[0].id === rsvpId && rows[0].cardId === cardId
+      ? rows[0] : null;
+  } catch (err) {
+    console.error("Lỗi updateCardRsvpInDb:", err);
+    return null;
+  }
+}
+
+/** Caller must authorize ownership of cardId before deleting its RSVP. */
+export async function deleteCardRsvpFromDb(
+  cardId: string,
+  rsvpId: string,
+  _accessToken?: string
+): Promise<boolean> {
+  if (!isDbConfigured) {
+    if (process.env.NODE_ENV === "production") return false;
+    const card = readLocalCards().find((item) => item.id === cardId);
+    if (!card?.rsvps?.some((item) => item.id === rsvpId)) return false;
+    return writeLocalCard({ ...card, rsvps: card.rsvps.filter((item) => item.id !== rsvpId) });
+  }
+  try {
+    const res = await fetchWithTimeout(
+      `${SUPABASE_URL}/rest/v1/rsvps?id=eq.${encodeURIComponent(rsvpId)}&cardId=eq.${encodeURIComponent(cardId)}`,
+      { method: "DELETE", headers: getDbHeaders() }
+    );
+    if (!res.ok) return false;
+    const rows = await res.json();
+    return Array.isArray(rows) && rows.length === 1 && rows[0].id === rsvpId && rows[0].cardId === cardId;
+  } catch (err) {
+    console.error("Lỗi deleteCardRsvpFromDb:", err);
     return false;
   }
 }
@@ -649,18 +776,7 @@ export async function deleteWishFromDb(id: string): Promise<boolean> {
  * Cập nhật trạng thái thiệp cưới (Dành cho Admin)
  */
 export async function updateCardStatusInDb(id: string, status: "draft" | "published"): Promise<boolean> {
-  if (!isDbConfigured) return false;
-  try {
-    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards?id=eq.${id}`, {
-      method: "PATCH",
-      headers: getDbHeaders(),
-      body: JSON.stringify({ status, updatedAt: new Date().toISOString() }),
-    });
-    return res.ok;
-  } catch (err) {
-    console.error("Lỗi updateCardStatusInDb:", err);
-    return false;
-  }
+  return Boolean(await saveCardContentToDb(id, { status }));
 }
 
 export interface AdminUserStats {
@@ -679,8 +795,11 @@ export interface AdminUserStats {
 /**
  * Lấy danh sách toàn bộ người dùng và số thiệp đã tạo (Dành cho Admin)
  */
-export async function getUsersWithStatsFromDb(): Promise<AdminUserStats[]> {
-  if (!isDbConfigured) return [];
+export async function getUsersWithStatsFromDb(options: DatabaseReadOptions & { cards?: WeddingCard[] } = {}): Promise<AdminUserStats[]> {
+  if (!isDbConfigured) {
+    if (options.strict) throw new DatabaseUnavailableError("Cơ sở dữ liệu chưa được cấu hình");
+    return [];
+  }
   try {
     // 1. Lấy danh sách tài khoản từ Supabase Auth Admin API
     let authUsers: any[] = [];
@@ -693,14 +812,15 @@ export async function getUsersWithStatsFromDb(): Promise<AdminUserStats[]> {
         const json = await res.json();
         if (Array.isArray(json?.users)) {
           authUsers = json.users;
-        }
-      }
+        } else if (options.strict) throw new DatabaseUnavailableError("Dữ liệu tài khoản không hợp lệ");
+      } else if (options.strict) throw new DatabaseUnavailableError("Không thể tải tài khoản từ cơ sở dữ liệu");
     } catch (e) {
+      if (options.strict) throw e;
       console.warn("Lỗi fetch auth users:", e);
     }
 
     // 2. Lấy toàn bộ thiệp cưới
-    const cards = await getCardsFromDb();
+    const cards = options.cards ?? await getCardsFromDb(undefined, undefined, options);
 
     // 3. Gom nhóm thiệp theo userId
     const userCardsMap = new Map<string, WeddingCard[]>();
@@ -768,6 +888,7 @@ export async function getUsersWithStatsFromDb(): Promise<AdminUserStats[]> {
 
     return resultUsers;
   } catch (err) {
+    if (options.strict) throw err instanceof DatabaseUnavailableError ? err : new DatabaseUnavailableError();
     console.error("Lỗi getUsersWithStatsFromDb:", err);
     return [];
   }
@@ -778,59 +899,46 @@ export async function getUsersWithStatsFromDb(): Promise<AdminUserStats[]> {
  */
 export async function activateCardVipInDb(
   idOrSlug: string,
-  paymentMeta?: any
+  _paymentMeta?: any
+): Promise<{ success: boolean; card?: WeddingCard }> {
+  return setCardVipInDb(idOrSlug, true);
+}
+
+export async function setCardVipInDb(
+  idOrSlug: string,
+  enabled: boolean
 ): Promise<{ success: boolean; card?: WeddingCard }> {
   try {
-    const card = await getCardByIdOrSlugFromDb(idOrSlug);
-    if (!card) {
-      console.warn(`Không tìm thấy thiệp cưới để kích hoạt VIP: ${idOrSlug}`);
+    if (!isDbConfigured) {
+      const card = await getCardByIdOrSlugFromDb(idOrSlug);
+      if (!card) return { success: false };
+      const entitlements = { isVip: enabled, plan: enabled ? "vip" : "free", showWatermark: !enabled,
+        vipUnlockedAt: enabled ? card.vipUnlockedAt || new Date().toISOString() : undefined };
+      const updatedCard = { ...card, ...entitlements, groom: { ...card.groom, ...entitlements } } as WeddingCard;
+      if (process.env.NODE_ENV === "production" || !writeLocalCard(updatedCard)) {
+        return { success: false };
+      }
+      return { success: true, card: updatedCard };
+    }
+
+    // Merge billing into the current row under the same lock used by content saves.
+    const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/rpc/set_card_vip`, {
+      method: "POST",
+      headers: getDbHeaders(),
+      body: JSON.stringify({ card_key: idOrSlug, enabled }),
+    });
+    if (!res.ok) return { success: false };
+
+    const result = await res.json();
+    const row = Array.isArray(result) && result.length === 1 ? result[0] : result;
+    if (!row || (row.id !== idOrSlug && row.slug !== idOrSlug) ||
+        row.groom?.isVip !== enabled || row.groom?.plan !== (enabled ? "vip" : "free") ||
+        row.groom?.showWatermark !== !enabled) {
       return { success: false };
     }
 
-    const nowIso = new Date().toISOString();
-    const updatedGroom = {
-      ...(card.groom || {}),
-      isVip: true,
-      plan: "vip",
-      vipUnlockedAt: nowIso,
-      showWatermark: false,
-    };
-
-    const updatedCard: WeddingCard = {
-      ...card,
-      isVip: true,
-      plan: "vip",
-      vipUnlockedAt: nowIso,
-      showWatermark: false,
-      groom: updatedGroom,
-    };
-
-    // 1. Cập nhật cache cục bộ
-    writeLocalCard(updatedCard);
-
-    // 2. Cập nhật Supabase Cloud nếu có cấu hình
-    if (isDbConfigured) {
-      const payload: Record<string, any> = {
-        isVip: true,
-        plan: "vip",
-        vipUnlockedAt: nowIso,
-        showWatermark: false,
-        groom: updatedGroom,
-      };
-
-      try {
-        await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/cards?id=eq.${encodeURIComponent(card.id)}`, {
-          method: "PATCH",
-          headers: getDbHeaders(),
-          body: JSON.stringify(payload),
-        });
-      } catch (patchErr) {
-        console.warn("Lỗi PATCH Supabase khi kích hoạt VIP, fallback qua upsertCardToDb:", patchErr);
-        await upsertCardToDb(updatedCard);
-      }
-    }
-
-    return { success: true, card: updatedCard };
+    const saved = mapDbToCard(row);
+    return { success: true, card: saved };
   } catch (err) {
     console.error("Lỗi activateCardVipInDb:", err);
     return { success: false };

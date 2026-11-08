@@ -6,9 +6,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default defineConfig({
+  oxc: {
+    jsx: { runtime: "automatic" },
+  },
   test: {
     globals: true,
     environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
   },
   resolve: {
     alias: {

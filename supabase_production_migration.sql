@@ -22,7 +22,8 @@ UPDATE public.cards
 SET user_id = CAST((groom->>'userId') AS UUID)
 WHERE groom->>'userId' IS NOT NULL 
   AND user_id IS NULL
-  AND groom->>'userId' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+  AND groom->>'userId' ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+  AND EXISTS (SELECT 1 FROM auth.users WHERE users.id::TEXT = groom->>'userId');
 
 -- 2. THIẾT LẬP ROW LEVEL SECURITY (RLS) CHO BẢNG CARDS
 ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
@@ -68,6 +69,9 @@ USING (
 
 -- 3. THIẾT LẬP ROW LEVEL SECURITY CHO BẢNG RSVPS (BẢO VỆ THÔNG TIN KHÁCH MỜI)
 ALTER TABLE public.rsvps ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rsvps ADD COLUMN IF NOT EXISTS "checkedIn" BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.rsvps ADD COLUMN IF NOT EXISTS "checkedInAt" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.rsvps ADD COLUMN IF NOT EXISTS "tableNumber" TEXT;
 
 DROP POLICY IF EXISTS "Public Read RSVPs" ON public.rsvps;
 DROP POLICY IF EXISTS "Public Insert RSVPs" ON public.rsvps;
@@ -121,8 +125,13 @@ CREATE TABLE IF NOT EXISTS public.payment_transactions (
     amount NUMERIC NOT NULL,
     card_id TEXT,
     content TEXT,
+    claimed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    claim_token TEXT,
     processed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+ALTER TABLE public.payment_transactions ADD COLUMN IF NOT EXISTS claimed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+ALTER TABLE public.payment_transactions ADD COLUMN IF NOT EXISTS claim_token TEXT;
 
 ALTER TABLE public.payment_transactions ENABLE ROW LEVEL SECURITY;
 
@@ -171,6 +180,17 @@ USING (
         WHERE cards.id = wishes."cardId" AND cards.user_id = auth.uid()
     )
 );
+
+-- Never let browser JWTs bypass API field allowlists, VIP checks or guest validation.
+-- Server mutations use the service role only after the route authorizes the caller.
+REVOKE ALL ON public.cards, public.rsvps, public.wishes, public.payment_transactions FROM PUBLIC;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+    ON public.cards, public.rsvps, public.wishes FROM anon, authenticated;
+REVOKE SELECT ON public.rsvps FROM anon;
+REVOKE ALL ON public.payment_transactions FROM anon, authenticated;
+GRANT SELECT ON public.cards, public.wishes TO anon, authenticated;
+GRANT SELECT ON public.rsvps TO authenticated;
+GRANT ALL ON public.cards, public.rsvps, public.wishes, public.payment_transactions TO service_role;
 
 -- Tải lại Schema Cache của PostgREST
 NOTIFY pgrst, 'reload schema';

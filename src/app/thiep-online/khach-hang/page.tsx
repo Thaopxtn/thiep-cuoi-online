@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import {
   ChevronRight,
@@ -52,6 +52,9 @@ export default function CustomerInvitationsPage() {
 
   // Modal delete confirmation state
   const [deletingCard, setDeletingCard] = useState<WeddingCard | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const deletePendingRef = useRef(false);
 
   // Load user cards
   useEffect(() => {
@@ -90,11 +93,21 @@ export default function CustomerInvitationsPage() {
   }, [user?.id]);
 
   // Handle delete card
-  const handleConfirmDelete = () => {
-    if (!deletingCard) return;
-    deleteCard(deletingCard.id);
-    setCards((prev) => prev.filter((c) => c.id !== deletingCard.id));
-    setDeletingCard(null);
+  const handleConfirmDelete = async () => {
+    if (!deletingCard || deletePendingRef.current) return;
+    deletePendingRef.current = true;
+    setDeletePending(true);
+    setDeleteError(null);
+    try {
+      await deleteCard(deletingCard.id);
+      setCards((prev) => prev.filter((c) => c.id !== deletingCard.id));
+      setDeletingCard(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "Không thể xóa thiệp. Vui lòng thử lại.");
+    } finally {
+      deletePendingRef.current = false;
+      setDeletePending(false);
+    }
   };
 
   // Copy standard card URL
@@ -586,10 +599,12 @@ export default function CustomerInvitationsPage() {
               Bạn có chắc chắn muốn xóa thiệp &quot;<strong>{deletingCard.name}</strong>&quot;? Hành động này sẽ xóa toàn bộ nội dung và danh sách khách RSVP đã ghi nhận.
             </p>
 
+            {deleteError && <p role="alert" className="text-xs text-red-600 mb-3">{deleteError}</p>}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => setDeletingCard(null)}
+                disabled={deletePending}
                 className="flex-1 py-2.5 rounded-full border border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-bold transition-colors cursor-pointer"
               >
                 Hủy bỏ
@@ -597,9 +612,10 @@ export default function CustomerInvitationsPage() {
               <button
                 type="button"
                 onClick={handleConfirmDelete}
+                disabled={deletePending}
                 className="flex-1 py-2.5 rounded-full bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm"
               >
-                Xác nhận xóa
+                {deletePending ? "Đang xóa..." : "Xác nhận xóa"}
               </button>
             </div>
           </div>

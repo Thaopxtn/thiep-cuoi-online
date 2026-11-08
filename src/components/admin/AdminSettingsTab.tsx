@@ -60,6 +60,7 @@ interface AdminSettingsTabProps {
 export default function AdminSettingsTab({ onLogoutAdmin }: AdminSettingsTabProps) {
   const [health, setHealth] = useState<HealthData | null>(null);
   const [loadingHealth, setLoadingHealth] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Form cài đặt mã PIN mới
@@ -75,17 +76,24 @@ export default function AdminSettingsTab({ onLogoutAdmin }: AdminSettingsTabProp
 
   const fetchHealth = async () => {
     setLoadingHealth(true);
+    setHealthError(null);
     try {
       const token = typeof window !== "undefined" ? localStorage.getItem("zenlove_admin_auth_token") : "";
       const res = await fetch("/api/admin/health", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.services && data.environment) {
         setHealth(data);
+        if (!res.ok || data.status === "degraded") {
+          setHealthError("Chưa xác nhận được kết nối cơ sở dữ liệu. Số liệu đang hiển thị là kết quả kiểm tra gần nhất.");
+        }
+      } else {
+        setHealthError(data.message || "Không thể kiểm tra kết nối dịch vụ.");
       }
     } catch (e) {
       console.error("Lỗi fetch health:", e);
+      setHealthError("Không thể kết nối máy chủ để kiểm tra dịch vụ.");
     } finally {
       setLoadingHealth(false);
     }
@@ -169,6 +177,7 @@ export default function AdminSettingsTab({ onLogoutAdmin }: AdminSettingsTabProp
           </button>
         </div>
 
+        {healthError && <p role="alert" className="mt-4 text-sm text-rose-700">{healthError}</p>}
         {health ? (
           <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Supabase Database */}
@@ -295,7 +304,7 @@ export default function AdminSettingsTab({ onLogoutAdmin }: AdminSettingsTabProp
           </div>
         ) : (
           <div className="py-8 text-center text-xs text-gray-400">
-            Đang kiểm tra kết nối dịch vụ...
+            {loadingHealth ? "Đang kiểm tra kết nối dịch vụ..." : "Chưa có kết quả kiểm tra dịch vụ."}
           </div>
         )}
       </div>

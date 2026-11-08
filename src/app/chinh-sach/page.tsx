@@ -21,10 +21,7 @@ import {
   ChevronRight,
 } from "lucide-react";
 
-export default function PolicyPage() {
-  const [activeSection, setActiveSection] = useState("about");
-
-  const sections = [
+const sections = [
     { id: "about", title: "Giới thiệu ZenLove", icon: Sparkles },
     { id: "legal", title: "Thông tin doanh nghiệp", icon: Building },
     { id: "privacy", title: "Chính sách bảo mật", icon: Lock },
@@ -34,7 +31,10 @@ export default function PolicyPage() {
     { id: "refund", title: "Chính sách hoàn tiền", icon: RotateCcw },
     { id: "purchase-process", title: "Quy trình giao dịch", icon: CheckCircle2 },
     { id: "content-policy", title: "Chính sách nội dung", icon: AlertCircle },
-  ];
+];
+
+export default function PolicyPage() {
+  const [activeSection, setActiveSection] = useState("about");
 
   // Theo dõi hash trên URL
   useEffect(() => {

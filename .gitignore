@@ -6,6 +6,9 @@
 
 # Testing
 /coverage
+/test-results/
+/playwright-report/
+/output/playwright/
 
 # Next.js build output
 /.next/
@@ -50,3 +53,6 @@ test-reports/
 
 # Database Backups
 backups/
+
+# Local runtime data (never publish customer invitations or responses)
+/src/data/cards-local-db.json

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardByIdOrSlugFromDb, upsertCardToDb } from "@/lib/serverDb";
+import { getCardByIdOrSlugFromDb, saveCardContentToDb } from "@/lib/serverDb";
 import { verifyUserAuth, verifyAdminAuth, isCardOwner } from "@/lib/serverAuth";
 import { getSafeSiteUrl } from "@/lib/securityUtils";
 import { recordActivity } from "@/lib/activityService";
@@ -49,14 +49,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     // 3. Xây dựng domain production an toàn chống Host Header Injection
     const safeSiteUrl = getSafeSiteUrl(request.headers.get("host"));
 
-    const token = request.headers.get("authorization")?.split(" ")[1];
-    const updated = await upsertCardToDb(
-      {
-        ...existing,
-        status: "published",
-      },
-      token
-    );
+    const updated = await saveCardContentToDb(existing.id, { status: "published" });
 
     if (!updated) {
       return NextResponse.json(

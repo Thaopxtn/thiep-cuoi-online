@@ -754,8 +754,8 @@ export default function EditorLeftDrawer({
 
   // Danh sách ảnh trong Album cưới phát hành (đồng bộ thời gian thực với Studio)
   const effectiveAlbum = React.useMemo(() => {
-    if (cardAlbum && cardAlbum.length > 0) return cardAlbum;
-    if (card?.album && card.album.length > 0) return card.album;
+    if (Array.isArray(cardAlbum)) return cardAlbum;
+    if (Array.isArray(card?.album)) return card.album;
     return Array.from(
       new Set(
         [

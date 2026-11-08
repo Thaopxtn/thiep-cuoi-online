@@ -1,7 +1,7 @@
 # ==========================================
 # Multi-Stage Dockerfile for ZenLove Wedding
 # ==========================================
-FROM node:20-alpine AS base
+FROM node:24.11.1-alpine AS base
 
 # Stage 1: Dependencies cache
 FROM base AS deps

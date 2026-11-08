@@ -36,7 +36,6 @@ import {
 import {
   getCardByIdOrSlug,
   fetchCardFromServer,
-  saveCard,
   addRsvp,
   addWish,
   toggleWishLike,
@@ -45,9 +44,10 @@ import {
   WeddingCard,
   INITIAL_CARDS,
 } from "@/lib/weddingCardService";
+import dynamic from "next/dynamic";
 import { generateVietQrUrl } from "@/lib/vietQrBankCodes";
 import { downloadCardImageAsPng } from "@/lib/cardImageExporter";
-import FallingPetals, { type AmbientEffectType } from "@/components/FallingPetals";
+import type { AmbientEffectType } from "@/components/FallingPetals";
 import { EFFECTS_CATALOG } from "@/lib/effectsCatalog";
 import {
   WeddingCalendarCard,
@@ -55,9 +55,20 @@ import {
   PolaroidGallery,
   GuestPhotoWall,
 } from "@/components/show/InteractiveSections";
-import LuxuryEnvelopeModal from "@/components/show/LuxuryEnvelopeModal";
-import CinematicEffectsOverlay from "@/components/show/CinematicEffectsOverlay";
 import CardNodeRenderer from "@/components/CardNodeRenderer";
+
+const FallingPetals = dynamic(() => import("@/components/FallingPetals"), {
+  ssr: false,
+});
+const GuestCheckInPass = dynamic(() => import("@/components/show/GuestCheckInPass"), { ssr: false });
+const LuxuryEnvelopeModal = dynamic(
+  () => import("@/components/show/LuxuryEnvelopeModal"),
+  { ssr: false }
+);
+const CinematicEffectsOverlay = dynamic(
+  () => import("@/components/show/CinematicEffectsOverlay"),
+  { ssr: false }
+);
 import { ZENLOVE_TEMPLATES, findZenloveTemplate } from "@/data/zenloveTemplates";
 import { parseBrandedSlug } from "@/lib/brandedSlug";
 import { convertFormTemplateToCanvasNodes } from "@/lib/templateFormAdapter";
@@ -93,18 +104,18 @@ export default function ShowInvitationPage() {
   const [petalsEnabled, setPetalsEnabled] = useState(true);
   const [ambientEffect, setAmbientEffect] = useState<AmbientEffectType>("petals");
   const [sfxEnabled, setSfxEnabled] = useState(true);
+  const savedAmbientEffect = card?.ambientEffect;
+  const savedEffectsEnabled = card?.effectConfig?.enabled;
 
   // Synchronize initial ambient effect and config from card
   useEffect(() => {
-    if (card) {
-      if (card.effectConfig?.enabled === false) {
-        setPetalsEnabled(false);
-      } else if (card.ambientEffect) {
-        setAmbientEffect(card.ambientEffect);
-        setPetalsEnabled(true);
-      }
+    if (savedEffectsEnabled === false) {
+      setPetalsEnabled(false);
+    } else if (savedAmbientEffect) {
+      setAmbientEffect(savedAmbientEffect);
+      setPetalsEnabled(true);
     }
-  }, [card?.ambientEffect, card?.effectConfig]);
+  }, [savedAmbientEffect, savedEffectsEnabled]);
 
   // Gift QR Modal & Toast state
   const [isGiftModalOpen, setIsGiftModalOpen] = useState(false);
@@ -195,7 +206,7 @@ export default function ShowInvitationPage() {
     seconds: 52,
   });
 
-  const setupCountdown = (found: WeddingCard) => {
+  const setupCountdown = React.useCallback((found: WeddingCard) => {
     if (found.weddingDate) {
       const target = parseWeddingTimestamp(found.weddingDate, found.weddingTime);
       if (isNaN(target)) {
@@ -210,12 +221,12 @@ export default function ShowInvitationPage() {
       const seconds = Math.floor((diff % (1000 * 60)) / 1000);
       setTimeLeft({ days, hours, minutes, seconds });
     }
-  };
+  }, []);
 
   // Helper to extract custom names from nodes
-  const extractNamesFromNodes = (nodes?: Record<string, any>) => {
-    let groom = card?.groom?.name && card.groom.name !== "Chú Rể" ? card.groom.name : "";
-    let bride = card?.bride?.name && card.bride.name !== "Cô Dâu" ? card.bride.name : "";
+  const extractNamesFromNodes = React.useCallback((nodes?: Record<string, any>, sourceCard?: WeddingCard | null) => {
+    let groom = sourceCard?.groom?.name && sourceCard.groom.name !== "Chú Rể" ? sourceCard.groom.name : "";
+    let bride = sourceCard?.bride?.name && sourceCard.bride.name !== "Cô Dâu" ? sourceCard.bride.name : "";
     if (!nodes) return { groom: groom || "Chú Rể", bride: bride || "Cô Dâu" };
 
     // 1. Xử lý mẫu FORM (như Đồng Xanh)
@@ -284,8 +295,8 @@ export default function ShowInvitationPage() {
       }
     }
 
-    if (!groom && card?.name) {
-      const clean = card.name
+    if (!groom && sourceCard?.name) {
+      const clean = sourceCard.name
         .replace(
           /^(thiệp cưới của|thiệp cưới|đám cưới của|đám cưới|lễ thành hôn của|lễ vu quy của|wedding-invitation-|wedding invitation -|wedding invitation|save the date)\s*[-:]?\s*/i,
           ""
@@ -299,7 +310,7 @@ export default function ShowInvitationPage() {
     }
 
     return { groom: groom || "Chú Rể", bride: bride || "Cô Dâu" };
-  };
+  }, []);
 
   // Load card data (first local, then fresh from server, then ZenLove template catalog)
   useEffect(() => {
@@ -360,7 +371,6 @@ export default function ShowInvitationPage() {
         clearTimeout(notFoundTimer);
         setCard(serverCard);
         setupCountdown(serverCard);
-        saveCard(serverCard);
         if (serverCard.nodes && Object.keys(serverCard.nodes).length > 2) {
           return;
         }
@@ -379,7 +389,7 @@ export default function ShowInvitationPage() {
             const meta = findZenloveTemplate(targetTplKey) || ZENLOVE_TEMPLATES.find((t) => t.id === slug || t.slug === slug);
             setCard((prev) => {
               const nodes = data.data.parsedNodes;
-              let { groom, bride } = extractNamesFromNodes(nodes);
+              let { groom, bride } = extractNamesFromNodes(nodes, prev);
 
               if (branded.userPart) {
                 const parts = branded.userPart.split("-").filter(Boolean).map((p) => p.charAt(0).toUpperCase() + p.slice(1));
@@ -511,7 +521,7 @@ export default function ShowInvitationPage() {
       active = false;
       clearTimeout(notFoundTimer);
     };
-  }, [slug]);
+  }, [slug, extractNamesFromNodes, setupCountdown]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -576,6 +586,9 @@ export default function ShowInvitationPage() {
   const [rsvpNote, setRsvpNote] = useState("");
   const [rsvpSubmitted, setRsvpSubmitted] = useState(false);
   const [rsvpBotTrap, setRsvpBotTrap] = useState(""); // Honeypot chống bot tự động
+  const [rsvpPending, setRsvpPending] = useState(false);
+  const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const rsvpPendingRef = useRef(false);
 
   // Guestbook & Personalization state (?to=... or ?guest=...)
   const [guestNameParam, setGuestNameParam] = useState<string>("");
@@ -587,6 +600,9 @@ export default function ShowInvitationPage() {
   const [guestName, setGuestName] = useState("");
   const [guestWish, setGuestWish] = useState("");
   const [wishBotTrap, setWishBotTrap] = useState(""); // Honeypot chống bot tự động
+  const [wishPending, setWishPending] = useState(false);
+  const [wishError, setWishError] = useState<string | null>(null);
+  const wishPendingRef = useRef(false);
   const [copiedBank, setCopiedBank] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
 
@@ -624,15 +640,19 @@ export default function ShowInvitationPage() {
     }
   }, []);
 
-  const handleSendRsvp = (e: React.FormEvent) => {
+  const handleSendRsvp = async (e: React.FormEvent) => {
     e.preventDefault();
     // Chống bot spam nếu honeypot bị điền
     if (rsvpBotTrap) {
       setRsvpSubmitted(true);
       return;
     }
-    if (!card || !rsvpName.trim() || !rsvpPhone.trim()) return;
-    const newRsvp = addRsvp(card.id, {
+    if (!card || !rsvpName.trim() || !rsvpPhone.trim() || rsvpPendingRef.current) return;
+    rsvpPendingRef.current = true;
+    setRsvpPending(true);
+    setRsvpError(null);
+    try {
+    const newRsvp = await addRsvp(card.id, {
       name: rsvpName.trim(),
       phone: rsvpPhone.trim(),
       attending: rsvpAttending === "yes",
@@ -643,17 +663,22 @@ export default function ShowInvitationPage() {
     if (sfxEnabled) {
       weddingSounds.playCelebration();
     }
-    // Refresh card with instant optimistic update
     setCard((prev) => {
-      const refreshed = getCardByIdOrSlug(card.id) || prev || card;
+      if (!prev || prev.id !== card.id) return prev;
       return {
-        ...refreshed,
-        rsvps: [newRsvp, ...(refreshed.rsvps?.filter((r) => r.id !== newRsvp.id) || [])],
+        ...prev,
+        rsvps: [newRsvp, ...(prev.rsvps?.filter((r) => r.id !== newRsvp.id) || [])],
       };
     });
+    } catch (error) {
+      setRsvpError(error instanceof Error ? error.message : "Không thể gửi xác nhận. Vui lòng thử lại.");
+    } finally {
+      rsvpPendingRef.current = false;
+      setRsvpPending(false);
+    }
   };
 
-  const handleSendWish = (e: React.FormEvent) => {
+  const handleSendWish = async (e: React.FormEvent) => {
     e.preventDefault();
     // Chống bot spam nếu honeypot bị điền
     if (wishBotTrap) {
@@ -661,22 +686,31 @@ export default function ShowInvitationPage() {
       setGuestWish("");
       return;
     }
-    if (!card || !guestName.trim() || !guestWish.trim()) return;
-    const newWish = addWish(card.id, guestName.trim(), guestWish.trim());
+    if (!card || !guestName.trim() || !guestWish.trim() || wishPendingRef.current) return;
+    wishPendingRef.current = true;
+    setWishPending(true);
+    setWishError(null);
+    try {
+    const newWish = await addWish(card.id, guestName.trim(), guestWish.trim());
     if (sfxEnabled) {
       weddingSounds.playCelebration();
       weddingSounds.playHeartPop();
     }
     setGuestName("");
     setGuestWish("");
-    // Refresh card with instant optimistic update
     setCard((prev) => {
-      const refreshed = getCardByIdOrSlug(card.id) || prev || card;
+      if (!prev || prev.id !== card.id) return prev;
       return {
-        ...refreshed,
-        wishes: [newWish, ...(refreshed.wishes?.filter((w) => w.id !== newWish.id) || [])],
+        ...prev,
+        wishes: [newWish, ...(prev.wishes?.filter((w) => w.id !== newWish.id) || [])],
       };
     });
+    } catch (error) {
+      setWishError(error instanceof Error ? error.message : "Không thể gửi lời chúc. Vui lòng thử lại.");
+    } finally {
+      wishPendingRef.current = false;
+      setWishPending(false);
+    }
   };
 
   const copyToClipboard = (text: string, type: string) => {
@@ -749,7 +783,7 @@ export default function ShowInvitationPage() {
     );
   }
 
-  const { groom: displayGroom, bride: displayBride } = extractNamesFromNodes(activeNodes || card.nodes);
+  const { groom: displayGroom, bride: displayBride } = extractNamesFromNodes(activeNodes || card.nodes, card);
   const groomName = card.groom.name && card.groom.name !== "Chú Rể" ? card.groom.name : displayGroom;
   const brideName =
     card.bride.name && card.bride.name !== "Cô Dâu" && card.bride.name !== "amp;" && card.bride.name !== "amp"
@@ -792,13 +826,14 @@ export default function ShowInvitationPage() {
       (n: any) => n.type?.resolvedName === "CalendarBoxV2" || n.type?.resolvedName === "CountdownBoxV2"
     )
   );
+  const publishedMusicUrl = card.musicUrl ?? "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3";
 
   return (
     <div className="min-h-screen bg-[#f3efe6] flex flex-col items-center justify-start relative text-gray-800 selection:bg-rose-100 selection:text-zen-primary">
       {/* Background Wedding Audio with automatic failover */}
-      <audio
+      {publishedMusicUrl && <audio
         ref={audioRef}
-        src={card.musicUrl || "https://cdn-resource.zenlove.me/mp3/thien-duong-voi-nguoi-thuong-diep-khuc-1787814882783-b1a24msg.mp3"}
+        src={publishedMusicUrl}
         loop
         preload="auto"
         onError={() => {
@@ -807,7 +842,7 @@ export default function ShowInvitationPage() {
             if (isPlayingAudio) audioRef.current.play().catch(() => {});
           }
         }}
-      />
+      />}
 
       {/* Universal Ambient Canvas Engine (Petals / Sparkles / Hearts / Confetti / 14 Rich Effects) */}
       <FallingPetals
@@ -866,7 +901,7 @@ export default function ShowInvitationPage() {
         </button>
 
         {/* Vinyl Record Player Card */}
-        <div
+        {publishedMusicUrl && <div
           onClick={toggleAudio}
           className="bg-white/90 backdrop-blur-md p-1 sm:pl-1.5 sm:pr-3 sm:py-1.5 rounded-full border border-amber-900/15 shadow-md flex items-center gap-2 cursor-pointer hover:bg-white transition-all group select-none relative"
           title={isPlayingAudio ? "Bấm để tạm dừng nhạc" : "Bấm để phát nhạc"}
@@ -917,7 +952,7 @@ export default function ShowInvitationPage() {
               <span className="absolute -top-5 right-5 text-amber-500 font-bold text-sm animate-pulse pointer-events-none">♫</span>
             </>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* Top Floating Buttons (Home + Personalized Guest Link Generator - Left) */}
@@ -992,6 +1027,7 @@ export default function ShowInvitationPage() {
             </div>
           </div>
         )}
+        {card.status === "published" && <GuestCheckInPass key={`${card.id}:${card.slug}`} cardId={card.id} cardSlug={card.slug} />}
         {/* Dynamic Nodes Canvas (Hiển thị đúng 100% bản vẽ tùy biến của người dùng) */}
         {activeNodes && activeNodes["ROOT"] && Object.keys(activeNodes).length > 2 ? (
           <div className="w-full relative z-10">
@@ -1000,22 +1036,22 @@ export default function ShowInvitationPage() {
               groom={card.groom}
               bride={card.bride}
               onOpenGiftQr={() => setIsGiftModalOpen(true)}
-              onRsvpSuccess={(data) => {
+              onRsvpSuccess={async (data) => {
                 if (!card) return;
-                const newRsvp = addRsvp(card.id, {
+                const newRsvp = await addRsvp(card.id, {
                   name: data.name,
                   phone: data.phone || "---",
                   attending: data.attending ?? true,
-                  guests: data.guests || 1,
+                  guests: data.attending === false ? 0 : (data.guests ?? 1),
                   note: data.note || "",
                 });
                 setToastMessage("🎉 Đã gửi xác nhận tham dự thành công!");
                 setTimeout(() => setToastMessage(null), 3500);
                 setCard((prev) => {
-                  const refreshed = getCardByIdOrSlug(card.id) || prev || card;
+                  if (!prev || prev.id !== card.id) return prev;
                   return {
-                    ...refreshed,
-                    rsvps: [newRsvp, ...(refreshed.rsvps?.filter((r) => r.id !== newRsvp.id) || [])],
+                    ...prev,
+                    rsvps: [newRsvp, ...(prev.rsvps?.filter((r) => r.id !== newRsvp.id) || [])],
                   };
                 });
               }}
@@ -1620,15 +1656,17 @@ export default function ShowInvitationPage() {
 
                   <button
                     type="submit"
+                    disabled={rsvpPending}
                     className={`w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98] ${
                       rsvpStyle === "red-velvet"
                         ? "bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-[#4c0519] font-bold shadow-amber-950/40"
                         : "bg-zen-primary hover:bg-[#d93849] text-white"
                     }`}
                   >
-                    <span>Xác nhận tham dự</span>
+                    <span>{rsvpPending ? "Đang gửi..." : "Xác nhận tham dự"}</span>
                     <Send className="w-3.5 h-3.5" />
                   </button>
+                  {rsvpError && <p role="alert" className="text-xs text-red-600">{rsvpError}</p>}
                 </form>
               )}
             </section>
@@ -1885,6 +1923,7 @@ export default function ShowInvitationPage() {
                   required
                   placeholder="Tên của bạn..."
                   value={guestName}
+                  disabled={wishPending}
                   onChange={(e) => setGuestName(e.target.value)}
                   className={`w-full px-3.5 py-2 text-xs rounded-xl border focus:outline-none ${
                     wishesStyle === "vintage-card"
@@ -1897,6 +1936,7 @@ export default function ShowInvitationPage() {
                   rows={2}
                   placeholder="Gửi lời chúc phúc tốt đẹp nhất đến cặp đôi..."
                   value={guestWish}
+                  disabled={wishPending}
                   onChange={(e) => setGuestWish(e.target.value)}
                   className={`w-full px-3.5 py-2 text-xs rounded-xl border focus:outline-none resize-none ${
                     wishesStyle === "vintage-card"
@@ -1906,15 +1946,17 @@ export default function ShowInvitationPage() {
                 />
                 <button
                   type="submit"
+                  disabled={wishPending}
                   className={`w-full py-2.5 rounded-xl text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] ${
                     wishesStyle === "vintage-card"
                       ? "bg-gradient-to-r from-amber-700 to-[#511419] hover:from-amber-800 hover:to-[#3d0f13] text-amber-50 shadow-amber-900/20"
                       : "bg-[#511419] text-amber-50 hover:bg-[#3d0f13]"
                   }`}
                 >
-                  <span>Gửi lời chúc</span>
+                  <span>{wishPending ? "Đang gửi..." : "Gửi lời chúc"}</span>
                   <Heart className="w-3.5 h-3.5 text-rose-400 fill-rose-400" />
                 </button>
+                {wishError && <p role="alert" className="text-xs text-red-600">{wishError}</p>}
               </form>
 
               {/* Wishes Feed */}

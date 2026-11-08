@@ -1,8 +1,9 @@
 import { MetadataRoute } from "next";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { getSiteUrl } from "@/lib/siteConfig";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://thiep-cuoi-online.vercel.app";
+  const siteUrl = getSiteUrl();
 
   const staticPages: MetadataRoute.Sitemap = [
     {
@@ -18,7 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.9,
     },
     {
-      url: `${siteUrl}/kho-template`,
+      url: `${siteUrl}/tao-thiep-cuoi-online`,
       lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 0.8,

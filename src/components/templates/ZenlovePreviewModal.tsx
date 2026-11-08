@@ -56,12 +56,11 @@ export default function ZenlovePreviewModal({
 
   // Pause audio on unmount or close
   useEffect(() => {
+    const audio = audioRef.current;
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      audio?.pause();
     };
-  }, []);
+  }, [template?.id]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {

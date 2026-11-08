@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getCardsFromDb, getAllRsvpsFromDb, getAllWishesFromDb } from "@/lib/serverDb";
+import { DatabaseUnavailableError, getCardsFromDb, getAllRsvpsFromDb, getAllWishesFromDb } from "@/lib/serverDb";
 import { verifyAdminAuth } from "@/lib/serverAuth";
 
 export const dynamic = "force-dynamic";
@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
 
   try {
     const [cardsResult, rsvpsResult, wishesResult] = await Promise.all([
-      getCardsFromDb().catch(() => []),
-      getAllRsvpsFromDb().catch(() => []),
-      getAllWishesFromDb().catch(() => []),
+      getCardsFromDb(undefined, undefined, { strict: true }),
+      getAllRsvpsFromDb({ strict: true }),
+      getAllWishesFromDb({ strict: true }),
     ]);
 
     // Mảng rỗng trong production là dữ liệu hợp lệ, không được thay bằng dữ liệu demo.
@@ -71,6 +71,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      status: "live",
+      source: "database",
       stats: {
         totalCards,
         publishedCards,
@@ -87,6 +89,13 @@ export async function GET(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     });
   } catch (error: any) {
+    if (error instanceof DatabaseUnavailableError) {
+      return NextResponse.json(
+        { success: false, status: "degraded", source: "unavailable",
+          message: "Không thể xác nhận số liệu từ cơ sở dữ liệu. Vui lòng thử lại." },
+        { status: 503 }
+      );
+    }
     console.error("Lỗi GET /api/admin/stats:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Lỗi tải thống kê hệ thống" },

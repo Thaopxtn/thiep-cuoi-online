@@ -4,7 +4,10 @@
  * tạo liên kết Zalo 1-chạm cá nhân hóa và xuất dữ liệu Excel/CSV.
  */
 
-import { WeddingCard } from "@/data/initialCards";
+import { WeddingCard, WeddingRsvp } from "@/data/initialCards";
+import { apiFetch, getAuthAccessToken, getAuthRefreshToken, getStoredUser } from "./apiClient";
+import { formatGuestLink } from "./guestInvitationHelper";
+import { getSiteUrl } from "./siteConfig";
 
 export type GuestGroup =
   | "groom_side"   // Nhà Trai
@@ -34,6 +37,13 @@ export interface GuestItem {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  checkedIn?: boolean;
+  checkedInAt?: string;
+  rsvpId?: string;
+  deletedAt?: string;
+  source?: "crm" | "rsvp";
+  responseStatus?: "confirmed" | "declined";
+  responseGuests?: number;
 }
 
 export interface GuestGroupStat {
@@ -72,7 +82,8 @@ export function getGuestsByCardId(cardId: string): GuestItem[] {
   try {
     const raw = localStorage.getItem(`${STORAGE_PREFIX}${cardId}`);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter((guest) => !guest.deletedAt) : [];
     }
   } catch (err) {
     console.error("Lỗi khi đọc danh sách khách mời:", err);
@@ -112,7 +123,7 @@ export function addGuest(
   };
 
   const updated = [newGuest, ...current];
-  saveGuestsByCardId(cardId, updated);
+  if (typeof window !== "undefined" && !saveGuestsByCardId(cardId, updated)) throw new Error("Không thể lưu danh sách khách mời trên thiết bị");
   return newGuest;
 }
 
@@ -140,7 +151,7 @@ export function updateGuest(
   });
 
   if (updatedGuest) {
-    saveGuestsByCardId(cardId, updated);
+    if (!saveGuestsByCardId(cardId, updated)) return null;
   }
   return updatedGuest;
 }
@@ -152,8 +163,7 @@ export function deleteGuest(cardId: string, guestId: string): boolean {
   const current = getGuestsByCardId(cardId);
   const updated = current.filter((g) => g.id !== guestId);
   if (updated.length !== current.length) {
-    saveGuestsByCardId(cardId, updated);
-    return true;
+    return saveGuestsByCardId(cardId, updated);
   }
   return false;
 }
@@ -169,7 +179,8 @@ export function deleteGuest(cardId: string, guestId: string): boolean {
 export function bulkImportGuests(
   cardId: string,
   rawText: string,
-  defaultGroup: GuestGroup = "friends"
+  defaultGroup: GuestGroup = "friends",
+  persist = true
 ): GuestItem[] {
   if (!rawText || !rawText.trim()) return [];
 
@@ -231,7 +242,7 @@ export function bulkImportGuests(
 
   const current = getGuestsByCardId(cardId);
   const updated = [...newGuests, ...current];
-  saveGuestsByCardId(cardId, updated);
+  if (persist && typeof window !== "undefined" && !saveGuestsByCardId(cardId, updated)) throw new Error("Không thể lưu danh sách khách mời trên thiết bị");
   return newGuests;
 }
 
@@ -244,12 +255,13 @@ export function calculateGuestStats(guests: GuestItem[]): GuestSummaryStats {
   const stats = guests.reduce(
     (acc, g) => {
       acc.total += 1;
-      if (g.status === "not_sent") acc.notSent += 1;
-      else if (g.status === "sent") acc.sent += 1;
-      else if (g.status === "confirmed") {
+      const status = g.responseStatus ?? g.status;
+      if (status === "not_sent") acc.notSent += 1;
+      else if (status === "sent") acc.sent += 1;
+      else if (status === "confirmed") {
         acc.confirmed += 1;
-        acc.totalSeats += g.estimatedGuests || 1;
-      } else if (g.status === "declined") {
+        acc.totalSeats += g.responseGuests ?? g.estimatedGuests ?? 1;
+      } else if (status === "declined") {
         acc.declined += 1;
       }
 
@@ -274,6 +286,166 @@ export function calculateGuestStats(guests: GuestItem[]): GuestSummaryStats {
   return stats;
 }
 
+/** Merge views only; invitation metadata remains in CRM and responses remain in RSVP. */
+export function mergeGuestsAndRsvps(crm: GuestItem[], rsvps: WeddingRsvp[]): GuestItem[] {
+  const phoneKey = (phone?: string) => (phone || "").replace(/[^+\d]/g, "").replace(/^\+84/, "0");
+  const crmPhoneCounts = new Map<string, number>();
+  const rsvpPhoneCounts = new Map<string, number>();
+  for (const guest of crm) {
+    const key = phoneKey(guest.phone);
+    if (key) crmPhoneCounts.set(key, (crmPhoneCounts.get(key) || 0) + 1);
+  }
+  for (const rsvp of rsvps) {
+    const key = phoneKey(rsvp.phone);
+    if (key) rsvpPhoneCounts.set(key, (rsvpPhoneCounts.get(key) || 0) + 1);
+  }
+  const used = new Set<string>();
+  const result: GuestItem[] = [];
+  for (const guest of crm) {
+    const key = phoneKey(guest.phone);
+    const rsvp = rsvps.find((item) => !used.has(item.id) && (
+      guest.rsvpId ? item.id === guest.rsvpId : Boolean(key && crmPhoneCounts.get(key) === 1 && rsvpPhoneCounts.get(key) === 1 && phoneKey(item.phone) === key)
+    ));
+    if (rsvp) used.add(rsvp.id);
+    // A deleted CRM record suppresses its linked response in this guest list;
+    // the original RSVP is retained for the response history.
+    if (guest.deletedAt) continue;
+    result.push({ ...guest, source: "crm", ...(rsvp ? {
+      rsvpId: rsvp.id,
+      responseStatus: rsvp.attending ? "confirmed" : "declined",
+      responseGuests: rsvp.guests,
+      checkedIn: Boolean(rsvp.checkedIn),
+      checkedInAt: rsvp.checkedInAt,
+    } : {}) });
+  }
+  for (const rsvp of rsvps) {
+    if (used.has(rsvp.id)) continue;
+    result.push({
+      id: `rsvp:${rsvp.id}`, cardId: rsvp.cardId, name: rsvp.name, phone: rsvp.phone,
+      group: "other", tableNumber: rsvp.tableNumber == null ? "" : String(rsvp.tableNumber),
+      estimatedGuests: rsvp.guests ?? 1, status: rsvp.attending ? "confirmed" : "declined",
+      notes: rsvp.note, createdAt: rsvp.createdAt, updatedAt: rsvp.createdAt,
+      checkedIn: Boolean(rsvp.checkedIn), checkedInAt: rsvp.checkedInAt,
+      rsvpId: rsvp.id, source: "rsvp", responseStatus: rsvp.attending ? "confirmed" : "declined", responseGuests: rsvp.guests,
+    });
+  }
+  return result;
+}
+
+export function usesGuestCloudSync(): boolean {
+  return Boolean(getStoredUser()?.id || getAuthAccessToken() || getAuthRefreshToken());
+}
+
+function guestEndpoint(cardId: string, guestId?: string): string {
+  return `/api/cards/${encodeURIComponent(cardId)}/guests${guestId ? `/${encodeURIComponent(guestId)}` : ""}`;
+}
+
+async function guestRequest(cardId: string, init?: RequestInit, guestId?: string): Promise<{ guests: GuestItem[]; rsvps: WeddingRsvp[] }> {
+  const res = await apiFetch(guestEndpoint(cardId, guestId), init);
+  const body = await res.json().catch(() => null);
+  if (!res.ok || !body?.success || !Array.isArray(body.guests) || !Array.isArray(body.rsvps)) {
+    throw new Error(body?.message || "Không thể đồng bộ khách mời. Dữ liệu trên thiết bị vẫn được giữ lại.");
+  }
+  return body;
+}
+
+function rememberGuestRecords(cardId: string, records: GuestItem[]): void {
+  // The server has already acknowledged the write; a full browser cache is optional.
+  saveGuestsByCardId(cardId, records);
+}
+
+export async function fetchGuestsForCard(card: WeddingCard): Promise<GuestItem[]> {
+  if (!usesGuestCloudSync()) return mergeGuestsAndRsvps(getGuestsByCardId(card.id), card.rsvps || []);
+  const markerKey = `${STORAGE_PREFIX}migrated_${getStoredUser()?.id || "session"}_${card.id}`;
+  let migrated = new Set<string>();
+  try { migrated = new Set(JSON.parse(localStorage.getItem(markerKey) || "[]")); } catch {}
+  const legacy = getGuestsByCardId(card.id).filter((guest) => guest.source !== "rsvp" && !migrated.has(guest.id));
+  // Preserve legacy ids. Server imports ignore existing rows, including tombstones.
+  for (let offset = 0; offset < legacy.length; offset += 200) {
+    await guestRequest(card.id, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guests: legacy.slice(offset, offset + 200) }) });
+  }
+  const data = await guestRequest(card.id);
+  rememberGuestRecords(card.id, data.guests);
+  try { localStorage.setItem(markerKey, JSON.stringify(Array.from(new Set([...Array.from(migrated), ...legacy.map((guest) => guest.id), ...data.guests.map((guest) => guest.id)])))); } catch {}
+  return mergeGuestsAndRsvps(data.guests, data.rsvps);
+}
+
+type GuestDraft = Omit<GuestItem, "id" | "cardId" | "createdAt" | "updatedAt">;
+
+function editableGuestData(data: GuestDraft): Record<string, unknown> {
+  const fields = ["name", "phone", "email", "group", "tableNumber", "estimatedGuests", "status", "notes", "checkedIn", "rsvpId"] as const;
+  return Object.fromEntries(fields.filter((field) => data[field] !== undefined).map((field) => [field, data[field]]));
+}
+
+export async function saveGuestAsync(card: WeddingCard, data: GuestDraft, current?: GuestItem, creationId?: string): Promise<GuestItem[]> {
+  if (!usesGuestCloudSync()) {
+    if (current?.source === "rsvp") {
+      const now = new Date().toISOString();
+      if (!saveGuestsByCardId(card.id, [{ ...data, id: current.id, cardId: card.id, createdAt: current.createdAt, updatedAt: now }, ...getGuestsByCardId(card.id)])) throw new Error("Không thể lưu khách mời trên thiết bị");
+    } else if (current) {
+      if (!updateGuest(card.id, current.id, data)) throw new Error("Không thể cập nhật khách mời trên thiết bị");
+    } else addGuest(card.id, data);
+    return mergeGuestsAndRsvps(getGuestsByCardId(card.id), card.rsvps || []);
+  }
+  const creating = !current || current.source === "rsvp";
+  const now = new Date().toISOString();
+  const fields = editableGuestData(data);
+  // Send only the user's edits. An old snapshot must not overwrite unrelated
+  // fields updated by another device or replay a check-in command.
+  if (!creating) {
+    for (const key of Object.keys(fields)) {
+      if (fields[key] === current[key as keyof GuestItem]) delete fields[key];
+    }
+    if (Boolean(data.checkedIn) === Boolean(current.checkedIn)) delete fields.checkedIn;
+    if (Object.keys(fields).length === 0) return fetchGuestsForCard(card);
+  }
+  const payload = creating ? { guests: [{ ...fields, id: current?.id || creationId || `gst_${crypto.randomUUID()}`, cardId: card.id, createdAt: current?.createdAt || now, updatedAt: now, ...(current?.rsvpId ? { rsvpId: current.rsvpId } : {}) }] } : fields;
+  const result = await guestRequest(card.id, { method: creating ? "POST" : "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }, creating ? undefined : current.id);
+  rememberGuestRecords(card.id, result.guests);
+  return mergeGuestsAndRsvps(result.guests, result.rsvps);
+}
+
+export async function importGuestsAsync(card: WeddingCard, text: string, group: GuestGroup): Promise<GuestItem[]> {
+  const imported = bulkImportGuests(card.id, text, group, false);
+  if (!usesGuestCloudSync()) {
+    if (!saveGuestsByCardId(card.id, [...imported, ...getGuestsByCardId(card.id)])) throw new Error("Không thể lưu danh sách khách mời");
+    return mergeGuestsAndRsvps(getGuestsByCardId(card.id), card.rsvps || []);
+  }
+  // Repeating an import after a lost response must reuse ids already committed by the server.
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify([card.id, text.trim(), group])));
+  const batchId = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  imported.forEach((guest, index) => { guest.id = `gst_bulk_${batchId}_${index}`; });
+  for (let offset = 0; offset < imported.length; offset += 200) {
+    await guestRequest(card.id, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ guests: imported.slice(offset, offset + 200) }) });
+  }
+  return fetchGuestsForCard(card);
+}
+
+export async function deleteGuestAsync(card: WeddingCard, guest: GuestItem): Promise<GuestItem[]> {
+  if (guest.source === "rsvp" && guest.rsvpId) {
+    const res = await apiFetch(`/api/cards/${encodeURIComponent(card.id)}/rsvps/${encodeURIComponent(guest.rsvpId)}`, { method: "DELETE" });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) throw new Error(body?.message || "Không thể xóa phản hồi khách mời");
+  } else if (usesGuestCloudSync()) {
+    const data = await guestRequest(card.id, { method: "DELETE" }, guest.id);
+    rememberGuestRecords(card.id, data.guests);
+    return mergeGuestsAndRsvps(data.guests, data.rsvps);
+  } else if (!deleteGuest(card.id, guest.id)) throw new Error("Không thể xóa khách mời trên thiết bị");
+  return fetchGuestsForCard(card);
+}
+
+export async function checkInGuestAsync(card: WeddingCard, guest: GuestItem, checkedIn: boolean): Promise<GuestItem[]> {
+  if (guest.rsvpId) {
+    const res = await apiFetch(`/api/cards/${encodeURIComponent(card.id)}/rsvps/${encodeURIComponent(guest.rsvpId)}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ checkedIn }),
+    });
+    const body = await res.json().catch(() => null);
+    if (!res.ok || !body?.success) throw new Error(body?.message || "Không thể lưu điểm danh khách mời");
+    return fetchGuestsForCard(card);
+  }
+  return saveGuestAsync(card, { ...guest, checkedIn }, guest);
+}
+
 /**
  * Định dạng URL và nội dung gửi Zalo 1-chạm
  */
@@ -287,11 +459,12 @@ export function getZaloSharePayload(
   shareText: string;
 } {
   const host =
-    origin || (typeof window !== "undefined" ? window.location.origin : "https://zenlove.me");
+    origin || (typeof window !== "undefined" ? window.location.origin : getSiteUrl());
   
   // URL cá nhân hóa: bao gồm tên khách và số bàn tiệc nếu có
-  const tableParam = guest.tableNumber ? `&table=${encodeURIComponent(guest.tableNumber)}` : "";
-  const cardUrl = `${host}/show/${card.slug}?to=${encodeURIComponent(guest.name)}${tableParam}`;
+  const cardUrl = formatGuestLink(`${host.replace(/\/+$/, "")}/show/${encodeURIComponent(card.slug)}`, guest.name, {
+    cardId: card.id, guestId: guest.id, tableNumber: guest.tableNumber,
+  });
 
   const groomName = card.groom?.name || "Chú Rể";
   const brideName = card.bride?.name || "Cô Dâu";
@@ -351,7 +524,7 @@ export function exportGuestsToCsv(guests: GuestItem[]): string {
     `"${g.phone || ""}"`,
     `"${groupLabelMap[g.group] || "Khác"}"`,
     `"${g.tableNumber || ""}"`,
-    `"${g.estimatedGuests || 1}"`,
+    `"${g.responseGuests ?? g.estimatedGuests ?? 1}"`,
     `"${statusLabelMap[g.status] || "Chưa gửi"}"`,
     `"${(g.notes || "").replace(/"/g, '""')}"`,
   ]);

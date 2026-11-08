@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Users,
   UserPlus,
@@ -28,11 +28,10 @@ import {
   GuestGroup,
   GuestInviteStatus,
   GUEST_GROUPS,
-  getGuestsByCardId,
-  addGuest,
-  updateGuest,
-  deleteGuest,
-  bulkImportGuests,
+  fetchGuestsForCard,
+  saveGuestAsync,
+  deleteGuestAsync,
+  importGuestsAsync,
   calculateGuestStats,
   getZaloSharePayload,
   exportGuestsToCsv,
@@ -54,6 +53,14 @@ export default function GuestManagementTab({
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+  const selectionRef = useRef(selectedCardId);
+  const operationRef = useRef(false);
+  const creationId = useRef<string>();
+  const [reloadVersion, setReloadVersion] = useState(0);
+  selectionRef.current = selectedCardId;
 
   // Modal: Thêm / Sửa khách mời
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -86,53 +93,40 @@ export default function GuestManagementTab({
 
   // Sync selected card
   useEffect(() => {
-    if (!selectedCardId && cards.length > 0) {
+    if (!cards.some((card) => card.id === selectedCardId) && cards.length > 0) {
       setSelectedCardId(cards[0].id);
     }
   }, [cards, selectedCardId]);
 
   // Load guests
   useEffect(() => {
-    if (selectedCardId) {
-      const data = getGuestsByCardId(selectedCardId);
-      if (data.length === 0 && typeof window !== "undefined") {
-        // Tạo sẵn dữ liệu mẫu thực tế để người dùng thấy ngay cấu trúc phân bàn tiệc
-        const sampleData: Omit<GuestItem, "id" | "cardId" | "createdAt" | "updatedAt">[] = [
-          {
-            name: "Anh Tuấn VIP",
-            phone: "0901234567",
-            group: "vip",
-            tableNumber: "Bàn VIP 1",
-            estimatedGuests: 2,
-            status: "confirmed",
-            notes: "Trưởng phòng, ngồi cùng đoàn công ty",
-          },
-          {
-            name: "Bác Hùng & Bác Gái",
-            phone: "0912345678",
-            group: "groom_side",
-            tableNumber: "Bàn 1 (Họ Nội)",
-            estimatedGuests: 2,
-            status: "confirmed",
-            notes: "Bác ruột chú rể",
-          },
-          {
-            name: "Bạn Lan (Hội bạn thân)",
-            phone: "0987654321",
-            group: "friends",
-            tableNumber: "Bàn 6 (Hội Cấp 3)",
-            estimatedGuests: 1,
-            status: "sent",
-            notes: "Đã gửi link Zalo",
-          },
-        ];
-        sampleData.forEach((item) => addGuest(selectedCardId, item));
-        setGuests(getGuestsByCardId(selectedCardId));
-      } else {
-        setGuests(data);
-      }
-    }
-  }, [selectedCardId]);
+    let cancelled = false;
+    const selected = cards.find((card) => card.id === selectedCardId);
+    setGuests([]);
+    setSyncError(null);
+    if (!selected) { setLoading(false); return; }
+    setLoading(true);
+    fetchGuestsForCard(selected).then((data) => { if (!cancelled) setGuests(data); })
+      .catch((error) => { if (!cancelled) setSyncError(error.message); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [cards, selectedCardId, reloadVersion]);
+
+  const commitGuests = async (operation: () => Promise<GuestItem[]>, success?: string) => {
+    const cardId = selectedCardId;
+    if (operationRef.current || loading) return false;
+    operationRef.current = true;
+    setSaving(true);
+    setSyncError(null);
+    try {
+      const next = await operation();
+      if (selectionRef.current === cardId) { setGuests(next); if (success) showToast(success); }
+      return selectionRef.current === cardId;
+    } catch (error) {
+      if (selectionRef.current === cardId) setSyncError(error instanceof Error ? error.message : "Không thể lưu khách mời");
+      return false;
+    } finally { operationRef.current = false; setSaving(false); }
+  };
 
   // Calculate statistics
   const stats = useMemo(() => calculateGuestStats(guests), [guests]);
@@ -147,7 +141,7 @@ export default function GuestManagementTab({
         (g.tableNumber && g.tableNumber.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchGroup = groupFilter === "all" || g.group === groupFilter;
-      const matchStatus = statusFilter === "all" || g.status === statusFilter;
+      const matchStatus = statusFilter === "all" || (g.responseStatus ?? g.status) === statusFilter;
 
       return matchSearch && matchGroup && matchStatus;
     });
@@ -155,6 +149,7 @@ export default function GuestManagementTab({
 
   // Handle open add modal
   const handleOpenAddModal = () => {
+    creationId.current = `gst_${crypto.randomUUID()}`;
     setEditingGuestId(null);
     setFormName("");
     setFormPhone("");
@@ -173,62 +168,45 @@ export default function GuestManagementTab({
     setFormPhone(guest.phone || "");
     setFormGroup(guest.group);
     setFormTable(guest.tableNumber || "");
-    setFormGuestsCount(guest.estimatedGuests || 1);
+    setFormGuestsCount(guest.estimatedGuests ?? 1);
     setFormStatus(guest.status);
     setFormNotes(guest.notes || "");
     setIsModalOpen(true);
   };
 
   // Save guest (create or update)
-  const handleSaveGuest = (e: React.FormEvent) => {
+  const handleSaveGuest = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !selectedCardId) return;
-
-    if (editingGuestId) {
-      updateGuest(selectedCardId, editingGuestId, {
+    if (!formName.trim() || !activeCard) return;
+    const current = guests.find((guest) => guest.id === editingGuestId);
+    const saved = await commitGuests(() => saveGuestAsync(activeCard, {
+        ...current,
         name: formName.trim(),
-        phone: formPhone.trim() || undefined,
+        phone: formPhone.trim(),
         group: formGroup,
-        tableNumber: formTable.trim() || undefined,
+        tableNumber: formTable.trim(),
         estimatedGuests: formGuestsCount,
         status: formStatus,
-        notes: formNotes.trim() || undefined,
-      });
-      showToast("✨ Đã cập nhật thông tin khách mời!");
-    } else {
-      addGuest(selectedCardId, {
-        name: formName.trim(),
-        phone: formPhone.trim() || undefined,
-        group: formGroup,
-        tableNumber: formTable.trim() || undefined,
-        estimatedGuests: formGuestsCount,
-        status: formStatus,
-        notes: formNotes.trim() || undefined,
-      });
-      showToast("✨ Đã thêm khách mời vào danh sách!");
-    }
-
-    setGuests(getGuestsByCardId(selectedCardId));
-    setIsModalOpen(false);
+        notes: formNotes.trim(),
+      }, current, creationId.current), editingGuestId ? "Đã cập nhật thông tin khách mời!" : "Đã thêm khách mời vào danh sách!");
+    if (saved) setIsModalOpen(false);
   };
 
   // Delete guest
-  const handleDeleteGuest = (guestId: string, guestName: string) => {
+  const handleDeleteGuest = async (guestId: string, guestName: string) => {
     if (window.confirm(`Bạn có chắc chắn muốn xóa khách mời "${guestName}" khỏi danh sách?`)) {
-      deleteGuest(selectedCardId, guestId);
-      setGuests(getGuestsByCardId(selectedCardId));
-      showToast(`Đã xóa khách mời "${guestName}".`);
+      const guest = guests.find((item) => item.id === guestId);
+      if (activeCard && guest) await commitGuests(() => deleteGuestAsync(activeCard, guest), `Đã xóa khách mời "${guestName}".`);
     }
   };
 
   // Handle Bulk Import
-  const handleBulkImport = () => {
-    if (!bulkInputText.trim() || !selectedCardId) return;
-    const imported = bulkImportGuests(selectedCardId, bulkInputText, bulkDefaultGroup);
-    setGuests(getGuestsByCardId(selectedCardId));
-    setIsBulkModalOpen(false);
-    setBulkInputText("");
-    showToast(`🎉 Đã thêm thành công ${imported.length} khách mời vào danh sách!`);
+  const handleBulkImport = async () => {
+    if (!bulkInputText.trim() || !activeCard) return;
+    if (await commitGuests(() => importGuestsAsync(activeCard, bulkInputText, bulkDefaultGroup), "Đã lưu danh sách khách mời!")) {
+      setIsBulkModalOpen(false);
+      setBulkInputText("");
+    }
   };
 
   // Handle Export CSV
@@ -254,14 +232,13 @@ export default function GuestManagementTab({
     setZaloPreviewGuest(guest);
   };
 
-  const handleMarkAsSentAndOpenZalo = (guest: GuestItem) => {
+  const handleMarkAsSentAndOpenZalo = async (guest: GuestItem) => {
     if (!activeCard) return;
     const payload = getZaloSharePayload(guest, activeCard);
     
     // Đánh dấu là đã gửi nếu đang là 'not_sent'
     if (guest.status === "not_sent") {
-      updateGuest(selectedCardId, guest.id, { status: "sent" });
-      setGuests(getGuestsByCardId(selectedCardId));
+      if (!await commitGuests(() => saveGuestAsync(activeCard, { ...guest, status: "sent" }, guest))) return;
     }
 
     // Mở trang Zalo Share
@@ -294,6 +271,9 @@ export default function GuestManagementTab({
 
   return (
     <div className="space-y-6">
+      {loading && <p role="status" className="text-sm text-gray-600">Đang đồng bộ danh sách khách mời…</p>}
+      {saving && <p role="status" className="text-sm text-gray-600">Đang lưu thay đổi…</p>}
+      {syncError && <div role="alert" className="text-sm text-rose-700 bg-rose-50 p-3 rounded-xl">{syncError} <button type="button" disabled={saving || loading} onClick={() => setReloadVersion((value) => value + 1)} className="underline ml-2">Thử lại</button></div>}
       {/* Toast Alert */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-stone-900 text-amber-200 px-4 py-2.5 rounded-2xl shadow-2xl border border-amber-400/40 text-xs font-bold flex items-center gap-2 animate-bounce">
@@ -452,6 +432,7 @@ export default function GuestManagementTab({
             <option value="all">Tất cả trạng thái</option>
             <option value="not_sent">Chưa gửi</option>
             <option value="sent">Đã gửi</option>
+            <option value="viewed">Đã xem</option>
             <option value="confirmed">Sẽ tham dự</option>
             <option value="declined">Báo bận</option>
           </select>
@@ -523,19 +504,16 @@ export default function GuestManagementTab({
 
                       {/* Guests Count */}
                       <td className="py-3 px-3 text-center font-bold text-gray-800">
-                        {guest.estimatedGuests || 1}
+                        {guest.responseGuests ?? guest.estimatedGuests ?? 1}
                       </td>
 
                       {/* Status Dropdown */}
                       <td className="py-3 px-3">
                         <select
                           value={guest.status}
-                          onChange={(e) => {
-                            updateGuest(selectedCardId, guest.id, {
-                              status: e.target.value as GuestInviteStatus,
-                            });
-                            setGuests(getGuestsByCardId(selectedCardId));
-                          }}
+                          disabled={saving || loading}
+                          aria-label={`Trạng thái gửi thiệp của ${guest.name}`}
+                          onChange={(e) => { const status = e.target.value as GuestInviteStatus; if (activeCard) void commitGuests(() => saveGuestAsync(activeCard, { ...guest, status }, guest)); }}
                           className={`text-[11px] font-bold px-2 py-1 rounded-lg border focus:outline-none cursor-pointer ${
                             guest.status === "confirmed"
                               ? "bg-emerald-50 text-emerald-700 border-emerald-300"
@@ -548,9 +526,11 @@ export default function GuestManagementTab({
                         >
                           <option value="not_sent">Chưa gửi</option>
                           <option value="sent">Đã gửi</option>
+                          <option value="viewed">Đã xem</option>
                           <option value="confirmed">Sẽ tham dự</option>
                           <option value="declined">Báo bận</option>
                         </select>
+                        {guest.responseStatus && <p className="mt-1 text-[11px] text-gray-500">RSVP: {guest.responseStatus === "confirmed" ? "Sẽ tham dự" : "Báo bận"}</p>}
                       </td>
 
                       {/* Actions */}
@@ -698,8 +678,8 @@ export default function GuestManagementTab({
                   </label>
                   <input
                     type="number"
-                    min="1"
-                    max="10"
+                    min="0"
+                    max="1000"
                     value={formGuestsCount}
                     onChange={(e) => setFormGuestsCount(Number(e.target.value))}
                     className="w-full px-3 py-2 text-xs border border-gray-300 rounded-xl focus:outline-none focus:border-zen-primary"
@@ -716,6 +696,7 @@ export default function GuestManagementTab({
                 >
                   <option value="not_sent">Chưa gửi thiệp</option>
                   <option value="sent">Đã gửi link mời</option>
+                  <option value="viewed">Đã xem thiệp</option>
                   <option value="confirmed">Đã xác nhận sẽ tham dự</option>
                   <option value="declined">Báo bận không đến</option>
                 </select>
@@ -742,6 +723,7 @@ export default function GuestManagementTab({
                 </button>
                 <button
                   type="submit"
+                  disabled={saving || loading}
                   className="px-5 py-2 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white text-xs font-bold shadow-md transition-all active:scale-95"
                 >
                   {editingGuestId ? "Lưu thay đổi" : "Thêm khách"}
@@ -824,6 +806,7 @@ export default function GuestManagementTab({
                 <button
                   type="button"
                   onClick={handleBulkImport}
+                  disabled={saving || loading}
                   className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition-all active:scale-95"
                 >
                   Xác nhận nạp khách

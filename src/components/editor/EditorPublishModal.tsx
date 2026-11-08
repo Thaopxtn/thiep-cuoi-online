@@ -31,7 +31,7 @@ import {
   isValidSlug,
   parseBrandedSlug,
 } from "@/lib/brandedSlug";
-import { saveCard, saveCardAsync } from "@/lib/weddingCardService";
+import { saveCard } from "@/lib/weddingCardService";
 import { useAuth } from "@/context/AuthContext";
 import { apiFetch } from "@/lib/apiClient";
 import { getSafeImageUrl } from "@/lib/imageUtils";
@@ -85,7 +85,7 @@ export default function EditorPublishModal({
 
   // Danh sách ảnh trong Album cưới phát hành
   const albumPhotos = React.useMemo(() => {
-    if (card?.album && Array.isArray(card.album) && card.album.length > 0) {
+    if (Array.isArray(card?.album)) {
       return card.album;
     }
     if (card?.coverImage) {
@@ -99,16 +99,19 @@ export default function EditorPublishModal({
   const displayCode = templateMeta?.displayCode || (templateMeta?.orderNumber ? `Mẫu ${String(templateMeta.orderNumber).padStart(2, "0")}` : "Mẫu 01");
   const codeSlug = templateMeta?.code ? templateMeta.code.replace(/-/g, "") : (templateMeta?.orderNumber ? `mau${String(templateMeta.orderNumber).padStart(2, "0")}` : "mau01");
 
-  // Khởi tạo active slug khi modal mở và tự động lưu bảo đảm tính khả dụng 100% của URL
+  const savedSlug = cardSlug || card?.slug || "";
+  const groomName = card?.groom?.name;
+  const weddingDate = card?.weddingDate;
+  // Sharing starts from the URL already acknowledged by the publish endpoint.
   useEffect(() => {
     if (isOpen) {
-      let initialSlug = cardSlug || card?.slug;
+      const initialSlug = savedSlug;
 
       const defaultUser = user?.name
         ? normalizeToSlug(user.name)
-        : (user?.email ? normalizeToSlug(user.email.split("@")[0]) : (card?.groom?.name ? normalizeToSlug(card.groom.name) : "nguoi-dung"));
+        : (user?.email ? normalizeToSlug(user.email.split("@")[0]) : (groomName ? normalizeToSlug(groomName) : "nguoi-dung"));
 
-      const defaultYear = card?.weddingDate ? new Date(card.weddingDate).getFullYear().toString() : "";
+      const defaultYear = weddingDate ? new Date(weddingDate).getFullYear().toString() : "";
 
       // Phân tích nếu slug hiện tại đã là dạng branded
       const parsed = parseBrandedSlug(initialSlug);
@@ -123,45 +126,14 @@ export default function EditorPublishModal({
       setMauPartInput(mPart);
       setExtraPartInput(ePart);
 
-      // Nếu slug chưa có hoặc còn là UUID thô -> sinh Branded Slug chuẩn: [Tên người dùng] + [zenlove] + [Mẫu] + [Khác]
-      if (!initialSlug || initialSlug.length > 35 || initialSlug === templateId || initialSlug.startsWith("card_") || initialSlug.includes("-01d9-")) {
-        initialSlug = generateBrandedWeddingSlug({
-          userName: uPart,
-          groomName: card?.groom?.name,
-          brideName: card?.bride?.name,
-          websiteName: wPart,
-          templateCode: mPart,
-          customSuffix: ePart,
-        });
-      }
-
       setCurrentSlug(initialSlug);
       setCustomSlugInput(initialSlug);
       setIsEditingSlug(false);
       setSlugSuccessMsg("");
       setSlugErrorMsg("");
 
-      // LƯU NGAY LẬP TỨC: Đảm bảo link đã tồn tại trong DB và LocalStorage trước khi người dùng bấm mở
-      if (card && card.slug !== initialSlug) {
-        const updated: WeddingCard = {
-          ...card,
-          slug: initialSlug,
-          status: "published",
-        };
-        saveCard(updated);
-        if (card.id) {
-          apiFetch(`/api/cards/${card.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updated),
-          }).catch((err) => console.warn("Lỗi sync slug khi mở modal:", err));
-        }
-        if (onSlugUpdated) {
-          onSlugUpdated(initialSlug);
-        }
-      }
     }
-  }, [isOpen, templateId, cardSlug, card?.slug, codeSlug, user?.name, user?.email]);
+  }, [isOpen, savedSlug, groomName, weddingDate, codeSlug, user?.name, user?.email]);
 
   if (!isOpen) return null;
 
@@ -169,11 +141,6 @@ export default function EditorPublishModal({
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(publicUrl)}`;
 
   const handleCopy = () => {
-    // Đảm bảo card đã lưu trước khi sao chép
-    if (card) {
-      const updated: WeddingCard = { ...card, slug: currentSlug, status: "published" };
-      saveCard(updated);
-    }
     navigator.clipboard?.writeText(publicUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -202,31 +169,26 @@ export default function EditorPublishModal({
     }
 
     try {
-      setCurrentSlug(formatted);
-      setIsEditingSlug(false);
-
       // Cập nhật card nếu có
       if (card) {
-        const updatedCard: WeddingCard = {
-          ...card,
-          slug: formatted,
-          status: "published",
-        };
-
         // Đồng bộ lên API nếu card đã có id
         if (card.id) {
           const res = await apiFetch(`/api/cards/${card.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updatedCard),
+            body: JSON.stringify({ slug: formatted }),
           });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err.message || "Không thể cập nhật đường dẫn trên máy chủ");
           }
+          const saved = await res.json();
+          if (!saved.success || !saved.card || saved.card.slug !== formatted) throw new Error("Máy chủ chưa xác nhận đường dẫn mới");
+          saveCard(saved.card);
         }
-        saveCard(updatedCard);
       }
+      setCurrentSlug(formatted);
+      setIsEditingSlug(false);
 
       if (onSlugUpdated) {
         onSlugUpdated(formatted);
@@ -236,18 +198,6 @@ export default function EditorPublishModal({
       setTimeout(() => setSlugSuccessMsg(""), 3000);
     } catch (err: any) {
       setSlugErrorMsg(err.message || "Lỗi khi lưu đường dẫn");
-    }
-  };
-
-  // Xử lý mở thiệp đảm bảo 100% dữ liệu đã lưu
-  const handleOpenInvitationPage = (e: React.MouseEvent) => {
-    if (card) {
-      const updatedCard: WeddingCard = {
-        ...card,
-        slug: currentSlug,
-        status: "published",
-      };
-      saveCard(updatedCard);
     }
   };
 
@@ -710,7 +660,6 @@ export default function EditorPublishModal({
             href={publicUrl}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={handleOpenInvitationPage}
             className="py-3 px-4 rounded-xl border border-gray-200 hover:border-gray-300 bg-white text-gray-800 font-semibold text-xs flex items-center justify-center gap-2 transition-all hover:scale-105"
           >
             <ExternalLink className="w-4 h-4 text-gray-500" />
@@ -755,16 +704,6 @@ export default function EditorPublishModal({
           cardName={card?.name || templateName}
           onVipActivated={() => {
             setIsVipLocal(true);
-            if (card) {
-              const updatedCard: WeddingCard = {
-                ...card,
-                isVip: true,
-                plan: "vip",
-                showWatermark: false,
-              };
-              saveCard(updatedCard);
-              saveCardAsync(updatedCard).catch(() => {});
-            }
           }}
         />
       )}

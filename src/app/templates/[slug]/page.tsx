@@ -7,6 +7,7 @@ import {
   unifiedToTemplateItem,
 } from "@/lib/templateUnifiedService";
 import TemplateDetailClient from "./TemplateDetailClient";
+import { getSiteUrl } from "@/lib/siteConfig";
 
 interface PageProps {
   params: {
@@ -50,7 +51,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     unified.description ||
     `Tạo và gửi thiệp mời ${unified.categoryName} trực tuyến với mẫu ${unified.name}. Tùy biến ảnh, thời gian, bản đồ chỉ đường và nhận lời chúc tiện lợi.`;
 
-  const siteUrl = "https://zenlove.me";
+  const siteUrl = getSiteUrl();
   const canonicalUrl = `${siteUrl}/templates/${unified.slug || unified.id}`;
 
   return {
@@ -118,7 +119,7 @@ export default function TemplateDetailPage({ params }: PageProps) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <TemplateDetailClient initialTemplate={initialPreset} slug={slug} />
     </>

@@ -40,8 +40,16 @@ CREATE TABLE IF NOT EXISTS public.rsvps (
     attending BOOLEAN DEFAULT TRUE,
     guests INTEGER DEFAULT 1,
     note TEXT,
+    "checkedIn" BOOLEAN DEFAULT FALSE,
+    "checkedInAt" TIMESTAMP WITH TIME ZONE,
+    "tableNumber" TEXT,
     "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Existing installations can rerun this schema without dropping guest data.
+ALTER TABLE public.rsvps ADD COLUMN IF NOT EXISTS "checkedIn" BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.rsvps ADD COLUMN IF NOT EXISTS "checkedInAt" TIMESTAMP WITH TIME ZONE;
+ALTER TABLE public.rsvps ADD COLUMN IF NOT EXISTS "tableNumber" TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_rsvps_card_id ON public.rsvps("cardId");
 
@@ -61,28 +69,30 @@ ALTER TABLE public.cards ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rsvps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wishes ENABLE ROW LEVEL SECURITY;
 
--- Cho phép khách công khai xem và lưu thiệp / gửi RSVP / gửi lời chúc
+-- Public reads are restricted; every write goes through authenticated Next.js APIs.
 DROP POLICY IF EXISTS "Public Read Cards" ON public.cards;
-CREATE POLICY "Public Read Cards" ON public.cards FOR SELECT USING (true);
+CREATE POLICY "Public Read Cards" ON public.cards FOR SELECT USING (status = 'published');
 
 DROP POLICY IF EXISTS "Public Insert Cards" ON public.cards;
-CREATE POLICY "Public Insert Cards" ON public.cards FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public Update Cards" ON public.cards;
-CREATE POLICY "Public Update Cards" ON public.cards FOR UPDATE USING (true);
 
 DROP POLICY IF EXISTS "Public Delete Cards" ON public.cards;
-CREATE POLICY "Public Delete Cards" ON public.cards FOR DELETE USING (true);
 
 DROP POLICY IF EXISTS "Public Read RSVPs" ON public.rsvps;
-CREATE POLICY "Public Read RSVPs" ON public.rsvps FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Public Insert RSVPs" ON public.rsvps;
-CREATE POLICY "Public Insert RSVPs" ON public.rsvps FOR INSERT WITH CHECK (true);
 
 DROP POLICY IF EXISTS "Public Read Wishes" ON public.wishes;
-CREATE POLICY "Public Read Wishes" ON public.wishes FOR SELECT USING (true);
+CREATE POLICY "Public Read Wishes" ON public.wishes FOR SELECT USING (
+    EXISTS (SELECT 1 FROM public.cards WHERE cards.id = wishes."cardId" AND cards.status = 'published')
+);
 
 DROP POLICY IF EXISTS "Public Insert Wishes" ON public.wishes;
-CREATE POLICY "Public Insert Wishes" ON public.wishes FOR INSERT WITH CHECK (true);
+REVOKE ALL ON public.cards, public.rsvps, public.wishes FROM PUBLIC;
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER
+    ON public.cards, public.rsvps, public.wishes FROM anon, authenticated;
+REVOKE SELECT ON public.rsvps FROM anon;
+GRANT SELECT ON public.cards, public.wishes TO anon, authenticated;
+GRANT ALL ON public.cards, public.rsvps, public.wishes TO service_role;
 

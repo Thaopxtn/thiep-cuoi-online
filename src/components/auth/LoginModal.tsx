@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useId, useState } from "react";
 import { useRouter } from "next/navigation";
-import { X, Lock, Mail, User, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
+import { X, Lock, Mail, User, ArrowRight, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { cloneTemplateToNewCard } from "@/lib/weddingCardService";
+import Dialog from "@/components/ui/Dialog";
 
 export default function LoginModal() {
   const router = useRouter();
@@ -26,6 +27,15 @@ export default function LoginModal() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const formId = useId();
+
+  useEffect(() => {
+    if (!isLoginModalOpen) {
+      setPassword("");
+      setError(null);
+      setSuccess(null);
+    }
+  }, [isLoginModalOpen]);
 
   if (!isLoginModalOpen) return null;
 
@@ -91,9 +101,11 @@ export default function LoginModal() {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in"
-      onClick={closeLoginModal}
+    <Dialog
+      isOpen={isLoginModalOpen}
+      onClose={closeLoginModal}
+      labelledBy={`${formId}-title`}
+      describedBy={`${formId}-description`}
     >
       <div
         className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100 p-6 sm:p-8 relative transition-all animate-scale-up"
@@ -101,9 +113,10 @@ export default function LoginModal() {
       >
         {/* Close Button */}
         <button
+          type="button"
           onClick={closeLoginModal}
-          className="absolute top-4 right-4 w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center transition-colors"
-          aria-label="Đóng modal"
+          className="absolute top-3 right-3 w-11 h-11 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center transition-colors"
+          aria-label="Đóng đăng nhập"
         >
           <X className="w-4 h-4" />
         </button>
@@ -113,10 +126,10 @@ export default function LoginModal() {
           <div className="w-12 h-12 rounded-2xl bg-rose-50 text-zen-primary flex items-center justify-center mx-auto mb-3 shadow-inner font-bold text-xl">
             💌
           </div>
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 id={`${formId}-title`} className="text-xl font-bold text-gray-900 px-6">
             {mode === "login" ? "Đăng nhập tài khoản" : "Tạo tài khoản mới"}
           </h2>
-          <p className="text-xs text-gray-500 mt-1">
+          <p id={`${formId}-description`} className="text-sm text-gray-600 mt-1">
             {mode === "login"
               ? "Đăng nhập để lưu, quản lý và xuất bản thiệp cưới của bạn"
               : "Đăng ký miễn phí để bắt đầu tạo thiệp cưới online cao cấp"}
@@ -137,12 +150,14 @@ export default function LoginModal() {
         <div className="flex bg-gray-100 p-1 rounded-xl mb-5 text-xs font-bold">
           <button
             type="button"
+            disabled={loading}
+            aria-pressed={mode === "login"}
             onClick={() => {
               setMode("login");
               setError(null);
               setSuccess(null);
             }}
-            className={`flex-1 py-2 rounded-lg transition-all ${
+            className={`flex-1 min-h-11 py-2 rounded-lg transition-all disabled:opacity-50 ${
               mode === "login"
                 ? "bg-white text-gray-900 shadow-xs"
                 : "text-gray-500 hover:text-gray-700"
@@ -152,12 +167,14 @@ export default function LoginModal() {
           </button>
           <button
             type="button"
+            disabled={loading}
+            aria-pressed={mode === "register"}
             onClick={() => {
               setMode("register");
               setError(null);
               setSuccess(null);
             }}
-            className={`flex-1 py-2 rounded-lg transition-all ${
+            className={`flex-1 min-h-11 py-2 rounded-lg transition-all disabled:opacity-50 ${
               mode === "register"
                 ? "bg-white text-gray-900 shadow-xs"
                 : "text-gray-500 hover:text-gray-700"
@@ -170,8 +187,9 @@ export default function LoginModal() {
         {/* Google OAuth Button */}
         <button
           type="button"
+          disabled={loading}
           onClick={loginWithGoogle}
-          className="w-full py-2.5 px-4 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-bold text-xs shadow-2xs flex items-center justify-center gap-2.5 transition-all hover:scale-[1.01] active:scale-[0.98] mb-4"
+          className="w-full min-h-11 py-2.5 px-4 rounded-xl border border-gray-200 hover:border-gray-300 bg-white hover:bg-gray-50 text-gray-700 font-bold text-sm shadow-2xs flex items-center justify-center gap-2.5 transition-all hover:scale-[1.01] active:scale-[0.98] mb-4 disabled:opacity-50"
         >
           <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
             <path
@@ -205,64 +223,79 @@ export default function LoginModal() {
 
         {/* Notifications */}
         {error && (
-          <div className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+          <div id={`${formId}-error`} role="alert" className="p-3 mb-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-rose-500" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
-          <div className="p-3 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs flex items-center gap-2">
+          <div role="status" className="p-3 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-500" />
             <span>{success}</span>
           </div>
         )}
 
         {/* Manual Email & Password Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5 text-left text-xs">
+        <form onSubmit={handleSubmit} aria-busy={loading} aria-describedby={error ? `${formId}-error` : undefined} className="space-y-3.5 text-left text-sm">
           {mode === "register" && (
             <div>
-              <label className="block text-gray-700 font-bold mb-1">Họ và tên</label>
+              <label htmlFor={`${formId}-name`} className="block text-gray-700 font-bold mb-1">Họ và tên</label>
               <div className="relative">
                 <User className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
+                  id={`${formId}-name`}
+                  name="name"
+                  autoComplete="name"
                   type="text"
                   required
+                  disabled={loading}
                   placeholder="Ví dụ: Hoàng Thảo"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary transition-colors font-medium"
+                  className="w-full min-h-11 pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-zen-primary transition-colors font-medium text-base"
                 />
               </div>
             </div>
           )}
 
           <div>
-            <label className="block text-gray-700 font-bold mb-1">Địa chỉ Email</label>
+            <label htmlFor={`${formId}-email`} className="block text-gray-700 font-bold mb-1">Địa chỉ Email</label>
             <div className="relative">
               <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                id={`${formId}-email`}
+                name="email"
+                autoComplete="email"
+                autoCapitalize="none"
+                spellCheck={false}
                 type="email"
                 required
+                disabled={loading}
                 placeholder="name@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary transition-colors font-medium"
+                className="w-full min-h-11 pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-zen-primary transition-colors font-medium text-base"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-gray-700 font-bold mb-1">Mật khẩu</label>
+            <label htmlFor={`${formId}-password`} className="block text-gray-700 font-bold mb-1">Mật khẩu</label>
             <div className="relative">
               <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
+                id={`${formId}-password`}
+                name="password"
+                autoComplete={mode === "register" ? "new-password" : "current-password"}
+                minLength={mode === "register" ? 6 : undefined}
                 type="password"
                 required
+                disabled={loading}
                 placeholder="Tối thiểu 6 ký tự"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white focus:outline-none focus:border-zen-primary transition-colors font-medium"
+                className="w-full min-h-11 pl-9 pr-3.5 py-2.5 rounded-xl border border-gray-200 bg-white focus:border-zen-primary transition-colors font-medium text-base"
               />
             </div>
           </div>
@@ -270,10 +303,13 @@ export default function LoginModal() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full mt-2 py-3 rounded-xl bg-zen-primary hover:bg-[#d93849] text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full min-h-11 mt-2 py-3 rounded-xl bg-zen-primary hover:bg-zen-primary-hover text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-50"
           >
             {loading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <>
+                <span aria-hidden="true" className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                <span>Đang xử lý...</span>
+              </>
             ) : (
               <>
                 <span>{mode === "login" ? "Đăng nhập ngay" : "Tạo tài khoản"}</span>
@@ -286,9 +322,9 @@ export default function LoginModal() {
         {/* Security badge */}
         <div className="mt-5 pt-4 border-t border-gray-100 flex items-center justify-center gap-1.5 text-[11px] text-gray-400">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-          <span>Bảo mật mã hóa 256-bit qua Supabase Auth</span>
+          <span>Đăng nhập an toàn để quản lý thiệp của bạn</span>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

@@ -64,6 +64,31 @@ export default function QuickCreateWizardModal({
   const [accountName, setAccountName] = useState("");
   const [coverImageUrl, setCoverImageUrl] = useState("");
 
+  // Khôi phục dữ liệu nháp nếu người dùng vừa đăng nhập thành công
+  React.useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("zenlove_wizard_draft");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.selectedTemplateId) setSelectedTemplateId(parsed.selectedTemplateId);
+        if (parsed.groomName) setGroomName(parsed.groomName);
+        if (parsed.brideName) setBrideName(parsed.brideName);
+        if (parsed.groomPhone) setGroomPhone(parsed.groomPhone);
+        if (parsed.bridePhone) setBridePhone(parsed.bridePhone);
+        if (parsed.weddingDate) setWeddingDate(parsed.weddingDate);
+        if (parsed.weddingTime) setWeddingTime(parsed.weddingTime);
+        if (parsed.venueName) setVenueName(parsed.venueName);
+        if (parsed.venueAddress) setVenueAddress(parsed.venueAddress);
+        if (parsed.bankCode) setBankCode(parsed.bankCode);
+        if (parsed.accountNumber) setAccountNumber(parsed.accountNumber);
+        if (parsed.accountName) setAccountName(parsed.accountName);
+        if (parsed.coverImageUrl) setCoverImageUrl(parsed.coverImageUrl);
+        setStep(4);
+        sessionStorage.removeItem("zenlove_wizard_draft");
+      }
+    } catch {}
+  }, []);
+
   if (!isOpen) return null;
 
   const popularTemplates = ZENLOVE_TEMPLATES.slice(0, 6);
@@ -88,6 +113,26 @@ export default function QuickCreateWizardModal({
 
   const handleFinishAndCreate = async () => {
     if (!userId) {
+      try {
+        sessionStorage.setItem(
+          "zenlove_wizard_draft",
+          JSON.stringify({
+            selectedTemplateId,
+            groomName,
+            brideName,
+            groomPhone,
+            bridePhone,
+            weddingDate,
+            weddingTime,
+            venueName,
+            venueAddress,
+            bankCode,
+            accountNumber,
+            accountName,
+            coverImageUrl,
+          })
+        );
+      } catch {}
       onRequireLogin?.();
       return;
     }

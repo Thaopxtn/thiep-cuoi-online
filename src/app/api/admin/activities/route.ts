@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAggregatedActivities, recordActivity, ActivityType } from "@/lib/activityService";
 import { verifyAdminAuth } from "@/lib/serverAuth";
+import { DatabaseUnavailableError } from "@/lib/serverDb";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
       search,
       limit,
       userId,
+      strictDatabase: true,
     });
 
     // Thống kê nhanh
@@ -45,6 +47,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      status: "live",
+      source: "database_and_runtime",
       total: activities.length,
       todayCount,
       typeBreakdown,
@@ -52,6 +56,13 @@ export async function GET(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     });
   } catch (error: any) {
+    if (error instanceof DatabaseUnavailableError) {
+      return NextResponse.json(
+        { success: false, status: "degraded", source: "unavailable",
+          message: "Không thể xác nhận nhật ký từ cơ sở dữ liệu. Vui lòng thử lại." },
+        { status: 503 }
+      );
+    }
     console.error("Lỗi GET /api/admin/activities:", error);
     return NextResponse.json(
       { success: false, message: error.message || "Lỗi tải lịch sử hoạt động" },

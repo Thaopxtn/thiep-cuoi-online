@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useEffect } from "react";
-import { AlertTriangle, Trash2, X } from "lucide-react";
+import { useId } from "react";
+import { AlertTriangle, Trash2 } from "lucide-react";
+import Dialog from "@/components/ui/Dialog";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -24,21 +25,16 @@ export default function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onCancel]);
+  const dialogId = useId();
 
   if (!isOpen) return null;
 
   return (
-    <div
-      className="fixed inset-0 z-[999999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-      onClick={onCancel}
+    <Dialog
+      isOpen={isOpen}
+      onClose={onCancel}
+      labelledBy={`${dialogId}-title`}
+      describedBy={`${dialogId}-message`}
     >
       <div
         className="w-full max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-gray-100 animate-scale-up"
@@ -59,8 +55,8 @@ export default function ConfirmDialog({
             )}
           </div>
           <div>
-            <h3 className="font-bold text-gray-900 text-base">{title}</h3>
-            <p className="text-xs sm:text-sm text-gray-500 mt-1 leading-relaxed">
+            <h3 id={`${dialogId}-title`} className="font-bold text-gray-900 text-base">{title}</h3>
+            <p id={`${dialogId}-message`} className="text-sm text-gray-600 mt-1 leading-relaxed">
               {message}
             </p>
           </div>
@@ -70,14 +66,14 @@ export default function ConfirmDialog({
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-full border border-gray-200 hover:bg-stone-50 text-gray-700 text-xs font-semibold transition-colors"
+            className="min-h-11 px-4 py-2 rounded-full border border-gray-200 hover:bg-stone-50 text-gray-700 text-sm font-semibold transition-colors"
           >
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className={`px-5 py-2 rounded-full text-white text-xs font-bold shadow-md transition-all hover:scale-105 active:scale-95 ${
+            className={`min-h-11 px-5 py-2 rounded-full text-white text-sm font-bold shadow-md transition-all hover:scale-105 active:scale-95 ${
               isDanger
                 ? "bg-rose-600 hover:bg-rose-700 shadow-rose-600/25"
                 : "bg-zen-primary hover:bg-red-600 shadow-zen-primary/25"
@@ -87,6 +83,6 @@ export default function ConfirmDialog({
           </button>
         </div>
       </div>
-    </div>
+    </Dialog>
   );
 }

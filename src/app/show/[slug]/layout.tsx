@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getCardByIdOrSlugFromDb } from "@/lib/serverDb";
 import { INITIAL_CARDS } from "@/data/initialCards";
 import { ZENLOVE_TEMPLATES } from "@/data/zenloveTemplates";
+import { getSiteUrl } from "@/lib/siteConfig";
 
 export async function generateMetadata({
   params,
@@ -51,7 +52,7 @@ export async function generateMetadata({
     console.warn("Lỗi generateMetadata /show/[slug]:", err);
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://zenlove.me";
+  const siteUrl = getSiteUrl();
   const cardUrl = `${siteUrl}/show/${slug}`;
   const ogImageUrl = `${siteUrl}/api/og/${slug}`;
 
@@ -83,10 +84,66 @@ export async function generateMetadata({
   };
 }
 
-export default function ShowSlugLayout({
+export default async function ShowSlugLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: { slug: string };
 }) {
-  return <>{children}</>;
+  const { slug } = params;
+  let eventSchema: Record<string, any> | null = null;
+
+  try {
+    const card =
+      (await getCardByIdOrSlugFromDb(slug)) ||
+      INITIAL_CARDS.find((c) => c.slug === slug || c.id === slug);
+
+    if (card) {
+      const gName = card.groom?.name || "Chú Rể";
+      const bName = card.bride?.name || "Cô Dâu";
+      const eventName = `Lễ Thành Hôn ${gName} & ${bName}`;
+      const firstEvent = card.events?.[0];
+
+      eventSchema = {
+        "@context": "https://schema.org",
+        "@type": "Event",
+        name: eventName,
+        description:
+          card.story ||
+          `Trân trọng kính mời quý khách tham dự lễ thành hôn của ${gName} & ${bName}.`,
+        startDate: card.weddingDate
+          ? `${card.weddingDate}T${card.weddingTime || "11:00"}:00+07:00`
+          : undefined,
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        location: firstEvent
+          ? {
+              "@type": "Place",
+              name: firstEvent.venue,
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: firstEvent.address,
+                addressCountry: "VN",
+              },
+            }
+          : undefined,
+        image: card.coverImage ? [card.coverImage] : undefined,
+      };
+    }
+  } catch (err) {
+    console.warn("Lỗi sinh Schema.org Event trong ShowSlugLayout:", err);
+  }
+
+  return (
+    <>
+      {eventSchema && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(eventSchema).replace(/</g, "\\u003c") }}
+        />
+      )}
+      {children}
+    </>
+  );
 }
