@@ -60,6 +60,10 @@ Studio đã được commit/push lên `Thaopxtn/thiep-cuoi-online` theo yêu c�
 
 Lượt lịch tự động tiếp theo vẫn không tự push/deploy. Ngoài lộ trình Studio, cần chuẩn bị sửa guest-photo wall dùng durable storage/server getter và đồng bộ giới hạn upload, kiểm chứng bằng QA/staging trước khi phát hành; không tự áp migration vào database production.
 
-Automation `ti-p-t-c-n-ng-c-p-zenlove-studio` gắn với chat này, chạy **01:50 hằng ngày** theo giờ máy (Asia/Bangkok, đã xác nhận Windows UTC+07:00). Lượt15/11 đã bắt đầu; lần kế tiếp **16/11/2026**. Trước khi chạy phải đọc hạn mức; nếu vẫn giới hạn thì ghi nhận và chờ lượt lịch sau. Không tự mua quota/reset hoặc đổi model. Khi toàn bộ lộ trình đã hoàn tất và không còn lý do tiếp tục, xóa automation bằng công cụ chính thức và thông báo đã dừng lịch.
+### Hậu kiểm ngày16/11
+
+Yêu cầu triển khai trực tiếp đang dở được hoàn tất trước khi chuyển sang lượt nâng cấp Studio mới. Bản `66696da` đã được Vercel/CI xác nhận thành công và URL canonical thực tế đúng production. Hậu kiểm mobile phát hiện trang chủ có thể trượt ngang12px vì animation ngoài viewport; áp `overflow-x:clip` tại main trang chủ và kiểm thử normal motion. Bản vá đạt614 unit tests, build228 trang và33 UI cases/1skip; kết quả phát hành cuối xem GitHub/Vercel gắn HEAD. Không triển khai tính năng mới riêng của lịch hoặc sửa dữ liệu khách.
+
+Automation `ti-p-t-c-n-ng-c-p-zenlove-studio` gắn với chat này, chạy **01:50 hằng ngày** theo giờ máy (Asia/Bangkok, đã xác nhận Windows UTC+07:00). Lượt16/11 đã bắt đầu; lần kế tiếp **17/11/2026**. Trước khi chạy phải đọc hạn mức; nếu vẫn giới hạn thì ghi nhận và chờ lượt lịch sau. Không tự mua quota/reset hoặc đổi model. Khi toàn bộ lộ trình đã hoàn tất và không còn lý do tiếp tục, xóa automation bằng công cụ chính thức và thông báo đã dừng lịch.
 
 Không tự push/deploy hoặc áp migration production trong lượt được lên lịch. Dữ liệu kiểm thử dùng tài khoản, card và database có tiền tố QA riêng. Trạng thái lịch không đảm bảo máy sẽ thức hoặc ứng dụng đang mở tại giờ chạy.

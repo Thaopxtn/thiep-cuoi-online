@@ -111,6 +111,12 @@ test("FAQ exposes only the expanded answer to assistive technology", async ({ pa
 
 test("homepage keeps navigation and its primary action within responsive viewports", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name === "mobile", "The viewport sweep runs once in the desktop browser context.");
+  // Offscreen reveal transforms must not make the document wider before the
+  // sections enter view, including when normal motion is enabled.
+  await page.setViewportSize({ width: 375, height: 960 });
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.evaluate(() => window.scrollTo(100, 0));
+  await expect.poll(() => page.evaluate(() => scrollX)).toBe(0);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(page.locator("main#main-content")).toHaveCount(1);

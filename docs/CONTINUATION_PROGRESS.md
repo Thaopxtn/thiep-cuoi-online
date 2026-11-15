@@ -1,5 +1,12 @@
 # Tiến độ hoàn thiện ZenLove
 
+## 16/11/2026 — Hoàn tất hậu kiểm yêu cầu triển khai web
+
+- Tiếp tục yêu cầu triển khai trực tiếp đang dở khi lượt lịch tới, không mở thêm tính năng Studio để tự phát hành. Bản `66696da` đã có Vercel Production success và cả hai job GitHub CI (`verify`, `integration`) đạt; canonical/robots/sitemap trên website thật dùng `https://thiep-cuoi-online-eight.vercel.app`, không còn localhost.
+- Kiểm tra Edge thực tế trên mobile375px phát hiện scrollWidth387px/scrollX12px do AnimateOnScroll của khối ngoài màn hình còn translateX28px. Thử CSS ngay trong phiên kiểm tra cho thấy `main overflow-x:clip` đưa về375px/scrollX0. Đã áp dụng đúng ở main của trang chủ; không tạo scroll container, không sửa editor, Navbar, support, footer hoặc login modal nằm ngoài main.
+- Bổ sung kiểm thử viewport ở normal motion trước lượt reduced-motion có sẵn, yêu cầu document vừa màn hình và không thể scroll ngang. Bản vá đạt **614 unit tests**, TypeScript/lint, **228 trang QA build**, **33 UI cases desktop/mobile đạt và1skip viewport có chủ đích**. Log `test-reports/deploy-final-{check,build,ui}.log`. Prefetch show metadata trả503 ở UI QA vì không chạy fixtureDB; không phải lỗi DB production hoặc test persistence.
+- Bản vá bố cục là phần hoàn tất hậu kiểm của yêu cầu triển khai web đã được giao; phát hành tiếp qua main/Vercel rồi kiểm tra URL/CI gắn commit mới nhất. Không áp SQL hoặc ghi dữ liệu khách để thử. Lịch nâng cấp còn mục chưa hoàn thành và tiếp tục hoạt động, lượt sau vẫn không tự push/deploy thay đổi mới.
+
 ## 15/11/2026 — Phát hành Studio lên Vercel
 
 - Theo yêu cầu triển khai web, đã xác minh GitHub đăng nhập hợp lệ và Vercel Git integration của `Thaopxtn/thiep-cuoi-online`. Commit Studio `1cfacc5` đã được đẩy lên main, Vercel xác nhận Production success. Website: `https://thiep-cuoi-online-eight.vercel.app`; trang chủ/templates/editor/health trả HTTP200, CSS Studio mới đã xuất hiện. Không upload `.next` QA, `.env.local`, dữ liệu runtime hoặc hai script riêng của người dùng.
