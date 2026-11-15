@@ -150,7 +150,15 @@ test("carousel supports explicit controls and honors reduced motion", async ({ p
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(carousel.getByRole("button", { name: "Chuyển động Mẫu thiệp cưới online đã tắt theo tùy chọn giảm chuyển động", exact: true })).toBeDisabled();
   await expect(next).toBeEnabled();
+  // Let the media change paint, then verify a pending previous step is settled:
+  // reduced motion must stop its interpolation, not just disable autoplay.
+  const paintTwoFrames = () => page.evaluate(() => new Promise<void>((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+  }));
+  await paintTwoFrames();
   const reducedBefore = await firstItem.evaluate((element) => (element as HTMLElement).style.transform);
+  await paintTwoFrames();
+  expect(await firstItem.evaluate((element) => (element as HTMLElement).style.transform)).toBe(reducedBefore);
   await next.click();
   await expect.poll(() => firstItem.evaluate((element) => (element as HTMLElement).style.transform)).not.toBe(reducedBefore);
 });

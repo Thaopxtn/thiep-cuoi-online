@@ -113,7 +113,17 @@ export default function ArcCarousel<T extends { id?: string | number }>({
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const handler = () => setReducedMotion(mq.matches);
+    const handler = () => {
+      if (mq.matches) {
+        // Finish the requested step once, then stop animation and inertia. Keeping
+        // its old target would let the next instant step cancel the pending one.
+        const s = state.current;
+        if (s.target !== null) s.offset = s.target;
+        s.target = null;
+        s.velocity = 0;
+      }
+      setReducedMotion(mq.matches);
+    };
     handler();
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);

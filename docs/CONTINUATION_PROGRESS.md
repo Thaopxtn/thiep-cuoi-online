@@ -1,5 +1,13 @@
 # Tiến độ hoàn thiện ZenLove
 
+## 15/11/2026 — Phát hành Studio lên Vercel
+
+- Theo yêu cầu triển khai web, đã xác minh GitHub đăng nhập hợp lệ và Vercel Git integration của `Thaopxtn/thiep-cuoi-online`. Commit Studio `1cfacc5` đã được đẩy lên main, Vercel xác nhận Production success. Website: `https://thiep-cuoi-online-eight.vercel.app`; trang chủ/templates/editor/health trả HTTP200, CSS Studio mới đã xuất hiện. Không upload `.next` QA, `.env.local`, dữ liệu runtime hoặc hai script riêng của người dùng.
+- Kiểm tra sau phát hành phát hiện canonical còn trỏ localhost do cấu hình môi trường. `getSiteUrl` nay dùng tên miền production ổn định do Vercel cung cấp khi cấu hình thiếu hoặc trỏ loopback trên production; giữ nguyên custom domain công khai và môi trường QA cục bộ. Có regression cho server/framework env, URL sai và sitemap/robots; bảy case thất bại trước sửa, đạt sau sửa.
+- CI trên Linux phát hiện race carousel mobile khi bật reduced motion lúc bước trước chưa hoàn tất: target/velocity cũ làm lần chuyển tiếp theo không đổi vị trí. Đã chốt bước đang chờ và xóa quán tính khi đổi chế độ; test xác nhận vị trí dừng qua các frame rồi mới chuyển tiếp. Không thêm retry hoặc nới assertion. Kiểm chứng cục bộ cuối: **614/614 unit tests**, TypeScript/lint đạt, production QA build228 trang; carousel desktop/mobile lặp6lần mỗi loại đạt **12/12**. Log `test-reports/deploy-{check,build,carousel-browser}.log`.
+- Các sửa lỗi được phát hành tiếp qua cùng Git integration; trạng thái thực tế của commit mới nhất xem ở GitHub Actions và deployment Vercel gắn SHA, không suy từ riêng liveness `/api/health`. Không áp SQL hoặc ghi thiệp khách để thử production.
+- Giới hạn cần xử lý tiếp: route ảnh khách gửi vẫn dùng lưu trữ tệp cục bộ và getter phía client nên chưa phù hợp Vercel/Supabase card thật; giới hạn body upload của nền tảng cần đồng bộ với UI/server. Quyền/migration database production chưa được chứng nhận bằng thông tin quản trị của môi trường đích; kết quả schema trên cấu hình cục bộ không được coi là xác minh production. Đây là backlog riêng, không thay đổi âm thầm dữ liệu hoặc hosting.
+
 ## 15/11/2026 01:50 — Command, layer và selection dùng chung
 
 - Đã tiếp tục sau reset hạn mức, giữ nguyên toàn bộ diff chưa commit. Thêm `editorDocument.ts`, `editorCommands.ts`, `useEditorSelection.ts`; lõi mới có kiểu rõ, selection lưu ID và đọc props mới nhất. Đưa thêm/xóa/nhân bản/di chuyển/căn chỉnh qua command bất biến; bảo vệ ROOT/ID trùng, duy trì parent/child/linkedNodes, clone sâu metadata chưa biết và giữ false/0/rỗng. Sáu đường thêm dùng ID UUID/random và đăng ký ROOT, không ghi đè khi thêm cùng timestamp.

@@ -54,6 +54,12 @@ Mỗi đợt phải để lại một phần code sử dụng được, bằng c
 
 ## Lịch tiếp tục
 
+### Phát hành ngày15/11
+
+Studio đã được commit/push lên `Thaopxtn/thiep-cuoi-online` theo yêu cầu triển khai trực tiếp của người dùng; Vercel Git integration phát hành tại `https://thiep-cuoi-online-eight.vercel.app`. Đợt phát hành bổ sung sửa canonical localhost bằng production domain hệ thống và race carousel reduced-motion phát hiện trên CI. Kiểm chứng sửa lỗi:614 unit tests, build228 trang và12 lượt carousel desktop/mobile; xem mục phát hành trong CONTINUATION_PROGRESS và trạng thái GitHub/Vercel của HEAD để biết revision đang chạy.
+
+Lượt lịch tự động tiếp theo vẫn không tự push/deploy. Ngoài lộ trình Studio, cần chuẩn bị sửa guest-photo wall dùng durable storage/server getter và đồng bộ giới hạn upload, kiểm chứng bằng QA/staging trước khi phát hành; không tự áp migration vào database production.
+
 Automation `ti-p-t-c-n-ng-c-p-zenlove-studio` gắn với chat này, chạy **01:50 hằng ngày** theo giờ máy (Asia/Bangkok, đã xác nhận Windows UTC+07:00). Lượt15/11 đã bắt đầu; lần kế tiếp **16/11/2026**. Trước khi chạy phải đọc hạn mức; nếu vẫn giới hạn thì ghi nhận và chờ lượt lịch sau. Không tự mua quota/reset hoặc đổi model. Khi toàn bộ lộ trình đã hoàn tất và không còn lý do tiếp tục, xóa automation bằng công cụ chính thức và thông báo đã dừng lịch.
 
 Không tự push/deploy hoặc áp migration production trong lượt được lên lịch. Dữ liệu kiểm thử dùng tài khoản, card và database có tiền tố QA riêng. Trạng thái lịch không đảm bảo máy sẽ thức hoặc ứng dụng đang mở tại giờ chạy.
