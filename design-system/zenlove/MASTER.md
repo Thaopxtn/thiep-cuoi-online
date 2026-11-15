@@ -19,6 +19,8 @@ Không áp màu thương hiệu ứng dụng lên nội dung canvas. Không đ�
 
 ## Thành phần dùng chung
 
+Giao diện editor áp dụng thêm [hợp đồng ZenLove Studio](pages/studio.md) cho workspace, thư viện, thanh công cụ và inspector. Phần này không áp lại màu hoặc font lên thiệp.
+
 - `Section` quản lý nền/khoảng cách; `SectionHeading` quản lý tiêu đề và mô tả. `.zen-container` dành cho vùng nội dung không dùng `Section`.
 - `.zen-button` kết hợp `.zen-button-primary`, `.zen-button-secondary` hoặc `.zen-button-ghost`. CTA cao tối thiểu 44 px; trạng thái disabled/loading giữ tên truy cập.
 - `.zen-control` cho lựa chọn, bộ lọc và thao tác thứ cấp. Trạng thái chọn dùng `aria-pressed` khi phù hợp.

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
+import { fitEditorViewport } from "@/lib/editorViewport";
 import EditorHeader from "@/components/editor/EditorHeader";
 import EditorLeftRail, { EditorToolTab } from "@/components/editor/EditorLeftRail";
 import EditorLeftDrawer from "@/components/editor/EditorLeftDrawer";
@@ -27,6 +28,11 @@ import { apiFetch } from "@/lib/apiClient";
 import { DEFAULT_LOVE_STORY } from "@/components/show/InteractiveSections";
 import { generateBrandedWeddingSlug } from "@/lib/brandedSlug";
 import { useAuth } from "@/context/AuthContext";
+import { useEditorHistory } from "@/hooks/useEditorHistory";
+import { useEditorSelection } from "@/hooks/useEditorSelection";
+import { resolveEditorSelection } from "@/lib/editorDocument";
+import { applyEditorCommand, type EditorCommand } from "@/lib/editorCommands";
+import { equalHistorySnapshots } from "@/lib/editorHistory";
 import { smartRemoveBackground } from "@/lib/backgroundRemoval";
 import { getSafeImageUrl } from "@/lib/imageUtils";
 import { WeddingFrameItem } from "@/lib/framesCatalog";
@@ -42,6 +48,7 @@ import {
 import {
   repairAndLockDecorativeNodes,
   isDecorativeNode,
+  isElementLocked,
   getRealWeddingPhotoSlots,
 } from "@/lib/decorativeLockService";
 import {
@@ -68,6 +75,10 @@ import { weddingSounds } from "@/lib/soundEffects";
 import LuxuryEnvelopeModal from "@/components/show/LuxuryEnvelopeModal";
 import CinematicEffectsOverlay from "@/components/show/CinematicEffectsOverlay";
 
+function createEditorNodeId(prefix: string): string {
+  return `${prefix}_${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`}`;
+}
+
 export default function DesignTemplatePage() {
   const params = useParams();
   const router = useRouter();
@@ -87,13 +98,24 @@ export default function DesignTemplatePage() {
   const [currentZenloveTemplate, setCurrentZenloveTemplate] = useState<ZenLoveTemplate | null>(null);
 
   // Canvas nodes tree
-  const [nodes, setNodes] = useState<Record<string, any>>({});
-  const [history, setHistory] = useState<Array<Record<string, any>>>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
+  const {
+    value: nodes, setValue: setNodes, history, historyIndex,
+    record: recordHistory, reset: resetHistory, undo: undoHistory, redo: redoHistory,
+  } = useEditorHistory<Record<string, any>>({}, { isEqual: equalHistorySnapshots });
 
-  // Selected element for inspector & canvas bounding box
-  const [selectedElement, setSelectedElement] = useState<SelectedElementData | null>(null);
-  const [selectedElements, setSelectedElements] = useState<SelectedElementData[]>([]);
+  // Selection stores IDs only; canvas and inspector resolve the same current nodes.
+  const { nodeIds: selectedNodeIds, moduleId: selectedFixedModuleId, selectNodes, selectModule: setSelectedFixedModuleId, toggleNode, reconcile: reconcileSelection } = useEditorSelection<FixedModuleId>();
+  const selectedElements = resolveEditorSelection(nodes, selectedNodeIds);
+  const selectedElement = selectedElements.at(-1) ?? null;
+  const setSelectedElement = useCallback((element: SelectedElementData | null) => {
+    selectNodes(element ? [element.id] : []);
+  }, [selectNodes]);
+  const setSelectedElements = useCallback((elements: SelectedElementData[]) => {
+    selectNodes(elements.map((element) => element.id));
+  }, [selectNodes]);
+  useEffect(() => {
+    reconcileSelection(new Set(Object.keys(nodes)));
+  }, [nodes, reconcileSelection]);
 
   // Left tools state
   const [activeLeftTab, setActiveLeftTab] = useState<EditorToolTab>("image");
@@ -131,7 +153,6 @@ export default function DesignTemplatePage() {
   const [customCardData, setCustomCardData] = useState<WeddingCard | null>(null);
   const [cardAlbum, setCardAlbum] = useState<string[]>([]);
   const [activeFixedModuleConfigId, setActiveFixedModuleConfigId] = useState<FixedModuleId | null>(null);
-  const [selectedFixedModuleId, setSelectedFixedModuleId] = useState<FixedModuleId | null>(null);
   const [saveStatus, setSaveStatus] = useState<"saved" | "saving" | "offline" | "error">("saved");
   const [isPublishing, setIsPublishing] = useState(false);
   const autosaveTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -196,39 +217,20 @@ export default function DesignTemplatePage() {
   };
 
   const handleSelectFixedModule = (moduleId: FixedModuleId | null) => {
-    setSelectedElement(null);
-    setSelectedElements([]);
+    selectNodes([]);
     setSelectedFixedModuleId(moduleId);
   };
 
   const handleSelectElement = (el: SelectedElementData | null) => {
     setSelectedElement(el);
-    setSelectedElements(el ? [el] : []);
-    if (el) {
-      setSelectedFixedModuleId(null);
-    }
   };
 
   const handleSelectElements = (elements: SelectedElementData[]) => {
     setSelectedElements(elements);
-    setSelectedElement(elements.length > 0 ? elements[elements.length - 1] : null);
-    if (elements.length > 0) {
-      setSelectedFixedModuleId(null);
-    }
   };
 
   const handleToggleSelectElement = (el: SelectedElementData) => {
-    setSelectedElements((prev) => {
-      const exists = prev.some((item) => item.id === el.id);
-      let updated: SelectedElementData[];
-      if (exists) {
-        updated = prev.filter((item) => item.id !== el.id);
-      } else {
-        updated = [...prev, el];
-      }
-      setSelectedElement(updated.length > 0 ? updated[updated.length - 1] : null);
-      return updated;
-    });
+    toggleNode(el.id);
   };
 
   // Kích hoạt cơ chế tự động lưu ngầm (Real Debounced Autosave với revision coordinator)
@@ -275,14 +277,11 @@ export default function DesignTemplatePage() {
   // Push new state to history
   const pushHistory = useCallback(
     (newNodes: Record<string, any>) => {
-      setHistory((prev) => {
-        const sliced = prev.slice(0, historyIndex + 1);
-        return [...sliced, newNodes];
-      });
-      setHistoryIndex((prev) => prev + 1);
+      recordHistory(newNodes);
+      // A command may also synchronize card metadata without changing its nodes.
       triggerDebouncedAutosave(newNodes);
     },
-    [historyIndex, triggerDebouncedAutosave]
+    [recordHistory, triggerDebouncedAutosave]
   );
 
   // Cảnh báo người dùng nếu rời trang khi có thay đổi chưa lưu an toàn
@@ -298,20 +297,21 @@ export default function DesignTemplatePage() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [saveStatus]);
 
-  // Tự động tối ưu giao diện trên thiết bị di động (Mobile Responsive Initialization)
+  const documentWidth = Number(nodes.ROOT?.props?.width) || 500;
+  // Initial mobile fit follows the document width; manual desktop zoom stays untouched.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const handleResize = () => {
       const isMobile = window.innerWidth < 768;
       if (isMobile) {
-        const mobileZoom = Number(Math.max(0.45, Math.min(0.85, (window.innerWidth - 24) / 500)).toFixed(2));
+        const mobileZoom = Math.min(0.85, fitEditorViewport({ documentWidth, documentHeight: 1400, viewportWidth: window.innerWidth, viewportHeight: window.innerHeight, padding: 16, mode: "width" }));
         setZoomLevel(mobileZoom);
       }
     };
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, []);
+  }, [documentWidth]);
 
   // Fetch real template nodes from API
   useEffect(() => {
@@ -358,9 +358,7 @@ export default function DesignTemplatePage() {
         const targetTplId = cardToApply.templateId || templateId;
         const { repairedNodes: repairedCardNodes } = repairAndLockDecorativeNodes(cardNodes, targetTplId);
         cardNodes = repairedCardNodes;
-        setNodes(cardNodes);
-        setHistory([cardNodes]);
-        setHistoryIndex(0);
+        resetHistory(cardNodes);
 
         const realSlots = getRealWeddingPhotoSlots(cardNodes, targetTplId);
         const targetPhotoNode = realSlots[0]
@@ -448,9 +446,7 @@ export default function DesignTemplatePage() {
                     fetchedNodes = convertFormTemplateToCanvasNodes(fetchedNodes, json.data);
                   }
                   const { repairedNodes } = repairAndLockDecorativeNodes(fetchedNodes, tplIdToFetch);
-                  setNodes(repairedNodes);
-                  setHistory([repairedNodes]);
-                  setHistoryIndex(0);
+                  resetHistory(repairedNodes);
                   const updatedWithNodes = { ...activeCard, nodes: repairedNodes };
                   setCustomCardData(updatedWithNodes);
                   saveCard(updatedWithNodes);
@@ -489,9 +485,7 @@ export default function DesignTemplatePage() {
               // Tự động khôi phục và khóa cố định các họa tiết trang trí chuẩn của template (chỉ áp dụng cho Hồng Phong, dọn dẹp cho mẫu khác)
               const { repairedNodes: repairedFetchedNodes } = repairAndLockDecorativeNodes(fetchedNodes, templateId);
               fetchedNodes = repairedFetchedNodes;
-              setNodes(fetchedNodes);
-              setHistory([fetchedNodes]);
-              setHistoryIndex(0);
+              resetHistory(fetchedNodes);
 
               if (json.data?.name) {
                 setTemplateName(json.data.name);
@@ -596,9 +590,7 @@ export default function DesignTemplatePage() {
               },
             },
           };
-          setNodes(initialNodes);
-          setHistory([initialNodes]);
-          setHistoryIndex(0);
+          resetHistory(initialNodes);
           setSelectedElement({
             id: "photo_hero",
             type: "PhotoBox",
@@ -617,7 +609,7 @@ export default function DesignTemplatePage() {
     return () => {
       isMounted = false;
     };
-  }, [templateId, triggerDebouncedAutosave]);
+  }, [templateId, triggerDebouncedAutosave, resetHistory, setSelectedElement]);
 
   // Support browser Back/Forward navigation without full reload
   useEffect(() => {
@@ -634,35 +626,24 @@ export default function DesignTemplatePage() {
     return () => window.removeEventListener("popstate", handlePopState);
   }, [templateId]);
 
-  // Undo / Redo handlers với persistence coordinator
+  // Restore both selection views so the inspector never edits a deleted snapshot.
+  const restoreHistorySelection = (restoredNodes: Record<string, any>) => {
+    reconcileSelection(new Set(Object.keys(restoredNodes)));
+  };
+
+  // History navigation is atomic even if several commands arrive before a render.
   const handleUndo = () => {
-    if (historyIndex > 0) {
-      const prevNodes = history[historyIndex - 1];
-      setNodes(prevNodes);
-      setHistoryIndex(historyIndex - 1);
-      if (selectedElement && prevNodes[selectedElement.id]) {
-        setSelectedElement({
-          ...selectedElement,
-          props: prevNodes[selectedElement.id].props,
-        });
-      }
-      triggerDebouncedAutosave(prevNodes);
-    }
+    const result = undoHistory();
+    if (!result.changed) return;
+    restoreHistorySelection(result.value);
+    triggerDebouncedAutosave(result.value);
   };
 
   const handleRedo = () => {
-    if (historyIndex < history.length - 1) {
-      const nextNodes = history[historyIndex + 1];
-      setNodes(nextNodes);
-      setHistoryIndex(historyIndex + 1);
-      if (selectedElement && nextNodes[selectedElement.id]) {
-        setSelectedElement({
-          ...selectedElement,
-          props: nextNodes[selectedElement.id].props,
-        });
-      }
-      triggerDebouncedAutosave(nextNodes);
-    }
+    const result = redoHistory();
+    if (!result.changed) return;
+    restoreHistorySelection(result.value);
+    triggerDebouncedAutosave(result.value);
   };
 
   // Update element properties with two-way smart sync
@@ -712,12 +693,6 @@ export default function DesignTemplatePage() {
 
       pushHistory(newNodes);
 
-      if (selectedElement?.id === elementId) {
-        setSelectedElement({
-          ...selectedElement,
-          props: nextNode.props,
-        });
-      }
       return newNodes;
     });
   };
@@ -734,53 +709,46 @@ export default function DesignTemplatePage() {
     }
   };
 
+  // Node commands share one immutable transition and one undo/autosave boundary.
+  const executeNodeCommand = (command: EditorCommand) => {
+    setNodes((previous) => {
+      const result = applyEditorCommand(previous, command, {
+        idFactory: () => createEditorNodeId("node"),
+        canTransform: (id, node) => !isElementLocked(id, node),
+      });
+      if (!result.changed) return previous;
+      pushHistory(result.nodes);
+      if (command.type === "insert" || command.type === "delete" || command.type === "duplicate") selectNodes(result.selectedIds);
+      return result.nodes;
+    });
+  };
+
   // Delete element
   const handleDeleteElement = (elementId: string) => {
-    setNodes((prev) => {
-      const copy = { ...prev };
-      delete copy[elementId];
-      pushHistory(copy);
-      setSelectedElement(null);
-      return copy;
-    });
+    executeNodeCommand({ type: "delete", ids: [elementId] });
   };
 
   // Duplicate element
   const handleDuplicateElement = (elementId: string) => {
-    setNodes((prev) => {
-      const source = prev[elementId];
-      if (!source) return prev;
-      const newId = `node_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-      const duplicated = {
-        ...source,
-        props: {
-          ...source.props,
-          top: (source.props?.top || 0) + 20,
-          left: (source.props?.left || 0) + 20,
-        },
-      };
-      const newNodes = { ...prev, [newId]: duplicated };
-      pushHistory(newNodes);
-      setSelectedElement({
-        id: newId,
-        type: duplicated.type?.resolvedName || "Widget",
-        props: duplicated.props,
-      });
-      return newNodes;
-    });
+    executeNodeCommand({ type: "duplicate", ids: [elementId], offset: { x: 20, y: 20 } });
   };
 
   // Global Keyboard Shortcuts (Ctrl+Z, Ctrl+Y, Ctrl+S, Delete, Duplicate, Nudge, Deselect)
   const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.defaultPrevented) return;
       const target = e.target as HTMLElement;
       if (
         target &&
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT" ||
           target.isContentEditable)
       ) {
         return;
       }
+      // Navigation/destructive keys in application controls must not edit the canvas.
+      if (target?.closest?.('dialog, [role="dialog"]')) return;
+      if (!e.ctrlKey && !e.metaKey && target?.closest?.('button, a, [role="button"], [role="menu"]')) return;
 
       // Undo: Ctrl + Z
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.shiftKey) {
@@ -815,7 +783,7 @@ export default function DesignTemplatePage() {
       // Lock / Unlock: Ctrl + L
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "l" && selectedElement) {
         e.preventDefault();
-        const currentLocked = Boolean(selectedElement.props?.locked);
+        const currentLocked = isElementLocked(selectedElement.id, nodes[selectedElement.id]);
         handleUpdateProps(selectedElement.id, { locked: !currentLocked });
         showToast(currentLocked ? "🔓 Đã mở khóa phần tử!" : "🔒 Đã khóa cố định phần tử!");
       }
@@ -852,39 +820,14 @@ export default function DesignTemplatePage() {
         setIsLivePreviewOpen(false);
         setIsShortcutsModalOpen(false);
       }
-      // Nudge with Arrow Keys (1px, or 10px with Shift)
-      else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
-        const isMulti = selectedElements && selectedElements.length > 1;
-        if (isMulti) {
-          e.preventDefault();
-          const step = e.shiftKey ? 10 : 1;
-          let dx = 0;
-          let dy = 0;
-          if (e.key === "ArrowUp") dy = -step;
-          if (e.key === "ArrowDown") dy = step;
-          if (e.key === "ArrowLeft") dx = -step;
-          if (e.key === "ArrowRight") dx = step;
-
-          selectedElements.forEach((el) => {
-            const curL = Number(nodes[el.id]?.props?.left ?? 0);
-            const curT = Number(nodes[el.id]?.props?.top ?? 0);
-            handleUpdateProps(el.id, { left: curL + dx, top: curT + dy });
-          });
-        } else if (selectedElement) {
-          e.preventDefault();
-          const step = e.shiftKey ? 10 : 1;
-          const currentLeft = Number(selectedElement.props?.left ?? 0);
-          const currentTop = Number(selectedElement.props?.top ?? 0);
-          let newLeft = currentLeft;
-          let newTop = currentTop;
-
-          if (e.key === "ArrowUp") newTop -= step;
-          if (e.key === "ArrowDown") newTop += step;
-          if (e.key === "ArrowLeft") newLeft -= step;
-          if (e.key === "ArrowRight") newLeft += step;
-
-          handleUpdateProps(selectedElement.id, { left: newLeft, top: newTop });
-        }
+      // A group movement is a single command, regardless of how many nodes are selected.
+      else if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key) && selectedElements.length > 0) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        executeNodeCommand({
+          type: "move", ids: selectedElements.map((element) => element.id),
+          delta: { x: e.key === "ArrowLeft" ? -step : e.key === "ArrowRight" ? step : 0, y: e.key === "ArrowUp" ? -step : e.key === "ArrowDown" ? step : 0 },
+        });
       }
   };
   const keyboardHandlerRef = useRef(handleKeyDown);
@@ -895,27 +838,26 @@ export default function DesignTemplatePage() {
     return () => window.removeEventListener("keydown", listener);
   }, []);
 
-  // Canva-style Fit to Screen calculation (hỗ trợ cả Mobile & Desktop)
+  // Fit the remaining workspace, including open library/inspector panels.
   const handleFitToScreen = () => {
     if (typeof window === "undefined") return;
-    const isMobile = window.innerWidth < 768;
-    if (isMobile) {
-      const targetZoom = Number(Math.max(0.5, Math.min(1.0, (window.innerWidth - 24) / 500)).toFixed(2));
-      setZoomLevel(targetZoom);
-      showToast(`🔍 Đã căn vừa chiều rộng điện thoại (${Math.round(targetZoom * 100)}%)`);
-    } else {
-      const availableHeight = window.innerHeight - 150;
-      const rootProps = nodes["ROOT"]?.props || {};
-      const rootH = Number(rootProps.height) || 1600;
-      const targetZoom = Math.max(0.4, Math.min(1.25, availableHeight / rootH));
-      setZoomLevel(Number(targetZoom.toFixed(2)));
-      showToast(`🔍 Đã căn chỉnh vừa màn hình (${Math.round(targetZoom * 100)}%)`);
-    }
+    const viewport = document.getElementById("canvas-main-scroll-area");
+    const padding = viewport ? parseFloat(window.getComputedStyle(viewport).paddingLeft) : 16;
+    const targetZoom = fitEditorViewport({
+      documentWidth,
+      documentHeight: Number(nodes.ROOT?.props?.height) || 1400,
+      viewportWidth: viewport?.clientWidth || window.innerWidth,
+      viewportHeight: viewport?.clientHeight || window.innerHeight,
+      padding,
+      mode: window.innerWidth < 768 ? "width" : "page",
+    });
+    setZoomLevel(targetZoom);
+    showToast(`Đã căn vừa vùng làm việc (${Math.round(targetZoom * 100)}%)`);
   };
 
   // Add new image from left drawer
   const handleAddImage = (url: string) => {
-    const newId = `photo_${Date.now()}`;
+    const newId = createEditorNodeId("photo");
     const newNode = {
       type: { resolvedName: "PhotoBox" },
       props: {
@@ -929,7 +871,7 @@ export default function DesignTemplatePage() {
       },
     };
     setNodes((prev) => {
-      const newNodes = { ...prev, [newId]: newNode };
+      const newNodes = applyEditorCommand(prev, { type: "insert", id: newId, node: newNode }).nodes;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: "PhotoBox", props: newNode.props });
       return newNodes;
@@ -938,7 +880,7 @@ export default function DesignTemplatePage() {
 
   // Add new text from left drawer with anti-overlap positioning
   const handleAddText = (text: string, type: "heading" | "subheading" | "body") => {
-    const newId = `text_${Date.now()}`;
+    const newId = createEditorNodeId("text");
     const fontSize = type === "heading" ? 32 : type === "subheading" ? 22 : 16;
     const width = 400;
     const height = 50;
@@ -962,7 +904,7 @@ export default function DesignTemplatePage() {
       }
 
       // Đẩy các phần tử phía dưới xuống để tránh đè lên
-      const newNodes = shiftNodesBelow(prev, shiftThresholdY, shiftAmount);
+      let newNodes = shiftNodesBelow(prev, shiftThresholdY, shiftAmount);
 
       const newNode = {
         type: { resolvedName: "TextBox" },
@@ -979,7 +921,7 @@ export default function DesignTemplatePage() {
         },
       };
 
-      newNodes[newId] = newNode;
+      newNodes = applyEditorCommand(newNodes, { type: "insert", id: newId, node: newNode }).nodes;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: "TextBox", props: newNode.props });
       setSelectedElements([{ id: newId, type: "TextBox", props: newNode.props }]);
@@ -1020,7 +962,7 @@ export default function DesignTemplatePage() {
       }
     }
 
-    if (!targetUrl || !targetId) {
+    if (typeof targetUrl !== "string" || !targetUrl || !targetId) {
       showToast("Vui lòng chọn một ảnh trên thiệp để xóa phông nền");
       return;
     }
@@ -1064,7 +1006,7 @@ export default function DesignTemplatePage() {
       }
     }
 
-    if (!targetUrl || !targetId) {
+    if (typeof targetUrl !== "string" || !targetUrl || !targetId) {
       showToast("Vui lòng chọn một ảnh trên thiệp để chỉnh sửa xóa nền");
       return;
     }
@@ -1125,7 +1067,7 @@ export default function DesignTemplatePage() {
     name: string,
     pos?: { left?: number; top?: number; x?: number; y?: number }
   ) => {
-    const newId = `stock_${Date.now()}`;
+    const newId = createEditorNodeId("stock");
     setNodes((prev) => {
       let targetLeft = pos ? (pos.left ?? pos.x ?? 175) : 175;
       let targetTop = pos ? (pos.top ?? pos.y ?? 400) : 400;
@@ -1152,7 +1094,7 @@ export default function DesignTemplatePage() {
         },
       };
 
-      const newNodes = { ...prev, [newId]: newNode };
+      const newNodes = applyEditorCommand(prev, { type: "insert", id: newId, node: newNode }).nodes;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: "PhotoBox", props: newNode.props });
       setSelectedElements([{ id: newId, type: "PhotoBox", props: newNode.props }]);
@@ -1165,7 +1107,7 @@ export default function DesignTemplatePage() {
     frame: WeddingFrameItem,
     pos?: { left?: number; top?: number; x?: number; y?: number }
   ) => {
-    const newId = `frame_${Date.now()}`;
+    const newId = createEditorNodeId("frame");
     const frameW = frame.defaultWidth;
     const frameH = frame.defaultHeight;
     const gap = 20;
@@ -1215,7 +1157,7 @@ export default function DesignTemplatePage() {
         },
       };
 
-      const newNodes = { ...baseNodes, [newId]: newNode };
+      const newNodes = applyEditorCommand(baseNodes, { type: "insert", id: newId, node: newNode }).nodes;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: "PhotoBox", props: newNode.props });
       setSelectedElements([{ id: newId, type: "PhotoBox", props: newNode.props }]);
@@ -1279,123 +1221,22 @@ export default function DesignTemplatePage() {
     handleShiftElementsBelow(threshold, height);
   };
 
-  // Nhân bản nhiều đối tượng cùng lúc (Duplicate Multi-Selection)
+  // Single and multi-selection actions use the same graph-aware command pipeline.
   const handleDuplicateMultiple = (ids: string[]) => {
-    if (!ids || ids.length === 0) return;
-    setNodes((prev) => {
-      const newNodes = { ...prev };
-      const duplicatedElements: SelectedElementData[] = [];
-      const offset = 24;
-
-      ids.forEach((id) => {
-        const original = prev[id];
-        if (!original || id === "ROOT") return;
-        const newId = `${id}_copy_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-        const duplicated = {
-          ...original,
-          props: {
-            ...original.props,
-            top: Number(original.props?.top ?? 0) + offset,
-            left: Number(original.props?.left ?? 0) + offset,
-          },
-        };
-        newNodes[newId] = duplicated;
-        duplicatedElements.push({
-          id: newId,
-          type: duplicated.type?.resolvedName || "Element",
-          props: duplicated.props,
-        });
-      });
-
-      pushHistory(newNodes);
-      if (duplicatedElements.length > 0) {
-        setSelectedElements(duplicatedElements);
-        setSelectedElement(duplicatedElements[0]);
-      }
-      return newNodes;
-    });
+    executeNodeCommand({ type: "duplicate", ids, offset: { x: 24, y: 24 } });
   };
 
-  // Xóa nhiều đối tượng cùng lúc (Delete Multi-Selection)
   const handleDeleteMultiple = (ids: string[]) => {
-    if (!ids || ids.length === 0) return;
-    setNodes((prev) => {
-      const newNodes = { ...prev };
-      ids.forEach((id) => {
-        if (id !== "ROOT") {
-          delete newNodes[id];
-        }
-      });
-      pushHistory(newNodes);
-      setSelectedElements([]);
-      setSelectedElement(null);
-      return newNodes;
-    });
+    executeNodeCommand({ type: "delete", ids });
   };
 
-  // Căn gióng nhiều đối tượng (Align Multi-Selection)
-  const handleAlignMultiple = (
-    ids: string[],
-    alignment: "left" | "center" | "right" | "top" | "middle" | "bottom"
-  ) => {
-    if (!ids || ids.length < 2) return;
-    setNodes((prev) => {
-      const validNodes = ids
-        .map((id) => ({ id, node: prev[id] }))
-        .filter((item) => item.node && item.id !== "ROOT");
-      if (validNodes.length < 2) return prev;
-
-      let minLeft = Infinity;
-      let maxRight = -Infinity;
-      let minTop = Infinity;
-      let maxBottom = -Infinity;
-
-      validNodes.forEach(({ node }) => {
-        const l = Number(node.props?.left ?? 0);
-        const t = Number(node.props?.top ?? 0);
-        const w = Number(node.props?.width ?? 100);
-        const h = Number(node.props?.height ?? 100);
-        minLeft = Math.min(minLeft, l);
-        maxRight = Math.max(maxRight, l + w);
-        minTop = Math.min(minTop, t);
-        maxBottom = Math.max(maxBottom, t + h);
-      });
-
-      const groupCenterX = minLeft + (maxRight - minLeft) / 2;
-      const groupCenterY = minTop + (maxBottom - minTop) / 2;
-
-      const newNodes = { ...prev };
-      validNodes.forEach(({ id, node }) => {
-        const w = Number(node.props?.width ?? 100);
-        const h = Number(node.props?.height ?? 100);
-        let newLeft = Number(node.props?.left ?? 0);
-        let newTop = Number(node.props?.top ?? 0);
-
-        if (alignment === "left") newLeft = minLeft;
-        else if (alignment === "center") newLeft = Math.round(groupCenterX - w / 2);
-        else if (alignment === "right") newLeft = maxRight - w;
-        else if (alignment === "top") newTop = minTop;
-        else if (alignment === "middle") newTop = Math.round(groupCenterY - h / 2);
-        else if (alignment === "bottom") newTop = maxBottom - h;
-
-        newNodes[id] = {
-          ...node,
-          props: {
-            ...node.props,
-            left: newLeft,
-            top: newTop,
-          },
-        };
-      });
-
-      pushHistory(newNodes);
-      return newNodes;
-    });
+  const handleAlignMultiple = (ids: string[], alignment: "left" | "center" | "right" | "top" | "middle" | "bottom") => {
+    executeNodeCommand({ type: "align", ids, alignment });
   };
 
   // Add interactive wedding widget (Countdown, Map, QR, RSVP, Calendar)
   const handleAddWidget = (widgetType: string, customProps?: Record<string, any>) => {
-    const newId = `widget_${Date.now()}`;
+    const newId = createEditorNodeId("widget");
     let defaultProps: Record<string, any> = {
       top: 500,
       left: 40,
@@ -1581,7 +1422,7 @@ export default function DesignTemplatePage() {
     };
 
     setNodes((prev) => {
-      const newNodes = { ...prev };
+      let newNodes = { ...prev };
 
       // Tự động đẩy tất cả các phần tử ở phía dưới xuống dưới
       Object.keys(newNodes).forEach((id) => {
@@ -1612,7 +1453,7 @@ export default function DesignTemplatePage() {
         };
       }
 
-      newNodes[newId] = newNode;
+      newNodes = applyEditorCommand(newNodes, { type: "insert", id: newId, node: newNode }).nodes;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: widgetType, props: newNode.props });
       setSelectedFixedModuleId(null);
@@ -1635,7 +1476,7 @@ export default function DesignTemplatePage() {
 
   // Add styled module preset with smart magnetic alignment & vertical layout reflow
   const handleAddModulePreset = (preset: ModulePresetItem) => {
-    const newId = `preset_${Date.now()}`;
+    const newId = createEditorNodeId("preset");
     const width = preset.defaultWidth || 440;
     const height = preset.defaultHeight || 180;
     const gap = 24;
@@ -1736,7 +1577,7 @@ export default function DesignTemplatePage() {
     };
 
     setNodes((prev) => {
-      const newNodes = { ...prev };
+      let newNodes = { ...prev };
 
       // Tự động đẩy tất cả các layout/phần tử nằm phía dưới xuống dưới
       Object.keys(newNodes).forEach((id) => {
@@ -1767,7 +1608,7 @@ export default function DesignTemplatePage() {
         };
       }
 
-      newNodes[newId] = newNode;
+      newNodes = applyEditorCommand(newNodes, { type: "insert", id: newId, node: newNode }).nodes;
       pushHistory(newNodes);
       setSelectedElement({ id: newId, type: preset.type, props: newNode.props });
       setSelectedFixedModuleId(null);
@@ -2397,8 +2238,8 @@ export default function DesignTemplatePage() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#18181b] overflow-hidden font-sans relative">
-      {/* ================= 1. TOP HEADER (Exact match to screenshot!) ================= */}
+    <div className="zen-studio" aria-label="ZenLove Studio">
+      {/* Document actions and server-confirmed save status. */}
       <EditorHeader
         templateName={templateName}
         canUndo={historyIndex > 0}
@@ -2419,7 +2260,7 @@ export default function DesignTemplatePage() {
       />
 
       {/* ================= 2. WORKSPACE BODY (Rail + Drawer + Canvas + Inspector) ================= */}
-      <div className="flex-1 flex flex-col-reverse md:flex-row overflow-hidden relative">
+      <div className="flex-1 min-h-0 min-w-0 flex flex-col-reverse md:flex-row overflow-hidden relative">
         {/* Leftmost Tool Rail (10 tools) */}
         <EditorLeftRail
           activeTab={activeLeftTab}

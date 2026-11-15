@@ -427,191 +427,47 @@ export default function EditorRightInspector({
   }
 
   if (!selectedElement) {
-    const groomName = card?.groom?.name || "";
-    const brideName = card?.bride?.name || "";
-    const hasInfo = Boolean(groomName && brideName && !groomName.toLowerCase().includes("chú rể"));
-    const hasAlbum = Boolean(card?.album && card.album.length > 0);
-    const hasMusic = Boolean(card?.musicUrl);
-
-    // Tính toán số bước đã hoàn thành (1 đến 5)
-    let completedSteps = 1; // 1. Mẫu đã chọn
-    if (hasInfo) completedSteps++;
-    if (hasAlbum) completedSteps++;
-    if (card?.groom?.bankName || card?.bride?.bankName) completedSteps++;
-    if (hasMusic) completedSteps++;
-    const progressPercent = Math.round((completedSteps / 5) * 100);
+    const groomName = card?.groom?.name ?? "";
+    const brideName = card?.bride?.name ?? "";
+    const actions = [
+      { title: "Thông tin cưới", description: groomName && brideName ? `${groomName} & ${brideName}` : "Tên cô dâu, chú rể, thời gian và địa điểm", icon: Users, onClick: () => onOpenTab?.("autofill") },
+      { title: "Ảnh và album", description: card?.album?.length ? `${card.album.length} ảnh trong album` : "Thêm ảnh cưới vào thiết kế", icon: ImageIcon, onClick: () => onOpenAlbumDrawer ? onOpenAlbumDrawer() : onOpenTab?.("image") },
+      { title: "Hộp mừng VietQR", description: "Tài khoản ngân hàng của hai nhà", icon: QrCode, onClick: () => onOpenSettings ? onOpenSettings() : onOpenTab?.("widgets") },
+      { title: "Nhạc nền", description: card?.musicTitle || "Chọn hoặc tải lên bản nhạc của bạn", icon: Volume2, onClick: () => onOpenTab?.("music") },
+      { title: "Hiệu ứng", description: "Cánh hoa và chuyển động trên thiệp", icon: Sparkles, onClick: () => onOpenTab?.("effects") },
+    ];
 
     return (
-      <aside className="hidden lg:flex w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex-col z-30 select-none shrink-0 shadow-xs overflow-y-auto">
-        {/* Header Tổng quan thiệp cưới */}
-        <div className="p-4 border-b border-gray-100 bg-gradient-to-br from-rose-50/60 via-pink-50/30 to-white">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-rose-500 to-[#e54153] flex items-center justify-center text-white shadow-2xs">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-xs font-bold text-gray-900 truncate">
-                {card?.name || card?.templateName || "Thiệp Cưới Tinh Tế"}
-              </h3>
-              <p className="text-[10px] text-gray-500">Trung tâm thiết kế & xuất bản</p>
-            </div>
+      <aside aria-labelledby="studio-document-heading" data-testid="studio-inspector" className="studio-panel z-30 hidden h-full w-[312px] min-h-0 min-w-0 shrink-0 flex-col border-l border-[var(--studio-border)] bg-[var(--studio-surface)] text-[var(--studio-text)] lg:flex">
+        <div className="min-h-16 shrink-0 border-b border-[var(--studio-border)] px-4 py-3">
+          <h2 id="studio-document-heading" className="text-sm font-semibold">Thiết kế thiệp</h2>
+          <p className="mt-1 truncate text-xs text-[var(--studio-muted)]" title={card?.name || card?.templateName}>{card?.name || card?.templateName || "Bản thiết kế của bạn"}</p>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4">
+          <div className="mb-6 text-sm leading-relaxed text-[var(--studio-muted)]">
+            <Layers className="mb-3 h-6 w-6 text-[var(--studio-accent)]" aria-hidden="true" />
+            <p>Chọn chữ, ảnh hoặc một khối trên thiệp để chỉnh sửa thuộc tính tại đây.</p>
+            <button type="button" onClick={() => onOpenTab?.("layers")} className="studio-button mt-3 w-full justify-start border border-[var(--studio-border)] text-xs font-medium">
+              <Layers className="h-4 w-4" aria-hidden="true" /> Mở bảng lớp
+            </button>
           </div>
-
-          {/* Thanh tiến độ hoàn thiện thiệp */}
-          <div className="mt-3 p-2.5 rounded-xl bg-white border border-rose-100 shadow-2xs">
-            <div className="flex items-center justify-between text-[11px] mb-1.5">
-              <span className="font-semibold text-gray-700">Tiến độ thiệp:</span>
-              <span className="font-bold text-[#e54153]">{progressPercent}%</span>
-            </div>
-            <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-[#e54153] to-rose-400 rounded-full transition-all duration-500"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-gray-500 mt-1.5 leading-tight">
-              {progressPercent >= 80
-                ? "✨ Thiệp đã gần hoàn thiện! Hãy xem thử và xuất bản."
-                : "💡 Nhấn các nút bên dưới để nhanh chóng hoàn thành thiệp."}
-            </p>
+          <h3 className="mb-2 text-xs font-semibold">Nội dung thiệp</h3>
+          <div className="divide-y divide-[var(--studio-border)]">
+            {actions.map(({ title, description, icon: Icon, onClick }) => (
+              <button key={title} type="button" onClick={onClick} className="flex min-h-16 w-full items-center gap-3 rounded-lg px-2 py-3 text-left transition-colors hover:bg-[var(--studio-surface-muted)]">
+                <Icon className="h-4 w-4 shrink-0 text-[var(--studio-muted)]" aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-xs font-semibold">{title}</span>
+                  <span className="mt-1 block truncate text-xs text-[var(--studio-muted)]">{description}</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-[var(--studio-muted)]" aria-hidden="true" />
+              </button>
+            ))}
           </div>
         </div>
-
-        {/* Danh sách hành động ưu tiên (Quick Action Cards) */}
-        <div className="p-4 space-y-2.5 flex-1">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-            Các bước tạo thiệp nhanh
-          </span>
-
-          {/* Bước 1: Thông tin cưới */}
-          <button
-            type="button"
-            onClick={() => onOpenTab?.("autofill")}
-            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
-          >
-            <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-              <Users className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800">1. Thông tin cưới</span>
-                {hasInfo ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                ) : (
-                  <span className="text-[9px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded">Cần điền</span>
-                )}
-              </div>
-              <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                {hasInfo ? `${groomName} & ${brideName}` : "Tên dâu rể, ngày cưới, địa điểm"}
-              </p>
-            </div>
-          </button>
-
-          {/* Bước 2: Thay ảnh cưới & Album */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenAlbumDrawer) onOpenAlbumDrawer();
-              else onOpenTab?.("image");
-            }}
-            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
-          >
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-              <ImageIcon className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800">2. Thay ảnh & Album</span>
-                {hasAlbum ? (
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                ) : (
-                  <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Gợi ý</span>
-                )}
-              </div>
-              <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                {hasAlbum ? `Đã có ${card?.album?.length || 1} ảnh cưới` : "Tải ảnh thật lên thay ảnh mẫu"}
-              </p>
-            </div>
-          </button>
-
-          {/* Bước 3: Hộp mừng cưới VietQR */}
-          <button
-            type="button"
-            onClick={() => {
-              if (onOpenSettings) onOpenSettings();
-              else onOpenTab?.("widgets");
-            }}
-            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
-          >
-            <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-              <QrCode className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800">3. Hộp mừng VietQR</span>
-                <span className="text-[9px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">Tự động QR</span>
-              </div>
-              <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                Tài khoản ngân hàng mừng cưới 2 nhà
-              </p>
-            </div>
-          </button>
-
-          {/* Bước 4: Nhạc nền & Cánh hoa rơi */}
-          <button
-            type="button"
-            onClick={() => onOpenTab?.("effects")}
-            className="w-full p-3 rounded-2xl border border-gray-200/90 hover:border-rose-300 hover:bg-rose-50/30 text-left transition-all cursor-pointer flex items-center gap-3 group shadow-2xs"
-          >
-            <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-gray-800">4. Nhạc & Cánh hoa</span>
-                {hasMusic && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
-              </div>
-              <p className="text-[10px] text-gray-500 truncate mt-0.5">
-                {card?.musicTitle || "Bản nhạc cưới lãng mạn"}
-              </p>
-            </div>
-          </button>
-
-          {/* Mẹo hữu ích */}
-          <div className="p-3 rounded-2xl bg-gray-50 border border-gray-100 text-gray-600 text-[11px] space-y-1 mt-4">
-            <span className="font-bold text-gray-800 flex items-center gap-1">
-              <span>💡</span>
-              <span>Mẹo thiết kế nhanh:</span>
-            </span>
-            <p className="text-[10px] text-gray-500 leading-relaxed">
-              Bạn có thể nhấp chuột trực tiếp vào bất kỳ dòng chữ hoặc bức ảnh nào trên thiệp để sửa nhanh font chữ, cỡ chữ hoặc thay thế ảnh ngay lập tức.
-            </p>
-          </div>
-        </div>
-
-        {/* Footer Actions: Xem thử & Xuất bản */}
-        <div className="p-4 border-t border-gray-100 bg-white space-y-2">
-          {onOpenPreview && (
-            <button
-              type="button"
-              onClick={onOpenPreview}
-              className="w-full py-2.5 px-3 rounded-xl border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Eye className="w-4 h-4 text-gray-500" />
-              <span>Xem Thử Thiệp (Điện Thoại)</span>
-            </button>
-          )}
-
-          {onPublish && (
-            <button
-              type="button"
-              onClick={onPublish}
-              className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5268] hover:from-[#d93849] hover:to-[#e54153] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Xuất Bản Thiệp Cưới Ngay</span>
-            </button>
-          )}
+        <div className="shrink-0 space-y-2 border-t border-[var(--studio-border)] p-4">
+          {onOpenPreview && <button type="button" onClick={onOpenPreview} className="studio-button w-full justify-center border border-[var(--studio-border)] text-xs font-semibold"><Eye className="h-4 w-4" aria-hidden="true" />Xem trước</button>}
+          {onPublish && <button type="button" onClick={onPublish} className="studio-button w-full justify-center bg-[var(--studio-accent)] text-xs font-semibold text-white hover:bg-[var(--studio-accent-hover)]"><Send className="h-4 w-4" aria-hidden="true" />Xuất bản</button>}
         </div>
       </aside>
     );
@@ -680,6 +536,10 @@ export default function EditorRightInspector({
     isCarousel;
 
   const isText = (type === "TextBox" || typeof props.text === "string") && !isSpecialModule;
+  const elementLabel = isText ? "Văn bản" : isImage ? "Ảnh" : isShape ? "Hình khối" : isMap ? "Bản đồ" : isCalendar ? "Lịch cưới" : isCountdown ? "Đếm ngược" : isRsvp ? "Xác nhận tham dự" : isGift || isBankCard ? "Hộp mừng cưới" : isCarousel ? "Album ảnh" : isTimeline ? "Lịch trình" : isDressCode ? "Trang phục" : isCeremony ? "Nghi lễ" : isFamilyInfo ? "Thông tin gia đình" : "Phần tử";
+  const elementDescription = isText && typeof props.text === "string"
+    ? props.text.replace(/<[^>]*>/g, "").trim() || "Chưa có nội dung"
+    : isLocked ? "Đang khóa vị trí" : "Phần tử đang chọn";
 
   const toHexColor = (colorStr?: string): string => {
     if (!colorStr) return "#1c171a";
@@ -707,42 +567,51 @@ export default function EditorRightInspector({
 
   return (
     <>
-      <aside className="hidden lg:flex w-[300px] sm:w-[320px] bg-white border-l border-gray-200 h-full flex-col z-30 select-none shrink-0 shadow-xs">
+      <aside aria-labelledby="studio-selection-heading" data-testid="studio-inspector" className="studio-panel z-30 hidden h-full w-[312px] min-h-0 min-w-0 shrink-0 flex-col border-l border-[var(--studio-border)] bg-[var(--studio-surface)] text-[var(--studio-text)] lg:flex">
+      <div className="flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--studio-border)] px-4 py-2">
+        <div className="min-w-0">
+          <h2 id="studio-selection-heading" className="text-sm font-semibold">{elementLabel}</h2>
+          <p className="mt-1 truncate text-xs text-[var(--studio-muted)]" title={elementDescription}>{elementDescription}</p>
+        </div>
+        {onDeselectElement && <button type="button" onClick={onDeselectElement} className="studio-icon-button shrink-0" title="Bỏ chọn phần tử" aria-label="Bỏ chọn phần tử"><X className="h-4 w-4" aria-hidden="true" /></button>}
+      </div>
       {/* Top Tabs: Cài đặt | Hiệu ứng */}
-      <div className="flex border-b border-gray-200 bg-gray-50/50 p-1 shrink-0">
+      <div role="group" aria-label="Bảng thuộc tính phần tử" className="flex shrink-0 gap-1 border-b border-[var(--studio-border)] bg-[var(--studio-surface-muted)] p-1">
         <button
           type="button"
           onClick={() => setActiveTab("settings")}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+          aria-pressed={activeTab === "settings"}
+          className={`studio-button flex-1 justify-center text-xs font-semibold ${
             activeTab === "settings"
-              ? "bg-white text-gray-900 shadow-2xs"
-              : "text-gray-500 hover:text-gray-800"
+              ? "bg-[var(--studio-surface)] text-[var(--studio-accent)] shadow-sm"
+              : "text-[var(--studio-muted)]"
           }`}
         >
-          <Settings className="w-3.5 h-3.5 text-gray-600" />
+          <Settings className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Cài đặt</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab("effects")}
-          className={`flex-1 py-1.5 text-xs font-semibold rounded-lg flex items-center justify-center gap-1.5 transition-all ${
+          aria-pressed={activeTab === "effects"}
+          className={`studio-button flex-1 justify-center text-xs font-semibold ${
             activeTab === "effects"
-              ? "bg-white text-gray-900 shadow-2xs"
-              : "text-gray-500 hover:text-gray-800"
+              ? "bg-[var(--studio-surface)] text-[var(--studio-accent)] shadow-sm"
+              : "text-[var(--studio-muted)]"
           }`}
         >
-          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Hiệu ứng</span>
         </button>
       </div>
 
       {/* Inspector Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-contain p-4">
         {/* ================= TAB: CÀI ĐẶT (SETTINGS) ================= */}
         {activeTab === "settings" && (
           <div className="space-y-4">
             {/* Thẻ hiển thị & Chạy thử Hiệu ứng của khối riêng */}
-            <div className="p-3 bg-gradient-to-br from-amber-50/80 via-rose-50/40 to-white border border-amber-200/80 rounded-2xl shadow-2xs space-y-2.5">
+            <div className="space-y-2.5 rounded-xl border border-[var(--studio-border)] bg-[var(--studio-surface-muted)] p-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500 animate-pulse" />
@@ -1105,8 +974,9 @@ export default function EditorRightInspector({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-gray-700">Nội dung chữ:</label>
+                  <label htmlFor="studio-desktop-text" className="text-[11px] font-semibold text-gray-700">Nội dung văn bản</label>
                   <textarea
+                    id="studio-desktop-text"
                     value={props.text || ""}
                     onChange={(e) => handlePropChange("text", e.target.value)}
                     rows={3}
@@ -3611,13 +3481,10 @@ export default function EditorRightInspector({
     </aside>
 
     {/* ================= MOBILE BOTTOM SHEET INSPECTOR (< lg) ================= */}
-    <div className="lg:hidden fixed inset-x-0 bottom-0 z-50 bg-white border-t border-gray-200/90 rounded-t-3xl shadow-2xl p-4 pb-[max(1rem,env(safe-area-inset-bottom))] max-h-[55vh] overflow-y-auto animate-slide-up select-none">
-      <div className="w-12 h-1 bg-gray-300 rounded-full mx-auto mb-3" />
-      <div className="flex items-center justify-between pb-2 border-b border-gray-100 mb-3">
+    <section aria-labelledby="studio-mobile-selection-heading" className="studio-panel fixed inset-x-0 bottom-[calc(8.5rem+env(safe-area-inset-bottom))] z-40 max-h-[45dvh] overflow-y-auto overscroll-contain rounded-t-2xl border-t border-[var(--studio-border)] bg-[var(--studio-surface)] p-4 text-[var(--studio-text)] shadow-xl md:bottom-14 lg:hidden">
+      <div className="mb-3 flex items-center justify-between gap-2 border-b border-[var(--studio-border)] pb-2">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-gray-800">
-            {isImage ? "🖼️ Tùy Chỉnh Ảnh Cưới" : isText ? "✏️ Chỉnh Sửa Chữ" : "⚙️ Tùy Chỉnh Phần Tử"}
-          </span>
+          <h2 id="studio-mobile-selection-heading" className="text-sm font-semibold">{elementLabel}</h2>
           {isLocked && (
             <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1">
               <Lock className="w-3 h-3" /> Đang khóa
@@ -3627,8 +3494,9 @@ export default function EditorRightInspector({
         <button
           type="button"
           onClick={() => onDeselectElement?.()}
-          className="p-1 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 cursor-pointer"
+          className="studio-icon-button shrink-0"
           title="Đóng chỉnh sửa"
+          aria-label="Đóng chỉnh sửa"
         >
           <X className="w-4 h-4" />
         </button>
@@ -3638,8 +3506,9 @@ export default function EditorRightInspector({
       {isText && (
         <div className="space-y-3 text-xs">
           <div>
-            <label className="text-[10px] font-bold text-gray-500 uppercase">Nội dung văn bản:</label>
+            <label htmlFor="studio-mobile-text" className="text-xs font-medium text-[var(--studio-muted)]">Nội dung văn bản</label>
             <textarea
+              id="studio-mobile-text"
               value={props.text || ""}
               onChange={(e) => onUpdateProps(id, { text: e.target.value })}
               rows={2}
@@ -3657,7 +3526,8 @@ export default function EditorRightInspector({
                   const sz = parseInt(props.fontSize) || 16;
                   onUpdateProps(id, { fontSize: Math.max(8, sz - 2) });
                 }}
-                className="w-7 h-7 rounded-lg bg-white shadow-2xs font-bold text-gray-700 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
+                className="studio-icon-button font-bold"
+                aria-label="Giảm cỡ chữ"
               >
                 -
               </button>
@@ -3668,24 +3538,27 @@ export default function EditorRightInspector({
                   const sz = parseInt(props.fontSize) || 16;
                   onUpdateProps(id, { fontSize: Math.min(120, sz + 2) });
                 }}
-                className="w-7 h-7 rounded-lg bg-white shadow-2xs font-bold text-gray-700 flex items-center justify-center hover:bg-gray-100 cursor-pointer"
+                className="studio-icon-button font-bold"
+                aria-label="Tăng cỡ chữ"
               >
                 +
               </button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-col items-start gap-2">
             <span className="text-[11px] font-semibold text-gray-600">Màu chữ:</span>
-            <div className="flex items-center gap-1.5">
+            <div className="grid w-full grid-cols-6 gap-1">
               {["#780405", "#e54153", "#d4af37", "#1c171a", "#4a3b32", "#ffffff"].map((color) => (
                 <button
                   key={color}
                   type="button"
                   onClick={() => onUpdateProps(id, { color })}
-                  className="w-6 h-6 rounded-full border border-gray-300 shadow-2xs transition-transform active:scale-90 cursor-pointer"
+                  className="min-h-11 min-w-0 rounded-lg border border-gray-300 cursor-pointer"
                   style={{ backgroundColor: color }}
                   title={color}
+                  aria-label={`Màu chữ ${color}`}
+                  aria-pressed={props.color === color}
                 />
               ))}
             </div>
@@ -3701,10 +3574,10 @@ export default function EditorRightInspector({
               <button
                 type="button"
                 onClick={onReplaceImage}
-                className="flex-1 py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#e54153] to-[#ff5268] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm active:scale-95 cursor-pointer"
+                className="studio-button flex-1 justify-center bg-[var(--studio-accent)] text-xs font-semibold text-white hover:bg-[var(--studio-accent-hover)]"
               >
                 <ImageIcon className="w-4 h-4" />
-                <span>Thay Ảnh Cưới</span>
+                <span>Thay ảnh</span>
               </button>
             )}
 
@@ -3713,10 +3586,10 @@ export default function EditorRightInspector({
                 type="button"
                 onClick={onRemoveBackground}
                 disabled={isRemovingBackground}
-                className="py-2.5 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-gray-700 text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 disabled:opacity-50 cursor-pointer"
+                className="studio-button justify-center border border-[var(--studio-border)] text-xs font-semibold disabled:opacity-50"
               >
                 <Wand2 className="w-4 h-4 text-purple-600" />
-                <span>Tách Nền</span>
+                <span>Tách nền</span>
               </button>
             )}
           </div>
@@ -3725,7 +3598,7 @@ export default function EditorRightInspector({
             <button
               type="button"
               onClick={() => onUpdateProps(id, { locked: !isLocked })}
-              className="text-xs text-gray-600 flex items-center gap-1 hover:text-gray-900 cursor-pointer"
+              className="studio-button text-xs"
             >
               {isLocked ? <Unlock className="w-3.5 h-3.5 text-amber-600" /> : <Lock className="w-3.5 h-3.5" />}
               <span>{isLocked ? "Mở khóa ảnh" : "Khóa vị trí ảnh"}</span>
@@ -3733,7 +3606,7 @@ export default function EditorRightInspector({
           </div>
         </div>
       )}
-    </div>
+    </section>
     </>
   );
 }

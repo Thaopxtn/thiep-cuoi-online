@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useRef, useState, useEffect } from "react";
+import { getEditorLayers, getEditorNodeType, getEditorNumber } from "@/lib/editorDocument";
 import {
   Calendar as CalendarIcon,
   MapPin,
@@ -45,7 +46,7 @@ interface CardScrollAnimatedNodeProps {
   top: number;
   left: number;
   width: number;
-  height: number;
+  height: number | "auto";
   rotation: number;
   opacity: number;
   zIndex: number;
@@ -143,7 +144,7 @@ function CardScrollAnimatedNode({
           top: `${top}px`,
           left: `${left}px`,
           width: `${width}px`,
-          height: `${height}px`,
+          height: height === "auto" ? "auto" : `${height}px`,
           transform: `rotate(${rotation}deg)`,
           opacity: opacity,
           zIndex: zIndex,
@@ -216,7 +217,7 @@ function CardScrollAnimatedNode({
         top: `${top}px`,
         left: `${left}px`,
         width: `${width}px`,
-        height: `${height}px`,
+        height: height === "auto" ? "auto" : `${height}px`,
         transform: `rotate(${rotation}deg)`,
         zIndex: zIndex,
       }}
@@ -260,8 +261,8 @@ export default function CardNodeRenderer({
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
 
-  const baseWidth = Number(rootProps.width) || 500;
-  const baseHeight = Number(rootProps.height) || 4500;
+  const baseWidth = Math.max(1, getEditorNumber(rootProps.width, 500));
+  const baseHeight = getEditorNumber(rootProps.height, 4500);
   const backgroundColor = rootProps.backgroundColor || "#ffffff";
   const bgImg = rootProps.backgroundImage;
   const rawBg = bgImg ? getSafeImageUrl(bgImg, "") : "";
@@ -289,21 +290,17 @@ export default function CardNodeRenderer({
   }, [baseWidth]);
 
   // Extract all child node entries in proper z-order
-  const childNodes = Object.entries(nodes)
-    .filter(([id]) => id !== "ROOT")
-    .map(([id, node]) => ({
+  const childNodes = getEditorLayers(nodes).map(({ id, node, zIndex }) => ({
       id,
-      type: node.type?.resolvedName || "Widget",
+      type: getEditorNodeType(node),
       props: node.props || {},
-      zIndex: Number(node.props?.zIndex) || 1,
-    }))
-    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      zIndex,
+    }));
 
   // Tự động tính toán chiều cao an toàn dựa trên phần tử ở đáy thấp nhất
   const maxChildBottom = childNodes.reduce((max, child) => {
-    const top = Number(child.props?.top ?? 0);
-    const rawH = child.props?.height;
-    const height = typeof rawH === "number" ? rawH : parseFloat(rawH) || 120;
+    const top = getEditorNumber(child.props?.top, 0);
+    const height = getEditorNumber(child.props?.height, 120);
     return Math.max(max, top + height);
   }, 0);
 
@@ -311,7 +308,7 @@ export default function CardNodeRenderer({
   const effectiveBaseHeight =
     maxChildBottom > 0
       ? maxChildBottom + 40
-      : Math.max(Number(rootProps.height || 0), 1200);
+      : Math.max(getEditorNumber(rootProps.height, 0), 1200);
 
   const getImageUrl = (key?: string) => {
     return getSafeImageUrl(key, "");
@@ -344,13 +341,13 @@ export default function CardNodeRenderer({
         {childNodes.map((child) => {
           const { id, type, props } = child;
 
-          const top = Number(props.top) ?? 0;
-          const left = Number(props.left) ?? 0;
-          const width = Number(props.width) ?? 100;
-          const height = Number(props.height) ?? 100;
-          const rotation = Number(props.rotation) ?? 0;
-          const opacity = Number(props.opacity) ?? 1;
-          const zIndex = Number(props.zIndex) ?? 1;
+          const top = getEditorNumber(props.top, 0);
+          const left = getEditorNumber(props.left, 0);
+          const width = getEditorNumber(props.width, 100);
+          const height = props.height === "auto" ? "auto" : getEditorNumber(props.height, 100);
+          const rotation = getEditorNumber(props.rotation, 0);
+          const opacity = getEditorNumber(props.opacity, 1);
+          const zIndex = child.zIndex;
 
           // Continuous animation class
           let animClass = "";

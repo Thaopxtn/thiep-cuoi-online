@@ -63,7 +63,9 @@ import {
   FileJson,
   ShieldCheck,
   Keyboard,
+  X,
 } from "lucide-react";
+import Dialog from "@/components/ui/Dialog";
 import { EditorToolTab } from "./EditorLeftRail";
 import { ZENLOVE_TEMPLATES, ZenLoveTemplate } from "@/data/zenloveTemplates";
 import { compressImageToWebP, formatBytes } from "@/lib/imageCompression";
@@ -117,6 +119,43 @@ import {
 } from "@/lib/unifiedModulesRegistry";
 import EffectConfigPanel from "./EffectConfigPanel";
 import { EffectConfig } from "@/lib/effectsCatalog";
+
+const LIBRARY_TITLES: Record<EditorToolTab, string> = {
+  autofill: "Thông tin thiệp cưới",
+  layers: "Lớp và phần tử",
+  image: "Ảnh và album cưới",
+  text: "Văn bản",
+  background: "Nền thiệp",
+  stock: "Khung và họa tiết",
+  tools: "Công cụ thiết kế",
+  music: "Nhạc nền",
+  widgets: "Khối mẫu",
+  templates: "Mẫu thiệp",
+  effects: "Hiệu ứng",
+  presets: "Màu sắc và font chữ",
+  support: "Hỗ trợ",
+};
+
+/** The mobile library is modal; desktop tools stay beside the artboard. */
+function EditorLibrarySurface({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  const [isCompact, setIsCompact] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsCompact(media.matches);
+    syncViewport();
+    media.addEventListener("change", syncViewport);
+    return () => media.removeEventListener("change", syncViewport);
+  }, []);
+
+  if (!isCompact) return <>{children}</>;
+
+  return (
+    <Dialog isOpen onClose={onClose} labelledBy="studio-library-heading" className="flex min-h-[100dvh] items-end justify-center p-0">
+      {children}
+    </Dialog>
+  );
+}
 
 interface EditorLeftDrawerProps {
   activeTab: EditorToolTab;
@@ -404,6 +443,10 @@ export default function EditorLeftDrawer({
     }
   };
 
+  const closeCompactLibrary = () => {
+    if (window.matchMedia("(max-width: 767px)").matches) onClose();
+  };
+
   const handleCustomizeUnifiedModule = (mod: UnifiedModuleDef) => {
     try {
       weddingSounds.playSoftClick();
@@ -431,6 +474,7 @@ export default function EditorLeftDrawer({
         }
       }
     }
+    closeCompactLibrary();
   };
 
   const handleToggleUnifiedModule = (mod: UnifiedModuleDef, newValue: boolean) => {
@@ -554,6 +598,7 @@ export default function EditorLeftDrawer({
     onApplyAutoFill?.(nodes || {}, partial, { textCount: 0, photoCount: 0, widgetCount: 0 });
     scrollToFixedModule(moduleId);
     onSelectFixedModule?.(moduleId);
+    closeCompactLibrary();
   };
 
   const handleGenerateMapUrl = () => {
@@ -832,6 +877,12 @@ export default function EditorLeftDrawer({
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  useEffect(() => {
+    if (isOpen && activeTab === "music") return;
+    audioRef.current?.pause();
+    setPlayingSongId(null);
+    setAudioUrl(null);
+  }, [isOpen, activeTab]);
   // Audio upload state
   const audioFileInputRef = useRef<HTMLInputElement>(null);
   const [customAudioUrl, setCustomAudioUrl] = useState("");
@@ -1203,64 +1254,27 @@ export default function EditorLeftDrawer({
   ];
 
   return (
-    <>
-      {/* Mobile Backdrop Overlay */}
-      <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-2xs z-40 md:hidden animate-fade-in"
-        onClick={onClose}
-      />
-
-      <aside className="fixed inset-x-0 bottom-0 z-50 md:relative md:inset-auto md:w-[320px] md:h-full bg-white border-t md:border-t-0 md:border-r border-gray-200 flex flex-col max-h-[80vh] md:max-h-full rounded-t-3xl md:rounded-none shadow-2xl md:shadow-sm animate-slide-up md:animate-slide-in select-none shrink-0">
+    <EditorLibrarySurface onClose={onClose}>
+      <aside aria-labelledby="studio-library-heading" data-testid="studio-library" className="studio-panel relative z-30 flex h-[82dvh] max-h-[840px] w-full min-h-0 min-w-0 shrink-0 flex-col rounded-t-2xl border-t border-[var(--studio-border)] bg-[var(--studio-surface)] text-[var(--studio-text)] md:h-full md:max-h-full md:w-[288px] md:rounded-none md:border-r md:border-t-0">
         {/* Pull handle on mobile */}
         <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto my-2 md:hidden" />
 
         {/* Hidden audio element for preview */}
-        <audio ref={audioRef} onEnded={() => setPlayingSongId(null)} />
-
-        {/* Collapse Drawer button on right edge for desktop */}
-        <button
-          type="button"
-          onClick={onClose}
-          className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md text-gray-500 hover:text-gray-900 items-center justify-center z-40 transition-transform hover:scale-110"
-          title="Thu gọn bảng công cụ"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
+        <audio ref={audioRef} src={audioUrl || undefined} autoPlay={Boolean(playingSongId)} onEnded={() => setPlayingSongId(null)} />
 
         {/* Drawer Header */}
-        <div className="px-4 py-3 md:p-4 border-b border-gray-100 flex items-center justify-between">
-          <h3 className="font-bold text-sm text-gray-900 capitalize flex items-center gap-1.5">
-            {activeTab === "autofill" && "Thông tin thiệp cưới"}
-            {activeTab === "layers" && "Lớp & Phần tử"}
-            {activeTab === "image" && "Ảnh & Album cưới"}
-            {activeTab === "text" && "Văn bản"}
-            {activeTab === "background" && "Nền thiệp"}
-            {activeTab === "stock" && "Thành phần đồ họa (Khung & Họa tiết)"}
-            {activeTab === "tools" && "Công cụ & AI"}
-            {activeTab === "music" && "Nhạc nền"}
-            {activeTab === "widgets" && "Khối mẫu"}
-            {activeTab === "templates" && "Mẫu thiệp"}
-            {activeTab === "effects" && "Hiệu ứng"}
-            {activeTab === "presets" && "Màu sắc & Font"}
-            {activeTab === "support" && "Hỗ trợ"}
-          </h3>
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-rose-500 bg-rose-50 px-2 py-0.5 rounded-full">
-              ZenLove Studio
-            </span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="md:hidden w-7 h-7 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center hover:bg-gray-200 text-xs font-bold"
-              title="Đóng bảng công cụ"
-            >
-              ✕
-            </button>
-          </div>
+        <div className="flex min-h-16 shrink-0 items-center justify-between gap-2 border-b border-[var(--studio-border)] px-4 py-2">
+          <h2 id="studio-library-heading" className="min-w-0 text-sm font-semibold leading-5">{LIBRARY_TITLES[activeTab]}</h2>
+          <button type="button" onClick={onClose} className="studio-icon-button hidden shrink-0 md:inline-flex" title="Thu gọn bảng công cụ" aria-label="Thu gọn bảng công cụ">
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <button type="button" onClick={onClose} className="studio-icon-button shrink-0 md:hidden" title="Đóng bảng công cụ" aria-label="Đóng bảng công cụ">
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
         </div>
 
       {/* Drawer Body corresponding to activeTab */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="min-h-0 flex-1 space-y-4 overflow-x-hidden overflow-y-auto overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         {/* ================= 0. TAB: THÔNG TIN THIỆP CƯỚI (ALL-IN-ONE) ================= */}
         {activeTab === "autofill" && (
           <div className="space-y-4">
@@ -1778,7 +1792,7 @@ export default function EditorLeftDrawer({
           <PhotoshopLayersPanel
             nodes={nodes}
             selectedElement={selectedElement}
-            onSelectElement={(el) => onSelectElement?.(el)}
+            onSelectElement={(el) => { onSelectElement?.(el); closeCompactLibrary(); }}
             onUpdateElementProps={(id, updated) => onUpdateElementProps?.(id, updated)}
             onDuplicateElement={onDuplicateElement}
             onDeleteElement={onDeleteElement}
@@ -2854,7 +2868,7 @@ export default function EditorLeftDrawer({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={onRemoveBackground}
+                  onClick={() => { closeCompactLibrary(); onRemoveBackground?.(); }}
                   disabled={isRemovingBackground}
                   className="w-full py-2 px-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                   title="Tự động nhận diện và xóa nền bảo vệ nhân vật"
@@ -2873,7 +2887,7 @@ export default function EditorLeftDrawer({
                 </button>
                 <button
                   type="button"
-                  onClick={onOpenManualCutout}
+                  onClick={() => { closeCompactLibrary(); onOpenManualCutout?.(); }}
                   className="w-full py-2 px-2.5 rounded-xl bg-white hover:bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 transition-all active:scale-95 cursor-pointer"
                   title="Chỉnh sửa cọ tẩy và khôi phục nhân vật thủ công"
                 >
@@ -3654,7 +3668,7 @@ export default function EditorLeftDrawer({
             cinematicFx={card?.cinematicFx}
             onChangeEnvelopeTheme={onChangeEnvelopeTheme}
             onChangeCinematicFx={onChangeCinematicFx}
-            onPreviewEnvelope={onPreviewEnvelope}
+            onPreviewEnvelope={() => { closeCompactLibrary(); onPreviewEnvelope?.(); }}
           />
         )}
 
@@ -3795,6 +3809,6 @@ export default function EditorLeftDrawer({
         </div>
       </div>
     )}
-  </>
+  </EditorLibrarySurface>
   );
 }

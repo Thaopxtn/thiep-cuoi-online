@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef } from "react";
+import { getEditorLayers, getEditorNodeType, getEditorNumber } from "@/lib/editorDocument";
 import {
   Plus,
   Trash2,
@@ -164,29 +165,25 @@ export default function EditorCanvas({
   const rootNode = nodes["ROOT"] || {};
   const rootProps = rootNode.props || {};
 
-  const canvasWidth = rootProps.width || 500;
+  const canvasWidth = Math.max(1, getEditorNumber(rootProps.width, 500));
 
   // Extract all child node entries in proper z-order
-  const childNodes = Object.entries(nodes)
-    .filter(([id]) => id !== "ROOT")
-    .map(([id, node]) => ({
+  const childNodes = getEditorLayers(nodes).map(({ id, node, zIndex }) => ({
       id,
-      type: node.type?.resolvedName || "Widget",
+      type: getEditorNodeType(node),
       props: node.props || {},
-      zIndex: node.props?.zIndex || 1,
-    }))
-    .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+      zIndex,
+    }));
 
   // Tự động tính toán chiều cao canvas an toàn dựa trên phần tử ở đáy thấp nhất
   const maxChildBottom = childNodes.reduce((max, child) => {
-    const top = Number(child.props?.top ?? 0);
-    const rawH = child.props?.height;
-    const height = typeof rawH === "number" ? rawH : parseFloat(rawH) || 120;
+    const top = getEditorNumber(child.props?.top, 0);
+    const height = getEditorNumber(child.props?.height, 120);
     return Math.max(max, top + height);
   }, 0);
 
   const canvasHeight = Math.max(
-    Number(rootProps.height || 0),
+    getEditorNumber(rootProps.height, 0),
     maxChildBottom + 160,
     1400
   );
@@ -635,9 +632,11 @@ export default function EditorCanvas({
     elementId: string;
   } | null>(null);
 
+  const mouseSelectionRef = useRef<string | null>(null);
   const handleMouseDownElement = (e: React.MouseEvent, id: string, props: any, type: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
+    mouseSelectionRef.current = id;
 
     const isMultiModifier = e.shiftKey || e.ctrlKey || e.metaKey;
     if (isMultiModifier) {
@@ -655,7 +654,7 @@ export default function EditorCanvas({
     onSelectElements?.([{ id, type, props }]);
 
     // Không cho phép kéo di chuyển nếu phần tử bị khóa (mặc định các họa tiết bị khóa, trừ khi đã mở khóa)
-    if (isElementLocked(id, props, nodes[id])) {
+    if (isElementLocked(id, nodes[id])) {
       return;
     }
 
@@ -1281,9 +1280,10 @@ export default function EditorCanvas({
   };
 
   return (
+    <section className="studio-workspace" aria-label="Không gian thiết kế">
     <div
       id="canvas-main-scroll-area"
-      className="flex-1 h-full overflow-y-auto overflow-x-hidden relative flex flex-col items-center p-1 sm:p-8 pb-32 sm:pb-48 select-none bg-[#dedfe2] touch-pan-y"
+      className="studio-canvas-scroll select-none"
       onClick={(e) => {
         if (e.target === e.currentTarget) {
           onSelectElement(null);
@@ -1298,9 +1298,15 @@ export default function EditorCanvas({
         }
       }}
     >
+      <div className="studio-document-label" aria-label={`Khổ thiệp ${canvasWidth} pixel`}>
+        <FileText className="h-4 w-4" aria-hidden="true" />
+        <span>Thiệp cưới</span>
+        <span aria-hidden="true">·</span>
+        <span>{canvasWidth} px</span>
+      </div>
       {/* ================= CANVA-STYLE TOP CONTEXTUAL FORMATTING BAR (OUTSIDE CANVAS CARD) ================= */}
-      {selectedElement && (
-        <div className="hidden sm:block sticky top-2 z-50 mb-3 shrink-0 pointer-events-auto overflow-visible">
+        <div className="hidden sm:flex h-14 w-full min-w-0 sticky top-0 z-40 mb-3 shrink-0 items-center pointer-events-auto">
+          {selectedElement ? (
           <EditorTopContextualBar
             selectedElement={selectedElement}
             onUpdateProps={onUpdateElementProps}
@@ -1311,8 +1317,10 @@ export default function EditorCanvas({
             onRemoveBackground={onRemoveBackground}
             onOpenManualCutout={onOpenManualCutout}
           />
+          ) : (
+            <p className="text-xs text-[var(--studio-muted)]">Chọn đối tượng trên thiệp để định dạng</p>
+          )}
         </div>
-      )}
 
       {/* ================= MOBILE-SPECIFIC QUICK ACTION BAR (< sm) ================= */}
       <div className="sm:hidden sticky top-1.5 z-40 mb-2.5 px-2 flex items-center justify-center gap-1.5 overflow-x-auto max-w-full no-scrollbar select-none pointer-events-auto">
@@ -1494,13 +1502,13 @@ export default function EditorCanvas({
         {childNodes.map((child) => {
           const { id, type, props } = child;
 
-          const top = props.top ?? 0;
-          const left = props.left ?? 0;
-          const width = props.width ?? 100;
-          const height = props.height ?? 100;
-          const rotation = props.rotation ?? 0;
-          const opacity = props.opacity ?? 1;
-          const zIndex = props.zIndex ?? 1;
+          const top = getEditorNumber(props.top, 0);
+          const left = getEditorNumber(props.left, 0);
+          const width = getEditorNumber(props.width, 100);
+          const height = props.height === "auto" ? "auto" : getEditorNumber(props.height, 100);
+          const rotation = getEditorNumber(props.rotation, 0);
+          const opacity = getEditorNumber(props.opacity, 1);
+          const zIndex = child.zIndex;
 
           // Continuous animation class
           let animClass = "";
@@ -1568,6 +1576,12 @@ export default function EditorCanvas({
               }}
               onClick={(e) => {
                 e.stopPropagation();
+                // Mousedown already selected/toggled this pointer gesture. A second
+                // toggle would cancel Shift-click; a second single select loses a group.
+                if (e.detail > 0 && mouseSelectionRef.current === id) {
+                  mouseSelectionRef.current = null;
+                  return;
+                }
                 const isMultiModifier = e.shiftKey || e.ctrlKey || e.metaKey;
                 if (isMultiModifier) {
                   onToggleSelectElement?.({ id, type, props });
@@ -1607,7 +1621,7 @@ export default function EditorCanvas({
                 top: `${top}px`,
                 left: `${left}px`,
                 width: `${width}px`,
-                height: `${height}px`,
+                height: height === "auto" ? "auto" : `${height}px`,
                 transform: `rotate(${rotation}deg)`,
                 opacity: opacity,
                 zIndex: zIndex,
@@ -2938,7 +2952,7 @@ export default function EditorCanvas({
         {/* ================= THƯỚC DỜI BỐ CỤC / CO DÃN BẢNG VẼ TẠI VỊ TRÍ NÀY ================= */}
         {activeBottomY !== null && (
           <div
-            className="absolute left-0 right-0 z-40 pointer-events-auto flex flex-col items-center select-none group"
+            className="absolute left-0 right-0 z-40 pointer-events-none flex flex-col items-center select-none group"
             style={{ top: `${activeBottomY + 40}px` }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2947,26 +2961,29 @@ export default function EditorCanvas({
 
             {/* Collapsed Compact State: Sleek, non-intrusive tag */}
             {!isStretcherExpanded && !stretchingState ? (
-              <div
-                className="mt-1 flex items-center gap-2 bg-white/95 hover:bg-white backdrop-blur-md px-3 py-1 rounded-full shadow-sm border border-indigo-200 text-[11px] font-semibold text-indigo-700 hover:text-indigo-900 transition-all cursor-pointer opacity-80 hover:opacity-100 hover:shadow-md"
-                onClick={() => setIsStretcherExpanded(true)}
-                title="Bấm để mở công cụ dời khoảng cách các khối phía dưới"
-              >
-                <MoveVertical className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Dời bố cục phía dưới</span>
-                <div
+              <div className="mr-2 mt-1 flex self-end gap-1 pointer-events-auto">
+                <button
+                  type="button"
+                  className="studio-icon-button border border-[var(--studio-border)] bg-[var(--studio-surface)] text-[var(--studio-accent)] shadow-sm"
+                  onClick={() => setIsStretcherExpanded(true)}
+                  title="Bấm để mở công cụ dời khoảng cách các khối phía dưới"
+                  aria-label="Dời bố cục phía dưới"
+                >
+                  <MoveVertical className="h-4 w-4" aria-hidden="true" />
+                </button>
+                <button
+                  type="button"
                   onMouseDown={(e) => handleStartStretchDrag(e, activeBottomY)}
-                  className="px-2 py-0.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold flex items-center gap-1 cursor-ns-resize shadow-xs active:scale-95 select-none"
+                  className="studio-icon-button border border-[var(--studio-border)] bg-[var(--studio-surface)] text-[var(--studio-accent)] shadow-sm cursor-ns-resize"
                   title="Giữ chuột và kéo lên/xuống để co dãn khoảng cách tự do"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <GripHorizontal className="w-3 h-3" />
-                  <span>Kéo dời</span>
-                </div>
+                  <GripHorizontal className="h-4 w-4" aria-hidden="true" />
+                </button>
               </div>
             ) : (
               /* Expanded Full Controls */
-              <div className="mt-1 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full shadow-lg border border-indigo-200 text-xs font-semibold text-gray-800 transition-all hover:shadow-xl hover:border-indigo-400 animate-fade-in">
+              <div className="pointer-events-auto mt-1 flex items-center gap-1.5 bg-white/95 backdrop-blur-md px-3 py-1 rounded-full shadow-lg border border-indigo-200 text-xs font-semibold text-gray-800 transition-all hover:shadow-xl hover:border-indigo-400 animate-fade-in">
                 <span className="flex items-center gap-1 text-[11px] font-bold text-indigo-800">
                   <MoveVertical className="w-3.5 h-3.5 text-indigo-600" />
                   <span>Dời bố cục phía dưới:</span>
@@ -3075,7 +3092,9 @@ export default function EditorCanvas({
         </div>
       </div>
 
-      {/* ================= CANVA BOTTOM CONTROL BAR ================= */}
+    </div>
+
+      {/* View controls stay within the workspace rather than covering the artboard. */}
       <EditorBottomBar
         zoomLevel={zoomLevel}
         onZoomIn={onZoomIn}
@@ -3455,6 +3474,6 @@ export default function EditorCanvas({
           </div>
         </div>
       )}
-    </div>
+    </section>
   );
 }

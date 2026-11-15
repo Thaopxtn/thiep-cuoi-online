@@ -211,7 +211,8 @@ export default function EditorTopContextualBar({
   return (
     <div
       onClick={(e) => e.stopPropagation()}
-      className="relative bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-gray-200/90 flex items-center px-2.5 py-1.5 gap-1.5 z-50 select-none max-w-[calc(100vw-16px)] sm:max-w-none overflow-x-auto scrollbar-none touch-pan-x animate-fade-in transition-all text-xs"
+      aria-label="Định dạng đối tượng đang chọn"
+      className="relative w-full min-w-0 bg-[var(--studio-surface)] rounded-lg border border-[var(--studio-border)] flex items-center px-2.5 py-1.5 gap-1.5 z-40 select-none max-w-full overflow-x-auto scrollbar-none touch-pan-x text-xs"
     >
       {/* 1. Element Type Badge */}
       <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-100 text-slate-800 text-[11px] font-bold shrink-0">

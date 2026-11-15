@@ -13,6 +13,9 @@ test.beforeEach(async ({ page }) => {
       : route.abort();
   });
   await page.goto("/", { waitUntil: "domcontentloaded" });
+  // CSS may arrive after DOMContentLoaded on a cold production launch. Wait for
+  // responsive navigation to expose one login trigger before using strict locators.
+  await expect(page.locator("header").getByRole("button", { name: "Đăng nhập", exact: true })).toHaveCount(1);
 });
 
 test("login dialog contains keyboard focus and restores its trigger on Escape", async ({ page }) => {

@@ -16,6 +16,8 @@
 - Đọc có phân quyền phải dùng dữ liệu máy chủ đã xác nhận. Public DTO chỉ dành cho khách xem; không ghi ngược lên bản thiết kế riêng của chủ thiệp.
 - Chỉ báo lưu, xóa, xuất bản hoặc thanh toán thành công sau phản hồi xác nhận. Lỗi HTTP, timeout và lỗi đọc JSON cần được xử lý có chủ đích.
 - Giữ đúng `false`, `0`, `""` và `[]`. Chỉ dùng giá trị mặc định khi trường thực sự thiếu; ưu tiên `??` khi giá trị falsy hợp lệ.
+- Lõi node/layer dùng hợp đồng `src/lib/editorDocument.ts`; lệnh thêm/xóa/nhân bản/di chuyển/căn chỉnh dùng `editorCommands.ts`. Một lệnh nhóm tạo một bước history. Selection lưu ID, đọc props từ tài liệu mới nhất; không giữ bản sao props làm nguồn quyết định vị trí. Cả editor và viewer dùng chung thứ tự/visibility và chuyển số hữu hạn, giữ layer phẳng cũ ngoài `ROOT.nodes`.
+- Không đổi định dạng JSON đang lưu chỉ để ép theo model mới. Khi thêm/xóa/nhân bản phải duy trì parent/child/linkedNodes, giữ metadata chưa biết, không ghi đè ID có sẵn; node gốc `ROOT` không được xóa hoặc nhân bản. Transform tôn trọng khóa vị trí. Gộp toàn bộ metadata thiệp và gesture history cần được kiểm chứng riêng trước khi coi là hoàn thành.
 - Tách nội dung thiệp khỏi owner/VIP/lượt xem và dữ liệu thanh toán. Ghi nội dung/VIP qua RPC nguyên tử hiện có; không quay về ghi cả snapshot khi thiếu migration.
 - Không dùng cache cũ để quyết định quyền. Service worker chỉ lưu tài nguyên tĩnh cùng origin được cho phép; không lưu HTML, API, RSC hoặc trang riêng tư.
 - Metadata, canonical URL, robots và sitemap lấy origin từ `getSiteUrl()` trong `src/lib/siteConfig.ts`. Biến `NEXT_PUBLIC_SITE_URL` là origin HTTP(S), không có path/query/thông tin đăng nhập. URL nguồn tham khảo bên ngoài vẫn được giữ riêng.

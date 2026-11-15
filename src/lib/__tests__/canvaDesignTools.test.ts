@@ -163,43 +163,54 @@ describe("Bộ công cụ thiết kế giống Canva & Tối ưu trải nghiệm
     expect(content).toContain("renderIntroMockup");
   });
 
-  it("10. Giao diện Mobile tối ưu toàn diện: Bottom Rail, Bottom Sheet Drawer, Auto-Fit Zoom và Touch Gestures", () => {
-    // 1. Header có menu di động MoreVertical và gom nhóm nút phụ
-    const headerFile = path.resolve("src/components/editor/EditorHeader.tsx");
-    const headerContent = fs.readFileSync(headerFile, "utf8");
-    expect(headerContent).toContain("MoreVertical");
-    expect(headerContent).toContain("isMobileMenuOpen");
+  it("10. Studio giữ hợp đồng điều hướng, trạng thái lưu và điều khiển viewport trên mobile", async () => {
+    const { createElement } = await import("react");
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { default: Header } = await import("../../components/editor/EditorHeader");
+    const { default: Rail } = await import("../../components/editor/EditorLeftRail");
+    const { default: BottomBar } = await import("../../components/editor/EditorBottomBar");
+    const noop = () => {};
 
-    // 2. Left Rail hỗ trợ thanh điều hướng đáy di động (Bottom Navigation Bar)
-    const railFile = path.resolve("src/components/editor/EditorLeftRail.tsx");
-    const railContent = fs.readFileSync(railFile, "utf8");
-    expect(railContent).toContain("flex-row");
-    expect(railContent).toContain("overflow-x-auto");
-    expect(railContent).toContain("touch-manipulation");
+    // Render public state contracts; these checks do not freeze Tailwind classes or offsets.
+    const header = renderToStaticMarkup(createElement(Header, {
+      templateName: "Thiệp QA", saveStatus: "error", onRetrySave: noop,
+      onPreview: noop, onPublish: noop, onOpenShortcuts: noop,
+    }));
+    expect(header).toContain('aria-label="Tùy chọn khác"');
+    expect(header).toContain('aria-expanded="false"');
+    expect(header).toContain('role="status"');
+    expect(header).toContain("Lưu thất bại");
+    expect(header).toContain("Thử lại");
+    expect(header).not.toContain("Đã lưu trên máy");
 
-    // 3. Left Drawer hỗ trợ dạng Bottom Sheet lướt từ đáy màn hình di động
-    const drawerFile = path.resolve("src/components/editor/EditorLeftDrawer.tsx");
-    const drawerContent = fs.readFileSync(drawerFile, "utf8");
-    expect(drawerContent).toContain("fixed inset-x-0 bottom-0");
-    expect(drawerContent).toContain("rounded-t-3xl");
+    const railProps = { activeTab: "image" as const, onSelectTab: noop, onToggleDrawer: noop };
+    const openRail = renderToStaticMarkup(createElement(Rail, { ...railProps, isDrawerOpen: true }));
+    const closedRail = renderToStaticMarkup(createElement(Rail, { ...railProps, isDrawerOpen: false }));
+    expect(openRail).toContain('aria-label="Công cụ thiết kế trên điện thoại"');
+    expect(openRail).toContain("Ảnh cưới");
+    expect(openRail).toContain("Thêm...");
+    expect(openRail.match(/aria-pressed="true"/g)).toHaveLength(2); // Active image tool in both responsive surfaces.
+    expect(closedRail).not.toContain('aria-pressed="true"');
 
-    // 4. Canvas hỗ trợ cử chỉ cảm ứng (Touch) và tránh đè lên thanh điều hướng đáy
-    const canvasFile = path.resolve("src/components/editor/EditorCanvas.tsx");
+    const bottomBar = renderToStaticMarkup(createElement(BottomBar, {
+      zoomLevel: 0.85, onZoomIn: noop, onZoomOut: noop, onResetZoom: noop,
+      onSetZoom: noop, onFitToScreen: noop, isGridVisible: true,
+      onToggleGrid: noop, isSnappingEnabled: true, onToggleSnapping: noop,
+      onOpenPreview: noop, onOpenShortcuts: noop,
+    }));
+    expect(bottomBar).toContain('aria-label="Điều khiển không gian thiết kế"');
+    expect(bottomBar).toContain('aria-label="Tỉ lệ thu phóng"');
+    expect(bottomBar).toContain('aria-valuetext="85%"');
+    expect(bottomBar).toContain('aria-label="Căn vừa màn hình"');
+
+    // The mobile library must use shared native modality; browser QA checks focus and Escape.
+    const drawerContent = fs.readFileSync(path.resolve("src/components/editor/EditorLeftDrawer.tsx"), "utf8");
+    expect(drawerContent).toContain('<Dialog isOpen onClose={onClose} labelledBy="studio-library-heading"');
+    expect(drawerContent).toContain('id="studio-library-heading"');
+    expect(drawerContent).toContain("<EditorLibrarySurface onClose={onClose}>");
     const canvasContent = fs.readFileSync(canvasFile, "utf8");
+    expect(canvasContent).toContain("<EditorBottomBar");
     expect(canvasContent).toContain("onTouchStart");
-    expect(canvasContent).toContain("bottom-16 sm:bottom-5");
-    expect(canvasContent).toContain("touch-pan-y");
-
-    // 5. Thanh công cụ đáy EditorBottomBar cách lề đáy tránh đè thanh điều hướng
-    const bottomBarFile = path.resolve("src/components/editor/EditorBottomBar.tsx");
-    const bottomBarContent = fs.readFileSync(bottomBarFile, "utf8");
-    expect(bottomBarContent).toContain("bottom-16 sm:bottom-4");
-
-    // 6. Trang thiết kế tự động tính toán tỷ lệ Zoom tối ưu cho chiều rộng điện thoại
-    const pageFile = path.resolve("src/app/design-template/[id]/page.tsx");
-    const pageContent = fs.readFileSync(pageFile, "utf8");
-    expect(pageContent).toContain("window.innerWidth < 768");
-    expect(pageContent).toContain("(window.innerWidth - 24) / 500");
   });
 
   it("11. Module Presets Catalog & Canvas: Tất cả các mẫu khối Hộp mừng cưới (Banking) đều có styleVariant khớp 100% với Mockup xem trước", () => {
